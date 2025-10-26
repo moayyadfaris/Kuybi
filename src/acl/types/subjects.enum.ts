@@ -1,0 +1,38 @@
+/**
+ * Available subjects for authorization
+ * These subjects represent resources in the system
+ */
+export enum Subject {
+  /** All subjects - used for super admin */
+  All = 'all',
+
+  /** User management */
+  User = 'User',
+
+  /** Story management */
+  Story = 'Story',
+
+  /** Attachment/file management */
+  Attachment = 'Attachment',
+
+  /** Category management */
+  Category = 'Category',
+
+  /** Tag management */
+  Tag = 'Tag',
+
+  /** Session management */
+  Session = 'Session',
+
+  /** Role management (ACL) */
+  Role = 'Role',
+
+  /** Permission management (ACL) */
+  Permission = 'Permission',
+
+  /** Country data */
+  Country = 'Country',
+
+  /** Runtime settings */
+  Setting = 'Setting',
+}

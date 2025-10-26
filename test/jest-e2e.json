@@ -1,0 +1,18 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../",
+  "testRegex": ".*\\.integration\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "collectCoverageFrom": ["src/**/*.(t|j)s"],
+  "coverageDirectory": "./coverage",
+  "testEnvironment": "node",
+  "globalSetup": "<rootDir>/test/setup.ts",
+  "globalTeardown": "<rootDir>/test/teardown.ts",
+  "setupFilesAfterEnv": ["<rootDir>/test/jest-setup.ts"],
+  "testTimeout": 30000,
+  "moduleNameMapper": {
+    "^ioredis$": "ioredis-mock"
+  }
+}
