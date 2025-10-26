@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { UsersModule } from '../users/users.module'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import type { StringValue } from 'ms'
 import { Session } from './entities/session.entity'
 import { AuthController } from './auth.controller'
 import { SessionsController } from './sessions.controller'
@@ -23,7 +24,7 @@ import { SessionRepository } from '../database/repositories/session.repository'
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('auth.jwtSecret'),
-        signOptions: { expiresIn: configService.get<string>('auth.jwtAccessExpiresIn') }
+        signOptions: { expiresIn: configService.get<string>('auth.jwtAccessExpiresIn') as StringValue }
       })
     })
   ],

@@ -52,7 +52,11 @@ export class AttachmentResponseDto {
   @ApiPropertyOptional({ description: 'Thumbnail path if available' })
   thumbnailPath?: string
 
-  @ApiPropertyOptional({ description: 'Additional metadata', type: 'object' })
+  @ApiPropertyOptional({ 
+    description: 'Additional metadata', 
+    type: 'object',
+    additionalProperties: true 
+  })
   metadata?: Record<string, unknown>
 
   @ApiProperty({ description: 'File version number', example: 1 })

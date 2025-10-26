@@ -22,8 +22,9 @@ export class CreatePermissionDto {
 
   @ApiPropertyOptional({
     description: 'Conditions for the permission (e.g., ownership check)',
-    example: { userId: '${userId}' },
+    example: { userId: '{{userId}}' },
     type: 'object',
+    additionalProperties: true,
   })
   @IsOptional()
   @IsObject()

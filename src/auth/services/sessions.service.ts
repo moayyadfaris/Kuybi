@@ -90,7 +90,9 @@ export class SessionsService {
         'User exceeded concurrent session limit'
       )
       // Revoke oldest session
-      const sessions = await this.sessionRepository.findActiveByUserId(userId)
+      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map((session) =>
+        this.normalizeSessionDates(session),
+      )
       if (sessions.length > 0) {
         const oldest = sessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0]
         await this.sessionRepository.revokeSession(oldest.id, 'concurrent_limit_exceeded')
@@ -270,7 +272,8 @@ export class SessionsService {
    * @returns Promise<Session[]>
    */
   async getActiveSessions(userId: string, includeInactive = false): Promise<Session[]> {
-    return this.sessionRepository.findByUserId(userId, includeInactive)
+    const sessions = await this.sessionRepository.findByUserId(userId, includeInactive)
+    return sessions.map((session) => this.normalizeSessionDates(session))
   }
 
   /**
@@ -315,7 +318,9 @@ export class SessionsService {
     const activeCount = await this.sessionRepository.getActiveSessionCount(userId)
 
     if (activeCount > this.maxConcurrentSessions) {
-      const sessions = await this.sessionRepository.findActiveByUserId(userId)
+      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map((session) =>
+        this.normalizeSessionDates(session),
+      )
       const sortedSessions = sessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
 
       const toRevoke = sortedSessions.slice(0, activeCount - this.maxConcurrentSessions)
@@ -344,6 +349,26 @@ export class SessionsService {
    */
   async findSuspiciousSessions(): Promise<Session[]> {
     return this.sessionRepository.findSuspiciousSessions()
+  }
+
+  private normalizeSessionDates(session: Session): Session {
+    const ensureDate = (value?: Date | string | number | null): Date => {
+      if (value instanceof Date) return value
+      if (typeof value === 'string' || typeof value === 'number') {
+        const parsed = new Date(value)
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed
+        }
+      }
+      return new Date(0)
+    }
+
+    session.createdAt = ensureDate(session.createdAt)
+    session.updatedAt = ensureDate(session.updatedAt)
+    session.lastActivityAt = ensureDate(session.lastActivityAt)
+    session.expiresAt = ensureDate(session.expiresAt)
+    session.deletedAt = session.deletedAt ? ensureDate(session.deletedAt) : undefined
+    return session
   }
 
   /**

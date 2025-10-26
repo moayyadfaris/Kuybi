@@ -178,7 +178,7 @@ export class StoriesService {
         'Story created successfully',
       )
 
-      const finalStory = await this.findOne(story.id, userId)
+      const finalStory = await this.findOne(story.id, userId, { bypassCache: true })
       requestLogger.info({ storyId: story.id, userId }, 'Story creation completed successfully')
       return finalStory
     } catch (error) {
@@ -217,10 +217,10 @@ export class StoriesService {
   /**
    * Find story by ID
    */
-  async findOne(id: number, userId?: string): Promise<Story> {
+  async findOne(id: number, userId?: string, options?: { bypassCache?: boolean }): Promise<Story> {
     this.logger.debug({ action: 'find_story', storyId: id, userId }, 'Finding story by ID')
 
-    const story = await this.storyRepository.findById(id)
+    const story = await this.storyRepository.findById(id, options)
 
     if (!story || story.deletedAt) {
       throw new NotFoundException(`Story with ID ${id} not found`)

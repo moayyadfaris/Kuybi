@@ -20,9 +20,42 @@ import { TestRedis } from '../../helpers/test-redis';
 import { UserFactory } from '../../factories/user.factory';
 import { testConfig } from '../../test.config';
 import { ConfigModule } from '@nestjs/config';
-import { CacheConfigModule } from '../../../src/cache/cache.module';
 import { CacheService } from '../../../src/cache/services/cache.service';
 import { LoggerModule } from 'nestjs-pino';
+
+const createInMemoryCacheService = () => {
+  const store = new Map<string, any>();
+  return {
+    get: async (key: string) => store.get(key),
+    set: async (key: string, value: any) => {
+      store.set(key, value);
+    },
+    del: async (key: string) => {
+      store.delete(key);
+    },
+    delPattern: async (pattern: string) => {
+      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+      for (const key of store.keys()) {
+        if (regex.test(key)) {
+          store.delete(key);
+        }
+      }
+    },
+    reset: async () => {
+      store.clear();
+    },
+    wrap: async (key: string, fn: () => Promise<any>) => {
+      if (store.has(key)) {
+        return store.get(key);
+      }
+      const value = await fn();
+      store.set(key, value);
+      return value;
+    },
+    isHealthy: async () => true,
+    buildKey: (...parts: (string | number)[]) => parts.join(':'),
+  };
+};
 
 const TABLES_TO_TRUNCATE = [
   'sessions',
@@ -39,13 +72,14 @@ describe('Auth Integration Tests', () => {
   let testUser: User;
   const TEST_PASSWORD = 'Password123!';
   let testCounter = 0;
+  let cacheStub: ReturnType<typeof createInMemoryCacheService>;
 
   beforeAll(async () => {
     // Create Redis connection
     await TestRedis.createConnection();
 
     // Create test module
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+    const moduleBuilder = Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
@@ -67,11 +101,16 @@ describe('Auth Integration Tests', () => {
           synchronize: true,
           logging: false,
         }),
-        CacheConfigModule,
         AuthModule,
         UsersModule,
       ],
-    }).compile();
+    });
+
+    cacheStub = createInMemoryCacheService();
+    const moduleFixture = await moduleBuilder
+      .overrideProvider(CacheService)
+      .useValue(cacheStub)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
@@ -94,16 +133,7 @@ describe('Auth Integration Tests', () => {
     
     // Clear cache before each test (ioredis-mock is a singleton, need to clear all data)
     await TestRedis.clearCache();
-    
-    // Also clear the app's cache service
-    try {
-      const cacheService = app.get(CacheService);
-      if (cacheService) {
-        await cacheService.reset();
-      }
-    } catch (error) {
-      // CacheService might not be available in some tests
-    }
+    await cacheStub.reset();
     
     // Create a test user with a unique email per test run
     const userRepository = dataSource.getRepository(User);

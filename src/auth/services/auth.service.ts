@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
+import type { StringValue } from 'ms'
 import * as bcrypt from 'bcrypt'
 import { UsersService } from '../../users/users.service'
 import { User } from '../../users/entities/user.entity'
@@ -373,7 +374,7 @@ export class AuthService {
   private async generateAccessToken(user: User) {
     const payload = { sub: user.id, email: user.email, role: user.role }
     return this.jwtService.signAsync(payload, {
-      expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn')
+      expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') as StringValue
     })
   }
 }

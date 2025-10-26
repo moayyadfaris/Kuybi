@@ -28,11 +28,45 @@ import { UserFactory } from '../../factories/user.factory';
 import { StoryFactory } from '../../factories/story.factory';
 import { testConfig } from '../../test.config';
 import { ConfigModule } from '@nestjs/config';
-import { CacheModule } from '@nestjs/cache-manager';
 import { LoggerModule } from 'nestjs-pino';
 import { LoggingModule } from '../../../src/logging/logging.module';
 import { AclModule } from '../../../src/acl/acl.module';
 import { AbilityGuard } from '../../../src/acl/abilities/ability.guard';
+import { CacheService } from '../../../src/cache/services/cache.service';
+
+const createInMemoryCacheService = () => {
+  const store = new Map<string, any>();
+  return {
+    get: async (key: string) => store.get(key),
+    set: async (key: string, value: any) => {
+      store.set(key, value);
+    },
+    del: async (key: string) => {
+      store.delete(key);
+    },
+    delPattern: async (pattern: string) => {
+      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+      for (const key of store.keys()) {
+        if (regex.test(key)) {
+          store.delete(key);
+        }
+      }
+    },
+    reset: async () => {
+      store.clear();
+    },
+    wrap: async (key: string, fn: () => Promise<any>) => {
+      if (store.has(key)) {
+        return store.get(key);
+      }
+      const value = await fn();
+      store.set(key, value);
+      return value;
+    },
+    isHealthy: async () => true,
+    buildKey: (...parts: (string | number)[]) => parts.join(':'),
+  };
+};
 
 const STORY_TABLES_TO_TRUNCATE = [
   'story_tags',
@@ -55,6 +89,7 @@ describe('Stories Integration Tests', () => {
   let dataSource: DataSource;
   let accessToken: string;
   let testUser: User;
+  let cacheStub: ReturnType<typeof createInMemoryCacheService>;
 
   beforeAll(async () => {
     // Create Redis connection
@@ -83,10 +118,6 @@ describe('Stories Integration Tests', () => {
           synchronize: true,
           logging: false,
         }),
-        CacheModule.register({
-          isGlobal: true,
-          ttl: 60,
-        }),
         LoggingModule,
         AclModule,
         StoriesModule,
@@ -96,8 +127,13 @@ describe('Stories Integration Tests', () => {
       ],
     });
 
-    moduleBuilder.overrideGuard(AbilityGuard).useValue({ canActivate: () => true });
-    const moduleFixture: TestingModule = await moduleBuilder.compile();
+    cacheStub = createInMemoryCacheService();
+    const moduleFixture: TestingModule = await moduleBuilder
+      .overrideProvider(CacheService)
+      .useValue(cacheStub)
+      .overrideGuard(AbilityGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
@@ -115,6 +151,7 @@ describe('Stories Integration Tests', () => {
   beforeEach(async () => {
     // Clear cache before each test
     await TestRedis.clearCache();
+    await cacheStub.reset();
     
     // Clear database tables
     await dataSource.query(`TRUNCATE TABLE ${STORY_TABLES_TO_TRUNCATE.join(', ')} RESTART IDENTITY CASCADE`);
