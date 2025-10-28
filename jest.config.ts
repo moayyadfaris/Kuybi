@@ -9,7 +9,13 @@ const config: Config = {
   },
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: './coverage',
-  testEnvironment: 'node'
+  testEnvironment: 'node',
+  moduleNameMapper: {
+    '^@app/(.*)$': '<rootDir>/src/$1',
+    '^@modules/(.*)$': '<rootDir>/src/modules/$1',
+    '^@core/(.*)$': '<rootDir>/src/core/$1',
+    '^@shared/(.*)$': '<rootDir>/src/shared/$1',
+  }
 }
 
 export default config

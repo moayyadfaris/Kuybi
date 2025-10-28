@@ -14,7 +14,10 @@
     "skipLibCheck": true,
     "strictNullChecks": false,
     "paths": {
-      "@app/*": ["src/*"]
+      "@app/*": ["src/*"],
+      "@modules/*": ["src/modules/*"],
+      "@core/*": ["src/core/*"],
+      "@shared/*": ["src/shared/*"]
     }
   },
   "include": ["src/**/*"],

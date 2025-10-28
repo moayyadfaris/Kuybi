@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { Story, StoryType, StoryStatus, StoryPriority } from '../../src/stories/entities/story.entity';
+import { Story, StoryType, StoryStatus, StoryPriority } from '@modules/stories/entities/story.entity';
 
 export class StoryFactory {
   private static counter = 0;

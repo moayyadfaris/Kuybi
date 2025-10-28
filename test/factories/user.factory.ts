@@ -4,7 +4,7 @@
  */
 
 import * as bcrypt from 'bcrypt';
-import { User } from '../../src/users/entities/user.entity';
+import { User } from '@modules/users/entities/user.entity';
 
 export class UserFactory {
   private static counter = 0;
