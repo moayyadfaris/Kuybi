@@ -28,7 +28,7 @@ ADMIN_LOGIN=$(curl -s -X POST "${API_BASE}/auth/login" \
     "password": "Admin@123"
   }')
 
-ADMIN_TOKEN=$(echo $ADMIN_LOGIN | jq -r '.accessToken')
+ADMIN_TOKEN=$(echo $ADMIN_LOGIN | jq -r '.data.accessToken')
 if [ "$ADMIN_TOKEN" == "null" ]; then
   echo -e "${RED}❌ Admin login failed${NC}"
   exit 1
@@ -43,13 +43,13 @@ TEST_PASSWORD="InitialPass@123"
 REGISTER=$(curl -s -X POST "${API_BASE}/auth/register" \
   -H "Content-Type: application/json" \
   -d "{
-    \"name\": \"Force Password Test\",
+    \"firstName\": \"ForcePwd\",
+    \"lastName\": \"Test\",
     \"email\": \"$TEST_EMAIL\",
-    \"password\": \"$TEST_PASSWORD\",
-    \"confirmPassword\": \"$TEST_PASSWORD\"
+    \"password\": \"$TEST_PASSWORD\"
   }")
 
-USER_ID=$(echo $REGISTER | jq -r '.data.userId')
+USER_ID=$(echo $REGISTER | jq -r '.data.data.userId')
 if [ "$USER_ID" == "null" ]; then
   echo -e "${RED}❌ User creation failed${NC}"
   exit 1
@@ -66,7 +66,7 @@ INITIAL_LOGIN=$(curl -s -X POST "${API_BASE}/auth/login" \
     \"password\": \"$TEST_PASSWORD\"
   }")
 
-INITIAL_TOKEN=$(echo $INITIAL_LOGIN | jq -r '.accessToken')
+INITIAL_TOKEN=$(echo $INITIAL_LOGIN | jq -r '.data.accessToken')
 if [ "$INITIAL_TOKEN" == "null" ]; then
   echo -e "${RED}❌ Initial login failed${NC}"
   exit 1
@@ -84,7 +84,7 @@ RESET=$(curl -s -X POST "${API_BASE}/admin/users/reset-password" \
     \"reason\": \"Testing force password change flow\"
   }")
 
-TEMP_PASSWORD=$(echo $RESET | jq -r '.temporaryPassword')
+TEMP_PASSWORD=$(echo $RESET | jq -r '.data.temporaryPassword')
 if [ "$TEMP_PASSWORD" == "null" ]; then
   echo -e "${RED}❌ Password reset failed${NC}"
   echo $RESET | jq .
@@ -118,8 +118,8 @@ LOGIN_TEMP=$(curl -s -X POST "${API_BASE}/auth/login" \
 echo "Response:"
 echo $LOGIN_TEMP | jq .
 
-REQUIRES_CHANGE=$(echo $LOGIN_TEMP | jq -r '.requiresPasswordChange')
-TEMP_ACCESS_TOKEN=$(echo $LOGIN_TEMP | jq -r '.tempAccessToken')
+REQUIRES_CHANGE=$(echo $LOGIN_TEMP | jq -r '.data.requiresPasswordChange')
+TEMP_ACCESS_TOKEN=$(echo $LOGIN_TEMP | jq -r '.data.tempAccessToken')
 
 if [ "$REQUIRES_CHANGE" != "true" ]; then
   echo -e "${RED}❌ requiresPasswordChange should be true${NC}"
@@ -132,7 +132,7 @@ if [ "$TEMP_ACCESS_TOKEN" == "null" ] || [ "$TEMP_ACCESS_TOKEN" == "" ]; then
 fi
 
 echo -e "${GREEN}✅ Login blocked - password change required${NC}"
-echo -e "${BLUE}   Message: $(echo $LOGIN_TEMP | jq -r '.message')${NC}"
+echo -e "${BLUE}   Message: $(echo $LOGIN_TEMP | jq -r '.data.message')${NC}"
 echo -e "${BLUE}   Temp Token (15 min): ${TEMP_ACCESS_TOKEN:0:30}...${NC}\n"
 
 # User changes password
@@ -170,9 +170,9 @@ FINAL_LOGIN=$(curl -s -X POST "${API_BASE}/auth/login" \
 echo "Response:"
 echo $FINAL_LOGIN | jq .
 
-FINAL_ACCESS_TOKEN=$(echo $FINAL_LOGIN | jq -r '.accessToken')
-FINAL_REFRESH_TOKEN=$(echo $FINAL_LOGIN | jq -r '.refreshToken')
-FINAL_REQUIRES_CHANGE=$(echo $FINAL_LOGIN | jq -r '.requiresPasswordChange')
+FINAL_ACCESS_TOKEN=$(echo $FINAL_LOGIN | jq -r '.data.accessToken')
+FINAL_REFRESH_TOKEN=$(echo $FINAL_LOGIN | jq -r '.data.refreshToken')
+FINAL_REQUIRES_CHANGE=$(echo $FINAL_LOGIN | jq -r '.data.requiresPasswordChange')
 
 if [ "$FINAL_ACCESS_TOKEN" == "null" ] || [ "$FINAL_ACCESS_TOKEN" == "" ]; then
   echo -e "${RED}❌ Final login failed - no access token${NC}"
@@ -198,7 +198,7 @@ echo -e "${YELLOW}Step 9: Verify Access to Protected Endpoints${NC}"
 ME=$(curl -s -X GET "${API_BASE}/auth/me" \
   -H "Authorization: Bearer $FINAL_ACCESS_TOKEN")
 
-USER_EMAIL=$(echo $ME | jq -r '.email')
+USER_EMAIL=$(echo $ME | jq -r '.data.email')
 if [ "$USER_EMAIL" == "$TEST_EMAIL" ]; then
   echo -e "${GREEN}✅ User can access protected endpoints${NC}\n"
 else

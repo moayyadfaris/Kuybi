@@ -25,9 +25,9 @@ ADMIN_LOGIN=$(curl -s -X POST "${API_BASE}/auth/login" \
     "password": "Admin@123"
   }')
 
-ADMIN_TOKEN=$(echo $ADMIN_LOGIN | jq -r '.accessToken')
+ADMIN_TOKEN=$(echo $ADMIN_LOGIN | jq -r '.data.accessToken')
 
-if [ "$ADMIN_TOKEN" == "null" ]; then
+if [ "$ADMIN_TOKEN" == "null" ] || [ -z "$ADMIN_TOKEN" ]; then
   echo -e "${RED}❌ Admin login failed${NC}"
   echo $ADMIN_LOGIN | jq .
   exit 1
@@ -44,13 +44,13 @@ TEST_PASSWORD="TestUser@123"
 REGISTER_RESPONSE=$(curl -s -X POST "${API_BASE}/auth/register" \
   -H "Content-Type: application/json" \
   -d "{
-    \"name\": \"Admin Test User\",
+    \"firstName\": \"Admin\",
+    \"lastName\": \"TestUser\",
     \"email\": \"$TEST_EMAIL\",
-    \"password\": \"$TEST_PASSWORD\",
-    \"confirmPassword\": \"$TEST_PASSWORD\"
+    \"password\": \"$TEST_PASSWORD\"
   }")
 
-USER_ID=$(echo $REGISTER_RESPONSE | jq -r '.user.id')
+USER_ID=$(echo $REGISTER_RESPONSE | jq -r '.data.data.userId')
 
 if [ "$USER_ID" == "null" ]; then
   echo -e "${RED}❌ User registration failed${NC}"
@@ -71,7 +71,7 @@ USER_LOGIN=$(curl -s -X POST "${API_BASE}/auth/login" \
     \"password\": \"$TEST_PASSWORD\"
   }")
 
-USER_TOKEN=$(echo $USER_LOGIN | jq -r '.accessToken')
+USER_TOKEN=$(echo $USER_LOGIN | jq -r '.data.accessToken')
 
 if [ "$USER_TOKEN" == "null" ]; then
   echo -e "${RED}❌ User login failed${NC}"
@@ -93,7 +93,7 @@ RESET_RESPONSE=$(curl -s -X POST "${API_BASE}/admin/users/reset-password" \
     \"reason\": \"Testing system-generated password reset\"
   }")
 
-TEMP_PASSWORD=$(echo $RESET_RESPONSE | jq -r '.temporaryPassword')
+TEMP_PASSWORD=$(echo $RESET_RESPONSE | jq -r '.data.temporaryPassword')
 
 if [ "$TEMP_PASSWORD" == "null" ]; then
   echo -e "${RED}❌ Password reset failed${NC}"
@@ -130,7 +130,7 @@ TEMP_LOGIN=$(curl -s -X POST "${API_BASE}/auth/login" \
     \"password\": \"$TEMP_PASSWORD\"
   }")
 
-NEW_TOKEN=$(echo $TEMP_LOGIN | jq -r '.accessToken')
+NEW_TOKEN=$(echo $TEMP_LOGIN | jq -r '.data.accessToken')
 
 if [ "$NEW_TOKEN" == "null" ]; then
   echo -e "${RED}❌ Login with temporary password failed${NC}"
@@ -156,7 +156,7 @@ SET_RESPONSE=$(curl -s -X POST "${API_BASE}/admin/users/set-password" \
     \"sendNotification\": false
   }")
 
-RESPONSE_EMAIL=$(echo $SET_RESPONSE | jq -r '.email')
+RESPONSE_EMAIL=$(echo $SET_RESPONSE | jq -r '.data.email')
 
 if [ "$RESPONSE_EMAIL" == "null" ]; then
   echo -e "${RED}❌ Set password failed${NC}"
@@ -165,7 +165,7 @@ if [ "$RESPONSE_EMAIL" == "null" ]; then
 fi
 
 # Check that temporaryPassword is NOT in response
-TEMP_PASS_IN_RESPONSE=$(echo $SET_RESPONSE | jq -r '.temporaryPassword')
+TEMP_PASS_IN_RESPONSE=$(echo $SET_RESPONSE | jq -r '.data.temporaryPassword')
 if [ "$TEMP_PASS_IN_RESPONSE" == "null" ]; then
   echo -e "${GREEN}✅ Password set successfully (no temporaryPassword in response)${NC}"
 else
@@ -198,7 +198,7 @@ FINAL_LOGIN=$(curl -s -X POST "${API_BASE}/auth/login" \
     \"password\": \"$NEW_PASSWORD\"
   }")
 
-FINAL_TOKEN=$(echo $FINAL_LOGIN | jq -r '.accessToken')
+FINAL_TOKEN=$(echo $FINAL_LOGIN | jq -r '.data.accessToken')
 
 if [ "$FINAL_TOKEN" == "null" ]; then
   echo -e "${RED}❌ Login with admin-defined password failed${NC}"
