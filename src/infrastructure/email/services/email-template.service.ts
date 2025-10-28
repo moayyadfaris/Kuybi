@@ -114,6 +114,10 @@ export class EmailTemplateService {
           'email.supportEmail',
           'support@susano.dev',
         ),
+        securityEmail: this.configService.get<string>(
+          'email.securityEmail',
+          'security@susano.dev',
+        ),
         year: new Date().getFullYear(),
         ...context,
       };

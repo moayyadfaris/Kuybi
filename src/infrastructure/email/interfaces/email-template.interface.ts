@@ -11,6 +11,7 @@ export interface EmailTemplateContext {
   appName?: string;
   appUrl?: string;
   supportEmail?: string;
+  securityEmail?: string;
   year?: number;
 
   // User-specific
@@ -23,6 +24,8 @@ export interface EmailTemplateContext {
   expiresIn?: string;
   resetLink?: string;
   loginUrl?: string;
+  changeTime?: string;
+  ipAddress?: string;
 
   // Additional context
   [key: string]: any;
