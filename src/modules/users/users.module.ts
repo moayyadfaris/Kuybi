@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { User } from './entities/user.entity'
 import { EmailVerification } from './entities/email-verification.entity'
@@ -14,12 +14,14 @@ import { UserRole } from '../acl/entities/user-role.entity'
 import { Role } from '../acl/entities/role.entity'
 import { AclModule } from '../acl/acl.module'
 import { AuthModule } from '../auth/auth.module'
+import { EmailModule } from '@infrastructure/email'
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserRole, Role, EmailVerification]),
     AclModule,
-    AuthModule,
+    EmailModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [UserRolesController, AdminUsersController],
   providers: [

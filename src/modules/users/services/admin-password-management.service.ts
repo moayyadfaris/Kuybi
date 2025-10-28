@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -32,6 +34,7 @@ export class AdminPasswordManagementService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @Inject(forwardRef(() => SessionsService))
     private readonly sessionsService: SessionsService,
     private readonly emailQueueService: EmailQueueService,
     @InjectPinoLogger(AdminPasswordManagementService.name)

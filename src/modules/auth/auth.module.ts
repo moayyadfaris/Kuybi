@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
@@ -22,7 +22,7 @@ import { SessionRepository } from '@core/database/repositories/session.repositor
 
 @Module({
   imports: [
-    UsersModule,
+    forwardRef(() => UsersModule),
     EmailModule,
     TypeOrmModule.forFeature([Session, PasswordReset, User, EmailVerification]),
     PassportModule,
