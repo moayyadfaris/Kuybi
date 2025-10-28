@@ -5,6 +5,7 @@ import { Country } from '@modules/countries/entities/country.entity'
 import { User } from '@modules/users/entities/user.entity'
 import { EmailVerification } from '@modules/users/entities/email-verification.entity'
 import { Session } from '@modules/auth/entities/session.entity'
+import { PasswordReset } from '@modules/auth/entities/password-reset.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { Category } from '@modules/categories/entities/category.entity'
 import { Story } from '@modules/stories/entities/story.entity'
@@ -27,7 +28,7 @@ import { UserRole } from '@modules/acl/entities/user-role.entity'
           username: database.username,
           password: database.password,
           database: database.name,
-          entities: [Country, User, EmailVerification, Session, Attachment, Category, Story, Tag, Role, Permission, RolePermission, UserRole],
+          entities: [Country, User, EmailVerification, Session, PasswordReset, Attachment, Category, Story, Tag, Role, Permission, RolePermission, UserRole],
           synchronize: false,
           logging: database.logging
         }

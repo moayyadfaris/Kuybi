@@ -5,6 +5,7 @@ import { Country } from '@modules/countries/entities/country.entity'
 import { User } from '@modules/users/entities/user.entity'
 import { EmailVerification } from '@modules/users/entities/email-verification.entity'
 import { Session } from '@modules/auth/entities/session.entity'
+import { PasswordReset } from '@modules/auth/entities/password-reset.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { Category } from '@modules/categories/entities/category.entity'
 import { Story } from '@modules/stories/entities/story.entity'
@@ -30,6 +31,7 @@ export const AppDataSource = new DataSource({
     User,
     EmailVerification,
     Session,
+    PasswordReset,
     Attachment,
     Category,
     Story,

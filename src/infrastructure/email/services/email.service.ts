@@ -241,6 +241,50 @@ export class EmailService implements OnModuleInit {
   }
 
   /**
+   * Send password reset email
+   */
+  async sendPasswordResetEmail(
+    email: string,
+    userName: string,
+    resetLink: string,
+    expiresIn: string = '1 hour',
+  ): Promise<void> {
+    return this.sendTemplatedEmail({
+      to: email,
+      subject: 'Reset Your Password - Susanoo',
+      template: 'password-reset' as any,
+      context: {
+        userName,
+        userEmail: email,
+        resetLink,
+        expiresIn,
+      },
+    });
+  }
+
+  /**
+   * Send password changed confirmation email
+   */
+  async sendPasswordChangedEmail(
+    email: string,
+    userName: string,
+    changeTime: Date,
+    ipAddress?: string,
+  ): Promise<void> {
+    return this.sendTemplatedEmail({
+      to: email,
+      subject: 'Your Password Was Changed - Susanoo',
+      template: 'password-changed' as any,
+      context: {
+        userName,
+        userEmail: email,
+        changeTime: changeTime.toLocaleString(),
+        ipAddress: ipAddress || 'Unknown',
+      },
+    });
+  }
+
+  /**
    * Test email configuration
    */
   async testConnection(): Promise<boolean> {

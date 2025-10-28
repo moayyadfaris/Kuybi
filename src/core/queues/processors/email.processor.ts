@@ -10,6 +10,8 @@ import {
   WelcomeEmailJobData,
   VerificationEmailJobData,
   VerifiedSuccessEmailJobData,
+  PasswordResetEmailJobData,
+  PasswordChangedEmailJobData,
   CustomEmailJobData,
 } from '../jobs/email-jobs';
 
@@ -62,6 +64,14 @@ export class EmailProcessor extends WorkerHost {
 
         case EmailJobType.SEND_VERIFIED_SUCCESS:
           result = await this.processVerifiedSuccessEmail(job.data as VerifiedSuccessEmailJobData);
+          break;
+
+        case EmailJobType.SEND_PASSWORD_RESET:
+          result = await this.processPasswordResetEmail(job.data as PasswordResetEmailJobData);
+          break;
+
+        case EmailJobType.SEND_PASSWORD_CHANGED:
+          result = await this.processPasswordChangedEmail(job.data as PasswordChangedEmailJobData);
           break;
 
         case EmailJobType.SEND_CUSTOM:
@@ -136,6 +146,30 @@ export class EmailProcessor extends WorkerHost {
       data.to,
       data.userName || 'User',
       data.loginUrl,
+    );
+  }
+
+  /**
+   * Process password reset email
+   */
+  private async processPasswordResetEmail(data: PasswordResetEmailJobData): Promise<void> {
+    await this.emailService.sendPasswordResetEmail(
+      data.to,
+      data.userName || 'User',
+      data.resetLink,
+      data.expiresIn,
+    );
+  }
+
+  /**
+   * Process password changed confirmation email
+   */
+  private async processPasswordChangedEmail(data: PasswordChangedEmailJobData): Promise<void> {
+    await this.emailService.sendPasswordChangedEmail(
+      data.to,
+      data.userName || 'User',
+      data.changeTime,
+      data.ipAddress,
     );
   }
 

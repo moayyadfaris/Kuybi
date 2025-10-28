@@ -9,6 +9,8 @@ import {
   WelcomeEmailJobData,
   VerificationEmailJobData,
   VerifiedSuccessEmailJobData,
+  PasswordResetEmailJobData,
+  PasswordChangedEmailJobData,
   CustomEmailJobData,
   EmailJobOptions,
   DEFAULT_EMAIL_JOB_OPTIONS,
@@ -132,6 +134,81 @@ export class EmailQueueService {
         to,
       },
       'Verified success email queued',
+    );
+
+    return job.id;
+  }
+
+  /**
+   * Queue a password reset email
+   */
+  async sendPasswordResetEmail(data: {
+    to: string;
+    firstName: string;
+    resetLink: string;
+    resetToken: string;
+    expiresInMinutes: number;
+  }, options?: EmailJobOptions): Promise<string> {
+    const jobData: PasswordResetEmailJobData = {
+      to: data.to,
+      userName: data.firstName,
+      resetLink: data.resetLink,
+      expiresIn: `${data.expiresInMinutes} minutes`,
+    };
+
+    const job = await this.emailQueue.add(
+      EmailJobType.SEND_PASSWORD_RESET,
+      jobData,
+      {
+        ...DEFAULT_EMAIL_JOB_OPTIONS,
+        ...options,
+      },
+    );
+
+    this.logger.info(
+      {
+        jobId: job.id,
+        jobType: EmailJobType.SEND_PASSWORD_RESET,
+        to: data.to,
+      },
+      'Password reset email queued',
+    );
+
+    return job.id;
+  }
+
+  /**
+   * Queue a password changed confirmation email
+   */
+  async sendPasswordChangedEmail(data: {
+    to: string;
+    firstName: string;
+    resetTime: string;
+    resetIpAddress: string;
+  }, options?: EmailJobOptions): Promise<string> {
+    const jobData: PasswordChangedEmailJobData = {
+      to: data.to,
+      userName: data.firstName,
+      changeTime: new Date(data.resetTime),
+      ipAddress: data.resetIpAddress,
+    };
+
+    const job = await this.emailQueue.add(
+      EmailJobType.SEND_PASSWORD_CHANGED,
+      jobData,
+      {
+        ...DEFAULT_EMAIL_JOB_OPTIONS,
+        ...options,
+      },
+    );
+
+    this.logger.info(
+      {
+        jobId: job.id,
+        jobType: EmailJobType.SEND_PASSWORD_CHANGED,
+        to: data.to,
+      },
+      'Password changed email queued',
     );
 
     return job.id;

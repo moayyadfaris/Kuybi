@@ -5,12 +5,14 @@ import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import { Request } from 'express'
 import { AuthService } from './services'
 import { RegistrationService } from './services/registration.service'
+import { PasswordResetService } from './services/password-reset.service'
 import { LoginDto } from './dto/login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
 import { LogoutDto } from './dto/logout.dto'
 import { ListSessionsQueryDto } from './dto/list-sessions.query.dto'
 import { CheckAvailabilityDto } from './dto/check-availability.dto'
 import { RegisterUserDto, VerifyEmailDto, ResendVerificationDto } from './dto/register.dto'
+import { ForgotPasswordDto, ResetPasswordDto, ValidateResetTokenDto } from './dto/password-reset.dto'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 
@@ -30,6 +32,7 @@ export class AuthController {
     private readonly logger: PinoLogger,
     private readonly authService: AuthService,
     private readonly registrationService: RegistrationService,
+    private readonly passwordResetService: PasswordResetService,
     private readonly availabilityService: UserAvailabilityService,
   ) {}
 
@@ -145,6 +148,86 @@ export class AuthController {
       data: {
         message: 'Verification email sent. Please check your inbox.',
       },
+    };
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 3, ttl: 900 } }) // 3 attempts per 15 minutes
+  @ApiOperation({ summary: 'Request password reset link' })
+  @ApiOkResponse({ description: 'Password reset email sent if account exists' })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto, @Req() req: Request) {
+    const ipAddress = this.extractIp(req);
+    const userAgent = req.headers['user-agent'] as string | undefined;
+    
+    this.logger.info(
+      { email: forgotPasswordDto.email, ipAddress, action: 'forgot_password_attempt' },
+      'Password reset requested',
+    );
+
+    const result = await this.passwordResetService.requestPasswordReset(
+      forgotPasswordDto,
+      ipAddress,
+      userAgent,
+    );
+
+    this.logger.info(
+      { email: forgotPasswordDto.email, ipAddress, action: 'forgot_password_processed' },
+      'Password reset request processed',
+    );
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Post('validate-reset-token')
+  @Throttle({ default: { limit: 10, ttl: 60 } }) // 10 attempts per minute
+  @ApiOperation({ summary: 'Validate password reset token' })
+  @ApiOkResponse({ description: 'Returns token validity status' })
+  async validateResetToken(@Body() validateTokenDto: ValidateResetTokenDto, @Req() req: Request) {
+    const ipAddress = this.extractIp(req);
+    
+    this.logger.info(
+      { token: validateTokenDto.token.substring(0, 8) + '...', ipAddress, action: 'validate_reset_token_attempt' },
+      'Reset token validation attempt',
+    );
+
+    const result = await this.passwordResetService.validateResetToken(validateTokenDto);
+
+    this.logger.info(
+      { valid: result.valid, ipAddress, action: 'validate_reset_token_result' },
+      'Reset token validation completed',
+    );
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Post('reset-password')
+  @Throttle({ default: { limit: 5, ttl: 300 } }) // 5 attempts per 5 minutes
+  @ApiOperation({ summary: 'Reset password with valid token' })
+  @ApiOkResponse({ description: 'Password reset successfully' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto, @Req() req: Request) {
+    const ipAddress = this.extractIp(req);
+    
+    this.logger.info(
+      { token: resetPasswordDto.token.substring(0, 8) + '...', ipAddress, action: 'reset_password_attempt' },
+      'Password reset attempt',
+    );
+
+    const result = await this.passwordResetService.resetPassword(resetPasswordDto, ipAddress);
+
+    this.logger.info(
+      { email: result.email, ipAddress, action: 'reset_password_success' },
+      'Password reset successfully',
+    );
+
+    return {
+      success: true,
+      data: result,
     };
   }
 
