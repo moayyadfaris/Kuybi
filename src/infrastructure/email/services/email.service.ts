@@ -57,7 +57,7 @@ export class EmailService implements OnModuleInit {
         { error: error.message, host: smtpConfig.host },
         'Failed to verify SMTP connection',
       );
-      throw error;
+      //throw error;
     }
 
     // Preload templates in production

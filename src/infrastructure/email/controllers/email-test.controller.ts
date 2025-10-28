@@ -4,7 +4,7 @@ import { EmailService } from '../services/email.service';
 import { SendEmailDto } from '../dto/send-email.dto';
 
 @ApiTags('Email (Test)')
-@Controller('email-test')
+@Controller('v1/email-test')
 export class EmailTestController {
   constructor(private readonly emailService: EmailService) {}
 
