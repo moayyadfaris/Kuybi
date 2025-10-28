@@ -125,6 +125,34 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   LOG_SHIPPER_API_KEY?: string
+
+  @IsString()
+  @IsOptional()
+  EMAIL_FROM?: string
+
+  @IsString()
+  @IsOptional()
+  EMAIL_SUPPORT?: string
+
+  @IsString()
+  @IsOptional()
+  SMTP_HOST?: string
+
+  @IsInt()
+  @IsOptional()
+  SMTP_PORT?: number
+
+  @IsString()
+  @IsOptional()
+  SMTP_SECURE?: string
+
+  @IsString()
+  @IsOptional()
+  SMTP_USER?: string
+
+  @IsString()
+  @IsOptional()
+  SMTP_PASSWORD?: string
 }
 
 export function validate(config: Record<string, unknown>) {

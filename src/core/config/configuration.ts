@@ -101,6 +101,17 @@ export default () => {
       baseUrl: process.env.S3_BASE_URL || `https://${defaultBucket}.s3.amazonaws.com`,
       uploadPrefix: process.env.S3_UPLOAD_PREFIX || 'uploads'
     },
+    email: {
+      from: process.env.EMAIL_FROM || 'noreply@susano.dev',
+      supportEmail: process.env.EMAIL_SUPPORT || 'support@susano.dev',
+      smtp: {
+        host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: parseBoolean(process.env.SMTP_SECURE, false),
+        user: process.env.SMTP_USER || '',
+        password: process.env.SMTP_PASSWORD || ''
+      }
+    },
     bullBoard: {
       username: process.env.BULL_BOARD_USERNAME || 'admin',
       password: process.env.BULL_BOARD_PASSWORD || 'admin123',
