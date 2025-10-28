@@ -1,16 +1,58 @@
-# Testing Approach: Jest vs Shell Scripts
+# Testing Approach: Integration Tests vs Shell Scripts
 
 ## Executive Summary
 
-**Use Jest E2E tests for all integration testing.** Shell scripts were created as quick prototypes but are not suitable for production testing.
+**Use integration tests in `test/integration/` directory following the established patterns.** Shell scripts are only for manual debugging.
 
-## ✅ Recommended: Jest E2E Tests
+## ✅ Recommended: Jest Integration Tests
 
-### Location
-- `test/*.e2e-spec.ts`
-- Example: `test/admin-password-management.e2e-spec.ts`
+### Location & Structure
+```
+test/
+├── integration/
+│   └── auth/
+│       └── auth.integration.spec.ts    ✅ All auth tests here
+├── helpers/
+│   ├── test-database.ts                Helper for database operations
+│   ├── test-module.ts                  Helper for module creation
+│   └── test-redis.ts                   Helper for Redis operations
+├── factories/
+│   ├── user.factory.ts                 User test data factory
+│   └── story.factory.ts                Story test data factory
+└── scripts/
+    └── *.sh                            ⚠️  Manual testing only
+```
 
-### Advantages
+### Testing Patterns Used
+
+1. **Single Test File per Module**
+   - All auth-related tests in `auth.integration.spec.ts`
+   - All story-related tests in `stories.integration.spec.ts`
+
+2. **Factories for Test Data**
+   ```typescript
+   const testUser = await UserFactory.createWithHashedPassword({
+     password: TEST_PASSWORD,
+   });
+   ```
+
+3. **Shared Setup/Teardown**
+   ```typescript
+   beforeEach(async () => {
+     // Clear database tables
+     await dataSource.query(`TRUNCATE TABLE ...`);
+     // Clear cache
+     await TestRedis.clearCache();
+     // Create test data
+     testUser = await userRepository.save(...);
+   });
+   ```
+
+4. **Real Database & Redis**
+   - Uses test database (configured in `test.config.ts`)
+   - Uses ioredis-mock for Redis
+   - Truncates tables between tests
+   ```
 
 1. **Automated Testing**
    - Runs with `npm run test:e2e`
@@ -37,41 +79,43 @@
    - Identifies untested code
    - Quality metrics
 
-### Example Structure
+4. **Real Database & Redis**
+   - Uses test database (configured in `test.config.ts`)
+   - Uses ioredis-mock for Redis
+   - Truncates tables between tests
+
+### Admin Password Management Example
+
+All admin password tests are in `test/integration/auth/auth.integration.spec.ts`:
 
 ```typescript
-describe('Admin Password Management (e2e)', () => {
-  let app: INestApplication
-  let adminToken: string
+describe('Admin Password Management', () => {
+  describe('POST /api/admin/users/reset-password', () => {
+    it('should reset user password with system-generated password', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/admin/users/reset-password')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          userId: testUser.id,
+          forcePasswordChange: true,
+          reason: 'Integration test',
+        })
+        .expect(201);
 
-  beforeAll(async () => {
-    // Setup test app
-    const moduleFixture = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile()
-    
-    app = moduleFixture.createNestApplication()
-    await app.init()
-  })
+      expect(response.body).toHaveProperty('temporaryPassword');
+      expect(response.body.temporaryPassword).toHaveLength(12);
+    });
+  });
 
-  afterAll(async () => {
-    // Cleanup
-    await app.close()
-  })
-
-  it('should reset user password', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/api/admin/users/reset-password')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ userId: testUserId })
-      .expect(200)
-
-    expect(response.body.data.temporaryPassword).toBeDefined()
-  })
-})
+  describe('Force Password Change Flow', () => {
+    it('should detect force password change flag on login', async () => {
+      // Test implementation
+    });
+  });
+});
 ```
 
-## ⚠️ Not Recommended: Shell Scripts
+### Advantages
 
 ### Location
 - `test/scripts/*.sh`
@@ -127,18 +171,23 @@ Shell scripts are acceptable ONLY for:
 
 ```
 test/
-├── admin-password-management.e2e-spec.ts  ✅ Jest test (USE THIS)
-├── force-password-change.e2e-spec.ts      ✅ Jest test (USE THIS)
+├── integration/
+│   └── auth/
+│       └── auth.integration.spec.ts     ✅ Contains ALL auth tests including:
+│                                           - Login/logout tests
+│                                           - Token refresh tests
+│                                           - Admin password management tests
+│                                           - Force password change flow tests
 └── scripts/
-    ├── test-admin-password.sh             ⚠️  Shell script (for manual use only)
-    └── test-force-password-change.sh      ⚠️  Shell script (for manual use only)
+    ├── test-admin-password.sh            ⚠️  Shell script (manual use only)
+    └── test-force-password-change.sh     ⚠️  Shell script (manual use only)
 ```
 
 ### Recommended Actions
 
-1. **Primary Testing**: Always use Jest E2E tests
+1. **Primary Testing**: Use integration tests following existing patterns
    ```bash
-   npm run test:e2e
+   npm run test:integration
    ```
 
 2. **Manual Testing**: Use shell scripts only when needed
@@ -146,11 +195,11 @@ test/
    ./test/scripts/test-admin-password.sh
    ```
 
-3. **CI/CD**: Configure only Jest tests
+3. **CI/CD**: Configure integration tests
    ```yaml
    # .github/workflows/test.yml
-   - name: Run E2E tests
-     run: npm run test:e2e
+   - name: Run Integration tests
+     run: npm run test:integration
    ```
 
 4. **Future**: Consider deprecating shell scripts
@@ -160,20 +209,20 @@ test/
 
 ## Running Tests
 
-### Jest E2E Tests (Recommended)
+### Integration Tests (Recommended)
 
 ```bash
-# Run all E2E tests
-npm run test:e2e
+# Run all integration tests
+npm run test:integration
 
 # Run specific test file
-npm run test:e2e -- admin-password-management.e2e-spec.ts
+npm run test:integration -- auth.integration.spec.ts
 
-# Run with watch mode
-npm run test:e2e -- --watch
+# Run with watch mode (if configured)
+npm run test:integration -- --watch
 
 # Run with coverage
-npm run test:e2e -- --coverage
+npm run test:integration -- --coverage
 ```
 
 ### Shell Scripts (Manual Only)
@@ -189,38 +238,46 @@ npm run start:dev
 
 ## Best Practices
 
-### For Jest E2E Tests
+### For Integration Tests
 
-1. **Use unique test data**
+1. **Add tests to existing files**
    ```typescript
-   const testEmail = `test-${Date.now()}@example.com`
+   // Add to test/integration/auth/auth.integration.spec.ts
+   describe('New Auth Feature', () => {
+     it('should work correctly', async () => {
+       // Test implementation
+     });
+   });
    ```
 
-2. **Clean up after tests**
+2. **Use factories for test data**
    ```typescript
-   afterAll(async () => {
-     if (testUserId) {
-       await userRepository.delete(testUserId)
-     }
-   })
+   const testUser = await UserFactory.createWithHashedPassword({
+     email: `test${testCounter}@example.com`,
+     password: TEST_PASSWORD,
+   });
    ```
 
-3. **Test full user flows**
+3. **Follow existing cleanup patterns**
+   ```typescript
+   beforeEach(async () => {
+     // Truncate tables
+     await dataSource.query(`TRUNCATE TABLE ...`);
+     // Clear cache
+     await TestRedis.clearCache();
+     // Create test data
+   });
+   ```
+
+4. **Test full user flows**
    - Don't just test happy paths
    - Include error cases
    - Test authorization failures
 
-4. **Keep tests independent**
+5. **Keep tests independent**
    - Each test should work in isolation
+   - Use beforeEach for setup
    - Don't rely on execution order
-   - Use beforeEach/afterEach for setup
-
-5. **Use descriptive names**
-   ```typescript
-   it('should reject unauthorized password reset attempts', async () => {
-     // Clear test description
-   })
-   ```
 
 ### For Shell Scripts (If Used)
 
@@ -241,14 +298,14 @@ npm run start:dev
 
 ## Conclusion
 
-**Always prefer Jest E2E tests over shell scripts** for automated testing. Shell scripts are acceptable only for manual debugging and demonstration purposes. This ensures:
+**Always add tests to existing integration test files** following the established patterns. Shell scripts are acceptable only for manual debugging and demonstration purposes. This ensures:
 
+- Consistent test structure
 - Reliable CI/CD pipelines
 - Maintainable test suite
 - Better developer experience
 - Comprehensive test coverage
 
 For this admin password management feature:
-- ✅ **Use**: `test/admin-password-management.e2e-spec.ts`
-- ✅ **Use**: `test/force-password-change.e2e-spec.ts`
+- ✅ **Use**: `test/integration/auth/auth.integration.spec.ts` (all tests added here)
 - ⚠️  **Rarely use**: `test/scripts/test-*.sh` (manual only)
