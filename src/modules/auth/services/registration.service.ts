@@ -10,6 +10,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '../../users/entities/user.entity';
+import { EmailVerification } from '../../users/entities/email-verification.entity';
 import { RegisterUserDto } from '../dto/register.dto';
 import { EmailQueueService } from '@infrastructure/email';
 import { ConfigService } from '@nestjs/config';
@@ -27,6 +28,8 @@ export class RegistrationService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(EmailVerification)
+    private readonly emailVerificationRepository: Repository<EmailVerification>,
     private readonly emailQueueService: EmailQueueService,
     private readonly configService: ConfigService,
     @InjectPinoLogger(RegistrationService.name)
@@ -82,6 +85,20 @@ export class RegistrationService {
 
     const savedUser = await this.userRepository.save(user);
 
+    // Store verification token in database
+    const emailVerificationRecord = this.emailVerificationRepository.create({
+      userId: savedUser.id,
+      email: savedUser.email,
+      token: emailVerificationToken,
+      expiresAt: emailVerificationExpiry,
+      verified: false,
+      verifiedAt: null,
+      ipAddress: null, // Can be passed from controller if needed
+      userAgent: null,
+    });
+
+    await this.emailVerificationRepository.save(emailVerificationRecord);
+
     // Generate verification link
     const verificationLink = `${this.appUrl}/api/v1/auth/verify-email?token=${emailVerificationToken}`;
 
@@ -97,12 +114,12 @@ export class RegistrationService {
       {
         userId: savedUser.id,
         email: savedUser.email,
+        tokenId: emailVerificationRecord.id,
+        tokenExpiry: emailVerificationExpiry,
       },
-      'User registered successfully',
+      'User registered successfully, verification token stored in database',
     );
 
-    // Note: We're storing the token in a separate table or Redis in production
-    // For now, we'll return the user and handle verification separately
     return savedUser;
   }
 
@@ -110,14 +127,87 @@ export class RegistrationService {
    * Verify user email
    */
   async verifyEmail(token: string): Promise<User> {
-    // In production, validate token from database or Redis
-    // For now, we'll implement a simplified version
-    
-    this.logger.info({ token }, 'Email verification requested');
-
-    throw new BadRequestException(
-      'Email verification functionality coming soon. Tokens will be validated against database.',
+    this.logger.info(
+      { token: token.substring(0, 8) + '...' },
+      'Email verification requested',
     );
+
+    // Find verification record in database
+    const verificationRecord = await this.emailVerificationRepository.findOne({
+      where: { token },
+      relations: ['user'],
+    });
+
+    if (!verificationRecord) {
+      this.logger.warn({ token: token.substring(0, 8) + '...' }, 'Verification token not found');
+      throw new BadRequestException(
+        'Invalid verification token. Please request a new verification email.',
+      );
+    }
+
+    // Check if token is expired
+    if (verificationRecord.isExpired()) {
+      this.logger.warn(
+        {
+          tokenId: verificationRecord.id,
+          expiresAt: verificationRecord.expiresAt,
+        },
+        'Verification token expired',
+      );
+      throw new BadRequestException(
+        'Verification token has expired. Please request a new verification email.',
+      );
+    }
+
+    // Check if already verified
+    if (verificationRecord.verified) {
+      this.logger.info({ tokenId: verificationRecord.id }, 'Token already used');
+      throw new BadRequestException('Email is already verified');
+    }
+
+    const user = verificationRecord.user;
+
+    // Check if user's email is already verified (could be verified via another token)
+    if (user.isEmailVerified) {
+      this.logger.info({ userId: user.id, email: user.email }, 'Email already verified');
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Update verification record
+    verificationRecord.verified = true;
+    verificationRecord.verifiedAt = new Date();
+    await this.emailVerificationRepository.save(verificationRecord);
+
+    // Update user verification status
+    user.isEmailVerified = true;
+    user.emailVerifiedAt = new Date();
+    user.isVerified = true; // Mark user as fully verified
+
+    const updatedUser = await this.userRepository.save(user);
+
+    // Get first name for success email
+    const firstName = user.name.split(' ')[0];
+    const loginUrl = `${this.appUrl}/login`;
+
+    // Queue success email
+    await this.emailQueueService.queueVerifiedSuccessEmail(
+      user.email,
+      firstName,
+      loginUrl,
+      { priority: 1 }, // High priority
+    );
+
+    this.logger.info(
+      {
+        userId: updatedUser.id,
+        email: updatedUser.email,
+        verifiedAt: updatedUser.emailVerifiedAt,
+        tokenId: verificationRecord.id,
+      },
+      'Email verified successfully',
+    );
+
+    return updatedUser;
   }
 
   /**
@@ -136,6 +226,33 @@ export class RegistrationService {
 
     // Generate new verification token
     const emailVerificationToken = uuidv4();
+    const emailVerificationExpiry = new Date(Date.now() + this.verificationTokenExpiry);
+
+    // Invalidate any existing unverified tokens for this user
+    await this.emailVerificationRepository.update(
+      {
+        userId: user.id,
+        verified: false,
+      },
+      {
+        expiresAt: new Date(), // Expire immediately
+      },
+    );
+
+    // Create new verification record
+    const emailVerificationRecord = this.emailVerificationRepository.create({
+      userId: user.id,
+      email: user.email,
+      token: emailVerificationToken,
+      expiresAt: emailVerificationExpiry,
+      verified: false,
+      verifiedAt: null,
+      ipAddress: null,
+      userAgent: null,
+    });
+
+    await this.emailVerificationRepository.save(emailVerificationRecord);
+
     const verificationLink = `${this.appUrl}/api/v1/auth/verify-email?token=${emailVerificationToken}`;
 
     // Get first name from full name
@@ -154,8 +271,10 @@ export class RegistrationService {
       {
         userId: user.id,
         email: user.email,
+        tokenId: emailVerificationRecord.id,
+        tokenExpiry: emailVerificationExpiry,
       },
-      'Verification email resent',
+      'Verification email resent, new token stored in database',
     );
   }
 

@@ -8,6 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import type { StringValue } from 'ms'
 import { Session } from './entities/session.entity'
 import { User } from '../users/entities/user.entity'
+import { EmailVerification } from '../users/entities/email-verification.entity'
 import { AuthController } from './auth.controller'
 import { SessionsController } from './sessions.controller'
 import { CleanupStatsController } from './cleanup-stats.controller'
@@ -21,7 +22,7 @@ import { SessionRepository } from '@core/database/repositories/session.repositor
   imports: [
     UsersModule,
     EmailModule,
-    TypeOrmModule.forFeature([Session, User]),
+    TypeOrmModule.forFeature([Session, User, EmailVerification]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
