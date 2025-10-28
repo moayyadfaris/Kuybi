@@ -3,6 +3,8 @@ import { BullModule } from '@nestjs/bullmq'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { QueueName } from './jobs/types'
 import { queueConfig } from './config/queue.config'
+import { EmailProcessor } from './processors/email.processor'
+import { EmailModule } from '@infrastructure/email'
 
 /**
  * Queues Module
@@ -13,6 +15,7 @@ import { queueConfig } from './config/queue.config'
 @Module({
   imports: [
     ConfigModule,
+    EmailModule, // Import EmailModule to access EmailService
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -40,6 +43,7 @@ import { queueConfig } from './config/queue.config'
       { name: QueueName.REPORT_GENERATION, ...queueConfig.queues[QueueName.REPORT_GENERATION] },
     ),
   ],
+  providers: [EmailProcessor],
   exports: [BullModule],
 })
 export class QueuesModule {}
