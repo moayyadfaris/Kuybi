@@ -4,11 +4,13 @@ import { Throttle } from '@nestjs/throttler'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import { Request } from 'express'
 import { AuthService } from './services'
+import { RegistrationService } from './services/registration.service'
 import { LoginDto } from './dto/login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
 import { LogoutDto } from './dto/logout.dto'
 import { ListSessionsQueryDto } from './dto/list-sessions.query.dto'
 import { CheckAvailabilityDto } from './dto/check-availability.dto'
+import { RegisterUserDto, VerifyEmailDto, ResendVerificationDto } from './dto/register.dto'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 
@@ -27,6 +29,7 @@ export class AuthController {
     @InjectPinoLogger(AuthController.name)
     private readonly logger: PinoLogger,
     private readonly authService: AuthService,
+    private readonly registrationService: RegistrationService,
     private readonly availabilityService: UserAvailabilityService,
   ) {}
 
@@ -58,6 +61,91 @@ export class AuthController {
     )
 
     return result
+  }
+
+  @Post('register')
+  @Throttle({ default: { limit: 3, ttl: 3600 } }) // 3 registrations per hour
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiOkResponse({ description: 'User registered successfully, verification email sent' })
+  async register(@Body() registerDto: RegisterUserDto, @Req() req: Request) {
+    const ipAddress = this.extractIp(req);
+    
+    this.logger.info(
+      { email: registerDto.email, ipAddress, action: 'registration_attempt' },
+      'Registration attempt',
+    );
+
+    const user = await this.registrationService.register(registerDto);
+
+    this.logger.info(
+      { userId: user.id, email: user.email, ipAddress, action: 'registration_success' },
+      'Registration successful',
+    );
+
+    return {
+      success: true,
+      data: {
+        message: 'Registration successful. Please check your email to verify your account.',
+        userId: user.id,
+        email: user.email,
+        emailVerificationRequired: true,
+      },
+    };
+  }
+
+  @Post('verify-email')
+  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @ApiOperation({ summary: 'Verify user email address' })
+  @ApiOkResponse({ description: 'Email verified successfully' })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto, @Req() req: Request) {
+    const ipAddress = this.extractIp(req);
+    
+    this.logger.info(
+      { token: verifyEmailDto.token.substring(0, 8) + '...', ipAddress, action: 'email_verification_attempt' },
+      'Email verification attempt',
+    );
+
+    const user = await this.registrationService.verifyEmail(verifyEmailDto.token);
+
+    this.logger.info(
+      { userId: user.id, email: user.email, ipAddress, action: 'email_verification_success' },
+      'Email verified successfully',
+    );
+
+    return {
+      success: true,
+      data: {
+        message: 'Email verified successfully. You can now log in.',
+        email: user.email,
+      },
+    };
+  }
+
+  @Post('resend-verification')
+  @Throttle({ default: { limit: 3, ttl: 300 } }) // 3 attempts per 5 minutes
+  @ApiOperation({ summary: 'Resend email verification link' })
+  @ApiOkResponse({ description: 'Verification email sent' })
+  async resendVerification(@Body() resendDto: ResendVerificationDto, @Req() req: Request) {
+    const ipAddress = this.extractIp(req);
+    
+    this.logger.info(
+      { email: resendDto.email, ipAddress, action: 'resend_verification_attempt' },
+      'Resend verification attempt',
+    );
+
+    await this.registrationService.resendVerification(resendDto.email);
+
+    this.logger.info(
+      { email: resendDto.email, ipAddress, action: 'resend_verification_success' },
+      'Verification email resent',
+    );
+
+    return {
+      success: true,
+      data: {
+        message: 'Verification email sent. Please check your inbox.',
+      },
+    };
   }
 
   @Post('login')

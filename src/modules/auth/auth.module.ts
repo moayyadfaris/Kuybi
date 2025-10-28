@@ -3,13 +3,16 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { UsersModule } from '../users/users.module'
+import { EmailModule } from '@infrastructure/email'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { StringValue } from 'ms'
 import { Session } from './entities/session.entity'
+import { User } from '../users/entities/user.entity'
 import { AuthController } from './auth.controller'
 import { SessionsController } from './sessions.controller'
 import { CleanupStatsController } from './cleanup-stats.controller'
 import { AuthService, SessionsService, SessionCleanupService, TokenBlacklistService } from './services'
+import { RegistrationService } from './services/registration.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { CacheService } from '@core/cache/services/cache.service'
 import { SessionRepository } from '@core/database/repositories/session.repository'
@@ -17,7 +20,8 @@ import { SessionRepository } from '@core/database/repositories/session.repositor
 @Module({
   imports: [
     UsersModule,
-    TypeOrmModule.forFeature([Session]),
+    EmailModule,
+    TypeOrmModule.forFeature([Session, User]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -34,10 +38,11 @@ import { SessionRepository } from '@core/database/repositories/session.repositor
     SessionsService,
     SessionCleanupService,
     TokenBlacklistService,
+    RegistrationService,
     JwtStrategy,
     CacheService,
     SessionRepository
   ],
-  exports: [AuthService, SessionsService, TokenBlacklistService, SessionRepository]
+  exports: [AuthService, SessionsService, TokenBlacklistService, RegistrationService, SessionRepository]
 })
 export class AuthModule {}
