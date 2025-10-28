@@ -28,7 +28,7 @@
 - `src/modules/users/services/admin-password-management.service.ts` - Service
 - `src/modules/users/controllers/admin-users.controller.ts` - Controller
 - `docs/features/users/ADMIN_PASSWORD_MANAGEMENT.md` - Documentation
-- `test-admin-password.sh` - Test script
+- `test/scripts/test-admin-password.sh` - Integration test script
 
 **Files Modified:**
 - `src/modules/users/users.module.ts` - Register service & controller
@@ -46,7 +46,7 @@
 - `src/core/database/migrations/1730140000000-AddForcePasswordChangeToUsers.ts`
 - `src/modules/auth/dto/change-password.dto.ts`
 - `docs/features/auth/FORCE_PASSWORD_CHANGE.md`
-- `test-force-password-change.sh` - Integration test
+- `test/scripts/test-force-password-change.sh` - Integration test script
 
 **Files Modified:**
 - `src/modules/users/entities/user.entity.ts` - Add forcePasswordChange field
@@ -244,27 +244,29 @@ Response:
 
 **1. Admin Password Management:**
 ```bash
-./test-admin-password.sh
+# Ensure server is running on localhost:4000
+npm run start:dev
+
+# Run the test
+./test/scripts/test-admin-password.sh
 ```
 Tests both reset and set password approaches, session invalidation, error handling.
 
 **2. Force Password Change:**
 ```bash
-./test-force-password-change.sh
+# Ensure server is running on localhost:4000
+npm run start:dev
+
+# Run the test  
+./test/scripts/test-force-password-change.sh
 ```
 Tests complete flow: admin reset → login block → password change → success login.
 
 ### Manual Testing
 
 ```bash
-# 1. Start the server
-npm run start:dev
-
-# 2. Run admin password test
-./test-admin-password.sh
-
-# 3. Run force password change test
-./test-force-password-change.sh
+# Run both test scripts
+./test/scripts/test-admin-password.sh && ./test/scripts/test-force-password-change.sh
 
 # Expected: All tests pass ✅
 ```
@@ -375,7 +377,7 @@ All endpoints documented with Swagger/OpenAPI:
 
 ## Files Summary
 
-### Created (11 files)
+### Created (13 files)
 ```
 src/modules/users/dto/admin-password-management.dto.ts
 src/modules/users/services/admin-password-management.service.ts
@@ -384,8 +386,10 @@ src/modules/auth/dto/change-password.dto.ts
 src/core/database/migrations/1730140000000-AddForcePasswordChangeToUsers.ts
 docs/features/users/ADMIN_PASSWORD_MANAGEMENT.md
 docs/features/auth/FORCE_PASSWORD_CHANGE.md
-test-admin-password.sh
-test-force-password-change.sh
+test/scripts/test-admin-password.sh
+test/scripts/test-force-password-change.sh
+test/scripts/README.md
+FEATURE_SUMMARY.md
 ```
 
 ### Modified (5 files)
