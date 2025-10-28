@@ -6,22 +6,27 @@ import { UsersService } from './users.service'
 import { UserRepository } from '@core/database/repositories/user.repository'
 import { CacheService } from '@core/cache/services/cache.service'
 import { UserRolesController } from './controllers/user-roles.controller'
+import { AdminUsersController } from './controllers/admin-users.controller'
 import { UserRolesService } from './services/user-roles.service'
 import { UserAvailabilityService } from './services/user-availability.service'
+import { AdminPasswordManagementService } from './services/admin-password-management.service'
 import { UserRole } from '../acl/entities/user-role.entity'
 import { Role } from '../acl/entities/role.entity'
 import { AclModule } from '../acl/acl.module'
+import { AuthModule } from '../auth/auth.module'
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserRole, Role, EmailVerification]),
-    AclModule
+    AclModule,
+    AuthModule,
   ],
-  controllers: [UserRolesController],
+  controllers: [UserRolesController, AdminUsersController],
   providers: [
     UsersService,
     UserRolesService,
     UserAvailabilityService,
+    AdminPasswordManagementService,
     UserRepository,
     CacheService,
   ],
