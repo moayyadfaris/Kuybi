@@ -41,7 +41,19 @@ export class EmailService implements OnModuleInit {
         user: this.configService.get<string>('email.smtp.user'),
         pass: this.configService.get<string>('email.smtp.password'),
       },
+      // Force IPv4 to avoid localhost resolution issues
+      family: 4,
     };
+
+    this.logger.debug(
+      { 
+        host: smtpConfig.host, 
+        port: smtpConfig.port, 
+        secure: smtpConfig.secure,
+        user: smtpConfig.auth.user 
+      },
+      'Initializing SMTP transporter',
+    );
 
     this.transporter = nodemailer.createTransport(smtpConfig);
 
@@ -54,10 +66,15 @@ export class EmailService implements OnModuleInit {
       );
     } catch (error) {
       this.logger.error(
-        { error: error.message, host: smtpConfig.host },
-        'Failed to verify SMTP connection',
+        { 
+          error: error.message, 
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          code: error.code 
+        },
+        'Failed to verify SMTP connection - continuing anyway',
       );
-      //throw error;
+      // Don't throw - allow app to start even if SMTP is misconfigured
     }
 
     // Preload templates in production
