@@ -174,7 +174,18 @@ export class UserRepository extends BaseRepository<User> {
     await this.repository.update(id, { passwordHash })
     
     // Invalidate user cache but keep other caches
-    await this.cacheService.del(this.buildCacheKey('id', id))
+    await this.invalidateEntityCache(id)
+  }
+
+  protected async invalidateEntityCache(id: string | number): Promise<void> {
+    await super.invalidateEntityCache(id)
+
+    if (!this.cacheService) {
+      return
+    }
+
+    await this.cacheService.delPattern(`${this.entityName}:email:*`)
+    await this.cacheService.delPattern(`${this.entityName}:mobile:*`)
   }
 
   /**

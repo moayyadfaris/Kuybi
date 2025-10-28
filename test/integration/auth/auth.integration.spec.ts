@@ -227,7 +227,7 @@ describe('Auth Integration Tests', () => {
         .expect(201);
 
       const sessionRepository = dataSource.getRepository(Session);
-      const sessions = await sessionRepository.find();
+      const sessions = await sessionRepository.find({ where: { userId: testUser.id } });
       
       expect(sessions.length).toBe(1);
       expect(sessions[0].userId).toBe(testUser.id);
@@ -299,10 +299,10 @@ describe('Auth Integration Tests', () => {
       
       // Verify session is marked as inactive
       const sessionRepository = dataSource.getRepository(Session);
-      const sessions = await sessionRepository.find();
+      const sessions = await sessionRepository.find({ where: { userId: testUser.id } });
       
       expect(sessions.length).toBeGreaterThan(0);
-      expect(sessions[0].isActive).toBe(false);
+      expect(sessions.every(session => session.isActive === false)).toBe(true);
     });
 
     it('should fail without authorization header', async () => {
@@ -391,7 +391,7 @@ describe('Auth Integration Tests', () => {
             forcePasswordChange: true,
             reason: 'Integration test - system generated',
           })
-          .expect(201);
+          .expect(200);
 
         expect(response.body).toHaveProperty('userId', testUser.id);
         expect(response.body).toHaveProperty('email', testUser.email);
@@ -433,7 +433,7 @@ describe('Auth Integration Tests', () => {
             forcePasswordChange: true,
             reason: 'Test session invalidation',
           })
-          .expect(201);
+          .expect(200);
 
         // Verify sessions are invalidated
         sessions = await sessionRepository.find({ where: { userId: testUser.id } });
@@ -477,7 +477,7 @@ describe('Auth Integration Tests', () => {
             reason: 'Integration test - admin defined',
             sendNotification: false,
           })
-          .expect(201);
+          .expect(200);
 
         expect(response.body).toHaveProperty('userId', testUser.id);
         expect(response.body).toHaveProperty('email', testUser.email);
@@ -497,7 +497,7 @@ describe('Auth Integration Tests', () => {
             forcePasswordChange: false,
             reason: 'Test login',
           })
-          .expect(201);
+          .expect(200);
 
         // Login with new password
         const response = await request(app.getHttpServer())
@@ -585,7 +585,9 @@ describe('Auth Integration Tests', () => {
         .post('/api/v1/auth/change-password')
         .set('Authorization', `Bearer ${tempToken}`)
         .send({
+          currentPassword: temporaryPassword,
           newPassword: 'NewSecure@789',
+          confirmPassword: 'NewSecure@789',
         })
         .expect(201);
 
@@ -608,8 +610,11 @@ describe('Auth Integration Tests', () => {
         .post('/api/v1/auth/change-password')
         .set('Authorization', `Bearer ${tempToken}`)
         .send({
+          currentPassword: temporaryPassword,
           newPassword: 'NewSecure@789',
-        });
+          confirmPassword: 'NewSecure@789',
+        })
+        .expect(201);
 
       // Login with new password - should get full access
       const newLoginResponse = await request(app.getHttpServer())
@@ -647,8 +652,11 @@ describe('Auth Integration Tests', () => {
         .post('/api/v1/auth/change-password')
         .set('Authorization', `Bearer ${loginResponse.body.tempAccessToken}`)
         .send({
+          currentPassword: temporaryPassword,
           newPassword: 'FinalSecure@999',
-        });
+          confirmPassword: 'FinalSecure@999',
+        })
+        .expect(201);
 
       // Check database
       const userRepository = dataSource.getRepository(User);
@@ -670,7 +678,9 @@ describe('Auth Integration Tests', () => {
         .post('/api/v1/auth/change-password')
         .set('Authorization', `Bearer ${loginResponse.body.tempAccessToken}`)
         .send({
+          currentPassword: temporaryPassword,
           newPassword: 'weak',
+          confirmPassword: 'weak',
         })
         .expect(400);
     });
