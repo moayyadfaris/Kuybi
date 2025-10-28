@@ -33,43 +33,62 @@ export class EmailService implements OnModuleInit {
    * Initialize SMTP transporter
    */
   private async initializeTransporter(): Promise<void> {
-    const smtpConfig = {
-      host: this.configService.get<string>('email.smtp.host'),
-      port: this.configService.get<number>('email.smtp.port', 587),
-      secure: this.configService.get<boolean>('email.smtp.secure', false),
+    const host = this.configService.get<string>('email.smtp.host');
+    const port = this.configService.get<number>('email.smtp.port', 587);
+    const secure = this.configService.get<boolean>('email.smtp.secure', false);
+    const user = this.configService.get<string>('email.smtp.user');
+    const pass = this.configService.get<string>('email.smtp.password');
+
+    const smtpConfig: any = {
+      host,
+      port,
+      secure,
       auth: {
-        user: this.configService.get<string>('email.smtp.user'),
-        pass: this.configService.get<string>('email.smtp.password'),
+        user,
+        pass,
       },
-      // Force IPv4 to avoid localhost resolution issues
-      family: 4,
+      // Advanced connection settings to fix IPv6 issues
+      family: 4, // Force IPv4
+      dnsTimeout: 30000,
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
     };
+
+    // If using IP address, disable TLS hostname verification
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+      smtpConfig.tls = {
+        rejectUnauthorized: false,
+        servername: 'smtp.ethereal.email',
+      };
+    }
 
     this.logger.debug(
       { 
-        host: smtpConfig.host, 
-        port: smtpConfig.port, 
-        secure: smtpConfig.secure,
-        user: smtpConfig.auth.user 
+        host, 
+        port, 
+        secure,
+        user,
+        isIP: /^\d+\.\d+\.\d+\.\d+$/.test(host)
       },
       'Initializing SMTP transporter',
     );
 
-    this.transporter = nodemailer.createTransport(smtpConfig);
+    this.transporter = nodemailer.createTransport(smtpConfig) as any;
 
     // Verify connection
     try {
       await this.transporter.verify();
       this.logger.info(
-        { host: smtpConfig.host, port: smtpConfig.port },
+        { host, port },
         'SMTP connection verified successfully',
       );
     } catch (error) {
       this.logger.error(
         { 
           error: error.message, 
-          host: smtpConfig.host,
-          port: smtpConfig.port,
+          host,
+          port,
           code: error.code 
         },
         'Failed to verify SMTP connection - continuing anyway',
