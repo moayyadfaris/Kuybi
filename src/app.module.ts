@@ -17,6 +17,7 @@ import { StoriesModule } from '@modules/stories/stories.module'
 import { TagsModule } from '@modules/tags/tags.module'
 import { AclModule } from '@modules/acl/acl.module'
 import { QueuesModule } from '@core/queues/queues.module'
+import { EmailModule } from '@infrastructure/email/email.module'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
 import { LoggingModule } from '@core/logging/logging.module'
@@ -53,6 +54,7 @@ import { LoggingModule } from '@core/logging/logging.module'
     DatabaseModule,
     CacheConfigModule,
     QueuesModule, // Bull queue infrastructure
+    EmailModule, // Email infrastructure with SMTP
     HealthModule,
     UsersModule,
     AuthModule,

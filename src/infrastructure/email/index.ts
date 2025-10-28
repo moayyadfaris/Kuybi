@@ -1,0 +1,5 @@
+export * from './email.module';
+export * from './services/email.service';
+export * from './services/email-template.service';
+export * from './dto/send-email.dto';
+export * from './interfaces/email-template.interface';
