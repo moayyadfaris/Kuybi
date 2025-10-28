@@ -70,7 +70,10 @@ describe('Auth Integration Tests', () => {
   let app: INestApplication;
   let dataSource: DataSource;
   let testUser: User;
+  let adminUser: User;
+  let adminToken: string;
   const TEST_PASSWORD = 'Password123!';
+  const ADMIN_PASSWORD = 'Admin@123';
   let testCounter = 0;
   let cacheStub: ReturnType<typeof createInMemoryCacheService>;
 
@@ -141,6 +144,24 @@ describe('Auth Integration Tests', () => {
       password: TEST_PASSWORD,
     });
     testUser = await userRepository.save(newUser as User);
+
+    // Create admin user
+    const newAdmin = await UserFactory.createWithHashedPassword({
+      email: `admin${testCounter}@example.com`,
+      name: 'Admin User',
+      role: 'super-admin',
+      password: ADMIN_PASSWORD,
+    });
+    adminUser = await userRepository.save(newAdmin as User);
+
+    // Login admin to get token
+    const adminLoginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email: adminUser.email,
+        password: ADMIN_PASSWORD,
+      });
+    adminToken = adminLoginResponse.body.accessToken;
   });
 
   afterAll(async () => {
@@ -356,6 +377,302 @@ describe('Auth Integration Tests', () => {
         .get('/api/v1/auth/sessions')
         .set('Authorization', `Bearer ${newAccessToken}`)
         .expect(401);
+    });
+  });
+
+  describe('Admin Password Management', () => {
+    describe('POST /api/admin/users/reset-password (System-Generated)', () => {
+      it('should reset user password with system-generated password', async () => {
+        const response = await request(app.getHttpServer())
+          .post('/api/admin/users/reset-password')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            userId: testUser.id,
+            forcePasswordChange: true,
+            reason: 'Integration test - system generated',
+          })
+          .expect(201);
+
+        expect(response.body).toHaveProperty('userId', testUser.id);
+        expect(response.body).toHaveProperty('email', testUser.email);
+        expect(response.body).toHaveProperty('temporaryPassword');
+        expect(response.body).toHaveProperty('forcePasswordChange', true);
+        expect(response.body).toHaveProperty('changedBy');
+        expect(response.body).toHaveProperty('reason', 'Integration test - system generated');
+
+        // Verify password is strong (12 chars with complexity)
+        const tempPassword = response.body.temporaryPassword;
+        expect(tempPassword).toHaveLength(12);
+        expect(/[A-Z]/.test(tempPassword)).toBe(true); // uppercase
+        expect(/[a-z]/.test(tempPassword)).toBe(true); // lowercase
+        expect(/[0-9]/.test(tempPassword)).toBe(true); // digit
+        expect(/[@$!%*?&]/.test(tempPassword)).toBe(true); // special char
+      });
+
+      it('should invalidate all user sessions after password reset', async () => {
+        // Create session by logging in
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({
+            email: testUser.email,
+            password: TEST_PASSWORD,
+          });
+
+        // Verify session exists
+        const sessionRepository = dataSource.getRepository(Session);
+        let sessions = await sessionRepository.find({ where: { userId: testUser.id } });
+        expect(sessions.length).toBe(1);
+        expect(sessions[0].isActive).toBe(true);
+
+        // Reset password
+        await request(app.getHttpServer())
+          .post('/api/admin/users/reset-password')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            userId: testUser.id,
+            forcePasswordChange: true,
+            reason: 'Test session invalidation',
+          })
+          .expect(201);
+
+        // Verify sessions are invalidated
+        sessions = await sessionRepository.find({ where: { userId: testUser.id } });
+        expect(sessions.length).toBe(1);
+        expect(sessions[0].isActive).toBe(false);
+      });
+
+      it('should fail to reset password for non-existent user', async () => {
+        await request(app.getHttpServer())
+          .post('/api/admin/users/reset-password')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            userId: '00000000-0000-0000-0000-000000000000',
+            reason: 'Non-existent user test',
+          })
+          .expect(404);
+      });
+
+      it('should fail without admin authorization', async () => {
+        await request(app.getHttpServer())
+          .post('/api/admin/users/reset-password')
+          .send({
+            userId: testUser.id,
+            reason: 'Unauthorized test',
+          })
+          .expect(401);
+      });
+    });
+
+    describe('POST /api/admin/users/set-password (Admin-Defined)', () => {
+      const adminDefinedPassword = 'AdminSet@456';
+
+      it('should set specific password for user', async () => {
+        const response = await request(app.getHttpServer())
+          .post('/api/admin/users/set-password')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            userId: testUser.id,
+            newPassword: adminDefinedPassword,
+            forcePasswordChange: false,
+            reason: 'Integration test - admin defined',
+            sendNotification: false,
+          })
+          .expect(201);
+
+        expect(response.body).toHaveProperty('userId', testUser.id);
+        expect(response.body).toHaveProperty('email', testUser.email);
+        expect(response.body).toHaveProperty('forcePasswordChange', false);
+        expect(response.body).not.toHaveProperty('temporaryPassword'); // Not returned for set-password
+        expect(response.body).toHaveProperty('changedBy');
+      });
+
+      it('should allow login with admin-defined password', async () => {
+        // Set password
+        await request(app.getHttpServer())
+          .post('/api/admin/users/set-password')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            userId: testUser.id,
+            newPassword: adminDefinedPassword,
+            forcePasswordChange: false,
+            reason: 'Test login',
+          })
+          .expect(201);
+
+        // Login with new password
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({
+            email: testUser.email,
+            password: adminDefinedPassword,
+          })
+          .expect(201);
+
+        expect(response.body).toHaveProperty('accessToken');
+        expect(response.body).toHaveProperty('refreshToken');
+      });
+
+      it('should validate password complexity', async () => {
+        await request(app.getHttpServer())
+          .post('/api/admin/users/set-password')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            userId: testUser.id,
+            newPassword: 'weak', // Too weak
+            reason: 'Validation test',
+          })
+          .expect(400);
+      });
+
+      it('should fail without admin authorization', async () => {
+        await request(app.getHttpServer())
+          .post('/api/admin/users/set-password')
+          .send({
+            userId: testUser.id,
+            newPassword: adminDefinedPassword,
+            reason: 'Unauthorized test',
+          })
+          .expect(401);
+      });
+    });
+  });
+
+  describe('Force Password Change Flow', () => {
+    let temporaryPassword: string;
+
+    beforeEach(async () => {
+      // Reset password with force change flag
+      const response = await request(app.getHttpServer())
+        .post('/api/admin/users/reset-password')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          userId: testUser.id,
+          forcePasswordChange: true,
+          reason: 'Force password change test',
+        });
+      
+      temporaryPassword = response.body.temporaryPassword;
+    });
+
+    it('should detect force password change flag on login', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: temporaryPassword,
+        })
+        .expect(201);
+
+      expect(response.body).toHaveProperty('requiresPasswordChange', true);
+      expect(response.body).toHaveProperty('tempAccessToken');
+      expect(response.body).not.toHaveProperty('accessToken'); // No full access token
+      expect(response.body).not.toHaveProperty('refreshToken');
+    });
+
+    it('should allow password change with temp token', async () => {
+      // Login to get temp token
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: temporaryPassword,
+        });
+
+      const tempToken = loginResponse.body.tempAccessToken;
+
+      // Change password
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${tempToken}`)
+        .send({
+          newPassword: 'NewSecure@789',
+        })
+        .expect(201);
+
+      expect(response.body).toHaveProperty('message');
+    });
+
+    it('should clear force password change flag after change', async () => {
+      // Login with temp password
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: temporaryPassword,
+        });
+
+      const tempToken = loginResponse.body.tempAccessToken;
+
+      // Change password
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${tempToken}`)
+        .send({
+          newPassword: 'NewSecure@789',
+        });
+
+      // Login with new password - should get full access
+      const newLoginResponse = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: 'NewSecure@789',
+        })
+        .expect(201);
+
+      expect(newLoginResponse.body).toHaveProperty('accessToken');
+      expect(newLoginResponse.body).toHaveProperty('refreshToken');
+      expect(newLoginResponse.body).not.toHaveProperty('requiresPasswordChange');
+      expect(newLoginResponse.body).not.toHaveProperty('tempAccessToken');
+    });
+
+    it('should set forcePasswordChange flag in database', async () => {
+      const userRepository = dataSource.getRepository(User);
+      const user = await userRepository.findOne({ where: { id: testUser.id } });
+      
+      expect(user).toBeDefined();
+      expect(user!.forcePasswordChange).toBe(true);
+    });
+
+    it('should clear forcePasswordChange flag in database after password change', async () => {
+      // Login and change password
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: temporaryPassword,
+        });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${loginResponse.body.tempAccessToken}`)
+        .send({
+          newPassword: 'FinalSecure@999',
+        });
+
+      // Check database
+      const userRepository = dataSource.getRepository(User);
+      const user = await userRepository.findOne({ where: { id: testUser.id } });
+      
+      expect(user).toBeDefined();
+      expect(user!.forcePasswordChange).toBe(false);
+    });
+
+    it('should reject weak passwords during forced change', async () => {
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: testUser.email,
+          password: temporaryPassword,
+        });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${loginResponse.body.tempAccessToken}`)
+        .send({
+          newPassword: 'weak',
+        })
+        .expect(400);
     });
   });
 });
