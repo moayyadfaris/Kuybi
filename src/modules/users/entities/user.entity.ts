@@ -36,6 +36,12 @@ export class User {
   @Column({ default: false })
   isVerified: boolean
 
+  @Column({ default: false })
+  isEmailVerified: boolean
+
+  @Column({ type: 'timestamptz', nullable: true })
+  emailVerifiedAt: Date | null
+
   @OneToMany(() => UserRole, (userRole) => userRole.user)
   userRoles: UserRole[]
 

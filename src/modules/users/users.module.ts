@@ -1,22 +1,30 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { User } from './entities/user.entity'
+import { EmailVerification } from './entities/email-verification.entity'
 import { UsersService } from './users.service'
 import { UserRepository } from '@core/database/repositories/user.repository'
 import { CacheService } from '@core/cache/services/cache.service'
 import { UserRolesController } from './controllers/user-roles.controller'
 import { UserRolesService } from './services/user-roles.service'
+import { UserAvailabilityService } from './services/user-availability.service'
 import { UserRole } from '../acl/entities/user-role.entity'
 import { Role } from '../acl/entities/role.entity'
 import { AclModule } from '../acl/acl.module'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserRole, Role]),
+    TypeOrmModule.forFeature([User, UserRole, Role, EmailVerification]),
     AclModule
   ],
   controllers: [UserRolesController],
-  providers: [UsersService, UserRolesService, UserRepository, CacheService],
-  exports: [UsersService, UserRepository]
+  providers: [
+    UsersService,
+    UserRolesService,
+    UserAvailabilityService,
+    UserRepository,
+    CacheService,
+  ],
+  exports: [UsersService, UserAvailabilityService, UserRepository],
 })
 export class UsersModule {}

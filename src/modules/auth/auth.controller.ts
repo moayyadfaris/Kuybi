@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common'
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger'
+import { BadRequestException, Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common'
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Throttle } from '@nestjs/throttler'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import { Request } from 'express'
@@ -8,7 +8,9 @@ import { LoginDto } from './dto/login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
 import { LogoutDto } from './dto/logout.dto'
 import { ListSessionsQueryDto } from './dto/list-sessions.query.dto'
+import { CheckAvailabilityDto } from './dto/check-availability.dto'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
+import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -24,8 +26,39 @@ export class AuthController {
   constructor(
     @InjectPinoLogger(AuthController.name)
     private readonly logger: PinoLogger,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly availabilityService: UserAvailabilityService,
   ) {}
+
+  @Get('check-availability')
+  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @ApiOperation({ summary: 'Check if email or phone is available for registration' })
+  @ApiOkResponse({ description: 'Returns availability status with suggestions if unavailable' })
+  async checkAvailability(@Query() query: CheckAvailabilityDto) {
+    if (!query.email && !query.phone) {
+      throw new BadRequestException('Either email or phone must be provided')
+    }
+
+    this.logger.info(
+      { email: query.email, phone: query.phone, action: 'check_availability' },
+      'Checking availability',
+    )
+
+    let result
+
+    if (query.email) {
+      result = await this.availabilityService.isEmailAvailable(query.email)
+    } else if (query.phone) {
+      result = await this.availabilityService.isPhoneAvailable(query.phone!)
+    }
+
+    this.logger.info(
+      { field: result?.field, available: result?.available, action: 'check_availability_result' },
+      'Availability check completed',
+    )
+
+    return result
+  }
 
   @Post('login')
   @Throttle({ default: { limit: 5, ttl: 60 } })

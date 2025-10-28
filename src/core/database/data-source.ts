@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm'
 import configuration from '../config/configuration'
 import { Country } from '@modules/countries/entities/country.entity'
 import { User } from '@modules/users/entities/user.entity'
+import { EmailVerification } from '@modules/users/entities/email-verification.entity'
 import { Session } from '@modules/auth/entities/session.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { Category } from '@modules/categories/entities/category.entity'
@@ -24,7 +25,20 @@ export const AppDataSource = new DataSource({
   username: appConfig.database.username,
   password: appConfig.database.password,
   database: appConfig.database.name,
-  entities: [Country, User, Session, Attachment, Category, Story, Tag, Role, Permission, RolePermission, UserRole],
+  entities: [
+    Country,
+    User,
+    EmailVerification,
+    Session,
+    Attachment,
+    Category,
+    Story,
+    Tag,
+    Role,
+    Permission,
+    RolePermission,
+    UserRole,
+  ],
   migrations: ['src/core/database/migrations/*.ts'],
-  migrationsTableName: 'migrations'
+  migrationsTableName: 'migrations',
 })
