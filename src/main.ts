@@ -6,10 +6,10 @@ import { ConfigService } from '@nestjs/config'
 import helmet from 'helmet'
 import * as compression from 'compression'
 import { AppModule } from './app.module'
-import { HttpExceptionFilter } from './common/filters/http-exception.filter'
-import { TransformInterceptor } from './common/interceptors/transform.interceptor'
-import { LoggingContextService } from './logging/logging-context.service'
-import { LoggingContextInterceptor } from './logging/logging-context.interceptor'
+import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
+import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
+import { LoggingContextService } from '@core/logging/logging-context.service'
+import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true })

@@ -2,23 +2,24 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { ScheduleModule } from '@nestjs/schedule'
 import { LoggerModule } from 'nestjs-pino'
-import configuration from './config/configuration'
-import { validate } from './config/validation'
-import { createLoggerConfig } from './config/logger.config'
-import { DatabaseModule } from './database/database.module'
-import { CacheConfigModule } from './cache/cache.module'
-import { HealthModule } from './health/health.module'
-import { CountriesModule } from './countries/countries.module'
-import { UsersModule } from './users/users.module'
-import { AuthModule } from './auth/auth.module'
-import { AttachmentsModule } from './attachments/attachments.module'
-import { CategoriesModule } from './categories/categories.module'
-import { StoriesModule } from './stories/stories.module'
-import { TagsModule } from './tags/tags.module'
-import { AclModule } from './acl/acl.module'
+import configuration from '@core/config/configuration'
+import { validate } from '@core/config/validation'
+import { createLoggerConfig } from '@core/config/logger.config'
+import { DatabaseModule } from '@core/database/database.module'
+import { CacheConfigModule } from '@core/cache/cache.module'
+import { HealthModule } from '@core/health/health.module'
+import { CountriesModule } from '@modules/countries/countries.module'
+import { UsersModule } from '@modules/users/users.module'
+import { AuthModule } from '@modules/auth/auth.module'
+import { AttachmentsModule } from '@modules/attachments/attachments.module'
+import { CategoriesModule } from '@modules/categories/categories.module'
+import { StoriesModule } from '@modules/stories/stories.module'
+import { TagsModule } from '@modules/tags/tags.module'
+import { AclModule } from '@modules/acl/acl.module'
+import { QueuesModule } from '@core/queues/queues.module'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
-import { LoggingModule } from './logging/logging.module'
+import { LoggingModule } from '@core/logging/logging.module'
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { LoggingModule } from './logging/logging.module'
     }),
     DatabaseModule,
     CacheConfigModule,
+    QueuesModule, // Bull queue infrastructure
     HealthModule,
     UsersModule,
     AuthModule,
