@@ -13,6 +13,7 @@ import { ListSessionsQueryDto } from './dto/list-sessions.query.dto'
 import { CheckAvailabilityDto } from './dto/check-availability.dto'
 import { RegisterUserDto, VerifyEmailDto, ResendVerificationDto } from './dto/register.dto'
 import { ForgotPasswordDto, ResetPasswordDto, ValidateResetTokenDto } from './dto/password-reset.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 
@@ -358,6 +359,47 @@ export class AuthController {
       },
       sessions: result.sessions
     }
+  }
+
+  @Post('change-password')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 300 } }) // 5 attempts per 5 minutes
+  @ApiOperation({ 
+    summary: 'Change password (for users forced to change password)',
+    description: 'Allows users who are required to change their password to do so. ' +
+                 'Validates current password, sets new password, and clears the forcePasswordChange flag. ' +
+                 'All existing sessions will be invalidated and user must login again.'
+  })
+  @ApiOkResponse({ description: 'Password changed successfully, user must login again' })
+  async changePassword(@Body() dto: ChangePasswordDto, @Req() req: AuthenticatedRequest) {
+    const user = req.user
+    if (!user) {
+      throw new Error('Authenticated user not found on request context')
+    }
+
+    this.logger.info(
+      { userId: user.userId, email: user.email, action: 'change_password_attempt' },
+      'Password change attempt'
+    )
+
+    const result = await this.authService.changePassword(
+      user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+      dto.confirmPassword,
+      {
+        ipAddress: this.extractIp(req),
+        userAgent: req.headers['user-agent'] as string | undefined
+      }
+    )
+
+    this.logger.info(
+      { userId: user.userId, action: 'change_password_success' },
+      'Password changed successfully'
+    )
+
+    return result
   }
 
   private extractIp(request: Request): string | undefined {

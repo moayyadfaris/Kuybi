@@ -111,7 +111,7 @@ export class AdminPasswordManagementService {
 
     // Update user
     user.passwordHash = passwordHash
-    // user.forcePasswordChange = forcePasswordChange // TODO: Add this field to entity
+    user.forcePasswordChange = forcePasswordChange
     await this.userRepository.save(user)
 
     // Invalidate all user sessions (force re-login)
@@ -193,7 +193,7 @@ export class AdminPasswordManagementService {
 
     // Update user
     user.passwordHash = passwordHash
-    // user.forcePasswordChange = forcePasswordChange // TODO: Add this field to entity
+    user.forcePasswordChange = forcePasswordChange
     await this.userRepository.save(user)
 
     // Invalidate all user sessions (force re-login)

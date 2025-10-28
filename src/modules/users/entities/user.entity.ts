@@ -42,6 +42,9 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   emailVerifiedAt: Date | null
 
+  @Column({ default: false })
+  forcePasswordChange: boolean
+
   @OneToMany(() => UserRole, (userRole) => userRole.user)
   userRoles: UserRole[]
 

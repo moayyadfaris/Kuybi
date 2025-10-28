@@ -64,6 +64,23 @@ export class AuthService {
       'User login'
     )
     
+    // Check if user must change password
+    if (user.forcePasswordChange) {
+      this.logger.warn(
+        { userId: user.id, email: user.email, action: 'password_change_required' },
+        'User must change password before accessing system'
+      )
+      
+      // Return special response indicating password change is required
+      // Do NOT create session until password is changed
+      return {
+        requiresPasswordChange: true,
+        userId: user.id,
+        message: 'Password change required. Please change your password before accessing the system.',
+        tempAccessToken: await this.generateTempAccessToken(user) // Limited token for password change only
+      }
+    }
+    
     // Create session using SessionsService
     const { session, refreshToken } = await this.sessionsService.createSession({
       userId: user.id,
@@ -376,5 +393,90 @@ export class AuthService {
     return this.jwtService.signAsync(payload, {
       expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') as StringValue
     })
+  }
+
+  /**
+   * Generate temporary access token for password change only
+   * This token is valid for 15 minutes and can only be used to change password
+   */
+  private async generateTempAccessToken(user: User) {
+    const payload = { 
+      sub: user.id, 
+      email: user.email, 
+      role: user.role,
+      tempPasswordChange: true // Flag to identify this is a temp token
+    }
+    return this.jwtService.signAsync(payload, {
+      expiresIn: '15m' // Short expiry for security
+    })
+  }
+
+  /**
+   * Change password for user forced to change password
+   * Validates current password, sets new password, and clears forcePasswordChange flag
+   */
+  async changePassword(
+    userId: string, 
+    currentPassword: string, 
+    newPassword: string,
+    confirmPassword: string,
+    context: SessionContext
+  ) {
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+      throw new UnauthorizedException('New password and confirmation do not match')
+    }
+
+    // Get user
+    const user = await this.usersService.findById(userId)
+    if (!user) {
+      throw new UnauthorizedException('User not found')
+    }
+
+    // Verify current password
+    const passwordValid = await bcrypt.compare(currentPassword, user.passwordHash)
+    if (!passwordValid) {
+      throw new UnauthorizedException('Current password is incorrect')
+    }
+
+    // Prevent reusing the same password
+    const samePassword = await bcrypt.compare(newPassword, user.passwordHash)
+    if (samePassword) {
+      throw new UnauthorizedException('New password must be different from current password')
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10)
+    const passwordHash = await bcrypt.hash(newPassword, salt)
+
+    // Update user password and clear forcePasswordChange flag
+    user.passwordHash = passwordHash
+    user.forcePasswordChange = false
+    await this.usersService.updateUser(user.id, { 
+      passwordHash, 
+      forcePasswordChange: false 
+    })
+
+    this.logger.info(
+      { userId: user.id, email: user.email, ipAddress: context.ipAddress, action: 'password_changed' },
+      'User changed password successfully'
+    )
+
+    // Invalidate all existing sessions (user will need to login again with new password)
+    await this.sessionsService.revokeAllSessions(
+      userId,
+      undefined,
+      'Password changed by user'
+    )
+
+    this.logger.info(
+      { userId: user.id, action: 'sessions_revoked_after_password_change' },
+      'All sessions revoked after password change'
+    )
+
+    return {
+      message: 'Password changed successfully. Please login with your new password.',
+      success: true
+    }
   }
 }
