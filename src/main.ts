@@ -20,13 +20,36 @@ async function bootstrap() {
     port: 4040,
     corsOrigin: '*'
   })
+  const compressionConfig = configService.get('compression', {
+    enabled: true,
+    threshold: 1024,
+    level: 6
+  })
 
   // Set Pino as the application logger
   const appLogger = app.get(Logger)
   app.useLogger(appLogger)
 
   app.use(helmet())
-  app.use(compression())
+  
+  // Response compression middleware with optimized settings
+  if (compressionConfig.enabled) {
+    app.use(
+      compression({
+        filter: (req, res) => {
+          // Don't compress responses with this request header
+          if (req.headers['x-no-compression']) {
+            return false
+          }
+          // Fallback to standard filter function
+          return compression.filter(req, res)
+        },
+        threshold: compressionConfig.threshold,
+        level: compressionConfig.level
+      })
+    )
+  }
+  
   app.enableCors({ origin: httpConfig.corsOrigin, credentials: true })
   app.setGlobalPrefix('api')
 

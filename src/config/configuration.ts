@@ -35,6 +35,11 @@ export default () => {
       port: parseInt(process.env.APP_PORT || '4040', 10),
       corsOrigin: process.env.CORS_ORIGIN || '*'
     },
+    compression: {
+      enabled: parseBoolean(process.env.COMPRESSION_ENABLED, true),
+      threshold: parseNumber(process.env.COMPRESSION_THRESHOLD, 1024), // 1KB
+      level: parseNumber(process.env.COMPRESSION_LEVEL, 6) // 0-9, 6 is balanced
+    },
     logging: {
       level: process.env.LOG_LEVEL || (env === 'production' ? 'info' : 'debug'),
       console: {
