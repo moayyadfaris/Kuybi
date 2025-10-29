@@ -5,7 +5,7 @@
 **Kuybi** is an enterprise-grade NestJS backend application featuring advanced authentication, role-based access control (RBAC), audit logging, caching, and content management. Built with Domain-Driven Design principles, it provides a robust foundation for scalable microservices.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-10.3-red.svg)](https://nestjs.com/)
+[![NestJS](https://img.shields.io/badge/NestJS-11.1-red.svg)](https://nestjs.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7-red.svg)](https://redis.io/)
 
@@ -54,7 +54,7 @@
 ## 🏗️ Architecture
 
 ### Tech Stack
-- **Framework**: NestJS 10.3
+- **Framework**: NestJS 11.1
 - **Language**: TypeScript 5.3
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7
