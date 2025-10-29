@@ -1,11 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { QueueName } from '@core/queues/jobs/types';
+import { Injectable } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { QueueName } from '@core/queues/jobs/types'
 import {
   EmailJobType,
-  EmailJobData,
   WelcomeEmailJobData,
   VerificationEmailJobData,
   VerifiedSuccessEmailJobData,
@@ -13,12 +12,12 @@ import {
   PasswordChangedEmailJobData,
   CustomEmailJobData,
   EmailJobOptions,
-  DEFAULT_EMAIL_JOB_OPTIONS,
-} from '@core/queues/jobs/email-jobs';
+  DEFAULT_EMAIL_JOB_OPTIONS
+} from '@core/queues/jobs/email-jobs'
 
 /**
  * Email Queue Service
- * 
+ *
  * Manages email job creation and queueing for background processing
  */
 @Injectable()
@@ -26,7 +25,7 @@ export class EmailQueueService {
   constructor(
     @InjectQueue(QueueName.EMAIL) private readonly emailQueue: Queue,
     @InjectPinoLogger(EmailQueueService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {}
 
   /**
@@ -36,33 +35,29 @@ export class EmailQueueService {
     to: string,
     userName: string,
     verificationLink: string,
-    options?: EmailJobOptions,
+    options?: EmailJobOptions
   ): Promise<string> {
     const jobData: WelcomeEmailJobData = {
       to,
       userName,
-      verificationLink,
-    };
+      verificationLink
+    }
 
-    const job = await this.emailQueue.add(
-      EmailJobType.SEND_WELCOME,
-      jobData,
-      {
-        ...DEFAULT_EMAIL_JOB_OPTIONS,
-        ...options,
-      },
-    );
+    const job = await this.emailQueue.add(EmailJobType.SEND_WELCOME, jobData, {
+      ...DEFAULT_EMAIL_JOB_OPTIONS,
+      ...options
+    })
 
     this.logger.info(
       {
         jobId: job.id,
         jobType: EmailJobType.SEND_WELCOME,
-        to,
+        to
       },
-      'Welcome email queued',
-    );
+      'Welcome email queued'
+    )
 
-    return job.id;
+    return job.id
   }
 
   /**
@@ -73,34 +68,30 @@ export class EmailQueueService {
     userName: string,
     verificationLink: string,
     expiresIn?: string,
-    options?: EmailJobOptions,
+    options?: EmailJobOptions
   ): Promise<string> {
     const jobData: VerificationEmailJobData = {
       to,
       userName,
       verificationLink,
-      expiresIn,
-    };
+      expiresIn
+    }
 
-    const job = await this.emailQueue.add(
-      EmailJobType.SEND_VERIFICATION,
-      jobData,
-      {
-        ...DEFAULT_EMAIL_JOB_OPTIONS,
-        ...options,
-      },
-    );
+    const job = await this.emailQueue.add(EmailJobType.SEND_VERIFICATION, jobData, {
+      ...DEFAULT_EMAIL_JOB_OPTIONS,
+      ...options
+    })
 
     this.logger.info(
       {
         jobId: job.id,
         jobType: EmailJobType.SEND_VERIFICATION,
-        to,
+        to
       },
-      'Verification email queued',
-    );
+      'Verification email queued'
+    )
 
-    return job.id;
+    return job.id
   }
 
   /**
@@ -110,151 +101,138 @@ export class EmailQueueService {
     to: string,
     userName: string,
     loginUrl: string,
-    options?: EmailJobOptions,
+    options?: EmailJobOptions
   ): Promise<string> {
     const jobData: VerifiedSuccessEmailJobData = {
       to,
       userName,
-      loginUrl,
-    };
+      loginUrl
+    }
 
-    const job = await this.emailQueue.add(
-      EmailJobType.SEND_VERIFIED_SUCCESS,
-      jobData,
-      {
-        ...DEFAULT_EMAIL_JOB_OPTIONS,
-        ...options,
-      },
-    );
+    const job = await this.emailQueue.add(EmailJobType.SEND_VERIFIED_SUCCESS, jobData, {
+      ...DEFAULT_EMAIL_JOB_OPTIONS,
+      ...options
+    })
 
     this.logger.info(
       {
         jobId: job.id,
         jobType: EmailJobType.SEND_VERIFIED_SUCCESS,
-        to,
+        to
       },
-      'Verified success email queued',
-    );
+      'Verified success email queued'
+    )
 
-    return job.id;
+    return job.id
   }
 
   /**
    * Queue a password reset email
    */
-  async sendPasswordResetEmail(data: {
-    to: string;
-    firstName: string;
-    resetLink: string;
-    resetToken: string;
-    expiresInMinutes: number;
-  }, options?: EmailJobOptions): Promise<string> {
+  async sendPasswordResetEmail(
+    data: {
+      to: string
+      firstName: string
+      resetLink: string
+      resetToken: string
+      expiresInMinutes: number
+    },
+    options?: EmailJobOptions
+  ): Promise<string> {
     const jobData: PasswordResetEmailJobData = {
       to: data.to,
       userName: data.firstName,
       resetLink: data.resetLink,
-      expiresIn: `${data.expiresInMinutes} minutes`,
-    };
+      expiresIn: `${data.expiresInMinutes} minutes`
+    }
 
-    const job = await this.emailQueue.add(
-      EmailJobType.SEND_PASSWORD_RESET,
-      jobData,
-      {
-        ...DEFAULT_EMAIL_JOB_OPTIONS,
-        ...options,
-      },
-    );
+    const job = await this.emailQueue.add(EmailJobType.SEND_PASSWORD_RESET, jobData, {
+      ...DEFAULT_EMAIL_JOB_OPTIONS,
+      ...options
+    })
 
     this.logger.info(
       {
         jobId: job.id,
         jobType: EmailJobType.SEND_PASSWORD_RESET,
-        to: data.to,
+        to: data.to
       },
-      'Password reset email queued',
-    );
+      'Password reset email queued'
+    )
 
-    return job.id;
+    return job.id
   }
 
   /**
    * Queue a password changed confirmation email
    */
-  async sendPasswordChangedEmail(data: {
-    to: string;
-    firstName: string;
-    resetTime: string;
-    resetIpAddress: string;
-  }, options?: EmailJobOptions): Promise<string> {
+  async sendPasswordChangedEmail(
+    data: {
+      to: string
+      firstName: string
+      resetTime: string
+      resetIpAddress: string
+    },
+    options?: EmailJobOptions
+  ): Promise<string> {
     const jobData: PasswordChangedEmailJobData = {
       to: data.to,
       userName: data.firstName,
       changeTime: new Date(data.resetTime),
-      ipAddress: data.resetIpAddress,
-    };
+      ipAddress: data.resetIpAddress
+    }
 
-    const job = await this.emailQueue.add(
-      EmailJobType.SEND_PASSWORD_CHANGED,
-      jobData,
-      {
-        ...DEFAULT_EMAIL_JOB_OPTIONS,
-        ...options,
-      },
-    );
+    const job = await this.emailQueue.add(EmailJobType.SEND_PASSWORD_CHANGED, jobData, {
+      ...DEFAULT_EMAIL_JOB_OPTIONS,
+      ...options
+    })
 
     this.logger.info(
       {
         jobId: job.id,
         jobType: EmailJobType.SEND_PASSWORD_CHANGED,
-        to: data.to,
+        to: data.to
       },
-      'Password changed email queued',
-    );
+      'Password changed email queued'
+    )
 
-    return job.id;
+    return job.id
   }
 
   /**
    * Queue a custom email
    */
-  async queueCustomEmail(
-    data: CustomEmailJobData,
-    options?: EmailJobOptions,
-  ): Promise<string> {
-    const job = await this.emailQueue.add(
-      EmailJobType.SEND_CUSTOM,
-      data,
-      {
-        ...DEFAULT_EMAIL_JOB_OPTIONS,
-        ...options,
-      },
-    );
+  async queueCustomEmail(data: CustomEmailJobData, options?: EmailJobOptions): Promise<string> {
+    const job = await this.emailQueue.add(EmailJobType.SEND_CUSTOM, data, {
+      ...DEFAULT_EMAIL_JOB_OPTIONS,
+      ...options
+    })
 
     this.logger.info(
       {
         jobId: job.id,
         jobType: EmailJobType.SEND_CUSTOM,
         to: data.to,
-        subject: data.subject,
+        subject: data.subject
       },
-      'Custom email queued',
-    );
+      'Custom email queued'
+    )
 
-    return job.id;
+    return job.id
   }
 
   /**
    * Get job status by ID
    */
   async getJobStatus(jobId: string): Promise<any> {
-    const job = await this.emailQueue.getJob(jobId);
-    
+    const job = await this.emailQueue.getJob(jobId)
+
     if (!job) {
-      return null;
+      return null
     }
 
-    const state = await job.getState();
-    
+    const state = await job.getState()
+
     return {
       id: job.id,
       name: job.name,
@@ -263,8 +241,8 @@ export class EmailQueueService {
       attemptsMade: job.attemptsMade,
       processedOn: job.processedOn,
       finishedOn: job.finishedOn,
-      failedReason: job.failedReason,
-    };
+      failedReason: job.failedReason
+    }
   }
 
   /**
@@ -276,8 +254,8 @@ export class EmailQueueService {
       this.emailQueue.getActiveCount(),
       this.emailQueue.getCompletedCount(),
       this.emailQueue.getFailedCount(),
-      this.emailQueue.getDelayedCount(),
-    ]);
+      this.emailQueue.getDelayedCount()
+    ])
 
     return {
       waiting,
@@ -285,77 +263,77 @@ export class EmailQueueService {
       completed,
       failed,
       delayed,
-      total: waiting + active + completed + failed + delayed,
-    };
+      total: waiting + active + completed + failed + delayed
+    }
   }
 
   /**
    * Retry a failed job
    */
   async retryJob(jobId: string): Promise<void> {
-    const job = await this.emailQueue.getJob(jobId);
-    
+    const job = await this.emailQueue.getJob(jobId)
+
     if (!job) {
-      throw new Error(`Job ${jobId} not found`);
+      throw new Error(`Job ${jobId} not found`)
     }
 
-    await job.retry();
-    
+    await job.retry()
+
     this.logger.info(
       {
         jobId,
-        jobType: job.name,
+        jobType: job.name
       },
-      'Email job manually retried',
-    );
+      'Email job manually retried'
+    )
   }
 
   /**
    * Remove a job from the queue
    */
   async removeJob(jobId: string): Promise<void> {
-    const job = await this.emailQueue.getJob(jobId);
-    
+    const job = await this.emailQueue.getJob(jobId)
+
     if (!job) {
-      throw new Error(`Job ${jobId} not found`);
+      throw new Error(`Job ${jobId} not found`)
     }
 
-    await job.remove();
-    
+    await job.remove()
+
     this.logger.info(
       {
         jobId,
-        jobType: job.name,
+        jobType: job.name
       },
-      'Email job removed from queue',
-    );
+      'Email job removed from queue'
+    )
   }
 
   /**
    * Clean completed jobs older than specified age
    */
   async cleanCompletedJobs(olderThanMs: number = 24 * 60 * 60 * 1000): Promise<void> {
-    await this.emailQueue.clean(olderThanMs, 100, 'completed');
-    
+    await this.emailQueue.clean(olderThanMs, 100, 'completed')
+
     this.logger.info(
       {
-        olderThanMs,
+        olderThanMs
       },
-      'Cleaned completed email jobs',
-    );
+      'Cleaned completed email jobs'
+    )
   }
 
   /**
    * Clean failed jobs older than specified age
    */
   async cleanFailedJobs(olderThanMs: number = 7 * 24 * 60 * 60 * 1000): Promise<void> {
-    await this.emailQueue.clean(olderThanMs, 500, 'failed');
-    
+    await this.emailQueue.clean(olderThanMs, 500, 'failed')
+
     this.logger.info(
       {
-        olderThanMs,
+        olderThanMs
       },
-      'Cleaned failed email jobs',
-    );
+      'Cleaned failed email jobs'
+    )
   }
 }

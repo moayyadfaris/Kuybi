@@ -30,7 +30,7 @@ export interface DeviceSessionsFilter {
 
 /**
  * Sessions Service - Enterprise Session Management Business Logic
- * 
+ *
  * Features:
  * - Multi-device session management with device fingerprinting
  * - Automatic security risk assessment
@@ -38,13 +38,13 @@ export interface DeviceSessionsFilter {
  * - Session lifecycle management (create, validate, refresh, revoke)
  * - Device detection and IP geolocation
  * - Comprehensive analytics and statistics
- * 
+ *
  * Security:
  * - Automatic risk scoring based on session patterns
  * - Suspicious session detection
  * - IP-based anomaly detection
  * - Session replay attack prevention
- * 
+ *
  * Performance:
  * - Automatic caching via SessionRepository
  * - Batch operations for mass revocation
@@ -70,7 +70,9 @@ export class SessionsService {
    * @param options - Session creation options
    * @returns Promise<{ session: Session; refreshToken: string }>
    */
-  async createSession(options: CreateSessionOptions): Promise<{ session: Session; refreshToken: string }> {
+  async createSession(
+    options: CreateSessionOptions
+  ): Promise<{ session: Session; refreshToken: string }> {
     const {
       userId,
       ipAddress,
@@ -86,12 +88,17 @@ export class SessionsService {
     const activeCount = await this.sessionRepository.getActiveSessionCount(userId)
     if (activeCount >= this.maxConcurrentSessions) {
       this.logger.warn(
-        { userId, activeCount, limit: this.maxConcurrentSessions, action: 'concurrent_limit_exceeded' },
+        {
+          userId,
+          activeCount,
+          limit: this.maxConcurrentSessions,
+          action: 'concurrent_limit_exceeded'
+        },
         'User exceeded concurrent session limit'
       )
       // Revoke oldest session
-      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map((session) =>
-        this.normalizeSessionDates(session),
+      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map(session =>
+        this.normalizeSessionDates(session)
       )
       if (sessions.length > 0) {
         const oldest = sessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0]
@@ -142,7 +149,14 @@ export class SessionsService {
     })
 
     this.logger.info(
-      { userId, sessionId: session.id, securityLevel, sessionType, deviceType: detectedDeviceType, action: 'create_session' },
+      {
+        userId,
+        sessionId: session.id,
+        securityLevel,
+        sessionType,
+        deviceType: detectedDeviceType,
+        action: 'create_session'
+      },
       'Session created'
     )
 
@@ -221,7 +235,10 @@ export class SessionsService {
    * @returns Promise<boolean>
    */
   async revokeSession(sessionId: string, reason?: string): Promise<boolean> {
-    const result = await this.sessionRepository.revokeSession(sessionId, reason || 'manual_revocation')
+    const result = await this.sessionRepository.revokeSession(
+      sessionId,
+      reason || 'manual_revocation'
+    )
     if (result) {
       this.logger.info(
         { sessionId, reason: reason || 'manual_revocation', action: 'revoke_session' },
@@ -238,14 +255,24 @@ export class SessionsService {
    * @param reason - Revocation reason
    * @returns Promise<number> - Number of sessions revoked
    */
-  async revokeAllSessions(userId: string, excludeSessionId?: string, reason?: string): Promise<number> {
+  async revokeAllSessions(
+    userId: string,
+    excludeSessionId?: string,
+    reason?: string
+  ): Promise<number> {
     const count = await this.sessionRepository.revokeAllUserSessions(
       userId,
       excludeSessionId,
       reason || 'revoke_all_request'
     )
     this.logger.info(
-      { userId, count, excludeSessionId, reason: reason || 'revoke_all_request', action: 'revoke_all_sessions' },
+      {
+        userId,
+        count,
+        excludeSessionId,
+        reason: reason || 'revoke_all_request',
+        action: 'revoke_all_sessions'
+      },
       'Revoked all user sessions'
     )
     return count
@@ -259,7 +286,12 @@ export class SessionsService {
   async revokeDeviceSessions(filter: DeviceSessionsFilter): Promise<number> {
     const count = await this.sessionRepository.revokeByDeviceType(filter.userId, filter.deviceType)
     this.logger.info(
-      { userId: filter.userId, deviceType: filter.deviceType, count, action: 'revoke_device_sessions' },
+      {
+        userId: filter.userId,
+        deviceType: filter.deviceType,
+        count,
+        action: 'revoke_device_sessions'
+      },
       'Revoked device sessions'
     )
     return count
@@ -273,7 +305,7 @@ export class SessionsService {
    */
   async getActiveSessions(userId: string, includeInactive = false): Promise<Session[]> {
     const sessions = await this.sessionRepository.findByUserId(userId, includeInactive)
-    return sessions.map((session) => this.normalizeSessionDates(session))
+    return sessions.map(session => this.normalizeSessionDates(session))
   }
 
   /**
@@ -299,7 +331,9 @@ export class SessionsService {
    * @param olderThanDays - Delete sessions older than X days
    * @returns Promise<{ deleted: number; timestamp: string }>
    */
-  async cleanupExpiredSessions(olderThanDays = 30): Promise<{ deleted: number; timestamp: string }> {
+  async cleanupExpiredSessions(
+    olderThanDays = 30
+  ): Promise<{ deleted: number; timestamp: string }> {
     const deleted = await this.sessionRepository.cleanupExpired(olderThanDays)
     const timestamp = new Date().toISOString()
     this.logger.info(
@@ -318,8 +352,8 @@ export class SessionsService {
     const activeCount = await this.sessionRepository.getActiveSessionCount(userId)
 
     if (activeCount > this.maxConcurrentSessions) {
-      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map((session) =>
-        this.normalizeSessionDates(session),
+      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map(session =>
+        this.normalizeSessionDates(session)
       )
       const sortedSessions = sessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
 
@@ -446,7 +480,11 @@ export class SessionsService {
    * @private
    */
   private generateFingerprint(context: { ipAddress?: string; userAgent?: string }): string {
-    const parts = [context.ipAddress || 'unknown', context.userAgent || 'unknown', Date.now().toString()]
+    const parts = [
+      context.ipAddress || 'unknown',
+      context.userAgent || 'unknown',
+      Date.now().toString()
+    ]
 
     // Simple hash (in production, use a proper fingerprinting library)
     const hash = Buffer.from(parts.join('|')).toString('base64').substring(0, 32)

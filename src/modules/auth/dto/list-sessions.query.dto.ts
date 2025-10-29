@@ -1,11 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { Transform } from 'class-transformer'
-import {
-  IsBoolean,
-  IsIn,
-  IsInt,
-  IsOptional
-} from 'class-validator'
+import { IsBoolean, IsIn, IsInt, IsOptional } from 'class-validator'
 
 const SORT_FIELDS = ['createdAt', 'expiresAt', 'ipAddress'] as const
 const SORT_ORDERS = ['asc', 'desc'] as const

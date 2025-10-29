@@ -3,7 +3,12 @@ import { Transform } from 'class-transformer'
 import { IsBoolean, IsIn, IsOptional, IsString, Matches } from 'class-validator'
 
 const REFRESH_TOKEN_REGEX = /^[0-9a-fA-F-]{36}\.[0-9a-fA-F-]{36}$/
-const LOGOUT_REASONS = ['user_initiated', 'security_concern', 'admin_forced', 'token_refresh'] as const
+const LOGOUT_REASONS = [
+  'user_initiated',
+  'security_concern',
+  'admin_forced',
+  'token_refresh'
+] as const
 
 export class LogoutDto {
   @ApiProperty({ description: 'Refresh token to invalidate' })

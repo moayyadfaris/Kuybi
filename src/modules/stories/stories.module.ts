@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { StoriesService } from './stories.service'
-import { StoriesController } from './stories.controller'
+import { StoriesService } from './services/stories.service'
+import { StoriesController } from './controllers/stories.controller'
 import { Story } from './entities/story.entity'
 import { StoryAttachment } from './entities/story-attachment.entity'
 import { StoryTag } from './entities/story-tag.entity'
@@ -17,10 +17,10 @@ import { AclModule } from '../acl/acl.module'
   imports: [
     TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Category]),
     CacheConfigModule,
-    AclModule,
+    AclModule
   ],
   controllers: [StoriesController],
   providers: [StoriesService, StoryRepository, TagRepository],
-  exports: [StoriesService, StoryRepository, TagRepository],
+  exports: [StoriesService, StoryRepository, TagRepository]
 })
 export class StoriesModule {}

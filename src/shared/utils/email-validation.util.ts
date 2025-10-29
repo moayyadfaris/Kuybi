@@ -2,7 +2,7 @@ import * as validator from 'validator'
 
 /**
  * Email Validation Utilities
- * 
+ *
  * Provides email validation and domain filtering
  */
 
@@ -17,7 +17,7 @@ const DISPOSABLE_EMAIL_DOMAINS = [
   'temp-mail.org',
   'fakeinbox.com',
   'yopmail.com',
-  'getnada.com',
+  'getnada.com'
 ]
 
 /**

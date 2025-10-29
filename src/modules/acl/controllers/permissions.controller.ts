@@ -10,7 +10,7 @@ import {
   ParseIntPipe,
   UseGuards,
   HttpCode,
-  HttpStatus,
+  HttpStatus
 } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { PermissionsService } from '../services/permissions.service'
@@ -48,10 +48,7 @@ export class PermissionsController {
   @ApiResponse({ status: 200, description: 'Permissions retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  async findAll(
-    @Query('action') action?: Action,
-    @Query('subject') subject?: Subject,
-  ) {
+  async findAll(@Query('action') action?: Action, @Query('subject') subject?: Subject) {
     if (action && subject) {
       const permission = await this.permissionsService.findByActionAndSubject(action, subject)
       return permission ? [permission] : []
@@ -89,7 +86,7 @@ export class PermissionsController {
   @ApiResponse({ status: 404, description: 'Permission not found' })
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updatePermissionDto: UpdatePermissionDto,
+    @Body() updatePermissionDto: UpdatePermissionDto
   ) {
     return this.permissionsService.update(id, updatePermissionDto)
   }

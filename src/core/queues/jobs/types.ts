@@ -10,7 +10,7 @@ export enum QueueName {
   NOTIFICATION = 'notification-queue',
   SECURITY_SCAN = 'security-scan-queue',
   DATA_EXPORT = 'data-export-queue',
-  REPORT_GENERATION = 'report-generation-queue',
+  REPORT_GENERATION = 'report-generation-queue'
 }
 
 /**
@@ -20,7 +20,7 @@ export enum SessionCleanupJobType {
   CLEANUP_EXPIRED = 'cleanup-expired-sessions',
   CHECK_EXPIRING = 'check-expiring-sessions',
   CHECK_SUSPICIOUS = 'check-suspicious-sessions',
-  REMOVE_ORPHANED = 'remove-orphaned-sessions',
+  REMOVE_ORPHANED = 'remove-orphaned-sessions'
 }
 
 /**
@@ -30,7 +30,7 @@ export enum LogMaintenanceJobType {
   ROTATE_LOGS = 'rotate-logs',
   CLEANUP_ARCHIVES = 'cleanup-archives',
   SHIP_LOGS = 'ship-logs-remote',
-  CHECK_SIZE = 'check-log-size',
+  CHECK_SIZE = 'check-log-size'
 }
 
 /**
@@ -41,7 +41,7 @@ export enum EmailJobType {
   SEND_PASSWORD_RESET = 'send-password-reset',
   SEND_NOTIFICATION = 'send-notification-email',
   SEND_BULK = 'send-bulk-email',
-  SEND_VERIFICATION = 'send-verification-email',
+  SEND_VERIFICATION = 'send-verification-email'
 }
 
 /**
@@ -50,7 +50,7 @@ export enum EmailJobType {
 export enum SMSJobType {
   SEND_OTP = 'send-otp-sms',
   SEND_NOTIFICATION = 'send-notification-sms',
-  SEND_ALERT = 'send-alert-sms',
+  SEND_ALERT = 'send-alert-sms'
 }
 
 /**
@@ -63,7 +63,7 @@ export enum AttachmentJobType {
   CLEANUP_ORPHANED = 'cleanup-orphaned-files',
   EXTRACT_METADATA = 'extract-metadata',
   OPTIMIZE_IMAGE = 'optimize-image',
-  CONVERT_FORMAT = 'convert-format',
+  CONVERT_FORMAT = 'convert-format'
 }
 
 /**
@@ -72,7 +72,7 @@ export enum AttachmentJobType {
 export enum NotificationJobType {
   PUSH_NOTIFICATION = 'push-notification',
   IN_APP_NOTIFICATION = 'in-app-notification',
-  BROADCAST = 'broadcast-notification',
+  BROADCAST = 'broadcast-notification'
 }
 
 /**
@@ -92,5 +92,5 @@ export enum JobPriority {
   HIGH = 3,
   MEDIUM = 5,
   LOW = 7,
-  BACKGROUND = 10,
+  BACKGROUND = 10
 }

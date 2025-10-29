@@ -7,7 +7,7 @@ import { CacheService } from '../../cache/services/cache.service'
 
 /**
  * Tag Repository
- * 
+ *
  * Handles all database operations for Tag entity with caching.
  */
 @Injectable()
@@ -18,7 +18,7 @@ export class TagRepository extends BaseRepository<Tag> {
   constructor(
     @InjectRepository(Tag)
     protected readonly repository: Repository<Tag>,
-    protected readonly cacheService: CacheService,
+    protected readonly cacheService: CacheService
   ) {
     super(repository, cacheService)
   }
@@ -35,11 +35,11 @@ export class TagRepository extends BaseRepository<Tag> {
         return this.repository.findOne({
           where: {
             name: name.toLowerCase(),
-            deletedAt: IsNull(),
-          },
+            deletedAt: IsNull()
+          }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -60,10 +60,10 @@ export class TagRepository extends BaseRepository<Tag> {
 
         return this.repository.find({
           where: { deletedAt: IsNull() },
-          order: { [sortBy]: sortOrder },
+          order: { [sortBy]: sortOrder }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -79,12 +79,12 @@ export class TagRepository extends BaseRepository<Tag> {
         return this.repository.find({
           where: {
             isSystem: true,
-            deletedAt: IsNull(),
+            deletedAt: IsNull()
           },
-          order: { sortOrder: 'ASC' },
+          order: { sortOrder: 'ASC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -99,12 +99,14 @@ export class TagRepository extends BaseRepository<Tag> {
     }
 
     const tag = await super.create(data)
-    
+
     // Invalidate relevant caches
     await Promise.all([
-      normalizedName ? this.cacheService.del(this.buildCacheKey('name', normalizedName)) : Promise.resolve(),
+      normalizedName
+        ? this.cacheService.del(this.buildCacheKey('name', normalizedName))
+        : Promise.resolve(),
       this.cacheService.delPattern(this.buildCacheKey('all-active', '*')),
-      this.cacheService.del(this.buildCacheKey('system-tags')),
+      this.cacheService.del(this.buildCacheKey('system-tags'))
     ])
 
     return tag
@@ -120,13 +122,13 @@ export class TagRepository extends BaseRepository<Tag> {
     }
 
     const tag = await super.update(id, data)
-    
+
     // Invalidate relevant caches
     await Promise.all([
       this.cacheService.del(this.buildCacheKey('id', id.toString())),
       this.cacheService.del(this.buildCacheKey('name', tag.name)),
       this.cacheService.delPattern(this.buildCacheKey('all-active', '*')),
-      this.cacheService.del(this.buildCacheKey('system-tags')),
+      this.cacheService.del(this.buildCacheKey('system-tags'))
     ])
 
     return tag
@@ -140,13 +142,13 @@ export class TagRepository extends BaseRepository<Tag> {
     if (!tag) return false
 
     const result = await super.delete(id)
-    
+
     // Invalidate relevant caches
     await Promise.all([
       this.cacheService.del(this.buildCacheKey('id', id.toString())),
       this.cacheService.del(this.buildCacheKey('name', tag.name)),
       this.cacheService.delPattern(this.buildCacheKey('all-active', '*')),
-      this.cacheService.del(this.buildCacheKey('system-tags')),
+      this.cacheService.del(this.buildCacheKey('system-tags'))
     ])
 
     return result

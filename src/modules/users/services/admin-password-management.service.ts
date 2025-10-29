@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   Inject,
-  forwardRef,
+  forwardRef
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -13,14 +13,14 @@ import { User } from '../entities/user.entity'
 import {
   AdminResetPasswordDto,
   AdminSetPasswordDto,
-  AdminPasswordResetResponseDto,
+  AdminPasswordResetResponseDto
 } from '../dto/admin-password-management.dto'
 import { SessionsService } from '@modules/auth/services/sessions.service'
 import { EmailQueueService } from '@infrastructure/email'
 
 /**
  * Admin Password Management Service
- * 
+ *
  * Handles administrative password operations with security best practices:
  * - System-generated secure passwords
  * - Admin-defined passwords (with validation)
@@ -38,12 +38,12 @@ export class AdminPasswordManagementService {
     private readonly sessionsService: SessionsService,
     private readonly emailQueueService: EmailQueueService,
     @InjectPinoLogger(AdminPasswordManagementService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {}
 
   /**
    * Generate a secure random password
-   * 
+   *
    * Pattern: 4 uppercase + 4 lowercase + 2 digits + 2 special chars = 12 chars
    * Shuffled for randomness
    */
@@ -66,7 +66,7 @@ export class AdminPasswordManagementService {
       getRandomChars(uppercase, 4),
       getRandomChars(lowercase, 4),
       getRandomChars(numbers, 2),
-      getRandomChars(special, 2),
+      getRandomChars(special, 2)
     ]
 
     // Shuffle all characters
@@ -81,20 +81,20 @@ export class AdminPasswordManagementService {
 
   /**
    * Admin resets user password (system-generated)
-   * 
+   *
    * Use Case: User forgot password, emergency access
    * Returns temporary password to admin
    */
   async resetPassword(
     dto: AdminResetPasswordDto,
     adminId: string,
-    adminEmail: string,
+    adminEmail: string
   ): Promise<AdminPasswordResetResponseDto> {
     const { userId, forcePasswordChange = true, reason } = dto
 
     // Find user
     const user = await this.userRepository.findOne({
-      where: { id: userId },
+      where: { id: userId }
     })
 
     if (!user) {
@@ -121,7 +121,7 @@ export class AdminPasswordManagementService {
     const revokedCount = await this.sessionsService.revokeAllSessions(
       userId,
       undefined,
-      `Password reset by admin: ${adminEmail}`,
+      `Password reset by admin: ${adminEmail}`
     )
 
     this.logger.warn(
@@ -133,9 +133,9 @@ export class AdminPasswordManagementService {
         reason,
         revokedSessions: revokedCount,
         forcePasswordChange,
-        action: 'admin_password_reset',
+        action: 'admin_password_reset'
       },
-      'Admin reset user password (system-generated)',
+      'Admin reset user password (system-generated)'
     )
 
     // Optional: Send email notification to user
@@ -148,32 +148,32 @@ export class AdminPasswordManagementService {
       forcePasswordChange,
       changedBy: adminEmail,
       changedAt: new Date(),
-      reason,
+      reason
     }
   }
 
   /**
    * Admin sets specific password for user
-   * 
+   *
    * Use Case: Emergency access, specific requirements
    * Admin defines the password (still validated)
    */
   async setPassword(
     dto: AdminSetPasswordDto,
     adminId: string,
-    adminEmail: string,
+    adminEmail: string
   ): Promise<AdminPasswordResetResponseDto> {
     const {
       userId,
       newPassword,
       forcePasswordChange = true,
       reason,
-      sendNotification = false,
+      sendNotification = false
     } = dto
 
     // Find user
     const user = await this.userRepository.findOne({
-      where: { id: userId },
+      where: { id: userId }
     })
 
     if (!user) {
@@ -203,7 +203,7 @@ export class AdminPasswordManagementService {
     const revokedCount = await this.sessionsService.revokeAllSessions(
       userId,
       undefined,
-      `Password set by admin: ${adminEmail}`,
+      `Password set by admin: ${adminEmail}`
     )
 
     this.logger.warn(
@@ -216,9 +216,9 @@ export class AdminPasswordManagementService {
         revokedSessions: revokedCount,
         forcePasswordChange,
         sendNotification,
-        action: 'admin_password_set',
+        action: 'admin_password_set'
       },
-      'Admin set user password (admin-defined)',
+      'Admin set user password (admin-defined)'
     )
 
     // Send notification email if requested
@@ -227,12 +227,12 @@ export class AdminPasswordManagementService {
         to: user.email,
         firstName: user.name.split(' ')[0] || 'User',
         resetTime: new Date().toLocaleString(),
-        resetIpAddress: 'Admin Action',
+        resetIpAddress: 'Admin Action'
       })
 
       this.logger.info(
         { userId: user.id, userEmail: user.email },
-        'Password change notification email sent',
+        'Password change notification email sent'
       )
     }
 
@@ -243,7 +243,7 @@ export class AdminPasswordManagementService {
       forcePasswordChange,
       changedBy: adminEmail,
       changedAt: new Date(),
-      reason,
+      reason
     }
   }
 
@@ -254,10 +254,7 @@ export class AdminPasswordManagementService {
   async getPasswordChangeHistory(userId: string): Promise<any[]> {
     // TODO: Implement if you create a password_change_audit table
     // For now, this would require querying logs
-    this.logger.info(
-      { userId },
-      'Password change history requested (not yet implemented)',
-    )
+    this.logger.info({ userId }, 'Password change history requested (not yet implemented)')
     return []
   }
 }

@@ -66,11 +66,7 @@ export class ImageProcessingService {
     } = {}
   ): Promise<ImageProcessingResult> {
     try {
-      const {
-        fit = 'inside',
-        withoutEnlargement = true,
-        quality = 90
-      } = options
+      const { fit = 'inside', withoutEnlargement = true, quality = 90 } = options
 
       const resized = sharp(buffer)
         .resize({
@@ -103,22 +99,17 @@ export class ImageProcessingService {
   /**
    * Generate thumbnails in multiple sizes
    */
-  async generateThumbnails(
-    buffer: Buffer,
-    sizes?: ThumbnailSize[]
-  ): Promise<ThumbnailResult> {
+  async generateThumbnails(buffer: Buffer, sizes?: ThumbnailSize[]): Promise<ThumbnailResult> {
     const thumbnailSizes = sizes || this.defaultThumbnailSizes
     const results: ThumbnailResult = {}
 
     try {
       await Promise.all(
-        thumbnailSizes.map(async (size) => {
-          const resized = await this.resize(
-            buffer,
-            size.width,
-            size.height,
-            { fit: size.fit || 'cover', quality: 85 }
-          )
+        thumbnailSizes.map(async size => {
+          const resized = await this.resize(buffer, size.width, size.height, {
+            fit: size.fit || 'cover',
+            quality: 85
+          })
 
           results[size.name] = {
             buffer: resized.buffer,
@@ -191,7 +182,10 @@ export class ImageProcessingService {
       const metadata = await image.metadata()
 
       // Resize if needed
-      if ((metadata.width && metadata.width > maxWidth) || (metadata.height && metadata.height > maxHeight)) {
+      if (
+        (metadata.width && metadata.width > maxWidth) ||
+        (metadata.height && metadata.height > maxHeight)
+      ) {
         image = image.resize({
           width: maxWidth,
           height: maxHeight,
@@ -229,11 +223,9 @@ export class ImageProcessingService {
   /**
    * Extract dominant colors from image
    */
-  async extractDominantColors(buffer: Buffer, numColors = 5): Promise<string[]> {
+  async extractDominantColors(buffer: Buffer, _numColors = 5): Promise<string[]> {
     try {
-      const stats = await sharp(buffer)
-        .resize(100, 100, { fit: 'cover' })
-        .stats()
+      await sharp(buffer).resize(100, 100, { fit: 'cover' }).stats()
 
       // Return a placeholder color - in production use a proper color quantization library
       return ['#808080']
@@ -245,17 +237,9 @@ export class ImageProcessingService {
   /**
    * Crop image
    */
-  async crop(
-    buffer: Buffer,
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ): Promise<Buffer> {
+  async crop(buffer: Buffer, x: number, y: number, width: number, height: number): Promise<Buffer> {
     try {
-      return await sharp(buffer)
-        .extract({ left: x, top: y, width, height })
-        .toBuffer()
+      return await sharp(buffer).extract({ left: x, top: y, width, height }).toBuffer()
     } catch (error) {
       throw new InternalServerErrorException('Failed to crop image')
     }
@@ -266,9 +250,7 @@ export class ImageProcessingService {
    */
   async rotate(buffer: Buffer, angle: number): Promise<Buffer> {
     try {
-      return await sharp(buffer)
-        .rotate(angle)
-        .toBuffer()
+      return await sharp(buffer).rotate(angle).toBuffer()
     } catch (error) {
       throw new InternalServerErrorException('Failed to rotate image')
     }
@@ -279,9 +261,7 @@ export class ImageProcessingService {
    */
   async blur(buffer: Buffer, sigma = 5): Promise<Buffer> {
     try {
-      return await sharp(buffer)
-        .blur(sigma)
-        .toBuffer()
+      return await sharp(buffer).blur(sigma).toBuffer()
     } catch (error) {
       throw new InternalServerErrorException('Failed to apply blur effect')
     }
@@ -292,9 +272,7 @@ export class ImageProcessingService {
    */
   async grayscale(buffer: Buffer): Promise<Buffer> {
     try {
-      return await sharp(buffer)
-        .grayscale()
-        .toBuffer()
+      return await sharp(buffer).grayscale().toBuffer()
     } catch (error) {
       throw new InternalServerErrorException('Failed to convert to grayscale')
     }
@@ -351,9 +329,7 @@ export class ImageProcessingService {
       return await image
         .composite([
           {
-            input: await sharp(resizedWatermark)
-              .ensureAlpha(opacity)
-              .toBuffer(),
+            input: await sharp(resizedWatermark).ensureAlpha(opacity).toBuffer(),
             left,
             top
           }

@@ -25,7 +25,10 @@ export class UpdateAttachmentDto {
   @IsString({ each: true })
   tags?: string[]
 
-  @ApiPropertyOptional({ description: 'Folder/directory for organization', example: 'invoices/2024' })
+  @ApiPropertyOptional({
+    description: 'Folder/directory for organization',
+    example: 'invoices/2024'
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
@@ -40,7 +43,7 @@ export class UpdateAttachmentDto {
   @IsBoolean()
   isPublic?: boolean
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Additional metadata as JSON object',
     example: { projectId: '123', documentType: 'invoice' }
   })

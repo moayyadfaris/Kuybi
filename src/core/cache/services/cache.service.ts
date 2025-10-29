@@ -5,7 +5,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 /**
  * Cache Service
- * 
+ *
  * Provides helper methods for cache operations
  * Abstracts cache-manager for easier testing and maintenance
  */
@@ -90,11 +90,7 @@ export class CacheService {
   /**
    * Wrap a function with caching
    */
-  async wrap<T>(
-    key: string,
-    fn: () => Promise<T>,
-    ttl?: number,
-  ): Promise<T> {
+  async wrap<T>(key: string, fn: () => Promise<T>, ttl?: number): Promise<T> {
     try {
       const ttlMs = this.normalizeTtl(ttl)
       return await this.cacheManager.wrap(key, fn, ttlMs)

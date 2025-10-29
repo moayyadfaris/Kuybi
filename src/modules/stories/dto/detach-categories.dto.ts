@@ -7,7 +7,7 @@ export class DetachCategoriesDto {
     type: [String],
     example: ['550e8400-e29b-41d4-a716-446655440000'],
     minItems: 1,
-    maxItems: 20,
+    maxItems: 20
   })
   @IsArray()
   @ArrayMinSize(1)

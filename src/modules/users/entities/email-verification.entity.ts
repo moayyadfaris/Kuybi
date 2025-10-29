@@ -6,15 +6,15 @@ import {
   UpdateDateColumn,
   Index,
   ManyToOne,
-  JoinColumn,
+  JoinColumn
 } from 'typeorm'
 import { User } from './user.entity'
 
 /**
  * Email Verification Entity
- * 
+ *
  * Stores email verification tokens for user registration
- * 
+ *
  * Features:
  * - Unique verification tokens (UUID v4)
  * - Expiration tracking (24 hours default)
@@ -23,16 +23,15 @@ import { User } from './user.entity'
  * - Tracks verification status and timestamp
  */
 @Entity('email_verifications')
-@Index(['email'])
 @Index(['token'], { unique: true })
 @Index(['userId', 'verified'])
 @Index(['expiresAt'])
+@Index(['email']) // Email index defined here - not on property level
 export class EmailVerification {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
   @Column({ type: 'uuid' })
-  @Index()
   userId: string
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
@@ -40,8 +39,7 @@ export class EmailVerification {
   user: User
 
   @Column({ type: 'varchar', length: 255 })
-  @Index()
-  email: string
+  email: string // Index removed from property - already defined at class level
 
   @Column({ type: 'uuid', unique: true })
   token: string

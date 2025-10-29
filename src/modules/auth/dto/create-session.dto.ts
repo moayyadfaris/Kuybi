@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
   IsString,
   IsNotEmpty,
@@ -7,9 +7,9 @@ import {
   IsObject,
   IsIP,
   MaxLength,
-  MinLength,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+  MinLength
+} from 'class-validator'
+import { Type } from 'class-transformer'
 
 export enum SessionType {
   STANDARD = 'standard',
@@ -18,14 +18,14 @@ export enum SessionType {
   API = 'api',
   ADMIN = 'admin',
   SUSPICIOUS = 'suspicious',
-  GUEST = 'guest',
+  GUEST = 'guest'
 }
 
 export enum DeviceType {
   DESKTOP = 'desktop',
   MOBILE = 'mobile',
   TABLET = 'tablet',
-  UNKNOWN = 'unknown',
+  UNKNOWN = 'unknown'
 }
 
 /**
@@ -35,62 +35,62 @@ export enum DeviceType {
 export class CreateSessionDto {
   @ApiProperty({
     description: 'User ID associated with this session',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    example: '123e4567-e89b-12d3-a456-426614174000'
   })
   @IsString()
   @IsNotEmpty()
-  userId: string;
+  userId: string
 
   @ApiPropertyOptional({
     description: 'IP address from which the session was created',
     example: '192.168.1.100',
-    required: false,
+    required: false
   })
   @IsOptional()
   @IsIP()
-  ipAddress?: string;
+  ipAddress?: string
 
   @ApiPropertyOptional({
     description: 'User agent string from the client browser/app',
     example: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)...',
     maxLength: 500,
-    required: false,
+    required: false
   })
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  userAgent?: string;
+  userAgent?: string
 
   @ApiPropertyOptional({
     description: 'Type of device used to create the session',
     enum: DeviceType,
     example: DeviceType.DESKTOP,
-    required: false,
+    required: false
   })
   @IsOptional()
   @IsEnum(DeviceType)
-  deviceType?: DeviceType;
+  deviceType?: DeviceType
 
   @ApiPropertyOptional({
     description: 'Type of session being created',
     enum: SessionType,
     example: SessionType.STANDARD,
     default: SessionType.STANDARD,
-    required: false,
+    required: false
   })
   @IsOptional()
   @IsEnum(SessionType)
-  sessionType?: SessionType;
+  sessionType?: SessionType
 
   @ApiPropertyOptional({
     description: 'Additional metadata for the session (JSON object)',
     example: { loginMethod: 'password', twoFactorEnabled: true },
-    required: false,
+    required: false
   })
   @IsOptional()
   @IsObject()
   @Type(() => Object)
-  metadata?: Record<string, any>;
+  metadata?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Device information (browser, OS, etc.)',
@@ -98,12 +98,12 @@ export class CreateSessionDto {
       browser: 'Chrome',
       browserVersion: '118.0',
       os: 'Windows',
-      osVersion: '10',
+      osVersion: '10'
     },
-    required: false,
+    required: false
   })
   @IsOptional()
   @IsObject()
   @Type(() => Object)
-  deviceInfo?: Record<string, any>;
+  deviceInfo?: Record<string, any>
 }

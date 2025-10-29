@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { UserRole } from '../../acl/entities/user-role.entity'
@@ -14,7 +19,7 @@ export class UserRolesService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
-    private readonly roleRepository: Repository<Role>,
+    private readonly roleRepository: Repository<Role>
   ) {}
 
   /**
@@ -23,7 +28,7 @@ export class UserRolesService {
   async getUserRoles(userId: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['userRoles', 'userRoles.role'],
+      relations: ['userRoles', 'userRoles.role']
     })
 
     if (!user) {
@@ -34,15 +39,15 @@ export class UserRolesService {
       userId: user.id,
       email: user.email,
       name: user.name,
-      roles: user.userRoles.map((ur) => ({
+      roles: user.userRoles.map(ur => ({
         id: ur.role.id,
         name: ur.role.name,
         description: ur.role.description,
         priority: ur.role.priority,
         isActive: ur.isActive,
         expiresAt: ur.expiresAt,
-        assignedAt: ur.createdAt,
-      })),
+        assignedAt: ur.createdAt
+      }))
     }
   }
 
@@ -52,7 +57,7 @@ export class UserRolesService {
   async assignRole(userId: string, assignRoleDto: AssignRoleDto) {
     // Verify user exists
     const user = await this.userRepository.findOne({
-      where: { id: userId },
+      where: { id: userId }
     })
 
     if (!user) {
@@ -61,7 +66,7 @@ export class UserRolesService {
 
     // Verify role exists
     const role = await this.roleRepository.findOne({
-      where: { id: assignRoleDto.roleId },
+      where: { id: assignRoleDto.roleId }
     })
 
     if (!role) {
@@ -70,7 +75,7 @@ export class UserRolesService {
 
     // Check if role is already assigned
     const existing = await this.userRoleRepository.findOne({
-      where: { userId, roleId: assignRoleDto.roleId },
+      where: { userId, roleId: assignRoleDto.roleId }
     })
 
     if (existing) {
@@ -90,7 +95,7 @@ export class UserRolesService {
       userId,
       roleId: assignRoleDto.roleId,
       isActive: assignRoleDto.isActive ?? true,
-      expiresAt: assignRoleDto.expiresAt ? new Date(assignRoleDto.expiresAt) : null,
+      expiresAt: assignRoleDto.expiresAt ? new Date(assignRoleDto.expiresAt) : null
     })
 
     const saved = await this.userRoleRepository.save(userRole)
@@ -104,8 +109,8 @@ export class UserRolesService {
         roleName: role.name,
         isActive: saved.isActive,
         expiresAt: saved.expiresAt,
-        createdAt: saved.createdAt,
-      },
+        createdAt: saved.createdAt
+      }
     }
   }
 
@@ -114,7 +119,7 @@ export class UserRolesService {
    */
   async revokeRole(userId: string, roleId: number): Promise<void> {
     const userRole = await this.userRoleRepository.findOne({
-      where: { userId, roleId },
+      where: { userId, roleId }
     })
 
     if (!userRole) {
@@ -130,7 +135,7 @@ export class UserRolesService {
   async activateRole(userId: string, roleId: number) {
     const userRole = await this.userRoleRepository.findOne({
       where: { userId, roleId },
-      relations: ['role'],
+      relations: ['role']
     })
 
     if (!userRole) {
@@ -148,8 +153,8 @@ export class UserRolesService {
         roleId: updated.roleId,
         roleName: updated.role.name,
         isActive: updated.isActive,
-        expiresAt: updated.expiresAt,
-      },
+        expiresAt: updated.expiresAt
+      }
     }
   }
 
@@ -159,7 +164,7 @@ export class UserRolesService {
   async deactivateRole(userId: string, roleId: number) {
     const userRole = await this.userRoleRepository.findOne({
       where: { userId, roleId },
-      relations: ['role'],
+      relations: ['role']
     })
 
     if (!userRole) {
@@ -177,8 +182,8 @@ export class UserRolesService {
         roleId: updated.roleId,
         roleName: updated.role.name,
         isActive: updated.isActive,
-        expiresAt: updated.expiresAt,
-      },
+        expiresAt: updated.expiresAt
+      }
     }
   }
 }

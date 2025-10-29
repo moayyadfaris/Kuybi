@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import * as mime from 'mime-types'
 import * as path from 'path'
@@ -264,10 +264,7 @@ export class FileValidationService {
   /**
    * Check consistency between MIME type and extension
    */
-  private checkMimeTypeExtensionConsistency(
-    file: MulterFile,
-    result: FileValidationResult
-  ): void {
+  private checkMimeTypeExtensionConsistency(file: MulterFile, result: FileValidationResult): void {
     if (!result.detectedMimeType) {
       return
     }
@@ -286,7 +283,9 @@ export class FileValidationService {
   /**
    * Get file category from MIME type
    */
-  private getFileCategory(mimeType: string): 'image' | 'video' | 'document' | 'archive' | 'default' {
+  private getFileCategory(
+    mimeType: string
+  ): 'image' | 'video' | 'document' | 'archive' | 'default' {
     if (this.allowedMimeTypes.images.includes(mimeType)) return 'image'
     if (this.allowedMimeTypes.videos.includes(mimeType)) return 'video'
     if (this.allowedMimeTypes.documents.includes(mimeType)) return 'document'

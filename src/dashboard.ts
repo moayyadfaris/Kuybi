@@ -8,16 +8,16 @@ import { QueueName } from '@core/queues/jobs/types'
 
 /**
  * Bull Board Dashboard
- * 
+ *
  * Web-based monitoring UI for all Bull queues
- * 
+ *
  * Features:
  * - Real-time job monitoring
  * - Job retry/remove capabilities
  * - Queue statistics and metrics
  * - Failed job inspection
  * - Job search and filtering
- * 
+ *
  * Security:
  * - Protected with HTTP Basic Auth
  * - Credentials from environment variables
@@ -38,7 +38,7 @@ async function bootstrap() {
     host: redisHost,
     port: redisPort,
     password: redisPassword,
-    db: redisQueueDb,
+    db: redisQueueDb
   }
 
   console.log('📊 Initializing Bull Board Dashboard...')
@@ -54,7 +54,7 @@ async function bootstrap() {
     new Queue(QueueName.NOTIFICATION, { connection }),
     new Queue(QueueName.SECURITY_SCAN, { connection }),
     new Queue(QueueName.DATA_EXPORT, { connection }),
-    new Queue(QueueName.REPORT_GENERATION, { connection }),
+    new Queue(QueueName.REPORT_GENERATION, { connection })
   ]
 
   // Create Bull Board
@@ -63,7 +63,7 @@ async function bootstrap() {
 
   createBullBoard({
     queues: queues.map(queue => new BullMQAdapter(queue)),
-    serverAdapter,
+    serverAdapter
   })
 
   // Create Express app for dashboard
@@ -75,7 +75,7 @@ async function bootstrap() {
     basicAuth({
       users: { [username]: password },
       challenge: true,
-      realm: 'Bull Board Dashboard',
+      realm: 'Bull Board Dashboard'
     })
   )
 
@@ -90,9 +90,9 @@ async function bootstrap() {
       redis: {
         host: connection.host,
         port: connection.port,
-        db: connection.db,
+        db: connection.db
       },
-      queues: queues.map(q => q.name),
+      queues: queues.map(q => q.name)
     })
   })
 
@@ -100,7 +100,7 @@ async function bootstrap() {
   dashboardApp.get('/', (req, res) => {
     res.redirect('/admin/queues')
   })
-  
+
   dashboardApp.listen(dashboardPort, () => {
     console.log('✅ Bull Board Dashboard is running!')
     console.log(`   URL: http://localhost:${dashboardPort}/admin/queues`)

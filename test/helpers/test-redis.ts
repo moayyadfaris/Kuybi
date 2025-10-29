@@ -3,29 +3,29 @@
  * Helpers for Redis mocking and cleanup
  */
 
-import Redis from 'ioredis';
-import { testConfig } from '../test.config';
+import Redis from 'ioredis'
+import { testConfig } from '../test.config'
 
 export class TestRedis {
-  private static client: Redis;
+  private static client: Redis
 
   /**
    * Create a test Redis connection
    */
   static async createConnection(): Promise<Redis> {
     if (this.client) {
-      return this.client;
+      return this.client
     }
 
     this.client = new Redis({
       host: testConfig.redis.host,
       port: testConfig.redis.port,
       db: testConfig.redis.db,
-      lazyConnect: true,
-    });
+      lazyConnect: true
+    })
 
-    await this.client.connect();
-    return this.client;
+    await this.client.connect()
+    return this.client
   }
 
   /**
@@ -33,7 +33,7 @@ export class TestRedis {
    */
   static async closeConnection(): Promise<void> {
     if (this.client) {
-      await this.client.quit();
+      await this.client.quit()
     }
   }
 
@@ -42,7 +42,7 @@ export class TestRedis {
    */
   static async clearCache(): Promise<void> {
     if (this.client) {
-      await this.client.flushdb();
+      await this.client.flushdb()
     }
   }
 
@@ -50,6 +50,6 @@ export class TestRedis {
    * Get Redis client for testing
    */
   static getClient(): Redis {
-    return this.client;
+    return this.client
   }
 }

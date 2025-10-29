@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common'
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException
+} from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AbilityFactory } from './ability.factory'
 import { CHECK_ABILITY, RequiredRule } from './ability.decorator'
@@ -16,10 +22,7 @@ export class AbilityGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Get permission requirements from decorator
-    const rules = this.reflector.get<RequiredRule[]>(
-      CHECK_ABILITY,
-      context.getHandler()
-    )
+    const rules = this.reflector.get<RequiredRule[]>(CHECK_ABILITY, context.getHandler())
 
     // If no rules defined, allow access (permission check not required)
     if (!rules || rules.length === 0) {
@@ -36,9 +39,7 @@ export class AbilityGuard implements CanActivate {
 
     // Super-admin bypasses all permission checks
     // Check both JWT payload role and User entity method
-    const isSuperAdmin = 
-      user.role === 'super-admin' || 
-      (user.isSuperAdmin && user.isSuperAdmin())
+    const isSuperAdmin = user.role === 'super-admin' || (user.isSuperAdmin && user.isSuperAdmin())
 
     if (isSuperAdmin) {
       return true
@@ -48,19 +49,13 @@ export class AbilityGuard implements CanActivate {
     const ability = this.abilityFactory.createForUser(user)
 
     // Check if user has ANY of the required permissions (OR logic)
-    const hasPermission = rules.some((rule) => 
-      ability.can(rule.action, rule.subject)
-    )
+    const hasPermission = rules.some(rule => ability.can(rule.action, rule.subject))
 
     if (!hasPermission) {
       // Build helpful error message
-      const requiredPermissions = rules
-        .map((r) => `${r.action} ${r.subject}`)
-        .join(' OR ')
+      const requiredPermissions = rules.map(r => `${r.action} ${r.subject}`).join(' OR ')
 
-      throw new ForbiddenException(
-        `Insufficient permissions. Required: ${requiredPermissions}`
-      )
+      throw new ForbiddenException(`Insufficient permissions. Required: ${requiredPermissions}`)
     }
 
     return true

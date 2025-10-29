@@ -8,7 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  ParseIntPipe,
+  ParseIntPipe
 } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger'
 import { UserRolesService } from '../services/user-roles.service'
@@ -48,10 +48,7 @@ export class UserRolesController {
   @ApiResponse({ status: 403, description: 'Forbidden - requires assign:Role permission' })
   @ApiResponse({ status: 404, description: 'User or role not found' })
   @ApiResponse({ status: 409, description: 'Role already assigned to user' })
-  async assignRole(
-    @Param('userId') userId: string,
-    @Body() assignRoleDto: AssignRoleDto,
-  ) {
+  async assignRole(@Param('userId') userId: string, @Body() assignRoleDto: AssignRoleDto) {
     return this.userRolesService.assignRole(userId, assignRoleDto)
   }
 
@@ -65,10 +62,7 @@ export class UserRolesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - requires assign:Role permission' })
   @ApiResponse({ status: 404, description: 'User role assignment not found' })
-  async revokeRole(
-    @Param('userId') userId: string,
-    @Param('roleId', ParseIntPipe) roleId: number,
-  ) {
+  async revokeRole(@Param('userId') userId: string, @Param('roleId', ParseIntPipe) roleId: number) {
     await this.userRolesService.revokeRole(userId, roleId)
   }
 
@@ -83,7 +77,7 @@ export class UserRolesController {
   @ApiResponse({ status: 404, description: 'User role assignment not found' })
   async activateRole(
     @Param('userId') userId: string,
-    @Param('roleId', ParseIntPipe) roleId: number,
+    @Param('roleId', ParseIntPipe) roleId: number
   ) {
     return this.userRolesService.activateRole(userId, roleId)
   }
@@ -99,7 +93,7 @@ export class UserRolesController {
   @ApiResponse({ status: 404, description: 'User role assignment not found' })
   async deactivateRole(
     @Param('userId') userId: string,
-    @Param('roleId', ParseIntPipe) roleId: number,
+    @Param('roleId', ParseIntPipe) roleId: number
   ) {
     return this.userRolesService.deactivateRole(userId, roleId)
   }

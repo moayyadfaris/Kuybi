@@ -2,12 +2,17 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, Brackets, Between, IsNull } from 'typeorm'
 import { BaseRepository } from './base.repository'
-import { Story, StoryType, StoryStatus, StoryPriority } from '@modules/stories/entities/story.entity'
+import {
+  Story,
+  StoryType,
+  StoryStatus,
+  StoryPriority
+} from '@modules/stories/entities/story.entity'
 import { CacheService } from '../../cache/services/cache.service'
 
 /**
  * Story Repository
- * 
+ *
  * Handles all database operations for Story entity with caching.
  */
 @Injectable()
@@ -18,7 +23,7 @@ export class StoryRepository extends BaseRepository<Story> {
   constructor(
     @InjectRepository(Story)
     repository: Repository<Story>,
-    cacheService: CacheService,
+    cacheService: CacheService
   ) {
     super(repository, cacheService)
   }
@@ -28,7 +33,7 @@ export class StoryRepository extends BaseRepository<Story> {
    */
   async findById(
     id: string | number,
-    options?: { ttl?: number; bypassCache?: boolean },
+    options?: { ttl?: number; bypassCache?: boolean }
   ): Promise<Story | null> {
     const cacheKey = this.buildCacheKey('id', id)
 
@@ -36,16 +41,16 @@ export class StoryRepository extends BaseRepository<Story> {
       return this.cacheService.wrap<Story>(
         cacheKey,
         async () => {
-          return this.repository.findOne({ 
+          return this.repository.findOne({
             where: { id } as any,
             relations: ['tags', 'categories']
           })
         },
-        options?.ttl ?? this.defaultTTL,
+        options?.ttl ?? this.defaultTTL
       )
     }
 
-    return this.repository.findOne({ 
+    return this.repository.findOne({
       where: { id } as any,
       relations: ['tags', 'categories']
     })
@@ -60,13 +65,9 @@ export class StoryRepository extends BaseRepository<Story> {
       includeDeleted?: boolean
       limit?: number
       offset?: number
-    },
+    }
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'user',
-      userId,
-      JSON.stringify(options || {}),
-    )
+    const cacheKey = this.buildCacheKey('user', userId, JSON.stringify(options || {}))
 
     return this.cacheService.wrap<Story[]>(
       cacheKey,
@@ -92,7 +93,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
         return query.getMany()
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -104,13 +105,9 @@ export class StoryRepository extends BaseRepository<Story> {
     options?: {
       limit?: number
       offset?: number
-    },
+    }
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'status',
-      status,
-      JSON.stringify(options || {}),
-    )
+    const cacheKey = this.buildCacheKey('status', status, JSON.stringify(options || {}))
 
     return this.cacheService.wrap<Story[]>(
       cacheKey,
@@ -133,7 +130,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
         return query.getMany()
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -145,13 +142,9 @@ export class StoryRepository extends BaseRepository<Story> {
     options?: {
       limit?: number
       offset?: number
-    },
+    }
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'type',
-      type,
-      JSON.stringify(options || {}),
-    )
+    const cacheKey = this.buildCacheKey('type', type, JSON.stringify(options || {}))
 
     return this.cacheService.wrap<Story[]>(
       cacheKey,
@@ -174,7 +167,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
         return query.getMany()
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -186,13 +179,9 @@ export class StoryRepository extends BaseRepository<Story> {
     options?: {
       limit?: number
       offset?: number
-    },
+    }
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'priority',
-      priority,
-      JSON.stringify(options || {}),
-    )
+    const cacheKey = this.buildCacheKey('priority', priority, JSON.stringify(options || {}))
 
     return this.cacheService.wrap<Story[]>(
       cacheKey,
@@ -215,7 +204,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
         return query.getMany()
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -226,12 +215,12 @@ export class StoryRepository extends BaseRepository<Story> {
     parentId: number,
     options?: {
       includeDeleted?: boolean
-    },
+    }
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey(
       'children',
       parentId.toString(),
-      JSON.stringify(options || {}),
+      JSON.stringify(options || {})
     )
 
     return this.cacheService.wrap<Story[]>(
@@ -250,7 +239,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
         return query.getMany()
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -281,7 +270,8 @@ export class StoryRepository extends BaseRepository<Story> {
       totalPages: number
     }
   }> {
-    const builder = this.repository.createQueryBuilder('story')
+    const builder = this.repository
+      .createQueryBuilder('story')
       .leftJoinAndSelect('story.tags', 'tags')
       .leftJoinAndSelect('story.categories', 'categories')
 
@@ -293,10 +283,12 @@ export class StoryRepository extends BaseRepository<Story> {
     // Text search
     if (filters.search) {
       builder.andWhere(
-        new Brackets((qb) => {
-          qb.where('story.title ILIKE :search', { search: `%${filters.search}%` })
-            .orWhere('story.details ILIKE :search', { search: `%${filters.search}%` })
-        }),
+        new Brackets(qb => {
+          qb.where('story.title ILIKE :search', { search: `%${filters.search}%` }).orWhere(
+            'story.details ILIKE :search',
+            { search: `%${filters.search}%` }
+          )
+        })
       )
     }
 
@@ -357,8 +349,8 @@ export class StoryRepository extends BaseRepository<Story> {
       pagination: {
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
-      },
+        totalPages: Math.ceil(total / limit)
+      }
     }
   }
 
@@ -397,7 +389,7 @@ export class StoryRepository extends BaseRepository<Story> {
           createdThisMonth,
           published,
           drafts,
-          deleted,
+          deleted
         ] = await Promise.all([
           // Total stories
           this.repository.count({ where: { deletedAt: IsNull() } }),
@@ -410,14 +402,14 @@ export class StoryRepository extends BaseRepository<Story> {
             .where('story.deletedAt IS NULL')
             .groupBy('story.status')
             .getRawMany()
-            .then((rows) =>
+            .then(rows =>
               rows.reduce(
                 (acc, row) => {
                   acc[row.status as StoryStatus] = parseInt(row.count)
                   return acc
                 },
-                {} as Record<StoryStatus, number>,
-              ),
+                {} as Record<StoryStatus, number>
+              )
             ),
 
           // By type
@@ -428,14 +420,14 @@ export class StoryRepository extends BaseRepository<Story> {
             .where('story.deletedAt IS NULL')
             .groupBy('story.type')
             .getRawMany()
-            .then((rows) =>
+            .then(rows =>
               rows.reduce(
                 (acc, row) => {
                   acc[row.type as StoryType] = parseInt(row.count)
                   return acc
                 },
-                {} as Record<StoryType, number>,
-              ),
+                {} as Record<StoryType, number>
+              )
             ),
 
           // By priority
@@ -446,62 +438,62 @@ export class StoryRepository extends BaseRepository<Story> {
             .where('story.deletedAt IS NULL')
             .groupBy('story.priority')
             .getRawMany()
-            .then((rows) =>
+            .then(rows =>
               rows.reduce(
                 (acc, row) => {
                   acc[row.priority as StoryPriority] = parseInt(row.count)
                   return acc
                 },
-                {} as Record<StoryPriority, number>,
-              ),
+                {} as Record<StoryPriority, number>
+              )
             ),
 
           // Created today
           this.repository.count({
             where: {
               createdAt: Between(startOfToday, now) as any,
-              deletedAt: IsNull(),
-            },
+              deletedAt: IsNull()
+            }
           }),
 
           // Created this week
           this.repository.count({
             where: {
               createdAt: Between(startOfWeek, now) as any,
-              deletedAt: IsNull(),
-            },
+              deletedAt: IsNull()
+            }
           }),
 
           // Created this month
           this.repository.count({
             where: {
               createdAt: Between(startOfMonth, now) as any,
-              deletedAt: IsNull(),
-            },
+              deletedAt: IsNull()
+            }
           }),
 
           // Published
           this.repository.count({
             where: {
               status: StoryStatus.PUBLISHED,
-              deletedAt: IsNull(),
-            },
+              deletedAt: IsNull()
+            }
           }),
 
           // Drafts
           this.repository.count({
             where: {
               status: StoryStatus.DRAFT,
-              deletedAt: IsNull(),
-            },
+              deletedAt: IsNull()
+            }
           }),
 
           // Deleted
           this.repository.count({
             where: {
-              deletedAt: Between(new Date(0), now) as any,
-            },
-          }),
+              deletedAt: Between(new Date(0), now) as any
+            }
+          })
         ])
 
         return {
@@ -514,10 +506,10 @@ export class StoryRepository extends BaseRepository<Story> {
           createdThisMonth,
           published,
           drafts,
-          deleted,
+          deleted
         }
       },
-      300, // 5 minutes cache for stats
+      300 // 5 minutes cache for stats
     )
   }
 
@@ -526,7 +518,7 @@ export class StoryRepository extends BaseRepository<Story> {
    */
   async create(data: Partial<Story>): Promise<Story> {
     const story = await super.create(data)
-    
+
     // Invalidate relevant caches
     await Promise.all([
       this.cacheService.del(this.buildCacheKey('all')),
@@ -539,7 +531,7 @@ export class StoryRepository extends BaseRepository<Story> {
         : Promise.resolve(),
       data.type
         ? this.cacheService.delPattern(this.buildCacheKey('type', data.type, '*'))
-        : Promise.resolve(),
+        : Promise.resolve()
     ])
 
     return story
@@ -550,7 +542,7 @@ export class StoryRepository extends BaseRepository<Story> {
    */
   async update(id: number, data: Partial<Story>): Promise<Story> {
     const story = await super.update(id, data)
-    
+
     // Invalidate relevant caches
     await Promise.all([
       this.cacheService.del(this.buildCacheKey('id', id.toString())),
@@ -560,7 +552,7 @@ export class StoryRepository extends BaseRepository<Story> {
         ? this.cacheService.delPattern(this.buildCacheKey('user', story.userId, '*'))
         : Promise.resolve(),
       this.cacheService.delPattern(this.buildCacheKey('status', story.status, '*')),
-      this.cacheService.delPattern(this.buildCacheKey('type', story.type, '*')),
+      this.cacheService.delPattern(this.buildCacheKey('type', story.type, '*'))
     ])
 
     return story
@@ -574,7 +566,7 @@ export class StoryRepository extends BaseRepository<Story> {
     if (!story) return false
 
     const result = await super.delete(id)
-    
+
     // Invalidate relevant caches
     await Promise.all([
       this.cacheService.del(this.buildCacheKey('id', id.toString())),
@@ -582,7 +574,7 @@ export class StoryRepository extends BaseRepository<Story> {
       this.cacheService.del(this.buildCacheKey('stats')),
       story.userId
         ? this.cacheService.delPattern(this.buildCacheKey('user', story.userId, '*'))
-        : Promise.resolve(),
+        : Promise.resolve()
     ])
 
     return result

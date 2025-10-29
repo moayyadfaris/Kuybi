@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsString, IsObject, IsArray, IsOptional, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { IsInt, IsString, IsObject, IsArray, IsOptional, Min } from 'class-validator'
+import { Type } from 'class-transformer'
 
 /**
  * Device statistics breakdown
@@ -8,24 +8,24 @@ import { Type } from 'class-transformer';
 export class DeviceStatsDto {
   @ApiProperty({
     description: 'Device type',
-    example: 'desktop',
+    example: 'desktop'
   })
   @IsString()
-  deviceType: string;
+  deviceType: string
 
   @ApiProperty({
     description: 'Number of sessions for this device type',
-    example: 5,
+    example: 5
   })
   @IsInt()
   @Min(0)
-  count: number;
+  count: number
 
   @ApiPropertyOptional({
     description: 'Percentage of total sessions',
-    example: 50.0,
+    example: 50.0
   })
-  percentage?: number;
+  percentage?: number
 }
 
 /**
@@ -34,24 +34,24 @@ export class DeviceStatsDto {
 export class SecurityLevelStatsDto {
   @ApiProperty({
     description: 'Security risk level',
-    example: 'low',
+    example: 'low'
   })
   @IsString()
-  securityLevel: string;
+  securityLevel: string
 
   @ApiProperty({
     description: 'Number of sessions at this security level',
-    example: 8,
+    example: 8
   })
   @IsInt()
   @Min(0)
-  count: number;
+  count: number
 
   @ApiPropertyOptional({
     description: 'Percentage of total sessions',
-    example: 80.0,
+    example: 80.0
   })
-  percentage?: number;
+  percentage?: number
 }
 
 /**
@@ -60,24 +60,24 @@ export class SecurityLevelStatsDto {
 export class SessionTypeStatsDto {
   @ApiProperty({
     description: 'Session type',
-    example: 'standard',
+    example: 'standard'
   })
   @IsString()
-  sessionType: string;
+  sessionType: string
 
   @ApiProperty({
     description: 'Number of sessions of this type',
-    example: 7,
+    example: 7
   })
   @IsInt()
   @Min(0)
-  count: number;
+  count: number
 
   @ApiPropertyOptional({
     description: 'Percentage of total sessions',
-    example: 70.0,
+    example: 70.0
   })
-  percentage?: number;
+  percentage?: number
 }
 
 /**
@@ -87,111 +87,111 @@ export class SessionTypeStatsDto {
 export class SessionStatsDto {
   @ApiProperty({
     description: 'Total number of sessions',
-    example: 10,
+    example: 10
   })
   @IsInt()
   @Min(0)
-  totalSessions: number;
+  totalSessions: number
 
   @ApiProperty({
     description: 'Number of active sessions',
-    example: 8,
+    example: 8
   })
   @IsInt()
   @Min(0)
-  activeSessions: number;
+  activeSessions: number
 
   @ApiProperty({
     description: 'Number of expired sessions',
-    example: 2,
+    example: 2
   })
   @IsInt()
   @Min(0)
-  expiredSessions: number;
+  expiredSessions: number
 
   @ApiProperty({
     description: 'Number of revoked sessions',
-    example: 0,
+    example: 0
   })
   @IsInt()
   @Min(0)
-  revokedSessions: number;
+  revokedSessions: number
 
   @ApiProperty({
     description: 'Number of sessions expiring soon (within 24 hours)',
-    example: 1,
+    example: 1
   })
   @IsInt()
   @Min(0)
-  expiringSoon: number;
+  expiringSoon: number
 
   @ApiProperty({
     description: 'Number of suspicious sessions',
-    example: 0,
+    example: 0
   })
   @IsInt()
   @Min(0)
-  suspiciousSessions: number;
+  suspiciousSessions: number
 
   @ApiProperty({
     description: 'Breakdown by device type',
     type: [DeviceStatsDto],
     example: [
       { deviceType: 'desktop', count: 5, percentage: 50.0 },
-      { deviceType: 'mobile', count: 3, percentage: 30.0 },
-    ],
+      { deviceType: 'mobile', count: 3, percentage: 30.0 }
+    ]
   })
   @IsArray()
   @Type(() => DeviceStatsDto)
-  deviceStats: DeviceStatsDto[];
+  deviceStats: DeviceStatsDto[]
 
   @ApiProperty({
     description: 'Breakdown by security level',
     type: [SecurityLevelStatsDto],
     example: [
       { securityLevel: 'low', count: 8, percentage: 80.0 },
-      { securityLevel: 'medium', count: 2, percentage: 20.0 },
-    ],
+      { securityLevel: 'medium', count: 2, percentage: 20.0 }
+    ]
   })
   @IsArray()
   @Type(() => SecurityLevelStatsDto)
-  securityStats: SecurityLevelStatsDto[];
+  securityStats: SecurityLevelStatsDto[]
 
   @ApiProperty({
     description: 'Breakdown by session type',
     type: [SessionTypeStatsDto],
     example: [
       { sessionType: 'standard', count: 7, percentage: 70.0 },
-      { sessionType: 'mobile', count: 3, percentage: 30.0 },
-    ],
+      { sessionType: 'mobile', count: 3, percentage: 30.0 }
+    ]
   })
   @IsArray()
   @Type(() => SessionTypeStatsDto)
-  typeStats: SessionTypeStatsDto[];
+  typeStats: SessionTypeStatsDto[]
 
   @ApiPropertyOptional({
     description: 'Average session age in hours',
-    example: 48.5,
+    example: 48.5
   })
-  averageSessionAge?: number;
+  averageSessionAge?: number
 
   @ApiPropertyOptional({
     description: 'Most recent session creation timestamp',
-    example: '2025-10-24T10:30:00Z',
+    example: '2025-10-24T10:30:00Z'
   })
-  mostRecentSession?: Date;
+  mostRecentSession?: Date
 
   @ApiPropertyOptional({
     description: 'Oldest active session timestamp',
-    example: '2025-10-20T08:15:00Z',
+    example: '2025-10-20T08:15:00Z'
   })
-  oldestSession?: Date;
+  oldestSession?: Date
 
   @ApiPropertyOptional({
     description: 'Additional metadata',
-    example: { maxConcurrentSessions: 5, currentConcurrentSessions: 3 },
+    example: { maxConcurrentSessions: 5, currentConcurrentSessions: 3 }
   })
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, any>
 }

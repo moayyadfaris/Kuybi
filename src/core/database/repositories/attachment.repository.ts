@@ -50,15 +50,14 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
    * Find attachment by ID with optional soft delete inclusion
    */
   async findByIdWithOptions(id: string, includeDeleted = false): Promise<Attachment | null> {
-    const cacheKey = this.buildCacheKey('id', id.toString(), includeDeleted ? 'with-deleted' : 'active')
-    
     if (!includeDeleted) {
       // Use base findById for normal queries
       return this.findById(id)
     }
 
     // For queries including deleted records
-    const query = this.repository.createQueryBuilder('attachment')
+    const query = this.repository
+      .createQueryBuilder('attachment')
       .where('attachment.id = :id', { id })
       .leftJoinAndSelect('attachment.user', 'user')
 
@@ -73,21 +72,20 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
    * Find all attachments by user ID
    */
   async findByUserId(
-    userId: string, 
+    userId: string,
     options: Partial<AttachmentQueryOptions> = {}
   ): Promise<Attachment[]> {
     const cacheKey = this.buildCacheKey('user', userId, JSON.stringify(options))
-    
+
     return this.withCache(cacheKey, async () => {
-      const query = this.repository.createQueryBuilder('attachment')
+      const query = this.repository
+        .createQueryBuilder('attachment')
         .where('attachment.userId = :userId', { userId })
         .leftJoinAndSelect('attachment.user', 'user')
 
       this.applyFilters(query, options)
 
-      return query
-        .orderBy('attachment.createdAt', 'DESC')
-        .getMany()
+      return query.orderBy('attachment.createdAt', 'DESC').getMany()
     })
   }
 
@@ -95,21 +93,20 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
    * Find attachments by category
    */
   async findByCategory(
-    category: string, 
+    category: string,
     options: Partial<AttachmentQueryOptions> = {}
   ): Promise<Attachment[]> {
     const cacheKey = this.buildCacheKey('category', category, JSON.stringify(options))
-    
+
     return this.withCache(cacheKey, async () => {
-      const query = this.repository.createQueryBuilder('attachment')
+      const query = this.repository
+        .createQueryBuilder('attachment')
         .where('attachment.category = :category', { category })
         .leftJoinAndSelect('attachment.user', 'user')
 
       this.applyFilters(query, options)
 
-      return query
-        .orderBy('attachment.createdAt', 'DESC')
-        .getMany()
+      return query.orderBy('attachment.createdAt', 'DESC').getMany()
     })
   }
 
@@ -117,21 +114,20 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
    * Find attachments by MIME type pattern
    */
   async findByMimeType(
-    mimeTypePattern: string, 
+    mimeTypePattern: string,
     options: Partial<AttachmentQueryOptions> = {}
   ): Promise<Attachment[]> {
     const cacheKey = this.buildCacheKey('mimetype', mimeTypePattern, JSON.stringify(options))
-    
+
     return this.withCache(cacheKey, async () => {
-      const query = this.repository.createQueryBuilder('attachment')
+      const query = this.repository
+        .createQueryBuilder('attachment')
         .where('attachment.mimeType LIKE :pattern', { pattern: `${mimeTypePattern}%` })
         .leftJoinAndSelect('attachment.user', 'user')
 
       this.applyFilters(query, options)
 
-      return query
-        .orderBy('attachment.createdAt', 'DESC')
-        .getMany()
+      return query.orderBy('attachment.createdAt', 'DESC').getMany()
     })
   }
 
@@ -142,17 +138,16 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     options: Partial<AttachmentQueryOptions> = {}
   ): Promise<Attachment[]> {
     const cacheKey = this.buildCacheKey('public', JSON.stringify(options))
-    
+
     return this.withCache(cacheKey, async () => {
-      const query = this.repository.createQueryBuilder('attachment')
+      const query = this.repository
+        .createQueryBuilder('attachment')
         .where('attachment.isPublic = :isPublic', { isPublic: true })
         .leftJoinAndSelect('attachment.user', 'user')
 
       this.applyFilters(query, options)
 
-      return query
-        .orderBy('attachment.createdAt', 'DESC')
-        .getMany()
+      return query.orderBy('attachment.createdAt', 'DESC').getMany()
     })
   }
 
@@ -164,13 +159,14 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
 
     const cacheKey = this.buildCacheKey('orphaned', olderThanDays.toString())
-    
+
     return this.withCache(cacheKey, async () => {
       // Query for attachments that:
       // 1. Are older than X days
       // 2. Have no story associations
       // 3. Are not deleted
-      return this.repository.createQueryBuilder('attachment')
+      return this.repository
+        .createQueryBuilder('attachment')
         .leftJoin('story_attachments', 'sa', 'sa.attachmentId = attachment.id')
         .where('attachment.createdAt < :cutoffDate', { cutoffDate })
         .andWhere('sa.attachmentId IS NULL')
@@ -188,17 +184,16 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     options: Partial<AttachmentQueryOptions> = {}
   ): Promise<Attachment[]> {
     const cacheKey = this.buildCacheKey('security-status', status, JSON.stringify(options))
-    
+
     return this.withCache(cacheKey, async () => {
-      const query = this.repository.createQueryBuilder('attachment')
+      const query = this.repository
+        .createQueryBuilder('attachment')
         .where('attachment.securityStatus = :status', { status })
         .leftJoinAndSelect('attachment.user', 'user')
 
       this.applyFilters(query, options)
 
-      return query
-        .orderBy('attachment.createdAt', 'DESC')
-        .getMany()
+      return query.orderBy('attachment.createdAt', 'DESC').getMany()
     })
   }
 
@@ -211,9 +206,10 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     }
 
     const cacheKey = this.buildCacheKey('tags', tags.join(','))
-    
+
     return this.withCache(cacheKey, async () => {
-      return this.repository.createQueryBuilder('attachment')
+      return this.repository
+        .createQueryBuilder('attachment')
         .where('attachment.tags && :tags', { tags })
         .andWhere('attachment.deletedAt IS NULL')
         .leftJoinAndSelect('attachment.user', 'user')
@@ -231,9 +227,10 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     futureDate.setDate(futureDate.getDate() + withinDays)
 
     const cacheKey = this.buildCacheKey('expiring', withinDays.toString())
-    
+
     return this.withCache(cacheKey, async () => {
-      return this.repository.createQueryBuilder('attachment')
+      return this.repository
+        .createQueryBuilder('attachment')
         .where('attachment.expiresAt IS NOT NULL')
         .andWhere('attachment.expiresAt BETWEEN :now AND :futureDate', { now, futureDate })
         .andWhere('attachment.deletedAt IS NULL')
@@ -254,64 +251,80 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     bySecurityStatus: Record<string, number>
   }> {
     const cacheKey = this.buildCacheKey('stats')
-    
-    return this.withCache(cacheKey, async () => {
-      const query = this.repository.createQueryBuilder('attachment')
-        .where('attachment.deletedAt IS NULL')
 
-      const [total, totalSizeResult, categoryStats, mimeTypeStats, securityStats] = await Promise.all([
-        query.getCount(),
-        this.repository.createQueryBuilder('attachment')
-          .select('SUM(attachment.size)', 'totalSize')
+    return this.withCache(
+      cacheKey,
+      async () => {
+        const query = this.repository
+          .createQueryBuilder('attachment')
           .where('attachment.deletedAt IS NULL')
-          .getRawOne(),
-        this.repository.createQueryBuilder('attachment')
-          .select('attachment.category', 'category')
-          .addSelect('COUNT(*)', 'count')
-          .where('attachment.deletedAt IS NULL')
-          .groupBy('attachment.category')
-          .getRawMany(),
-        this.repository.createQueryBuilder('attachment')
-          .select('attachment.mimeType', 'mimeType')
-          .addSelect('COUNT(*)', 'count')
-          .where('attachment.deletedAt IS NULL')
-          .groupBy('attachment.mimeType')
-          .getRawMany(),
-        this.repository.createQueryBuilder('attachment')
-          .select('attachment.securityStatus', 'status')
-          .addSelect('COUNT(*)', 'count')
-          .where('attachment.deletedAt IS NULL')
-          .groupBy('attachment.securityStatus')
-          .getRawMany()
-      ])
 
-      return {
-        total,
-        totalSize: parseInt(totalSizeResult?.totalSize || '0', 10),
-        byCategory: categoryStats.reduce((acc, item) => {
-          acc[item.category || 'uncategorized'] = parseInt(item.count, 10)
-          return acc
-        }, {} as Record<string, number>),
-        byMimeType: mimeTypeStats.reduce((acc, item) => {
-          acc[item.mimeType] = parseInt(item.count, 10)
-          return acc
-        }, {} as Record<string, number>),
-        bySecurityStatus: securityStats.reduce((acc, item) => {
-          acc[item.status] = parseInt(item.count, 10)
-          return acc
-        }, {} as Record<string, number>)
-      }
-    }, 300) // 5 minutes cache for stats
+        const [total, totalSizeResult, categoryStats, mimeTypeStats, securityStats] =
+          await Promise.all([
+            query.getCount(),
+            this.repository
+              .createQueryBuilder('attachment')
+              .select('SUM(attachment.size)', 'totalSize')
+              .where('attachment.deletedAt IS NULL')
+              .getRawOne(),
+            this.repository
+              .createQueryBuilder('attachment')
+              .select('attachment.category', 'category')
+              .addSelect('COUNT(*)', 'count')
+              .where('attachment.deletedAt IS NULL')
+              .groupBy('attachment.category')
+              .getRawMany(),
+            this.repository
+              .createQueryBuilder('attachment')
+              .select('attachment.mimeType', 'mimeType')
+              .addSelect('COUNT(*)', 'count')
+              .where('attachment.deletedAt IS NULL')
+              .groupBy('attachment.mimeType')
+              .getRawMany(),
+            this.repository
+              .createQueryBuilder('attachment')
+              .select('attachment.securityStatus', 'status')
+              .addSelect('COUNT(*)', 'count')
+              .where('attachment.deletedAt IS NULL')
+              .groupBy('attachment.securityStatus')
+              .getRawMany()
+          ])
+
+        return {
+          total,
+          totalSize: parseInt(totalSizeResult?.totalSize || '0', 10),
+          byCategory: categoryStats.reduce(
+            (acc, item) => {
+              acc[item.category || 'uncategorized'] = parseInt(item.count, 10)
+              return acc
+            },
+            {} as Record<string, number>
+          ),
+          byMimeType: mimeTypeStats.reduce(
+            (acc, item) => {
+              acc[item.mimeType] = parseInt(item.count, 10)
+              return acc
+            },
+            {} as Record<string, number>
+          ),
+          bySecurityStatus: securityStats.reduce(
+            (acc, item) => {
+              acc[item.status] = parseInt(item.count, 10)
+              return acc
+            },
+            {} as Record<string, number>
+          )
+        }
+      },
+      300
+    ) // 5 minutes cache for stats
   }
 
   /**
    * Soft delete an attachment
    */
   async softDelete(id: string): Promise<boolean> {
-    const result = await this.repository.update(
-      { id },
-      { deletedAt: new Date() }
-    )
+    const result = await this.repository.update({ id }, { deletedAt: new Date() })
 
     if (result.affected && result.affected > 0) {
       await this.invalidateCacheForEntity(id)
@@ -325,10 +338,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
    * Restore a soft-deleted attachment
    */
   async restore(id: string): Promise<boolean> {
-    const result = await this.repository.update(
-      { id },
-      { deletedAt: null }
-    )
+    const result = await this.repository.update({ id }, { deletedAt: null })
 
     if (result.affected && result.affected > 0) {
       await this.invalidateCacheForEntity(id)
@@ -355,10 +365,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   /**
    * Update attachment metadata
    */
-  async updateMetadata(
-    id: string, 
-    metadata: Record<string, unknown>
-  ): Promise<Attachment | null> {
+  async updateMetadata(id: string, metadata: Record<string, unknown>): Promise<Attachment | null> {
     const attachment = await this.findById(id)
     if (!attachment) {
       return null
@@ -369,7 +376,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
 
     const updated = await this.repository.save(attachment)
     await this.invalidateCacheForEntity(id)
-    
+
     return updated
   }
 
@@ -403,7 +410,9 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     }
 
     if (options.securityStatus) {
-      query.andWhere('attachment.securityStatus = :securityStatus', { securityStatus: options.securityStatus })
+      query.andWhere('attachment.securityStatus = :securityStatus', {
+        securityStatus: options.securityStatus
+      })
     }
 
     if (options.minSize) {

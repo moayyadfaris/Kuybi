@@ -21,7 +21,7 @@ export class SessionCleanupProcessor extends WorkerHost {
     @InjectPinoLogger(SessionCleanupProcessor.name)
     private readonly logger: PinoLogger,
     @InjectQueue(QueueName.SESSION_CLEANUP)
-    private readonly sessionQueue: Queue,
+    private readonly sessionQueue: Queue
   ) {
     super()
   }
@@ -37,7 +37,10 @@ export class SessionCleanupProcessor extends WorkerHost {
       case SessionCleanupJobType.CHECK_EXPIRING:
         return this.handleCheckExpiring(job as Job<ExpiringJobData>)
       default:
-        this.logger.warn({ jobId: job.id, jobName: job.name }, 'Unknown session cleanup job received')
+        this.logger.warn(
+          { jobId: job.id, jobName: job.name },
+          'Unknown session cleanup job received'
+        )
         return { ignored: true }
     }
   }

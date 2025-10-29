@@ -21,13 +21,13 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     @InjectPinoLogger(LogMaintenanceService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {
     this.loggingConfig = this.configService.get<LoggingConfig>('logging', {
       directories: { active: './logs', archive: './logs/archive' },
       rotation: { enabled: true, maxBytes: 10 * 1024 * 1024, checkIntervalMinutes: 15 },
       retentionDays: 7,
-      shipper: { enabled: false, flushOnRotateOnly: true },
+      shipper: { enabled: false, flushOnRotateOnly: true }
     })
     this.isTestEnv = this.configService.get<string>('app.env', 'development') === 'test'
   }
@@ -43,8 +43,8 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
 
     const intervalMs = this.loggingConfig.rotation.checkIntervalMinutes * 60 * 1000
     this.intervalRef = setInterval(() => {
-      this.rotateLargeFiles(false).catch((error) =>
-        this.logger.error({ error: error.message }, 'Failed to run scheduled log rotation'),
+      this.rotateLargeFiles(false).catch(error =>
+        this.logger.error({ error: error.message }, 'Failed to run scheduled log rotation')
       )
     }, intervalMs)
   }
@@ -86,7 +86,7 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
       await fsPromises.truncate(filePath, 0)
       this.logger.info(
         { source: filePath, destination: archivePath, sizeBytes: stats.size },
-        'Rotated log file',
+        'Rotated log file'
       )
 
       if (this.loggingConfig.shipper.enabled && !this.loggingConfig.shipper.flushOnRotateOnly) {
@@ -128,7 +128,10 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
       return result
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        this.logger.warn({ error: (error as Error).message }, 'Failed to read log archive directory')
+        this.logger.warn(
+          { error: (error as Error).message },
+          'Failed to read log archive directory'
+        )
       }
       return []
     }
@@ -146,7 +149,7 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
       if (typeof fetchFn !== 'function') {
         this.logger.warn(
           { endpoint },
-          'Log shipper is enabled but fetch is unavailable in this runtime',
+          'Log shipper is enabled but fetch is unavailable in this runtime'
         )
         return
       }
@@ -157,9 +160,9 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
         headers: {
           'Content-Type': 'application/octet-stream',
           'X-Log-Filename': path.basename(filePath),
-          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
         },
-        body: stream as any,
+        body: stream as any
       })
 
       if (!response.ok) {
@@ -169,10 +172,7 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.info({ filePath, endpoint }, 'Shipped log archive to remote sink')
     } catch (error) {
-      this.logger.error(
-        { filePath, error: (error as Error).message },
-        'Failed to ship log archive',
-      )
+      this.logger.error({ filePath, error: (error as Error).message }, 'Failed to ship log archive')
     }
   }
 
@@ -181,7 +181,10 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
       return await fsPromises.stat(filePath)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        this.logger.warn({ filePath, error: (error as Error).message }, 'Failed to read log file stats')
+        this.logger.warn(
+          { filePath, error: (error as Error).message },
+          'Failed to read log file stats'
+        )
       }
       return null
     }

@@ -45,7 +45,7 @@ export class User {
   @Column({ default: false })
   forcePasswordChange: boolean
 
-  @OneToMany(() => UserRole, (userRole) => userRole.user)
+  @OneToMany(() => UserRole, userRole => userRole.user)
   userRoles: UserRole[]
 
   @CreateDateColumn({ type: 'timestamptz' })
@@ -64,10 +64,10 @@ export class User {
 
     const now = new Date()
     return this.userRoles.some(
-      (userRole) =>
+      userRole =>
         userRole.role.name === roleName &&
         userRole.isActive &&
-        (!userRole.expiresAt || userRole.expiresAt > now),
+        (!userRole.expiresAt || userRole.expiresAt > now)
     )
   }
 
@@ -81,12 +81,8 @@ export class User {
 
     const now = new Date()
     return this.userRoles
-      .filter(
-        (userRole) =>
-          userRole.isActive &&
-          (!userRole.expiresAt || userRole.expiresAt > now),
-      )
-      .map((userRole) => userRole.role.name)
+      .filter(userRole => userRole.isActive && (!userRole.expiresAt || userRole.expiresAt > now))
+      .map(userRole => userRole.role.name)
   }
 
   /**

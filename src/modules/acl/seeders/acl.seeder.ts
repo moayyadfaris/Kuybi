@@ -9,9 +9,9 @@ import { Subject } from '../types/subjects.enum'
 
 /**
  * ACL Seeder - Create default roles and permissions
- * 
+ *
  * Run this after migrations to set up the default permission structure.
- * 
+ *
  * Default Roles:
  * - super-admin: Full system access (manage all)
  * - admin: Manage most resources, cannot manage roles/permissions
@@ -29,7 +29,7 @@ export class AclSeeder {
     @InjectRepository(Permission)
     private readonly permissionRepository: Repository<Permission>,
     @InjectRepository(RolePermission)
-    private readonly rolePermissionRepository: Repository<RolePermission>,
+    private readonly rolePermissionRepository: Repository<RolePermission>
   ) {}
 
   /**
@@ -65,16 +65,31 @@ export class AclSeeder {
       { action: Action.Create, subject: Subject.User, reason: 'Create new users' },
       { action: Action.Read, subject: Subject.User, reason: 'Read user data' },
       { action: Action.Update, subject: Subject.User, reason: 'Update user data' },
-      { action: Action.Update, subject: Subject.User, conditions: { id: '${userId}' }, reason: 'Update own profile' },
+      {
+        action: Action.Update,
+        subject: Subject.User,
+        conditions: { id: '${userId}' },
+        reason: 'Update own profile'
+      },
       { action: Action.Delete, subject: Subject.User, reason: 'Delete users' },
 
       // Story permissions
       { action: Action.Create, subject: Subject.Story, reason: 'Create stories' },
       { action: Action.Read, subject: Subject.Story, reason: 'Read all stories' },
       { action: Action.Update, subject: Subject.Story, reason: 'Update any story' },
-      { action: Action.Update, subject: Subject.Story, conditions: { userId: '${userId}' }, reason: 'Update own stories' },
+      {
+        action: Action.Update,
+        subject: Subject.Story,
+        conditions: { userId: '${userId}' },
+        reason: 'Update own stories'
+      },
       { action: Action.Delete, subject: Subject.Story, reason: 'Delete any story' },
-      { action: Action.Delete, subject: Subject.Story, conditions: { userId: '${userId}' }, reason: 'Delete own stories' },
+      {
+        action: Action.Delete,
+        subject: Subject.Story,
+        conditions: { userId: '${userId}' },
+        reason: 'Delete own stories'
+      },
       { action: Action.Publish, subject: Subject.Story, reason: 'Publish stories' },
       { action: Action.Archive, subject: Subject.Story, reason: 'Archive stories' },
       { action: Action.Moderate, subject: Subject.Story, reason: 'Moderate stories' },
@@ -83,9 +98,19 @@ export class AclSeeder {
       { action: Action.Create, subject: Subject.Attachment, reason: 'Upload attachments' },
       { action: Action.Read, subject: Subject.Attachment, reason: 'Read all attachments' },
       { action: Action.Update, subject: Subject.Attachment, reason: 'Update any attachment' },
-      { action: Action.Update, subject: Subject.Attachment, conditions: { userId: '${userId}' }, reason: 'Update own attachments' },
+      {
+        action: Action.Update,
+        subject: Subject.Attachment,
+        conditions: { userId: '${userId}' },
+        reason: 'Update own attachments'
+      },
       { action: Action.Delete, subject: Subject.Attachment, reason: 'Delete any attachment' },
-      { action: Action.Delete, subject: Subject.Attachment, conditions: { userId: '${userId}' }, reason: 'Delete own attachments' },
+      {
+        action: Action.Delete,
+        subject: Subject.Attachment,
+        conditions: { userId: '${userId}' },
+        reason: 'Delete own attachments'
+      },
 
       // Category permissions
       { action: Action.Create, subject: Subject.Category, reason: 'Create categories' },
@@ -100,8 +125,18 @@ export class AclSeeder {
       { action: Action.Delete, subject: Subject.Tag, reason: 'Delete tags' },
 
       // Session permissions
-      { action: Action.Read, subject: Subject.Session, conditions: { userId: '${userId}' }, reason: 'Read own sessions' },
-      { action: Action.Delete, subject: Subject.Session, conditions: { userId: '${userId}' }, reason: 'Delete own sessions' },
+      {
+        action: Action.Read,
+        subject: Subject.Session,
+        conditions: { userId: '${userId}' },
+        reason: 'Read own sessions'
+      },
+      {
+        action: Action.Delete,
+        subject: Subject.Session,
+        conditions: { userId: '${userId}' },
+        reason: 'Delete own sessions'
+      },
       { action: Action.Read, subject: Subject.Session, reason: 'Read all sessions' },
       { action: Action.Delete, subject: Subject.Session, reason: 'Delete any session' },
 
@@ -124,7 +159,7 @@ export class AclSeeder {
 
       // Setting permissions
       { action: Action.Read, subject: Subject.Setting, reason: 'Read settings' },
-      { action: Action.Update, subject: Subject.Setting, reason: 'Update settings' },
+      { action: Action.Update, subject: Subject.Setting, reason: 'Update settings' }
     ]
 
     const permissions: Permission[] = []
@@ -132,7 +167,7 @@ export class AclSeeder {
     for (const permData of permissionsData) {
       // Check if permission already exists
       const existing = await this.permissionRepository.findOne({
-        where: { action: permData.action, subject: permData.subject },
+        where: { action: permData.action, subject: permData.subject }
       })
 
       if (!existing) {
@@ -142,7 +177,7 @@ export class AclSeeder {
           conditions: permData.conditions || {},
           fields: [],
           inverted: false,
-          reason: permData.reason,
+          reason: permData.reason
         })
         permissions.push(await this.permissionRepository.save(permission))
       } else {
@@ -163,43 +198,43 @@ export class AclSeeder {
         description: 'Super Administrator with full system access',
         isSystem: true,
         isActive: true,
-        priority: 100,
+        priority: 100
       },
       {
         name: 'admin',
         description: 'Administrator with broad permissions',
         isSystem: true,
         isActive: true,
-        priority: 90,
+        priority: 90
       },
       {
         name: 'moderator',
         description: 'Content moderator with moderation capabilities',
         isSystem: true,
         isActive: true,
-        priority: 70,
+        priority: 70
       },
       {
         name: 'user',
         description: 'Regular user with standard permissions',
         isSystem: true,
         isActive: true,
-        priority: 50,
+        priority: 50
       },
       {
         name: 'guest',
         description: 'Guest with read-only access to public content',
         isSystem: true,
         isActive: true,
-        priority: 10,
-      },
+        priority: 10
+      }
     ]
 
     const roles: Role[] = []
 
     for (const roleData of rolesData) {
       const existing = await this.roleRepository.findOne({
-        where: { name: roleData.name },
+        where: { name: roleData.name }
       })
 
       if (!existing) {
@@ -217,13 +252,17 @@ export class AclSeeder {
    * Assign permissions to roles
    */
   private async assignPermissions(roles: Role[], permissions: Permission[]): Promise<void> {
-    const roleMap = new Map(roles.map((r) => [r.name, r]))
+    const roleMap = new Map(roles.map(r => [r.name, r]))
     const permMap = new Map(
-      permissions.map((p) => [`${p.action}:${p.subject}:${JSON.stringify(p.conditions)}`, p]),
+      permissions.map(p => [`${p.action}:${p.subject}:${JSON.stringify(p.conditions)}`, p])
     )
 
     // Helper to find permission
-    const findPerm = (action: Action, subject: Subject, conditions: any = {}): Permission | undefined => {
+    const findPerm = (
+      action: Action,
+      subject: Subject,
+      conditions: any = {}
+    ): Permission | undefined => {
       return permMap.get(`${action}:${subject}:${JSON.stringify(conditions)}`)
     }
 
@@ -235,11 +274,11 @@ export class AclSeeder {
     // Admin - broad permissions except role/permission management
     const admin = roleMap.get('admin')!
     const adminPerms = permissions.filter(
-      (p) =>
+      p =>
         p.subject !== Subject.Role &&
         p.subject !== Subject.Permission &&
         p.subject !== Subject.All &&
-        !p.conditions?.userId, // No user-specific conditions
+        !p.conditions?.userId // No user-specific conditions
     )
     for (const perm of adminPerms) {
       await this.assignPermission(admin, perm)
@@ -261,7 +300,7 @@ export class AclSeeder {
       findPerm(Action.Read, Subject.Category),
       findPerm(Action.Read, Subject.Tag),
       findPerm(Action.Read, Subject.Country),
-      findPerm(Action.Read, Subject.Setting),
+      findPerm(Action.Read, Subject.Setting)
     ].filter(Boolean) as Permission[]
     for (const perm of moderatorActions) {
       await this.assignPermission(moderator, perm)
@@ -289,7 +328,7 @@ export class AclSeeder {
       findPerm(Action.Read, Subject.Country),
       // Own sessions
       findPerm(Action.Read, Subject.Session, { userId: '${userId}' }),
-      findPerm(Action.Delete, Subject.Session, { userId: '${userId}' }),
+      findPerm(Action.Delete, Subject.Session, { userId: '${userId}' })
     ].filter(Boolean) as Permission[]
     for (const perm of userActions) {
       await this.assignPermission(user, perm)
@@ -302,7 +341,7 @@ export class AclSeeder {
       findPerm(Action.Read, Subject.Attachment),
       findPerm(Action.Read, Subject.Category),
       findPerm(Action.Read, Subject.Tag),
-      findPerm(Action.Read, Subject.Country),
+      findPerm(Action.Read, Subject.Country)
     ].filter(Boolean) as Permission[]
     for (const perm of guestActions) {
       await this.assignPermission(guest, perm)
@@ -314,13 +353,13 @@ export class AclSeeder {
    */
   private async assignPermission(role: Role, permission: Permission): Promise<void> {
     const existing = await this.rolePermissionRepository.findOne({
-      where: { roleId: role.id, permissionId: permission.id },
+      where: { roleId: role.id, permissionId: permission.id }
     })
 
     if (!existing) {
       const rolePermission = this.rolePermissionRepository.create({
         roleId: role.id,
-        permissionId: permission.id,
+        permissionId: permission.id
       })
       await this.rolePermissionRepository.save(rolePermission)
     }

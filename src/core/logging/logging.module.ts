@@ -5,6 +5,6 @@ import { LogMaintenanceService } from './log-maintenance.service'
 @Global()
 @Module({
   providers: [LoggingContextService, LogMaintenanceService],
-  exports: [LoggingContextService],
+  exports: [LoggingContextService]
 })
 export class LoggingModule {}

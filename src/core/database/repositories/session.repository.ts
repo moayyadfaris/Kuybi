@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
-import { Repository, IsNull, LessThan, MoreThan, Between } from 'typeorm'
+import { Repository, IsNull, MoreThan, Between } from 'typeorm'
 import { Session } from '@modules/auth/entities/session.entity'
 import { BaseRepository } from './base.repository'
 import { CacheService } from '../../cache/services/cache.service'
 
 /**
  * Session Repository - Enterprise Session Data Access Layer
- * 
+ *
  * Features:
  * - Multi-device session management with fingerprinting
  * - Security risk assessment and anomaly detection
@@ -16,7 +16,7 @@ import { CacheService } from '../../cache/services/cache.service'
  * - Advanced analytics and statistics
  * - Automatic caching with 5-minute TTL for active sessions
  * - 15-minute TTL for statistics
- * 
+ *
  * Performance:
  * - Cached session validation: ~1ms (vs ~15ms DB query)
  * - Cached stats: ~1ms (vs ~50ms DB query)
@@ -155,7 +155,10 @@ export class SessionRepository extends BaseRepository<Session> {
   async revokeSession(sessionId: string, reason?: string): Promise<boolean> {
     const session = await this.findById(sessionId)
     if (!session) {
-      this.logger.warn({ sessionId, reason, action: 'revoke_session_not_found' }, 'Session not found for revocation')
+      this.logger.warn(
+        { sessionId, reason, action: 'revoke_session_not_found' },
+        'Session not found for revocation'
+      )
       return false
     }
 
@@ -173,7 +176,10 @@ export class SessionRepository extends BaseRepository<Session> {
     await this.invalidateEntityCache(sessionId)
     await this.invalidateListCaches()
 
-    this.logger.debug({ sessionId, reason, userId: session.userId, action: 'session_revoked' }, 'Session revoked in repository')
+    this.logger.debug(
+      { sessionId, reason, userId: session.userId, action: 'session_revoked' },
+      'Session revoked in repository'
+    )
     return true
   }
 
@@ -184,7 +190,11 @@ export class SessionRepository extends BaseRepository<Session> {
    * @param reason - Revocation reason
    * @returns Promise<number> - Number of sessions revoked
    */
-  async revokeAllUserSessions(userId: string, excludeSessionId?: string, reason?: string): Promise<number> {
+  async revokeAllUserSessions(
+    userId: string,
+    excludeSessionId?: string,
+    reason?: string
+  ): Promise<number> {
     const query = this.repository
       .createQueryBuilder('session')
       .update(Session)
@@ -340,16 +350,16 @@ export class SessionRepository extends BaseRepository<Session> {
 
         const now = new Date()
         const active = sessions.filter(
-          (s) => s.isActive && !s.deletedAt && s.expiresAt.getTime() > now.getTime()
+          s => s.isActive && !s.deletedAt && s.expiresAt.getTime() > now.getTime()
         )
-        const expired = sessions.filter((s) => s.expiresAt.getTime() <= now.getTime())
-        const revoked = sessions.filter((s) => !s.isActive || s.deletedAt)
+        const expired = sessions.filter(s => s.expiresAt.getTime() <= now.getTime())
+        const revoked = sessions.filter(s => !s.isActive || s.deletedAt)
 
         const byDevice: Record<string, number> = {}
         const bySecurityLevel: Record<string, number> = {}
         const bySessionType: Record<string, number> = {}
 
-        sessions.forEach((session) => {
+        sessions.forEach(session => {
           if (session.deviceType) {
             byDevice[session.deviceType] = (byDevice[session.deviceType] || 0) + 1
           }
@@ -492,7 +502,7 @@ export class SessionRepository extends BaseRepository<Session> {
         const bySecurityLevel: Record<string, number> = {}
         const uniqueDevices = new Set<string>()
 
-        sessions.forEach((session) => {
+        sessions.forEach(session => {
           if (session.fingerprint) {
             uniqueDevices.add(session.fingerprint)
           }

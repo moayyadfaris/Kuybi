@@ -31,9 +31,8 @@ export class AbilityFactory {
 
     // Super-admin gets unrestricted access to everything
     // Check both JWT payload role and User entity method
-    const isSuperAdmin = 
-      (user as any).role === 'super-admin' || 
-      (user.isSuperAdmin && user.isSuperAdmin())
+    const isSuperAdmin =
+      (user as any).role === 'super-admin' || (user.isSuperAdmin && user.isSuperAdmin())
 
     if (isSuperAdmin) {
       can(Action.Manage, Subject.All)
@@ -41,12 +40,11 @@ export class AbilityFactory {
     }
 
     // Get active, non-expired roles
-    const activeRoles = user.userRoles?.filter(
-      (ur) =>
-        ur.isActive &&
-        ur.role.isActive &&
-        (!ur.expiresAt || new Date(ur.expiresAt) > new Date())
-    ) || []
+    const activeRoles =
+      user.userRoles?.filter(
+        ur =>
+          ur.isActive && ur.role.isActive && (!ur.expiresAt || new Date(ur.expiresAt) > new Date())
+      ) || []
 
     // Collect all permissions from all active roles
     for (const userRole of activeRoles) {
@@ -65,20 +63,10 @@ export class AbilityFactory {
         // Define ability based on permission
         if (permission.inverted) {
           // Cannot permission
-          cannot(
-            permission.action,
-            permission.subject,
-            permission.fields,
-            conditions
-          )
+          cannot(permission.action, permission.subject, permission.fields, conditions)
         } else {
           // Can permission
-          can(
-            permission.action,
-            permission.subject,
-            permission.fields,
-            conditions
-          )
+          can(permission.action, permission.subject, permission.fields, conditions)
         }
       }
     }

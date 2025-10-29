@@ -12,7 +12,7 @@ import { User } from '@modules/users/entities/user.entity'
 
 /**
  * Session Entity - Enterprise Session Management
- * 
+ *
  * Features:
  * - Multi-device session support with device fingerprinting
  * - Security risk assessment (low/medium/high/critical)
@@ -54,17 +54,17 @@ export class Session {
   ipAddress?: string
 
   // Session Classification
-  @Column({ 
-    type: 'varchar', 
-    length: 20, 
+  @Column({
+    type: 'varchar',
+    length: 20,
     default: 'low',
     comment: 'Security risk level: low, medium, high, critical'
   })
   securityLevel: string
 
-  @Column({ 
-    type: 'varchar', 
-    length: 30, 
+  @Column({
+    type: 'varchar',
+    length: 30,
     default: 'standard',
     comment: 'Session type: standard, persistent, mobile, api, admin, suspicious, guest'
   })

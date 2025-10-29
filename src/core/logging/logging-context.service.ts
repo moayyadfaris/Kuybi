@@ -10,7 +10,7 @@ export class LoggingContextService {
 
   constructor(
     @InjectPinoLogger(LoggingContextService.name)
-    private readonly rootLogger: PinoLogger,
+    private readonly rootLogger: PinoLogger
   ) {
     this.fallbackLogger = this.rootLogger.logger
   }

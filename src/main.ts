@@ -10,6 +10,7 @@ import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import { LoggingContextService } from '@core/logging/logging-context.service'
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
+import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true })
@@ -17,7 +18,7 @@ async function bootstrap() {
   const httpConfig = configService.get('http', {
     host: '0.0.0.0',
     port: 4040,
-    corsOrigin: '*',
+    corsOrigin: '*'
   })
 
   // Set Pino as the application logger
@@ -28,7 +29,7 @@ async function bootstrap() {
   app.use(compression())
   app.enableCors({ origin: httpConfig.corsOrigin, credentials: true })
   app.setGlobalPrefix('api')
-  
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -41,8 +42,9 @@ async function bootstrap() {
 
   const loggingContextService = app.get(LoggingContextService)
   app.useGlobalInterceptors(
+    new RequestIdInterceptor(),
     new LoggingContextInterceptor(loggingContextService, configService),
-    new TransformInterceptor(),
+    new TransformInterceptor()
   )
 
   const swaggerConfig = new DocumentBuilder()

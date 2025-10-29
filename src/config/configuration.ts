@@ -25,7 +25,7 @@ export default () => {
   const env = process.env.NODE_ENV || 'development'
   const logDir = process.env.LOG_DIR || './logs'
 
-  return ({
+  return {
     app: {
       name: process.env.APP_NAME || 'susanoo-nest',
       env
@@ -111,5 +111,5 @@ export default () => {
         password: process.env.SMTP_PASSWORD || ''
       }
     }
-  })
+  }
 }

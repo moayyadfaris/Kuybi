@@ -2,19 +2,17 @@ import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm'
 
 /**
  * Migration: Add forcePasswordChange field to users table
- * 
+ *
  * Purpose: Enable administrators to require users to change their password
  * on next login. Used for:
  * - Admin-initiated password resets
  * - Security incidents
  * - Expired temporary passwords
  * - Compliance requirements
- * 
+ *
  * Field: forcePasswordChange (boolean, default: false)
  */
-export class AddForcePasswordChangeToUsers1730140000000
-  implements MigrationInterface
-{
+export class AddForcePasswordChangeToUsers1730140000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add forcePasswordChange column
     await queryRunner.addColumn(
@@ -23,8 +21,8 @@ export class AddForcePasswordChangeToUsers1730140000000
         name: 'forcePasswordChange',
         type: 'boolean',
         default: false,
-        comment: 'Requires user to change password on next login',
-      }),
+        comment: 'Requires user to change password on next login'
+      })
     )
 
     console.log('✅ Added forcePasswordChange column to users table')

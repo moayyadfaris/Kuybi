@@ -23,7 +23,7 @@ export class AttachmentQueryDto {
   @IsBoolean()
   isPublic?: boolean
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Security status filter',
     example: 'approved',
     enum: ['pending', 'approved', 'rejected', 'scanning']
@@ -47,14 +47,20 @@ export class AttachmentQueryDto {
   @Min(0)
   maxSize?: number
 
-  @ApiPropertyOptional({ description: 'Start date filter (ISO 8601)', example: '2024-01-01T00:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Start date filter (ISO 8601)',
+    example: '2024-01-01T00:00:00Z'
+  })
   @IsOptional()
-  @Transform(({ value }) => value ? new Date(value) : undefined)
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
   startDate?: Date
 
-  @ApiPropertyOptional({ description: 'End date filter (ISO 8601)', example: '2024-12-31T23:59:59Z' })
+  @ApiPropertyOptional({
+    description: 'End date filter (ISO 8601)',
+    example: '2024-12-31T23:59:59Z'
+  })
   @IsOptional()
-  @Transform(({ value }) => value ? new Date(value) : undefined)
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
   endDate?: Date
 
   @ApiPropertyOptional({ description: 'Include soft-deleted attachments', default: false })
@@ -78,7 +84,7 @@ export class AttachmentQueryDto {
   @Max(100)
   limit?: number = 20
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Sort by field',
     example: 'createdAt',
     enum: ['createdAt', 'size', 'originalName', 'downloadCount']
@@ -88,7 +94,7 @@ export class AttachmentQueryDto {
   @IsEnum(['createdAt', 'size', 'originalName', 'downloadCount'])
   sortBy?: string = 'createdAt'
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Sort order',
     example: 'DESC',
     enum: ['ASC', 'DESC']

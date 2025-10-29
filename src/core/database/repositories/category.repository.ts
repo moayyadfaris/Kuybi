@@ -7,7 +7,7 @@ import { CacheService } from '../../cache/services/cache.service'
 
 /**
  * Category Repository
- * 
+ *
  * Handles all database operations for Category entity with caching.
  */
 @Injectable()
@@ -18,7 +18,7 @@ export class CategoryRepository extends BaseRepository<Category> {
   constructor(
     @InjectRepository(Category)
     repository: Repository<Category>,
-    cacheService: CacheService,
+    cacheService: CacheService
   ) {
     super(repository, cacheService)
   }
@@ -32,11 +32,11 @@ export class CategoryRepository extends BaseRepository<Category> {
     return this.cacheService.wrap<Category>(
       cacheKey,
       async () => {
-        return this.repository.findOne({ 
+        return this.repository.findOne({
           where: { slug: slug.toLowerCase(), deletedAt: null } as any
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -51,10 +51,10 @@ export class CategoryRepository extends BaseRepository<Category> {
       async () => {
         return this.repository.find({
           where: { isActive: true, deletedAt: null } as any,
-          order: { name: 'ASC' },
+          order: { name: 'ASC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -88,11 +88,11 @@ export class CategoryRepository extends BaseRepository<Category> {
     // Apply search
     if (query.search) {
       builder.andWhere(
-        new Brackets((qb) => {
+        new Brackets(qb => {
           qb.where('category.name ILIKE :search', { search: `%${query.search}%` })
             .orWhere('category.slug ILIKE :search', { search: `%${query.search}%` })
             .orWhere('category.description ILIKE :search', { search: `%${query.search}%` })
-        }),
+        })
       )
     }
 
@@ -120,8 +120,8 @@ export class CategoryRepository extends BaseRepository<Category> {
       pagination: {
         page,
         limit,
-        totalPages: Math.ceil(total / limit) || 0,
-      },
+        totalPages: Math.ceil(total / limit) || 0
+      }
     }
   }
 
@@ -149,7 +149,7 @@ export class CategoryRepository extends BaseRepository<Category> {
     const result = await this.repository.update(id, {
       deletedAt: new Date(),
       deletedBy,
-      isActive: false,
+      isActive: false
     } as any)
 
     // Invalidate caches
@@ -166,7 +166,7 @@ export class CategoryRepository extends BaseRepository<Category> {
     await this.repository.update(id, {
       deletedAt: null,
       deletedBy: null,
-      isActive: true,
+      isActive: true
     } as any)
 
     // Invalidate caches
@@ -197,12 +197,12 @@ export class CategoryRepository extends BaseRepository<Category> {
           this.repository
             .createQueryBuilder('category')
             .where('category.deletedAt IS NOT NULL')
-            .getCount(),
+            .getCount()
         ])
 
         return { total, active, inactive, deleted }
       },
-      300, // 5 minutes TTL for stats
+      300 // 5 minutes TTL for stats
     )
   }
 

@@ -12,66 +12,66 @@ export class CreatePasswordResetsTable1730130000000 implements MigrationInterfac
             type: 'uuid',
             isPrimary: true,
             generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
+            default: 'uuid_generate_v4()'
           },
           {
             name: 'userId',
-            type: 'uuid',
+            type: 'uuid'
           },
           {
             name: 'email',
             type: 'varchar',
-            length: '255',
+            length: '255'
           },
           {
             name: 'token',
             type: 'uuid',
-            isUnique: true,
+            isUnique: true
           },
           {
             name: 'expiresAt',
-            type: 'timestamp',
+            type: 'timestamp'
           },
           {
             name: 'used',
             type: 'boolean',
-            default: false,
+            default: false
           },
           {
             name: 'usedAt',
             type: 'timestamp',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'requestIpAddress',
             type: 'varchar',
             length: '45',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'resetIpAddress',
             type: 'varchar',
             length: '45',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'userAgent',
             type: 'text',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'createdAt',
             type: 'timestamp',
-            default: 'now()',
+            default: 'now()'
           },
           {
             name: 'updatedAt',
             type: 'timestamp',
-            default: 'now()',
-          },
-        ],
+            default: 'now()'
+          }
+        ]
       }),
-      true,
+      true
     )
 
     // Create indexes for efficient lookups
@@ -79,8 +79,8 @@ export class CreatePasswordResetsTable1730130000000 implements MigrationInterfac
       'password_resets',
       new TableIndex({
         name: 'IDX_password_resets_email',
-        columnNames: ['email'],
-      }),
+        columnNames: ['email']
+      })
     )
 
     await queryRunner.createIndex(
@@ -88,16 +88,16 @@ export class CreatePasswordResetsTable1730130000000 implements MigrationInterfac
       new TableIndex({
         name: 'IDX_password_resets_token',
         columnNames: ['token'],
-        isUnique: true,
-      }),
+        isUnique: true
+      })
     )
 
     await queryRunner.createIndex(
       'password_resets',
       new TableIndex({
         name: 'IDX_password_resets_userId',
-        columnNames: ['userId'],
-      }),
+        columnNames: ['userId']
+      })
     )
 
     // Composite index for finding active reset tokens for a user
@@ -105,8 +105,8 @@ export class CreatePasswordResetsTable1730130000000 implements MigrationInterfac
       'password_resets',
       new TableIndex({
         name: 'IDX_password_resets_userId_used',
-        columnNames: ['userId', 'used'],
-      }),
+        columnNames: ['userId', 'used']
+      })
     )
 
     // Index for cleanup of expired tokens
@@ -114,8 +114,8 @@ export class CreatePasswordResetsTable1730130000000 implements MigrationInterfac
       'password_resets',
       new TableIndex({
         name: 'IDX_password_resets_expiresAt',
-        columnNames: ['expiresAt'],
-      }),
+        columnNames: ['expiresAt']
+      })
     )
 
     // Create foreign key to users table
@@ -125,15 +125,15 @@ export class CreatePasswordResetsTable1730130000000 implements MigrationInterfac
         columnNames: ['userId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      }),
+        onDelete: 'CASCADE'
+      })
     )
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop foreign key
     const table = await queryRunner.getTable('password_resets')
-    const foreignKey = table?.foreignKeys.find((fk) => fk.columnNames.indexOf('userId') !== -1)
+    const foreignKey = table?.foreignKeys.find(fk => fk.columnNames.indexOf('userId') !== -1)
     if (foreignKey) {
       await queryRunner.dropForeignKey('password_resets', foreignKey)
     }

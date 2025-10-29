@@ -14,9 +14,9 @@ export interface AvailabilityCheckResult {
 
 /**
  * User Availability Service
- * 
+ *
  * Checks if email or phone number is already in use
- * 
+ *
  * Features:
  * - Email availability check with caching
  * - Phone availability check with caching
@@ -33,7 +33,7 @@ export class UserAvailabilityService {
     private readonly userRepository: Repository<User>,
     private readonly cacheService: CacheService,
     @InjectPinoLogger(UserAvailabilityService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {}
 
   /**
@@ -46,18 +46,21 @@ export class UserAvailabilityService {
     // Try cache first
     const cached = await this.cacheService.get<boolean>(cacheKey)
     if (cached !== null) {
-      this.logger.debug({ email: normalizedEmail, cached: true }, 'Email availability check (cached)')
+      this.logger.debug(
+        { email: normalizedEmail, cached: true },
+        'Email availability check (cached)'
+      )
       return {
         available: cached,
         field: 'email',
         value: normalizedEmail,
-        suggestions: cached ? undefined : this.generateEmailSuggestions(normalizedEmail),
+        suggestions: cached ? undefined : this.generateEmailSuggestions(normalizedEmail)
       }
     }
 
     // Check database
     const exists = await this.userRepository.exists({
-      where: { email: normalizedEmail },
+      where: { email: normalizedEmail }
     })
 
     const available = !exists
@@ -67,14 +70,14 @@ export class UserAvailabilityService {
 
     this.logger.info(
       { email: normalizedEmail, available, cached: false },
-      'Email availability check (database)',
+      'Email availability check (database)'
     )
 
     return {
       available,
       field: 'email',
       value: normalizedEmail,
-      suggestions: available ? undefined : this.generateEmailSuggestions(normalizedEmail),
+      suggestions: available ? undefined : this.generateEmailSuggestions(normalizedEmail)
     }
   }
 
@@ -88,17 +91,20 @@ export class UserAvailabilityService {
     // Try cache first
     const cached = await this.cacheService.get<boolean>(cacheKey)
     if (cached !== null) {
-      this.logger.debug({ phone: normalizedPhone, cached: true }, 'Phone availability check (cached)')
+      this.logger.debug(
+        { phone: normalizedPhone, cached: true },
+        'Phone availability check (cached)'
+      )
       return {
         available: cached,
         field: 'phone',
-        value: normalizedPhone,
+        value: normalizedPhone
       }
     }
 
     // Check database
     const exists = await this.userRepository.exists({
-      where: { mobileNumber: normalizedPhone },
+      where: { mobileNumber: normalizedPhone }
     })
 
     const available = !exists
@@ -108,13 +114,13 @@ export class UserAvailabilityService {
 
     this.logger.info(
       { phone: normalizedPhone, available, cached: false },
-      'Phone availability check (database)',
+      'Phone availability check (database)'
     )
 
     return {
       available,
       field: 'phone',
-      value: normalizedPhone,
+      value: normalizedPhone
     }
   }
 
@@ -160,7 +166,7 @@ export class UserAvailabilityService {
     }
 
     if (keys.length > 0) {
-      await Promise.all(keys.map((key) => this.cacheService.del(key)))
+      await Promise.all(keys.map(key => this.cacheService.del(key)))
       this.logger.debug({ keys }, 'Invalidated availability cache')
     }
   }

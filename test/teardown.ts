@@ -5,5 +5,5 @@
 
 export default async () => {
   // Cleanup code here if needed
-  await new Promise((resolve) => setTimeout(resolve, 500));
-};
+  await new Promise(resolve => setTimeout(resolve, 500))
+}

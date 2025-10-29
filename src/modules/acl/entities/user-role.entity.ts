@@ -4,7 +4,7 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
-  CreateDateColumn,
+  CreateDateColumn
 } from 'typeorm'
 import { User } from '../../users/entities/user.entity'
 import { Role } from './role.entity'
@@ -25,13 +25,13 @@ export class UserRole {
   roleId: number
 
   @ManyToOne(() => User, {
-    onDelete: 'CASCADE',
+    onDelete: 'CASCADE'
   })
   @JoinColumn({ name: 'userId' })
   user: User
 
-  @ManyToOne(() => Role, (role) => role.userRoles, {
-    onDelete: 'CASCADE',
+  @ManyToOne(() => Role, role => role.userRoles, {
+    onDelete: 'CASCADE'
   })
   @JoinColumn({ name: 'roleId' })
   role: Role

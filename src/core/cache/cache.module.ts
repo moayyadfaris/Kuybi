@@ -7,7 +7,7 @@ import { Logger } from 'nestjs-pino'
 
 /**
  * Global Cache Module
- * 
+ *
  * Provides Redis-backed caching for the entire application using Keyv with cache-manager v7
  * Features:
  * - Automatic TTL management
@@ -23,7 +23,7 @@ import { Logger } from 'nestjs-pino'
       inject: [ConfigService, Logger],
       useFactory: async (configService: ConfigService, logger: Logger) => {
         const redisConfig = configService.get('redis')
-        
+
         logger.log({
           msg: 'Configuring Redis cache store',
           context: 'CacheConfigModule',
@@ -39,9 +39,9 @@ import { Logger } from 'nestjs-pino'
 
         // Create Keyv instance for Redis
         const keyv = new Keyv(connectionString)
-        
+
         // Error handling
-        keyv.on('error', (err) => {
+        keyv.on('error', err => {
           logger.error({
             msg: 'Keyv connection error',
             context: 'CacheConfigModule',
@@ -50,7 +50,7 @@ import { Logger } from 'nestjs-pino'
             stack: err.stack
           })
         })
-        
+
         logger.log({
           msg: 'Redis cache store initialized successfully',
           context: 'CacheConfigModule'
@@ -60,12 +60,12 @@ import { Logger } from 'nestjs-pino'
         // The stores property accepts Keyv instances
         return {
           stores: [keyv],
-          ttl: redisConfig.ttl * 1000, // milliseconds
+          ttl: redisConfig.ttl * 1000 // milliseconds
         }
-      },
-    }),
+      }
+    })
   ],
   providers: [CacheService],
-  exports: [NestCacheModule, CacheService],
+  exports: [NestCacheModule, CacheService]
 })
 export class CacheConfigModule {}

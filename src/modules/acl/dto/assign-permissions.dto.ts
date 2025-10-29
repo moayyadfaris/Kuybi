@@ -5,7 +5,7 @@ export class AssignPermissionsDto {
   @ApiProperty({
     description: 'Array of permission IDs to assign to the role',
     example: [1, 2, 3],
-    type: [Number],
+    type: [Number]
   })
   @IsArray()
   @ArrayMinSize(1)
@@ -17,7 +17,7 @@ export class RemovePermissionsDto {
   @ApiProperty({
     description: 'Array of permission IDs to remove from the role',
     example: [1, 2],
-    type: [Number],
+    type: [Number]
   })
   @IsArray()
   @ArrayMinSize(1)

@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import type { StringValue } from 'ms'
 import * as bcrypt from 'bcrypt'
-import { UsersService } from '@modules/users/users.service'
+import { UsersService } from '@modules/users/services/users.service'
 import { User } from '@modules/users/entities/user.entity'
 import { Session } from '../entities/session.entity'
 import { SessionsService } from './sessions.service'
@@ -60,27 +60,34 @@ export class AuthService {
 
   async login(user: User, context: SessionContext) {
     this.logger.info(
-      { userId: user.id, email: user.email, ipAddress: context.ipAddress, deviceType: context.deviceType, action: 'user_login' },
+      {
+        userId: user.id,
+        email: user.email,
+        ipAddress: context.ipAddress,
+        deviceType: context.deviceType,
+        action: 'user_login'
+      },
       'User login'
     )
-    
+
     // Check if user must change password
     if (user.forcePasswordChange) {
       this.logger.warn(
         { userId: user.id, email: user.email, action: 'password_change_required' },
         'User must change password before accessing system'
       )
-      
+
       // Return special response indicating password change is required
       // Do NOT create session until password is changed
       return {
         requiresPasswordChange: true,
         userId: user.id,
-        message: 'Password change required. Please change your password before accessing the system.',
+        message:
+          'Password change required. Please change your password before accessing the system.',
         tempAccessToken: await this.generateTempAccessToken(user) // Limited token for password change only
       }
     }
-    
+
     // Create session using SessionsService
     const { session, refreshToken } = await this.sessionsService.createSession({
       userId: user.id,
@@ -139,20 +146,23 @@ export class AuthService {
     }
 
     // Refresh session (creates new session, revokes old one)
-    const { session: newSession, refreshToken: newRefreshToken } = await this.sessionsService.refreshSession(
-      tokenId,
-      {
+    const { session: newSession, refreshToken: newRefreshToken } =
+      await this.sessionsService.refreshSession(tokenId, {
         ipAddress: context.ipAddress,
         userAgent: context.userAgent,
         deviceType: context.deviceType
-      }
-    )
+      })
 
     // Generate new access token
     const accessToken = await this.generateAccessToken(user)
 
     this.logger.info(
-      { oldSessionId: tokenId, newSessionId: newSession.id, userId: user.id, action: 'session_refreshed' },
+      {
+        oldSessionId: tokenId,
+        newSessionId: newSession.id,
+        userId: user.id,
+        action: 'session_refreshed'
+      },
       'Session refreshed'
     )
 
@@ -164,7 +174,12 @@ export class AuthService {
 
   async logout(
     refreshToken: string,
-    options: SessionContext & { userId: string; logoutAll?: boolean; reason?: string; accessToken?: string }
+    options: SessionContext & {
+      userId: string
+      logoutAll?: boolean
+      reason?: string
+      accessToken?: string
+    }
   ) {
     const { userId, logoutAll = false, reason, accessToken } = options
     const [tokenId, tokenSecret] = refreshToken.split('.')
@@ -204,12 +219,22 @@ export class AuthService {
         })
         tokenBlacklisted = result.success
         this.logger.info(
-          { userId, sessionId: session.id, tokenHash: result.tokenHash.substring(0, 16), action: 'access_token_blacklisted' },
+          {
+            userId,
+            sessionId: session.id,
+            tokenHash: result.tokenHash.substring(0, 16),
+            action: 'access_token_blacklisted'
+          },
           'Access token blacklisted on logout'
         )
       } catch (error) {
         this.logger.warn(
-          { userId, sessionId: session.id, error: error.message, action: 'access_token_blacklist_failed' },
+          {
+            userId,
+            sessionId: session.id,
+            error: error.message,
+            action: 'access_token_blacklist_failed'
+          },
           'Failed to blacklist access token (non-critical)'
         )
       }
@@ -224,7 +249,12 @@ export class AuthService {
         reason || 'user_logout_all'
       )
       this.logger.info(
-        { userId, sessionsInvalidated, reason: reason || 'user_logout_all', action: 'logout_all_devices' },
+        {
+          userId,
+          sessionsInvalidated,
+          reason: reason || 'user_logout_all',
+          action: 'logout_all_devices'
+        },
         'User logged out from all devices'
       )
     } else {
@@ -248,26 +278,26 @@ export class AuthService {
   async listSessions(userId: string, options: ListSessionsOptions) {
     // Get sessions using SessionsService
     const allSessions = await this.sessionsService.getActiveSessions(userId, options.includeExpired)
-    const normalizedSessions = allSessions.map((session) => this.normalizeSessionDates(session))
+    const normalizedSessions = allSessions.map(session => this.normalizeSessionDates(session))
 
     // Apply filters
     let filtered = normalizedSessions
 
     if (options.filterByDevice) {
       filtered = filtered.filter(
-        (s) => s.deviceType?.toLowerCase() === options.filterByDevice?.toLowerCase()
+        s => s.deviceType?.toLowerCase() === options.filterByDevice?.toLowerCase()
       )
     }
 
     if (options.filterByStatus) {
       const now = Date.now()
       if (options.filterByStatus === 'active') {
-        filtered = filtered.filter((s) => s.expiresAt.getTime() > now && s.isActive)
+        filtered = filtered.filter(s => s.expiresAt.getTime() > now && s.isActive)
       } else if (options.filterByStatus === 'expired') {
-        filtered = filtered.filter((s) => s.expiresAt.getTime() <= now || !s.isActive)
+        filtered = filtered.filter(s => s.expiresAt.getTime() <= now || !s.isActive)
       } else if (options.filterByStatus === 'expiring') {
         const threshold = now + 24 * 60 * 60 * 1000
-        filtered = filtered.filter((s) => {
+        filtered = filtered.filter(s => {
           const expiresTime = s.expiresAt.getTime()
           return expiresTime > now && expiresTime <= threshold
         })
@@ -298,7 +328,7 @@ export class AuthService {
     // Map to response format
     const now = Date.now()
     const mapped = await Promise.all(
-      paginated.map(async (session) => {
+      paginated.map(async session => {
         const isExpired = session.expiresAt.getTime() <= now
         let risk
 
@@ -315,7 +345,9 @@ export class AuthService {
           id: session.id,
           deviceType: session.deviceType,
           userAgent: session.userAgent,
-          ipAddress: options.anonymizeData ? this.anonymizeIp(session.ipAddress) : session.ipAddress,
+          ipAddress: options.anonymizeData
+            ? this.anonymizeIp(session.ipAddress)
+            : session.ipAddress,
           lastActivityAt: session.lastActivityAt,
           expiresAt: session.expiresAt,
           createdAt: session.createdAt,
@@ -400,9 +432,9 @@ export class AuthService {
    * This token is valid for 15 minutes and can only be used to change password
    */
   private async generateTempAccessToken(user: User) {
-    const payload = { 
-      sub: user.id, 
-      email: user.email, 
+    const payload = {
+      sub: user.id,
+      email: user.email,
       role: user.role,
       tempPasswordChange: true // Flag to identify this is a temp token
     }
@@ -416,8 +448,8 @@ export class AuthService {
    * Validates current password, sets new password, and clears forcePasswordChange flag
    */
   async changePassword(
-    userId: string, 
-    currentPassword: string, 
+    userId: string,
+    currentPassword: string,
     newPassword: string,
     confirmPassword: string,
     context: SessionContext
@@ -452,22 +484,23 @@ export class AuthService {
     // Update user password and clear forcePasswordChange flag
     user.passwordHash = passwordHash
     user.forcePasswordChange = false
-    await this.usersService.updateUser(user.id, { 
-      passwordHash, 
-      forcePasswordChange: false 
+    await this.usersService.updateUser(user.id, {
+      passwordHash,
+      forcePasswordChange: false
     })
 
     this.logger.info(
-      { userId: user.id, email: user.email, ipAddress: context.ipAddress, action: 'password_changed' },
+      {
+        userId: user.id,
+        email: user.email,
+        ipAddress: context.ipAddress,
+        action: 'password_changed'
+      },
       'User changed password successfully'
     )
 
     // Invalidate all existing sessions (user will need to login again with new password)
-    await this.sessionsService.revokeAllSessions(
-      userId,
-      undefined,
-      'Password changed by user'
-    )
+    await this.sessionsService.revokeAllSessions(userId, undefined, 'Password changed by user')
 
     this.logger.info(
       { userId: user.id, action: 'sessions_revoked_after_password_change' },

@@ -5,7 +5,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  PrimaryColumn,
+  PrimaryColumn
 } from 'typeorm'
 import { Story } from './story.entity'
 import { Attachment } from '../../attachments/entities/attachment.entity'
@@ -22,13 +22,13 @@ export class StoryAttachment {
   attachmentId: string
 
   @ManyToOne(() => Story, {
-    onDelete: 'CASCADE',
+    onDelete: 'CASCADE'
   })
   @JoinColumn({ name: 'storyId' })
   story: Story
 
   @ManyToOne(() => Attachment, {
-    onDelete: 'CASCADE',
+    onDelete: 'CASCADE'
   })
   @JoinColumn({ name: 'attachmentId' })
   attachment: Attachment

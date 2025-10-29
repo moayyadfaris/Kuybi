@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsBoolean, IsInt, Min, Max, MinLength, MaxLength } from 'class-validator'
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsInt,
+  Min,
+  Max,
+  MinLength,
+  MaxLength
+} from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 export class CreateRoleDto {
@@ -6,7 +15,7 @@ export class CreateRoleDto {
     description: 'Role name (unique)',
     example: 'editor',
     minLength: 2,
-    maxLength: 50,
+    maxLength: 50
   })
   @IsString()
   @MinLength(2)
@@ -15,7 +24,7 @@ export class CreateRoleDto {
 
   @ApiPropertyOptional({
     description: 'Role description',
-    example: 'Can edit and publish content',
+    example: 'Can edit and publish content'
   })
   @IsOptional()
   @IsString()
@@ -24,7 +33,7 @@ export class CreateRoleDto {
   @ApiPropertyOptional({
     description: 'Is this a system role (cannot be deleted)',
     example: false,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
@@ -33,7 +42,7 @@ export class CreateRoleDto {
   @ApiPropertyOptional({
     description: 'Is the role active',
     example: true,
-    default: true,
+    default: true
   })
   @IsOptional()
   @IsBoolean()
@@ -44,7 +53,7 @@ export class CreateRoleDto {
     example: 50,
     minimum: 1,
     maximum: 100,
-    default: 50,
+    default: 50
   })
   @IsOptional()
   @IsInt()

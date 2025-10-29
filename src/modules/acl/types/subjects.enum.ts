@@ -35,4 +35,7 @@ export enum Subject {
 
   /** Runtime settings */
   Setting = 'Setting',
+
+  /** Audit log management */
+  AuditLog = 'AuditLog'
 }

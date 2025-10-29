@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common'
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, LessThan } from 'typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -13,7 +9,7 @@ import { PasswordReset } from '../entities/password-reset.entity'
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
-  ValidateResetTokenDto,
+  ValidateResetTokenDto
 } from '../dto/password-reset.dto'
 import { EmailQueueService } from '@infrastructure/email'
 import { ConfigService } from '@nestjs/config'
@@ -21,7 +17,7 @@ import { SessionsService } from './sessions.service'
 
 /**
  * Password Reset Service
- * 
+ *
  * Handles secure password reset flow including:
  * - Token generation and validation
  * - Password updates with session invalidation
@@ -42,7 +38,7 @@ export class PasswordResetService {
     private readonly sessionsService: SessionsService,
     private readonly configService: ConfigService,
     @InjectPinoLogger(PasswordResetService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {
     // 1 hour in milliseconds (shorter than email verification for security)
     this.resetTokenExpiry = 60 * 60 * 1000
@@ -51,20 +47,20 @@ export class PasswordResetService {
 
   /**
    * Request a password reset
-   * 
+   *
    * Security: Always returns success even if email doesn't exist
    * to prevent email enumeration attacks
    */
   async requestPasswordReset(
     dto: ForgotPasswordDto,
     ipAddress?: string,
-    userAgent?: string,
+    userAgent?: string
   ): Promise<{ message: string }> {
     const { email } = dto
 
     // Find user by email
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: { email }
     })
 
     // Always return success message to prevent email enumeration
@@ -74,7 +70,7 @@ export class PasswordResetService {
     if (!user) {
       this.logger.warn(
         { email, ipAddress, action: 'password_reset_request_unknown_email' },
-        'Password reset requested for non-existent email',
+        'Password reset requested for non-existent email'
       )
       return { message: successMessage }
     }
@@ -83,7 +79,7 @@ export class PasswordResetService {
     if (!user.isActive) {
       this.logger.warn(
         { userId: user.id, email, ipAddress, action: 'password_reset_request_inactive_user' },
-        'Password reset requested for inactive user',
+        'Password reset requested for inactive user'
       )
       return { message: successMessage }
     }
@@ -104,20 +100,20 @@ export class PasswordResetService {
       used: false,
       usedAt: null,
       requestIpAddress: ipAddress,
-      userAgent,
+      userAgent
     })
 
     await this.passwordResetRepository.save(passwordResetRecord)
 
     // Queue password reset email
     const resetLink = `${this.appUrl}/reset-password?token=${resetToken}`
-    
+
     await this.emailQueueService.sendPasswordResetEmail({
       to: user.email,
       firstName: user.name.split(' ')[0] || 'User',
       resetLink,
       resetToken,
-      expiresInMinutes: 60,
+      expiresInMinutes: 60
     })
 
     this.logger.info(
@@ -126,9 +122,9 @@ export class PasswordResetService {
         email: user.email,
         ipAddress,
         expiresAt,
-        action: 'password_reset_requested',
+        action: 'password_reset_requested'
       },
-      'Password reset requested successfully',
+      'Password reset requested successfully'
     )
 
     return { message: successMessage }
@@ -136,7 +132,7 @@ export class PasswordResetService {
 
   /**
    * Validate a reset token
-   * 
+   *
    * Optional endpoint for frontend to check token validity before showing form
    */
   async validateResetToken(dto: ValidateResetTokenDto): Promise<{
@@ -148,7 +144,7 @@ export class PasswordResetService {
 
     const resetRecord = await this.passwordResetRepository.findOne({
       where: { token },
-      relations: ['user'],
+      relations: ['user']
     })
 
     if (!resetRecord) {
@@ -171,13 +167,13 @@ export class PasswordResetService {
     return {
       valid: true,
       email: resetRecord.email,
-      expiresAt: resetRecord.expiresAt,
+      expiresAt: resetRecord.expiresAt
     }
   }
 
   /**
    * Reset password with valid token
-   * 
+   *
    * - Validates token
    * - Updates password
    * - Marks token as used
@@ -186,14 +182,14 @@ export class PasswordResetService {
    */
   async resetPassword(
     dto: ResetPasswordDto,
-    ipAddress?: string,
+    ipAddress?: string
   ): Promise<{ message: string; email: string }> {
     const { token, newPassword } = dto
 
     // Find reset record with user relation
     const resetRecord = await this.passwordResetRepository.findOne({
       where: { token },
-      relations: ['user'],
+      relations: ['user']
     })
 
     if (!resetRecord) {
@@ -232,7 +228,7 @@ export class PasswordResetService {
     const revokedCount = await this.sessionsService.revokeAllSessions(
       user.id,
       undefined,
-      'Password reset',
+      'Password reset'
     )
 
     this.logger.info(
@@ -241,9 +237,9 @@ export class PasswordResetService {
         email: user.email,
         ipAddress,
         revokedSessions: revokedCount,
-        action: 'password_reset_completed',
+        action: 'password_reset_completed'
       },
-      'Password reset completed successfully',
+      'Password reset completed successfully'
     )
 
     // Send confirmation email
@@ -251,18 +247,18 @@ export class PasswordResetService {
       to: user.email,
       firstName: user.name.split(' ')[0] || 'User',
       resetTime: new Date().toLocaleString(),
-      resetIpAddress: ipAddress || 'Unknown',
+      resetIpAddress: ipAddress || 'Unknown'
     })
 
     return {
       message: 'Password has been reset successfully. You can now log in with your new password.',
-      email: user.email,
+      email: user.email
     }
   }
 
   /**
    * Invalidate all existing reset tokens for a user
-   * 
+   *
    * Used when:
    * - New reset request is made
    * - User successfully resets password
@@ -270,27 +266,27 @@ export class PasswordResetService {
   private async invalidateUserResetTokens(userId: string): Promise<void> {
     // Mark all unused tokens as expired by setting expiresAt to now
     const now = new Date()
-    
+
     await this.passwordResetRepository.update(
       {
         userId,
         used: false,
-        expiresAt: LessThan(new Date(Date.now() + this.resetTokenExpiry)), // Not yet expired
+        expiresAt: LessThan(new Date(Date.now() + this.resetTokenExpiry)) // Not yet expired
       },
       {
-        expiresAt: now, // Expire immediately
-      },
+        expiresAt: now // Expire immediately
+      }
     )
 
     this.logger.debug(
       { userId, action: 'invalidate_reset_tokens' },
-      'Invalidated existing reset tokens for user',
+      'Invalidated existing reset tokens for user'
     )
   }
 
   /**
    * Cleanup expired reset tokens (optional background job)
-   * 
+   *
    * Can be called by a cron job to keep table clean
    */
   async cleanupExpiredTokens(olderThanDays = 7): Promise<number> {
@@ -298,14 +294,14 @@ export class PasswordResetService {
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
 
     const result = await this.passwordResetRepository.delete({
-      expiresAt: LessThan(cutoffDate),
+      expiresAt: LessThan(cutoffDate)
     })
 
     const deleted = result.affected || 0
 
     this.logger.info(
       { deleted, olderThanDays, action: 'cleanup_expired_reset_tokens' },
-      'Cleaned up expired reset tokens',
+      'Cleaned up expired reset tokens'
     )
 
     return deleted

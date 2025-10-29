@@ -5,7 +5,7 @@ import {
   HttpException,
   HttpStatus,
   Inject,
-  Logger,
+  Logger
 } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { PinoLogger } from 'nestjs-pino'
@@ -15,16 +15,26 @@ import { ConfigService } from '@nestjs/config'
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly safeFields: Set<string>
   private readonly maxFieldLength: number
-  private readonly sensitiveKeys = ['password', 'token', 'secret', 'authorization', 'apiKey', 'credential']
+  private readonly sensitiveKeys = [
+    'password',
+    'token',
+    'secret',
+    'authorization',
+    'apiKey',
+    'credential'
+  ]
 
   constructor(
     @Inject(Logger) private readonly logger: PinoLogger,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {
     const allowedFields =
       this.configService.get<string[]>('logging.payloadPreview.allowedFields', []) ?? []
-    this.safeFields = new Set(allowedFields.map((field) => field.toLowerCase()))
-    this.maxFieldLength = this.configService.get<number>('logging.payloadPreview.maxFieldLength', 160)
+    this.safeFields = new Set(allowedFields.map(field => field.toLowerCase()))
+    this.maxFieldLength = this.configService.get<number>(
+      'logging.payloadPreview.maxFieldLength',
+      160
+    )
   }
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -33,24 +43,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>()
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR
 
     const isDevelopment = process.env.NODE_ENV !== 'production'
 
     // Extract error details
-    const exceptionResponse =
-      exception instanceof HttpException ? exception.getResponse() : null
-    
+    const exceptionResponse = exception instanceof HttpException ? exception.getResponse() : null
+
     const errorMessage =
       exception instanceof HttpException
         ? typeof exceptionResponse === 'string'
           ? exceptionResponse
           : (exceptionResponse as any)?.message || exception.message
         : exception instanceof Error
-        ? exception.message
-        : 'Internal server error'
+          ? exception.message
+          : 'Internal server error'
 
     const errorStack = exception instanceof Error ? exception.stack : undefined
 
@@ -72,9 +79,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         stack: errorStack,
         body: safeBody,
         query: safeQuery,
-        params: safeParams,
+        params: safeParams
       },
-      `${request.method} ${request.url} failed with ${status}`,
+      `${request.method} ${request.url} failed with ${status}`
     )
 
     // Build error response
@@ -85,8 +92,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       requestId,
       error: {
-        message: isDevelopment ? errorMessage : this.getSafeErrorMessage(status),
-      },
+        message: isDevelopment ? errorMessage : this.getSafeErrorMessage(status)
+      }
     }
 
     // Add validation errors if present
@@ -116,7 +123,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const sanitized: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(payload)) {
       const normalizedKey = key.toLowerCase()
-      if (this.sensitiveKeys.some((token) => normalizedKey.includes(token))) {
+      if (this.sensitiveKeys.some(token => normalizedKey.includes(token))) {
         sanitized[key] = '[REDACTED]'
         continue
       }
@@ -163,7 +170,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       429: 'Too Many Requests',
       500: 'Internal Server Error',
       502: 'Bad Gateway',
-      503: 'Service Unavailable',
+      503: 'Service Unavailable'
     }
     return messages[status] || 'An error occurred'
   }

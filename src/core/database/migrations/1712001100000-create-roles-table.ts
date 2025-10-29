@@ -11,51 +11,51 @@ export class CreateRolesTable1712001100000 implements MigrationInterface {
             type: 'integer',
             isPrimary: true,
             isGenerated: true,
-            generationStrategy: 'increment',
+            generationStrategy: 'increment'
           },
           {
             name: 'name',
             type: 'varchar',
             length: '50',
             isUnique: true,
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'description',
             type: 'text',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'isSystem',
             type: 'boolean',
-            default: false,
+            default: false
           },
           {
             name: 'isActive',
             type: 'boolean',
-            default: true,
+            default: true
           },
           {
             name: 'priority',
             type: 'integer',
-            default: 50,
+            default: 50
           },
           {
             name: 'createdAt',
             type: 'timestamptz',
-            default: 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP'
           },
           {
             name: 'updatedAt',
             type: 'timestamptz',
-            default: 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP'
           },
           {
             name: 'deletedAt',
             type: 'timestamptz',
-            isNullable: true,
-          },
-        ],
+            isNullable: true
+          }
+        ]
       }),
       true
     )
@@ -65,7 +65,7 @@ export class CreateRolesTable1712001100000 implements MigrationInterface {
       'roles',
       new TableIndex({
         name: 'IDX_ROLES_NAME',
-        columnNames: ['name'],
+        columnNames: ['name']
       })
     )
 
@@ -73,7 +73,7 @@ export class CreateRolesTable1712001100000 implements MigrationInterface {
       'roles',
       new TableIndex({
         name: 'IDX_ROLES_IS_ACTIVE',
-        columnNames: ['isActive'],
+        columnNames: ['isActive']
       })
     )
 
@@ -81,7 +81,7 @@ export class CreateRolesTable1712001100000 implements MigrationInterface {
       'roles',
       new TableIndex({
         name: 'IDX_ROLES_DELETED_AT',
-        columnNames: ['deletedAt'],
+        columnNames: ['deletedAt']
       })
     )
   }

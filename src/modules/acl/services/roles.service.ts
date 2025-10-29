@@ -19,7 +19,7 @@ export class RolesService {
   async create(createRoleDto: CreateRoleDto): Promise<Role> {
     // Check if role name already exists
     const existingRole = await this.roleRepository.findByName(createRoleDto.name)
-    
+
     if (existingRole) {
       throw new BadRequestException(`Role with name "${createRoleDto.name}" already exists`)
     }
@@ -29,7 +29,7 @@ export class RolesService {
       description: createRoleDto.description,
       isSystem: createRoleDto.isSystem ?? false,
       isActive: createRoleDto.isActive ?? true,
-      priority: createRoleDto.priority ?? 50,
+      priority: createRoleDto.priority ?? 50
     })
 
     return role
@@ -54,7 +54,7 @@ export class RolesService {
    */
   async findOne(id: number): Promise<Role> {
     const role = await this.roleRepository.findById(id)
-    
+
     if (!role) {
       throw new NotFoundException(`Role with ID ${id} not found`)
     }
@@ -67,7 +67,7 @@ export class RolesService {
    */
   async findOneWithPermissions(id: number): Promise<Role> {
     const role = await this.roleRepository.findByIdWithPermissions(id)
-    
+
     if (!role) {
       throw new NotFoundException(`Role with ID ${id} not found`)
     }
@@ -100,7 +100,7 @@ export class RolesService {
     }
 
     const updated = await this.roleRepository.update(id, updateRoleDto)
-    
+
     if (!updated) {
       throw new NotFoundException(`Role with ID ${id} not found`)
     }
@@ -114,7 +114,7 @@ export class RolesService {
   async remove(id: number): Promise<void> {
     try {
       const deleted = await this.roleRepository.softDelete(id)
-      
+
       if (!deleted) {
         throw new NotFoundException(`Role with ID ${id} not found`)
       }
@@ -131,11 +131,13 @@ export class RolesService {
    */
   async assignPermissions(id: number, assignPermissionsDto: AssignPermissionsDto): Promise<Role> {
     // Verify role exists
-    const role = await this.findOne(id)
+    await this.findOne(id)
 
     // Verify all permissions exist
-    const permissions = await this.permissionRepository.findByIds(assignPermissionsDto.permissionIds)
-    
+    const permissions = await this.permissionRepository.findByIds(
+      assignPermissionsDto.permissionIds
+    )
+
     if (permissions.length !== assignPermissionsDto.permissionIds.length) {
       throw new BadRequestException('One or more permission IDs are invalid')
     }
@@ -157,8 +159,9 @@ export class RolesService {
     // Prevent removing all permissions from system roles
     if (role.isSystem) {
       const roleWithPermissions = await this.findOneWithPermissions(id)
-      const remainingPermissions = roleWithPermissions.rolePermissions.length - removePermissionsDto.permissionIds.length
-      
+      const remainingPermissions =
+        roleWithPermissions.rolePermissions.length - removePermissionsDto.permissionIds.length
+
       if (remainingPermissions === 0) {
         throw new BadRequestException('Cannot remove all permissions from a system role')
       }
@@ -176,7 +179,7 @@ export class RolesService {
    */
   async getRolePermissions(id: number) {
     const role = await this.findOneWithPermissions(id)
-    
-    return role.rolePermissions.map((rp) => rp.permission)
+
+    return role.rolePermissions.map(rp => rp.permission)
   }
 }

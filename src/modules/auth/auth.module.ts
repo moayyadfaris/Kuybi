@@ -10,20 +10,27 @@ import { Session } from './entities/session.entity'
 import { PasswordReset } from './entities/password-reset.entity'
 import { User } from '../users/entities/user.entity'
 import { EmailVerification } from '../users/entities/email-verification.entity'
-import { AuthController } from './auth.controller'
-import { SessionsController } from './sessions.controller'
-import { CleanupStatsController } from './cleanup-stats.controller'
-import { AuthService, SessionsService, SessionCleanupService, TokenBlacklistService } from './services'
+import { AuthController } from './controllers/auth.controller'
+import { SessionsController } from './controllers/sessions.controller'
+import { CleanupStatsController } from './controllers/cleanup-stats.controller'
+import {
+  AuthService,
+  SessionsService,
+  SessionCleanupService,
+  TokenBlacklistService
+} from './services'
 import { RegistrationService } from './services/registration.service'
 import { PasswordResetService } from './services/password-reset.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { CacheService } from '@core/cache/services/cache.service'
 import { SessionRepository } from '@core/database/repositories/session.repository'
+import { AuditModule } from '@modules/audit/audit.module'
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     EmailModule,
+    AuditModule,
     TypeOrmModule.forFeature([Session, PasswordReset, User, EmailVerification]),
     PassportModule,
     JwtModule.registerAsync({
@@ -31,7 +38,9 @@ import { SessionRepository } from '@core/database/repositories/session.repositor
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('auth.jwtSecret'),
-        signOptions: { expiresIn: configService.get<string>('auth.jwtAccessExpiresIn') as StringValue }
+        signOptions: {
+          expiresIn: configService.get<string>('auth.jwtAccessExpiresIn') as StringValue
+        }
       })
     })
   ],
@@ -47,6 +56,13 @@ import { SessionRepository } from '@core/database/repositories/session.repositor
     CacheService,
     SessionRepository
   ],
-  exports: [AuthService, SessionsService, TokenBlacklistService, RegistrationService, PasswordResetService, SessionRepository]
+  exports: [
+    AuthService,
+    SessionsService,
+    TokenBlacklistService,
+    RegistrationService,
+    PasswordResetService,
+    SessionRepository
+  ]
 })
 export class AuthModule {}

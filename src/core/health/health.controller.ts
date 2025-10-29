@@ -1,10 +1,6 @@
 import { Controller, Get } from '@nestjs/common'
 import { ApiTags, ApiOkResponse } from '@nestjs/swagger'
-import {
-  HealthCheck,
-  HealthCheckService,
-  TypeOrmHealthIndicator,
-} from '@nestjs/terminus'
+import { HealthCheck, HealthCheckService, TypeOrmHealthIndicator } from '@nestjs/terminus'
 import { CacheService } from '../cache/services/cache.service'
 
 @ApiTags('health')
@@ -13,7 +9,7 @@ export class HealthController {
   constructor(
     private health: HealthCheckService,
     private db: TypeOrmHealthIndicator,
-    private cacheService: CacheService,
+    private cacheService: CacheService
   ) {}
 
   @Get()
@@ -26,10 +22,10 @@ export class HealthController {
         const isHealthy = await this.cacheService.isHealthy()
         return {
           redis: {
-            status: isHealthy ? 'up' : 'down',
-          },
+            status: isHealthy ? 'up' : 'down'
+          }
         }
-      },
+      }
     ])
   }
 
@@ -45,9 +41,9 @@ export class HealthController {
       status,
       checks: {
         database: dbHealthy ? 'healthy' : 'unhealthy',
-        redis: cacheHealthy ? 'healthy' : 'unhealthy',
+        redis: cacheHealthy ? 'healthy' : 'unhealthy'
       },
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     }
   }
 
@@ -56,7 +52,7 @@ export class HealthController {
   live() {
     return {
       status: 'alive',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     }
   }
 }

@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, SelectQueryBuilder, Brackets } from 'typeorm'
+import { Repository, Brackets } from 'typeorm'
 import { BaseRepository } from './base.repository'
 import { Country } from '@modules/countries/entities/country.entity'
 import { CacheService } from '../../cache/services/cache.service'
 
 /**
  * Country Repository
- * 
+ *
  * Handles all database operations for Country entity with caching.
  */
 @Injectable()
@@ -18,7 +18,7 @@ export class CountryRepository extends BaseRepository<Country> {
   constructor(
     @InjectRepository(Country)
     repository: Repository<Country>,
-    cacheService: CacheService,
+    cacheService: CacheService
   ) {
     super(repository, cacheService)
   }
@@ -34,7 +34,7 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         return this.repository.findOne({ where: { iso: iso.toUpperCase() } })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -49,7 +49,7 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         return this.repository.findOne({ where: { iso3: iso3.toUpperCase() } })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -64,10 +64,10 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         return this.repository.find({
           where: { continent },
-          order: { name: 'ASC' },
+          order: { name: 'ASC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -82,10 +82,10 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         return this.repository.find({
           where: { region },
-          order: { name: 'ASC' },
+          order: { name: 'ASC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -116,12 +116,12 @@ export class CountryRepository extends BaseRepository<Country> {
     // Apply search
     if (query.search) {
       builder.where(
-        new Brackets((qb) => {
+        new Brackets(qb => {
           qb.where('country.name ILIKE :search', { search: `%${query.search}%` })
             .orWhere('country.nicename ILIKE :search', { search: `%${query.search}%` })
             .orWhere('country.iso ILIKE :search', { search: `%${query.search}%` })
             .orWhere('country.iso3 ILIKE :search', { search: `%${query.search}%` })
-        }),
+        })
       )
     }
 
@@ -160,8 +160,8 @@ export class CountryRepository extends BaseRepository<Country> {
       pagination: {
         page,
         limit,
-        totalPages: Math.ceil(total / limit) || 0,
-      },
+        totalPages: Math.ceil(total / limit) || 0
+      }
     }
   }
 
@@ -176,10 +176,10 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         return this.repository.find({
           where: { isActive: true },
-          order: { name: 'ASC' },
+          order: { name: 'ASC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -194,11 +194,11 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         const countries = await this.repository.find({
           where: { isActive: true },
-          order: { continent: 'ASC', name: 'ASC' },
+          order: { continent: 'ASC', name: 'ASC' }
         })
 
         const grouped: Record<string, Country[]> = {}
-        countries.forEach((country) => {
+        countries.forEach(country => {
           const continent = country.continent || 'Unknown'
           if (!grouped[continent]) {
             grouped[continent] = []
@@ -208,7 +208,7 @@ export class CountryRepository extends BaseRepository<Country> {
 
         return grouped
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -223,11 +223,11 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         const countries = await this.repository.find({
           where: { isActive: true },
-          order: { region: 'ASC', name: 'ASC' },
+          order: { region: 'ASC', name: 'ASC' }
         })
 
         const grouped: Record<string, Country[]> = {}
-        countries.forEach((country) => {
+        countries.forEach(country => {
           const region = country.region || 'Unknown'
           if (!grouped[region]) {
             grouped[region] = []
@@ -237,7 +237,7 @@ export class CountryRepository extends BaseRepository<Country> {
 
         return grouped
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -257,7 +257,7 @@ export class CountryRepository extends BaseRepository<Country> {
       async () => {
         const [total, active] = await Promise.all([
           this.repository.count(),
-          this.repository.count({ where: { isActive: true } }),
+          this.repository.count({ where: { isActive: true } })
         ])
 
         // Count by continent
@@ -269,7 +269,7 @@ export class CountryRepository extends BaseRepository<Country> {
           .getRawMany()
 
         const byContinent: Record<string, number> = {}
-        continentQuery.forEach((row) => {
+        continentQuery.forEach(row => {
           byContinent[row.continent || 'Unknown'] = parseInt(row.count, 10)
         })
 
@@ -282,13 +282,13 @@ export class CountryRepository extends BaseRepository<Country> {
           .getRawMany()
 
         const byRegion: Record<string, number> = {}
-        regionQuery.forEach((row) => {
+        regionQuery.forEach(row => {
           byRegion[row.region || 'Unknown'] = parseInt(row.count, 10)
         })
 
         return { total, active, byContinent, byRegion }
       },
-      600, // 10 minutes TTL for stats
+      600 // 10 minutes TTL for stats
     )
   }
 
@@ -298,9 +298,9 @@ export class CountryRepository extends BaseRepository<Country> {
   private selectFields(countries: Country[], fields: string[]): Partial<Country>[] {
     if (!fields || fields.length === 0) return countries
 
-    return countries.map((country) => {
+    return countries.map(country => {
       const selected: any = {}
-      fields.forEach((field) => {
+      fields.forEach(field => {
         if (field in country) {
           selected[field] = country[field as keyof Country]
         }
@@ -314,7 +314,7 @@ export class CountryRepository extends BaseRepository<Country> {
    */
   protected async invalidateListCaches(): Promise<void> {
     await super.invalidateListCaches()
-    
+
     // Invalidate specific country caches
     await this.cacheService.delPattern(`${this.entityName}:iso:*`)
     await this.cacheService.delPattern(`${this.entityName}:iso3:*`)

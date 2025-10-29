@@ -173,7 +173,9 @@ export class CreateAttachmentsTable1712000400000 implements MigrationInterface {
     )
 
     await queryRunner.query('CREATE INDEX idx_attachments_user ON attachments ("userId")')
-    await queryRunner.query('CREATE INDEX idx_attachments_security_status ON attachments ("securityStatus")')
+    await queryRunner.query(
+      'CREATE INDEX idx_attachments_security_status ON attachments ("securityStatus")'
+    )
     await queryRunner.query('CREATE INDEX idx_attachments_is_public ON attachments ("isPublic")')
     await queryRunner.query('CREATE INDEX idx_attachments_folder ON attachments (folder)')
     await queryRunner.query('CREATE INDEX idx_attachments_deleted_at ON attachments ("deletedAt")')

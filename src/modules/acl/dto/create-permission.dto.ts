@@ -7,7 +7,7 @@ export class CreatePermissionDto {
   @ApiProperty({
     description: 'Action to perform',
     enum: Action,
-    example: Action.Read,
+    example: Action.Read
   })
   @IsEnum(Action)
   action: Action
@@ -15,7 +15,7 @@ export class CreatePermissionDto {
   @ApiProperty({
     description: 'Subject/resource the action applies to',
     enum: Subject,
-    example: Subject.Story,
+    example: Subject.Story
   })
   @IsEnum(Subject)
   subject: Subject
@@ -24,7 +24,7 @@ export class CreatePermissionDto {
     description: 'Conditions for the permission (e.g., ownership check)',
     example: { userId: '{{userId}}' },
     type: 'object',
-    additionalProperties: true,
+    additionalProperties: true
   })
   @IsOptional()
   @IsObject()
@@ -33,7 +33,7 @@ export class CreatePermissionDto {
   @ApiPropertyOptional({
     description: 'Specific fields this permission applies to',
     example: ['title', 'content'],
-    type: [String],
+    type: [String]
   })
   @IsOptional()
   @IsArray()
@@ -43,7 +43,7 @@ export class CreatePermissionDto {
   @ApiPropertyOptional({
     description: 'If true, represents a "cannot" instead of "can"',
     example: false,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
@@ -51,7 +51,7 @@ export class CreatePermissionDto {
 
   @ApiPropertyOptional({
     description: 'Reason/documentation for this permission',
-    example: 'Users can read their own stories',
+    example: 'Users can read their own stories'
   })
   @IsOptional()
   @IsString()

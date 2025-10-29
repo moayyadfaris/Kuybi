@@ -5,7 +5,7 @@ import * as path from 'path'
 
 /**
  * Pino Logger Configuration
- * 
+ *
  * Features:
  * - Environment-based log levels (debug in dev, info in prod)
  * - Pretty-print in development for readability
@@ -37,18 +37,16 @@ const redactPaths = [
   'user.passwordHash',
   'user.refreshToken',
   'session.refreshToken',
-  'session.accessToken',
-];
+  'session.accessToken'
+]
 
 /**
  * Generate correlation ID for request tracing
  */
 function generateCorrelationId(req: Request): string {
-  return (
-    req.headers['x-correlation-id'] ||
+  return (req.headers['x-correlation-id'] ||
     req.headers['x-request-id'] ||
-    `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  ) as string;
+    `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`) as string
 }
 
 const buildTransports = (options: {
@@ -70,11 +68,11 @@ const buildTransports = (options: {
             ignore: 'pid,hostname',
             messageFormat: '{req.method} {req.url} {msg}',
             singleLine: false,
-            errorLikeObjectKeys: ['err', 'error'],
+            errorLikeObjectKeys: ['err', 'error']
           }
         : {
-            destination: 1, // stdout
-          },
+            destination: 1 // stdout
+          }
     })
   }
 
@@ -84,17 +82,17 @@ const buildTransports = (options: {
       target: 'pino/file',
       options: {
         destination: path.join(options.activeDir, 'server.log'),
-        mkdir: true,
-      },
+        mkdir: true
+      }
     },
     {
       level: 'error' as const,
       target: 'pino/file',
       options: {
         destination: path.join(options.activeDir, 'error.log'),
-        mkdir: true,
-      },
-    },
+        mkdir: true
+      }
+    }
   )
 
   return targets
@@ -119,18 +117,20 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
           enableConsole: loggingConfig?.console?.enabled ?? appEnv !== 'production',
           prettyConsole: loggingConfig?.console?.pretty ?? appEnv !== 'production',
           activeDir: loggingConfig?.directories?.active || './logs',
-          appEnv,
-        }),
+          appEnv
+        })
       }
 
   return {
     pinoHttp: {
-      genReqId: (req) => generateCorrelationId(req as Request),
-      level: isTest ? 'silent' : loggingConfig?.level || (appEnv === 'production' ? 'info' : 'debug'),
+      genReqId: req => generateCorrelationId(req as Request),
+      level: isTest
+        ? 'silent'
+        : loggingConfig?.level || (appEnv === 'production' ? 'info' : 'debug'),
       transport: transports,
       redact: {
         paths: redactPaths,
-        censor: '[REDACTED]',
+        censor: '[REDACTED]'
       },
       serializers: {
         req(req: Request) {
@@ -144,31 +144,31 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
             headers: {
               host: req.headers.host,
               'user-agent': req.headers['user-agent'],
-              'content-type': req.headers['content-type'],
+              'content-type': req.headers['content-type']
             },
             remoteAddress: req.ip,
-            remotePort: req.socket?.remotePort,
+            remotePort: req.socket?.remotePort
           }
         },
         res(res: any) {
           return {
             statusCode: res.statusCode,
-            headers: res.headers || {},
+            headers: res.headers || {}
           }
         },
         err(err: Error) {
           return {
             type: err.name,
             message: err.message,
-            stack: err.stack,
+            stack: err.stack
           }
-        },
+        }
       },
       autoLogging: {
-        ignore: (req) => {
+        ignore: req => {
           const ignorePaths = ['/health', '/favicon.ico', '/robots.txt']
-          return ignorePaths.some((pathEntry) => req.url?.startsWith(pathEntry))
-        },
+          return ignorePaths.some(pathEntry => req.url?.startsWith(pathEntry))
+        }
       },
       customLogLevel: (req, res, err) => {
         if (res.statusCode >= 500 || err) {
@@ -180,8 +180,10 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
         }
         return 'debug'
       },
-      customSuccessMessage: (req, res) => `${req.method} ${req.url} completed with ${res.statusCode}`,
-      customErrorMessage: (req, res, err) => `${req.method} ${req.url} failed with ${res.statusCode}: ${err.message}`,
+      customSuccessMessage: (req, res) =>
+        `${req.method} ${req.url} completed with ${res.statusCode}`,
+      customErrorMessage: (req, res, err) =>
+        `${req.method} ${req.url} failed with ${res.statusCode}: ${err.message}`,
       base:
         appEnv === 'development'
           ? { pid: process.pid }
@@ -190,10 +192,10 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
               hostname: process.env.HOSTNAME,
               environment: appEnv,
               service: configService.get<string>('app.name', 'susanoo-nest'),
-              version: process.env.npm_package_version || '1.0.0',
+              version: process.env.npm_package_version || '1.0.0'
             },
-      timestamp: () => `,"time":"${new Date().toISOString()}"`,
-    },
+      timestamp: () => `,"time":"${new Date().toISOString()}"`
+    }
   }
 }
 
@@ -206,30 +208,30 @@ export const loggerContextOptions = {
   auth: { context: 'AuthModule', module: 'auth' },
   session: { context: 'SessionModule', module: 'session' },
   user: { context: 'UserModule', module: 'user' },
-  
+
   // Repository context
   repository: { context: 'Repository', layer: 'data' },
-  
+
   // Service context
   service: { context: 'Service', layer: 'business' },
-  
+
   // Controller context
   controller: { context: 'Controller', layer: 'presentation' },
-  
+
   // Cron job context
   cron: { context: 'CronJob', type: 'scheduled' },
-  
+
   // Cache context
-  cache: { context: 'Cache', type: 'caching' },
-};
+  cache: { context: 'Cache', type: 'caching' }
+}
 
 /**
  * Performance measurement helper
  */
 export function measurePerformance(startTime: number): { duration: number; durationMs: string } {
-  const duration = Date.now() - startTime;
+  const duration = Date.now() - startTime
   return {
     duration,
-    durationMs: `${duration}ms`,
-  };
+    durationMs: `${duration}ms`
+  }
 }

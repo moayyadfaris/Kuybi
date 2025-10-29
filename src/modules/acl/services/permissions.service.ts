@@ -8,9 +8,7 @@ import { Subject } from '../types/subjects.enum'
 
 @Injectable()
 export class PermissionsService {
-  constructor(
-    private readonly permissionRepository: PermissionRepository
-  ) {}
+  constructor(private readonly permissionRepository: PermissionRepository) {}
 
   /**
    * Create a new permission
@@ -34,7 +32,7 @@ export class PermissionsService {
       conditions: createPermissionDto.conditions ?? {},
       fields: createPermissionDto.fields ?? [],
       inverted: createPermissionDto.inverted ?? false,
-      reason: createPermissionDto.reason,
+      reason: createPermissionDto.reason
     })
 
     return permission
@@ -52,7 +50,7 @@ export class PermissionsService {
    */
   async findOne(id: number): Promise<Permission> {
     const permission = await this.permissionRepository.findById(id)
-    
+
     if (!permission) {
       throw new NotFoundException(`Permission with ID ${id} not found`)
     }
@@ -96,7 +94,7 @@ export class PermissionsService {
       const subject = updatePermissionDto.subject ?? permission.subject
 
       const existing = await this.permissionRepository.findByActionAndSubject(action, subject)
-      
+
       if (existing && existing.id !== id) {
         throw new BadRequestException(
           `Permission for action "${action}" on subject "${subject}" already exists`
@@ -105,7 +103,7 @@ export class PermissionsService {
     }
 
     const updated = await this.permissionRepository.update(id, updatePermissionDto)
-    
+
     if (!updated) {
       throw new NotFoundException(`Permission with ID ${id} not found`)
     }
@@ -118,7 +116,7 @@ export class PermissionsService {
    */
   async remove(id: number): Promise<void> {
     const deleted = await this.permissionRepository.delete(id)
-    
+
     if (!deleted) {
       throw new NotFoundException(`Permission with ID ${id} not found`)
     }

@@ -7,19 +7,19 @@ export class AttachmentStatsDto {
   @ApiProperty({ description: 'Total storage used in bytes', example: 524288000 })
   totalSize: number
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Breakdown by category',
     example: { images: 450, documents: 600, videos: 200 }
   })
   byCategory: Record<string, number>
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Breakdown by MIME type',
     example: { 'image/jpeg': 300, 'application/pdf': 500 }
   })
   byMimeType: Record<string, number>
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Breakdown by security status',
     example: { approved: 1100, pending: 100, rejected: 50 }
   })

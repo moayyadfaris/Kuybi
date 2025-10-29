@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { ScheduleModule } from '@nestjs/schedule'
 import { LoggerModule } from 'nestjs-pino'
@@ -16,11 +16,13 @@ import { CategoriesModule } from '@modules/categories/categories.module'
 import { StoriesModule } from '@modules/stories/stories.module'
 import { TagsModule } from '@modules/tags/tags.module'
 import { AclModule } from '@modules/acl/acl.module'
+import { AuditModule } from '@modules/audit/audit.module'
 import { QueuesModule } from '@core/queues/queues.module'
 import { EmailModule } from '@infrastructure/email/email.module'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
 import { LoggingModule } from '@core/logging/logging.module'
+import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 
 @Module({
   imports: [
@@ -32,7 +34,7 @@ import { LoggingModule } from '@core/logging/logging.module'
     // Pino structured logging with request correlation
     LoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => createLoggerConfig(configService),
+      useFactory: (configService: ConfigService) => createLoggerConfig(configService)
     }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
@@ -64,7 +66,8 @@ import { LoggingModule } from '@core/logging/logging.module'
     TagsModule,
     StoriesModule,
     AclModule,
-    LoggingModule,
+    AuditModule,
+    LoggingModule
   ],
   providers: [
     {
@@ -73,4 +76,8 @@ import { LoggingModule } from '@core/logging/logging.module'
     }
   ]
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware).forRoutes('*')
+  }
+}

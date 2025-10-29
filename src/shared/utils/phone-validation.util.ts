@@ -2,7 +2,7 @@ import * as validator from 'validator'
 
 /**
  * Phone Validation Utilities
- * 
+ *
  * Provides phone number validation and formatting
  */
 
@@ -59,7 +59,7 @@ export function validatePhoneForRegistration(phone: string): {
  */
 export function formatPhoneForDisplay(phone: string): string {
   const normalized = normalizePhone(phone)
-  
+
   // If starts with country code, format as: +X (XXX) XXX-XXXX
   if (normalized.startsWith('+')) {
     const match = normalized.match(/^\+(\d{1,3})(\d{3})(\d{3})(\d{4})$/)

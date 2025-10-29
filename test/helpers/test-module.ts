@@ -3,11 +3,11 @@
  * Helpers for creating test modules with mocked dependencies
  */
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
-import { CacheModule } from '@nestjs/cache-manager';
-import { testConfig } from '../test.config';
+import { Test, TestingModule } from '@nestjs/testing'
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { ConfigModule } from '@nestjs/config'
+import { CacheModule } from '@nestjs/cache-manager'
+import { testConfig } from '../test.config'
 
 /**
  * Create a test module with common dependencies
@@ -19,19 +19,19 @@ export class TestModuleBuilder {
   static async createTestModule(
     imports: any[] = [],
     providers: any[] = [],
-    controllers: any[] = [],
+    controllers: any[] = []
   ): Promise<TestingModule> {
     return await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          load: [() => testConfig],
+          load: [() => testConfig]
         }),
-        ...imports,
+        ...imports
       ],
       providers,
-      controllers,
-    }).compile();
+      controllers
+    }).compile()
   }
 
   /**
@@ -41,13 +41,13 @@ export class TestModuleBuilder {
     entities: any[],
     imports: any[] = [],
     providers: any[] = [],
-    controllers: any[] = [],
+    controllers: any[] = []
   ): Promise<TestingModule> {
     return await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          load: [() => testConfig],
+          load: [() => testConfig]
         }),
         TypeOrmModule.forRoot({
           type: 'postgres',
@@ -59,14 +59,14 @@ export class TestModuleBuilder {
           entities,
           synchronize: true,
           dropSchema: false,
-          logging: false,
+          logging: false
         }),
         TypeOrmModule.forFeature(entities),
-        ...imports,
+        ...imports
       ],
       providers,
-      controllers,
-    }).compile();
+      controllers
+    }).compile()
   }
 
   /**
@@ -75,22 +75,22 @@ export class TestModuleBuilder {
   static async createWithCache(
     imports: any[] = [],
     providers: any[] = [],
-    controllers: any[] = [],
+    controllers: any[] = []
   ): Promise<TestingModule> {
     return await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          load: [() => testConfig],
+          load: [() => testConfig]
         }),
         CacheModule.register({
           isGlobal: true,
-          ttl: 60,
+          ttl: 60
         }),
-        ...imports,
+        ...imports
       ],
       providers,
-      controllers,
-    }).compile();
+      controllers
+    }).compile()
   }
 }

@@ -6,18 +6,18 @@ import * as crypto from 'crypto'
 
 /**
  * TokenBlacklistService - Manages access token invalidation via Redis
- * 
+ *
  * This service ensures that when users logout, their access tokens are immediately
  * invalidated, even though JWTs are stateless. This prevents the security issue
  * where logged-out users can continue using valid JWTs until expiration.
- * 
+ *
  * Features:
  * - Hash-based token storage (security)
  * - TTL-based automatic cleanup (performance)
  * - Structured logging (observability)
  * - Reason tracking (audit compliance)
  * - Batch operations (efficiency)
- * 
+ *
  * Redis Key Pattern: token:blacklist:{tokenHash}
  * TTL: Matches JWT expiration time (auto-cleanup)
  */
@@ -34,7 +34,7 @@ export class TokenBlacklistService {
 
   /**
    * Blacklist an access token (invalidate it immediately)
-   * 
+   *
    * @param token - The JWT access token to blacklist
    * @param options - Blacklist options
    * @returns Success status
@@ -101,7 +101,7 @@ export class TokenBlacklistService {
 
   /**
    * Blacklist multiple tokens at once (bulk logout)
-   * 
+   *
    * @param tokens - Array of tokens to blacklist
    * @param options - Blacklist options
    * @returns Number of tokens blacklisted
@@ -146,14 +146,14 @@ export class TokenBlacklistService {
 
   /**
    * Check if a token is blacklisted
-   * 
+   *
    * @param token - The JWT access token to check
    * @returns True if blacklisted, false otherwise
    */
   async isTokenBlacklisted(token: string): Promise<boolean> {
     const tokenHash = this.hashToken(token)
     const cacheKey = this.generateBlacklistKey(tokenHash)
-    
+
     const blacklistEntry = await this.cacheService.get<any>(cacheKey)
     const isBlacklisted = blacklistEntry && blacklistEntry !== null
 
@@ -174,7 +174,7 @@ export class TokenBlacklistService {
 
   /**
    * Remove a token from blacklist (manual unblock - rare)
-   * 
+   *
    * @param token - The token to unblacklist
    * @returns Success status
    */
@@ -197,7 +197,7 @@ export class TokenBlacklistService {
 
   /**
    * Get blacklist statistics
-   * 
+   *
    * @returns Blacklist stats
    */
   async getBlacklistStats(): Promise<{
@@ -220,7 +220,7 @@ export class TokenBlacklistService {
   /**
    * Clean up expired blacklist entries (usually automatic via TTL)
    * Manual cleanup for maintenance
-   * 
+   *
    * @returns Number of entries cleaned
    */
   async cleanupExpiredEntries(): Promise<{ cleaned: number }> {
@@ -338,7 +338,7 @@ export class TokenBlacklistService {
     // This is a simplified implementation
     // In production, you'd want to use SCAN with cursor for large datasets
     const pattern = `${this.BLACKLIST_PREFIX}:*`
-    
+
     try {
       // CacheService should expose a method to scan keys
       // For now, we return empty array (stats will show 0)

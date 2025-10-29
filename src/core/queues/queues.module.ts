@@ -25,25 +25,28 @@ import { EmailModule } from '@infrastructure/email'
           password: configService.get('redis.password', queueConfig.connection.password),
           db: configService.get('redis.queueDb', queueConfig.connection.db),
           maxRetriesPerRequest: null,
-          enableReadyCheck: false,
+          enableReadyCheck: false
         },
-        defaultJobOptions: queueConfig.defaultJobOptions,
+        defaultJobOptions: queueConfig.defaultJobOptions
       }),
-      inject: [ConfigService],
+      inject: [ConfigService]
     }),
     BullModule.registerQueue(
       { name: QueueName.SESSION_CLEANUP, ...queueConfig.queues[QueueName.SESSION_CLEANUP] },
       { name: QueueName.LOG_MAINTENANCE, ...queueConfig.queues[QueueName.LOG_MAINTENANCE] },
       { name: QueueName.EMAIL, ...queueConfig.queues[QueueName.EMAIL] },
       { name: QueueName.SMS, ...queueConfig.queues[QueueName.SMS] },
-      { name: QueueName.ATTACHMENT_PROCESSING, ...queueConfig.queues[QueueName.ATTACHMENT_PROCESSING] },
+      {
+        name: QueueName.ATTACHMENT_PROCESSING,
+        ...queueConfig.queues[QueueName.ATTACHMENT_PROCESSING]
+      },
       { name: QueueName.NOTIFICATION, ...queueConfig.queues[QueueName.NOTIFICATION] },
       { name: QueueName.SECURITY_SCAN, ...queueConfig.queues[QueueName.SECURITY_SCAN] },
       { name: QueueName.DATA_EXPORT, ...queueConfig.queues[QueueName.DATA_EXPORT] },
-      { name: QueueName.REPORT_GENERATION, ...queueConfig.queues[QueueName.REPORT_GENERATION] },
-    ),
+      { name: QueueName.REPORT_GENERATION, ...queueConfig.queues[QueueName.REPORT_GENERATION] }
+    )
   ],
   providers: [EmailProcessor],
-  exports: [BullModule],
+  exports: [BullModule]
 })
 export class QueuesModule {}

@@ -32,7 +32,7 @@ import { CacheConfigModule } from '@core/cache/cache.module'
 @Module({
   imports: [
     TypeOrmModule.forFeature([Role, Permission, RolePermission, UserRole]),
-    CacheConfigModule,
+    CacheConfigModule
   ],
   providers: [
     RoleRepository,
@@ -41,14 +41,9 @@ import { CacheConfigModule } from '@core/cache/cache.module'
     PermissionsService,
     AbilityFactory,
     AbilityGuard,
-    AclSeeder,
+    AclSeeder
   ],
   controllers: [RolesController, PermissionsController],
-  exports: [
-    AbilityFactory,
-    AbilityGuard,
-    RolesService,
-    PermissionsService,
-  ],
+  exports: [AbilityFactory, AbilityGuard, RolesService, PermissionsService]
 })
 export class AclModule {}

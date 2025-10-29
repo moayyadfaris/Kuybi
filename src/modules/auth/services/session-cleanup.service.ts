@@ -32,7 +32,10 @@ export class SessionCleanupService {
     timestamp: string
   }> {
     const startTime = Date.now()
-    this.logger.info({ olderThanDays, action: 'manual_cleanup_start', jobType: 'manual' }, 'Manual cleanup triggered')
+    this.logger.info(
+      { olderThanDays, action: 'manual_cleanup_start', jobType: 'manual' },
+      'Manual cleanup triggered'
+    )
 
     const result = await this.sessionsService.cleanupExpiredSessions(olderThanDays)
     const duration = Date.now() - startTime
@@ -40,7 +43,13 @@ export class SessionCleanupService {
     this.totalCleaned += result.deleted
 
     this.logger.info(
-      { deleted: result.deleted, duration, totalCleaned: this.totalCleaned, action: 'manual_cleanup_complete', jobType: 'manual' },
+      {
+        deleted: result.deleted,
+        duration,
+        totalCleaned: this.totalCleaned,
+        action: 'manual_cleanup_complete',
+        jobType: 'manual'
+      },
       'Manual cleanup completed'
     )
 
@@ -62,7 +71,9 @@ export class SessionCleanupService {
     return {
       lastCleanupTime: this.lastCleanupTime,
       totalCleaned: this.totalCleaned,
-      isHealthy: this.lastCleanupTime ? Date.now() - this.lastCleanupTime.getTime() < 3600000 * 2 : true // Within 2 hours
+      isHealthy: this.lastCleanupTime
+        ? Date.now() - this.lastCleanupTime.getTime() < 3600000 * 2
+        : true // Within 2 hours
     }
   }
 
@@ -75,7 +86,11 @@ export class SessionCleanupService {
       // Get device stats to understand what was cleaned
       const deviceStats = await this.sessionRepository.getDeviceStats()
       this.logger.debug(
-        { activeDevices: deviceStats.activeDevices, deviceBreakdown: deviceStats.byType, action: 'cleanup_stats' },
+        {
+          activeDevices: deviceStats.activeDevices,
+          deviceBreakdown: deviceStats.byType,
+          action: 'cleanup_stats'
+        },
         'Current session statistics'
       )
     }

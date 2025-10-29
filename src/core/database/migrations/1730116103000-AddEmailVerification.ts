@@ -1,4 +1,11 @@
-import { MigrationInterface, QueryRunner, Table, TableColumn, TableIndex, TableForeignKey } from 'typeorm'
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableColumn,
+  TableIndex,
+  TableForeignKey
+} from 'typeorm'
 
 export class AddEmailVerification1730116103000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -8,8 +15,8 @@ export class AddEmailVerification1730116103000 implements MigrationInterface {
       new TableColumn({
         name: 'isEmailVerified',
         type: 'boolean',
-        default: false,
-      }),
+        default: false
+      })
     )
 
     await queryRunner.addColumn(
@@ -17,8 +24,8 @@ export class AddEmailVerification1730116103000 implements MigrationInterface {
       new TableColumn({
         name: 'emailVerifiedAt',
         type: 'timestamptz',
-        isNullable: true,
-      }),
+        isNullable: true
+      })
     )
 
     // Create email_verifications table
@@ -31,60 +38,60 @@ export class AddEmailVerification1730116103000 implements MigrationInterface {
             type: 'uuid',
             isPrimary: true,
             generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
+            default: 'uuid_generate_v4()'
           },
           {
             name: 'userId',
-            type: 'uuid',
+            type: 'uuid'
           },
           {
             name: 'email',
             type: 'varchar',
-            length: '255',
+            length: '255'
           },
           {
             name: 'token',
             type: 'uuid',
-            isUnique: true,
+            isUnique: true
           },
           {
             name: 'expiresAt',
-            type: 'timestamp',
+            type: 'timestamp'
           },
           {
             name: 'verified',
             type: 'boolean',
-            default: false,
+            default: false
           },
           {
             name: 'verifiedAt',
             type: 'timestamp',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'ipAddress',
             type: 'varchar',
             length: '45',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'userAgent',
             type: 'text',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'createdAt',
             type: 'timestamp',
-            default: 'now()',
+            default: 'now()'
           },
           {
             name: 'updatedAt',
             type: 'timestamp',
-            default: 'now()',
-          },
-        ],
+            default: 'now()'
+          }
+        ]
       }),
-      true,
+      true
     )
 
     // Create indexes
@@ -92,8 +99,8 @@ export class AddEmailVerification1730116103000 implements MigrationInterface {
       'email_verifications',
       new TableIndex({
         name: 'IDX_email_verifications_email',
-        columnNames: ['email'],
-      }),
+        columnNames: ['email']
+      })
     )
 
     await queryRunner.createIndex(
@@ -101,32 +108,32 @@ export class AddEmailVerification1730116103000 implements MigrationInterface {
       new TableIndex({
         name: 'IDX_email_verifications_token',
         columnNames: ['token'],
-        isUnique: true,
-      }),
+        isUnique: true
+      })
     )
 
     await queryRunner.createIndex(
       'email_verifications',
       new TableIndex({
         name: 'IDX_email_verifications_userId',
-        columnNames: ['userId'],
-      }),
+        columnNames: ['userId']
+      })
     )
 
     await queryRunner.createIndex(
       'email_verifications',
       new TableIndex({
         name: 'IDX_email_verifications_userId_verified',
-        columnNames: ['userId', 'verified'],
-      }),
+        columnNames: ['userId', 'verified']
+      })
     )
 
     await queryRunner.createIndex(
       'email_verifications',
       new TableIndex({
         name: 'IDX_email_verifications_expiresAt',
-        columnNames: ['expiresAt'],
-      }),
+        columnNames: ['expiresAt']
+      })
     )
 
     // Create foreign key
@@ -136,15 +143,15 @@ export class AddEmailVerification1730116103000 implements MigrationInterface {
         columnNames: ['userId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      }),
+        onDelete: 'CASCADE'
+      })
     )
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop foreign key
     const table = await queryRunner.getTable('email_verifications')
-    const foreignKey = table?.foreignKeys.find((fk) => fk.columnNames.indexOf('userId') !== -1)
+    const foreignKey = table?.foreignKeys.find(fk => fk.columnNames.indexOf('userId') !== -1)
     if (foreignKey) {
       await queryRunner.dropForeignKey('email_verifications', foreignKey)
     }

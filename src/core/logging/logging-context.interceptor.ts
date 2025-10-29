@@ -1,9 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common'
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
 import { Observable } from 'rxjs'
 import { ConfigService } from '@nestjs/config'
 import { LoggingContextService } from './logging-context.service'
@@ -13,7 +8,7 @@ import { RequestWithContextLogger } from './types/request-with-context-logger.in
 export class LoggingContextInterceptor implements NestInterceptor {
   constructor(
     private readonly loggingContext: LoggingContextService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -34,7 +29,7 @@ export class LoggingContextInterceptor implements NestInterceptor {
       path: request?.originalUrl ?? request?.url,
       method: request?.method,
       service: this.configService.get<string>('app.name', 'susanoo-nest'),
-      environment: this.configService.get<string>('app.env', 'development'),
+      environment: this.configService.get<string>('app.env', 'development')
     })
 
     request.contextLogger = contextualLogger

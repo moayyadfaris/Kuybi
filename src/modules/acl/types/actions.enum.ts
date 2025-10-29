@@ -37,5 +37,5 @@ export enum Action {
   Moderate = 'moderate',
 
   /** Assign permissions or roles */
-  Assign = 'assign',
+  Assign = 'assign'
 }

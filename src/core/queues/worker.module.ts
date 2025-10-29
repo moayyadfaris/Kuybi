@@ -15,16 +15,16 @@ import { DatabaseModule } from '@core/database/database.module'
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
-      validate,
+      validate
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => createLoggerConfig(configService),
+      useFactory: (configService: ConfigService) => createLoggerConfig(configService)
     }),
     QueuesModule,
     DatabaseModule,
-    AuthModule,
+    AuthModule
   ],
-  providers: [SessionCleanupProcessor, SessionCleanupScheduler],
+  providers: [SessionCleanupProcessor, SessionCleanupScheduler]
 })
 export class QueueWorkerModule {}

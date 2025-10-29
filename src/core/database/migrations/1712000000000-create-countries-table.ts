@@ -143,9 +143,7 @@ export class CreateCountriesTable1712000000000 implements MigrationInterface {
       })
     )
 
-    await queryRunner.query(
-      'CREATE INDEX idx_countries_currency ON countries ("currencyCode")'
-    )
+    await queryRunner.query('CREATE INDEX idx_countries_currency ON countries ("currencyCode")')
     await queryRunner.query('CREATE INDEX idx_countries_continent ON countries (continent)')
     await queryRunner.query('CREATE INDEX idx_countries_region ON countries (region)')
     await queryRunner.query('CREATE INDEX idx_countries_active ON countries ("isActive")')

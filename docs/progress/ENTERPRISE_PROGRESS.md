@@ -1025,30 +1025,40 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 ## 📁 Documentation Index
 
 ### Implementation Guides
-- `REDIS_CACHING_COMPLETE.md` - Redis caching implementation
-- `REPOSITORY_COMPLETE.md` - Repository pattern implementation
-- `REPOSITORY_PATTERN.md` - Detailed repository documentation
-- `PINO_LOGGING_COMPLETE.md` - Pino core setup guide ✨
-- `PINO_LOGGING_EXPANSION.md` - Pino expansion to all auth modules ✨
-- `PINO_LOGGING_SUMMARY.md` - Executive logging summary ✨
-- `SESSION_MANAGEMENT_COMPLETE.md` - Sessions implementation
-- `SESSIONS_CONTROLLER_COMPLETE.md` - Sessions API documentation
-- `SESSION_DTOS_COMPLETE.md` - Session DTOs reference
-- `SESSION_CLEANUP_TRACKING.md` - Cleanup job tracking guide ✨
+- `features/cache/REDIS_CACHING_COMPLETE.md` - Redis caching implementation
+- `progress/REPOSITORY_COMPLETE.md` - Repository pattern implementation
+- `architecture/REPOSITORY_PATTERN.md` - Detailed repository documentation
+- `features/logging/PINO_LOGGING_COMPLETE.md` - Pino core setup guide ✨
+- `features/logging/PINO_LOGGING_EXPANSION.md` - Pino expansion to all auth modules ✨
+- `features/logging/PINO_LOGGING_SUMMARY.md` - Executive logging summary ✨
+- `features/auth/SESSION_MANAGEMENT_COMPLETE.md` - Sessions implementation
+- `features/auth/SESSIONS_CONTROLLER_COMPLETE.md` - Sessions API documentation
+- `features/auth/SESSION_DTOS_COMPLETE.md` - Session DTOs reference
+- `features/auth/SESSION_CLEANUP_TRACKING.md` - Cleanup job tracking guide ✨
 - `features/stories/story-relationships.md` - Stories & Tags implementation ✨
 - `features/attachments/attachments-implementation.md` - Attachments implementation ✨
 - `features/acl/README.md` - ACL complete implementation guide (400+ lines) ✨
 - `features/acl/IMPLEMENTATION_SUMMARY.md` - ACL implementation summary ✨
+- `features/audit/IMPLEMENTATION_SUMMARY.md` - Audit logging implementation ✨
 
 ### Quick References
-- `CACHE_QUICKSTART.md` - Cache usage quick start
-- `REPOSITORY_QUICKREF.md` - Repository quick reference
-- `CLEANUP_TRACKING_QUICKSTART.md` - Cleanup tracking quick start
+- `features/cache/CACHE_QUICKSTART.md` - Cache usage quick start
+- `guides/quick-references/REPOSITORY_QUICKREF.md` - Repository quick reference
+- `features/auth/CLEANUP_TRACKING_QUICKSTART.md` - Cleanup tracking quick start
 - `features/acl/QUICK_REFERENCE.md` - ACL quick reference ✨
 - `features/acl/MIGRATION_GUIDE.md` - ACL migration guide ✨
-- `src/cache/README.md` - Cache module documentation
-- `SESSION_PROGRESS.md` - Session management implementation
-- `ENTERPRISE_PROGRESS.md` - This file
+- `features/audit/README.md` - Audit logging quick reference ✨
+
+### Architecture & Progress
+- `architecture/PATH_ALIAS_MIGRATION.md` - Path alias migration guide
+- `architecture/REFACTORING_SUMMARY.md` - Refactoring summary
+- `progress/FEATURE_SUMMARY.md` - Feature implementation summary
+- `progress/ENTERPRISE_PROGRESS.md` - This file
+- `testing/TEST_MIGRATION_SUMMARY.md` - Test migration summary
+
+### Module Documentation
+- `src/core/cache/README.md` - Cache module technical documentation
+- `features/auth/SESSION_PROGRESS.md` - Session management implementation progress
 
 ### Next Steps
 - ✅ ~~Expand Pino logging to auth/session modules~~ **COMPLETE**

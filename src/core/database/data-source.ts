@@ -14,6 +14,7 @@ import { Role } from '@modules/acl/entities/role.entity'
 import { Permission } from '@modules/acl/entities/permission.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
 import { UserRole } from '@modules/acl/entities/user-role.entity'
+import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 
 loadEnv()
 
@@ -40,7 +41,8 @@ export const AppDataSource = new DataSource({
     Permission,
     RolePermission,
     UserRole,
+    AuditLog
   ],
   migrations: ['src/core/database/migrations/*.ts'],
-  migrationsTableName: 'migrations',
+  migrationsTableName: 'migrations'
 })

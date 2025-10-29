@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   ManyToMany,
-  JoinTable,
+  JoinTable
 } from 'typeorm'
 
 @Entity({ name: 'categories' })

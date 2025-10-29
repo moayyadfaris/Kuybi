@@ -8,7 +8,7 @@ import {
   OneToMany,
   ManyToMany,
   JoinColumn,
-  JoinTable,
+  JoinTable
 } from 'typeorm'
 import { User } from '../../users/entities/user.entity'
 import { Country } from '../../countries/entities/country.entity'
@@ -18,7 +18,7 @@ import { Tag } from '../../tags/entities/tag.entity'
 export enum StoryType {
   TIP_OFF = 'TIP_OFF',
   STORY = 'STORY',
-  REPORT = 'REPORT',
+  REPORT = 'REPORT'
 }
 
 export enum StoryStatus {
@@ -32,14 +32,14 @@ export enum StoryStatus {
   DELETED = 'DELETED',
   SUSPENDED = 'SUSPENDED',
   FLAGGED = 'FLAGGED',
-  UNDER_INVESTIGATION = 'UNDER_INVESTIGATION',
+  UNDER_INVESTIGATION = 'UNDER_INVESTIGATION'
 }
 
 export enum StoryPriority {
   LOW = 'LOW',
   NORMAL = 'NORMAL',
   HIGH = 'HIGH',
-  URGENT = 'URGENT',
+  URGENT = 'URGENT'
 }
 
 @Entity({ name: 'stories' })
@@ -56,7 +56,7 @@ export class Story {
   @Column({
     type: 'enum',
     enum: StoryType,
-    default: StoryType.STORY,
+    default: StoryType.STORY
   })
   type: StoryType
 
@@ -70,7 +70,7 @@ export class Story {
   @Column({
     type: 'enum',
     enum: StoryStatus,
-    default: StoryStatus.DRAFT,
+    default: StoryStatus.DRAFT
   })
   status: StoryStatus
 
@@ -83,7 +83,7 @@ export class Story {
   @Column({
     type: 'enum',
     enum: StoryPriority,
-    default: StoryPriority.NORMAL,
+    default: StoryPriority.NORMAL
   })
   priority: StoryPriority
 
@@ -161,7 +161,7 @@ export class Story {
   @JoinTable({
     name: 'story_attachments',
     joinColumn: { name: 'storyId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'attachmentId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'attachmentId', referencedColumnName: 'id' }
   })
   attachments?: Attachment[]
 
@@ -170,7 +170,7 @@ export class Story {
   @JoinTable({
     name: 'story_tags',
     joinColumn: { name: 'storyId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'tagId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'tagId', referencedColumnName: 'id' }
   })
   tags?: Tag[]
 
@@ -179,7 +179,7 @@ export class Story {
   @JoinTable({
     name: 'story_categories',
     joinColumn: { name: 'storyId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'categoryId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'categoryId', referencedColumnName: 'id' }
   })
   categories?: any[]
 }

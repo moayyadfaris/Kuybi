@@ -10,31 +10,31 @@ export class CreateStoryCategoriesTable1712001500000 implements MigrationInterfa
           {
             name: 'id',
             type: 'serial',
-            isPrimary: true,
+            isPrimary: true
           },
           {
             name: 'storyId',
             type: 'integer',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'categoryId',
             type: 'uuid',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'createdAt',
             type: 'timestamptz',
-            default: 'now()',
+            default: 'now()'
           },
           {
             name: 'createdBy',
             type: 'uuid',
-            isNullable: true,
-          },
-        ],
+            isNullable: true
+          }
+        ]
       }),
-      true,
+      true
     )
 
     // Add foreign key constraints
@@ -45,8 +45,8 @@ export class CreateStoryCategoriesTable1712001500000 implements MigrationInterfa
         referencedColumnNames: ['id'],
         referencedTableName: 'stories',
         onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-      }),
+        onUpdate: 'CASCADE'
+      })
     )
 
     await queryRunner.createForeignKey(
@@ -56,8 +56,8 @@ export class CreateStoryCategoriesTable1712001500000 implements MigrationInterfa
         referencedColumnNames: ['id'],
         referencedTableName: 'categories',
         onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-      }),
+        onUpdate: 'CASCADE'
+      })
     )
 
     // Add unique constraint to prevent duplicate assignments
@@ -66,8 +66,8 @@ export class CreateStoryCategoriesTable1712001500000 implements MigrationInterfa
       new TableIndex({
         name: 'idx_story_categories_unique',
         columnNames: ['storyId', 'categoryId'],
-        isUnique: true,
-      }),
+        isUnique: true
+      })
     )
 
     // Add performance indexes
@@ -75,16 +75,16 @@ export class CreateStoryCategoriesTable1712001500000 implements MigrationInterfa
       'story_categories',
       new TableIndex({
         name: 'idx_story_categories_story',
-        columnNames: ['storyId'],
-      }),
+        columnNames: ['storyId']
+      })
     )
 
     await queryRunner.createIndex(
       'story_categories',
       new TableIndex({
         name: 'idx_story_categories_category',
-        columnNames: ['categoryId'],
-      }),
+        columnNames: ['categoryId']
+      })
     )
   }
 

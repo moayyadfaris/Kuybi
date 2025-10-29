@@ -28,49 +28,49 @@ export class CreatePermissionsTable1712001200000 implements MigrationInterface {
             type: 'integer',
             isPrimary: true,
             isGenerated: true,
-            generationStrategy: 'increment',
+            generationStrategy: 'increment'
           },
           {
             name: 'action',
             type: 'permission_action_enum',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'subject',
             type: 'permission_subject_enum',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'conditions',
             type: 'jsonb',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'fields',
             type: 'text',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'inverted',
             type: 'boolean',
-            default: false,
+            default: false
           },
           {
             name: 'reason',
             type: 'text',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'createdAt',
             type: 'timestamptz',
-            default: 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP'
           },
           {
             name: 'updatedAt',
             type: 'timestamptz',
-            default: 'CURRENT_TIMESTAMP',
-          },
-        ],
+            default: 'CURRENT_TIMESTAMP'
+          }
+        ]
       }),
       true
     )
@@ -80,7 +80,7 @@ export class CreatePermissionsTable1712001200000 implements MigrationInterface {
       'permissions',
       new TableIndex({
         name: 'IDX_PERMISSIONS_ACTION',
-        columnNames: ['action'],
+        columnNames: ['action']
       })
     )
 
@@ -88,7 +88,7 @@ export class CreatePermissionsTable1712001200000 implements MigrationInterface {
       'permissions',
       new TableIndex({
         name: 'IDX_PERMISSIONS_SUBJECT',
-        columnNames: ['subject'],
+        columnNames: ['subject']
       })
     )
 
@@ -96,7 +96,7 @@ export class CreatePermissionsTable1712001200000 implements MigrationInterface {
       'permissions',
       new TableIndex({
         name: 'IDX_PERMISSIONS_ACTION_SUBJECT',
-        columnNames: ['action', 'subject'],
+        columnNames: ['action', 'subject']
       })
     )
   }

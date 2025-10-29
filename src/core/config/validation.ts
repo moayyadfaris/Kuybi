@@ -153,6 +153,10 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SMTP_PASSWORD?: string
+
+  @IsString()
+  @IsOptional()
+  AUDIT_ENABLED?: string
 }
 
 export function validate(config: Record<string, unknown>) {

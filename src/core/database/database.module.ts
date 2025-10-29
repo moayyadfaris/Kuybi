@@ -14,6 +14,7 @@ import { Role } from '@modules/acl/entities/role.entity'
 import { Permission } from '@modules/acl/entities/permission.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
 import { UserRole } from '@modules/acl/entities/user-role.entity'
+import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 
 @Module({
   imports: [
@@ -28,7 +29,22 @@ import { UserRole } from '@modules/acl/entities/user-role.entity'
           username: database.username,
           password: database.password,
           database: database.name,
-          entities: [Country, User, EmailVerification, Session, PasswordReset, Attachment, Category, Story, Tag, Role, Permission, RolePermission, UserRole],
+          entities: [
+            Country,
+            User,
+            EmailVerification,
+            Session,
+            PasswordReset,
+            Attachment,
+            Category,
+            Story,
+            Tag,
+            Role,
+            Permission,
+            RolePermission,
+            UserRole,
+            AuditLog
+          ],
           synchronize: false,
           logging: database.logging
         }

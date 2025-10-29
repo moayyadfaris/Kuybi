@@ -25,12 +25,12 @@ export class PermissionRepository extends BaseRepository<Permission> {
    */
   async findByActionAndSubject(action: Action, subject: Subject): Promise<Permission | null> {
     const cacheKey = this.buildCacheKey('action-subject', action, subject)
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
         return this.repository.findOne({
-          where: { action, subject },
+          where: { action, subject }
         })
       },
       this.defaultTTL
@@ -42,13 +42,13 @@ export class PermissionRepository extends BaseRepository<Permission> {
    */
   async findByAction(action: Action): Promise<Permission[]> {
     const cacheKey = this.buildCacheKey('action', action)
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
         return this.repository.find({
           where: { action },
-          order: { subject: 'ASC' },
+          order: { subject: 'ASC' }
         })
       },
       this.defaultTTL
@@ -60,13 +60,13 @@ export class PermissionRepository extends BaseRepository<Permission> {
    */
   async findBySubject(subject: Subject): Promise<Permission[]> {
     const cacheKey = this.buildCacheKey('subject', subject)
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
         return this.repository.find({
           where: { subject },
-          order: { action: 'ASC' },
+          order: { action: 'ASC' }
         })
       },
       this.defaultTTL
@@ -82,14 +82,11 @@ export class PermissionRepository extends BaseRepository<Permission> {
     }
 
     const cacheKey = this.buildCacheKey('ids', ids.join(','))
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
-        return this.repository
-          .createQueryBuilder('permission')
-          .whereInIds(ids)
-          .getMany()
+        return this.repository.createQueryBuilder('permission').whereInIds(ids).getMany()
       },
       this.defaultTTL
     )

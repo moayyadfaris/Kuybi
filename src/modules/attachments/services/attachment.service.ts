@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PinoLogger } from 'nestjs-pino'
 import * as crypto from 'crypto'
@@ -85,7 +90,11 @@ export class AttachmentService {
     }
   }
 
-  async updateMetadata(id: string, dto: UpdateAttachmentDto, userId: string): Promise<AttachmentResponseDto> {
+  async updateMetadata(
+    id: string,
+    dto: UpdateAttachmentDto,
+    userId: string
+  ): Promise<AttachmentResponseDto> {
     const attachment = await this.attachmentRepository.findById(id)
     if (!attachment) throw new NotFoundException('Attachment not found')
     if (attachment.userId !== userId) throw new ForbiddenException('Access denied')
@@ -142,7 +151,8 @@ export class AttachmentService {
 
   async cleanupOrphaned(olderThanDays = 7) {
     const orphaned = await this.attachmentRepository.findOrphanedAttachments(olderThanDays)
-    let deleted = 0, totalSize = 0
+    let deleted = 0,
+      totalSize = 0
 
     for (const attachment of orphaned) {
       try {
@@ -173,7 +183,9 @@ export class AttachmentService {
       ...attachment,
       url: attachment.isPublic ? this.s3Service.getPublicUrl(attachment.path) : undefined,
       downloadUrl: `/api/attachments/${attachment.id}/download`,
-      previewUrl: attachment.thumbnailPath ? this.s3Service.getPublicUrl(attachment.thumbnailPath) : undefined
+      previewUrl: attachment.thumbnailPath
+        ? this.s3Service.getPublicUrl(attachment.thumbnailPath)
+        : undefined
     }
   }
 }

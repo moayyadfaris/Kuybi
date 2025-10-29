@@ -11,24 +11,24 @@ export class CreateRolePermissionsTable1712001300000 implements MigrationInterfa
             type: 'integer',
             isPrimary: true,
             isGenerated: true,
-            generationStrategy: 'increment',
+            generationStrategy: 'increment'
           },
           {
             name: 'roleId',
             type: 'integer',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'permissionId',
             type: 'integer',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'createdAt',
             type: 'timestamptz',
-            default: 'CURRENT_TIMESTAMP',
-          },
-        ],
+            default: 'CURRENT_TIMESTAMP'
+          }
+        ]
       }),
       true
     )
@@ -41,7 +41,7 @@ export class CreateRolePermissionsTable1712001300000 implements MigrationInterfa
         columnNames: ['roleId'],
         referencedTableName: 'roles',
         referencedColumnNames: ['id'],
-        onDelete: 'CASCADE',
+        onDelete: 'CASCADE'
       })
     )
 
@@ -52,7 +52,7 @@ export class CreateRolePermissionsTable1712001300000 implements MigrationInterfa
         columnNames: ['permissionId'],
         referencedTableName: 'permissions',
         referencedColumnNames: ['id'],
-        onDelete: 'CASCADE',
+        onDelete: 'CASCADE'
       })
     )
 
@@ -62,7 +62,7 @@ export class CreateRolePermissionsTable1712001300000 implements MigrationInterfa
       new TableIndex({
         name: 'IDX_ROLE_PERMISSIONS_UNIQUE',
         columnNames: ['roleId', 'permissionId'],
-        isUnique: true,
+        isUnique: true
       })
     )
 
@@ -71,7 +71,7 @@ export class CreateRolePermissionsTable1712001300000 implements MigrationInterfa
       'role_permissions',
       new TableIndex({
         name: 'IDX_ROLE_PERMISSIONS_PERMISSION',
-        columnNames: ['permissionId'],
+        columnNames: ['permissionId']
       })
     )
   }

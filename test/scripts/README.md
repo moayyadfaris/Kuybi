@@ -4,6 +4,71 @@ This directory contains manual integration test scripts for testing specific fea
 
 ## Available Scripts
 
+### ACL (Access Control List) Tests
+
+#### Quick ACL Test
+**Script:** `quick-acl-test.sh`
+
+Fast validation of core ACL functionality.
+
+**Usage:**
+```bash
+./test/scripts/quick-acl-test.sh
+```
+
+#### Full ACL Guard Tests
+**Script:** `test-acl-guards.sh`
+
+Comprehensive ACL guard validation with edge cases.
+
+**Usage:**
+```bash
+./test/scripts/test-acl-guards.sh
+```
+
+**Additional ACL Scripts:**
+- `quick-test-acl.sh` - Alternative quick ACL test
+- `run-acl-tests.sh` - ACL test runner
+- `test-acl.sh` - General ACL testing
+
+---
+
+### Audit Logging Tests
+
+#### Audit API Test
+**Script:** `test-audit-api.sh`
+
+Tests audit logging API endpoints.
+
+**Usage:**
+```bash
+./test/scripts/test-audit-api.sh
+```
+
+#### Audit Integration Test
+**Script:** `test-audit-integration.sh`
+
+Tests audit logging integration with Auth module.
+
+**Usage:**
+```bash
+./test/scripts/test-audit-integration.sh
+```
+
+---
+
+### Story Creation Test
+**Script:** `test-story-creation.sh`
+
+Tests story creation with tags and categories.
+
+**Usage:**
+```bash
+./test/scripts/test-story-creation.sh
+```
+
+---
+
 ### Admin Password Management
 **Script:** `test-admin-password.sh`
 

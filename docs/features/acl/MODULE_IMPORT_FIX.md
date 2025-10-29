@@ -47,7 +47,7 @@ npm run start:dev
 
 3. Run the ACL guard tests:
 ```bash
-./test-acl-guards.sh
+./test/scripts/test-acl-guards.sh
 ```
 
 ## Why This Happened

@@ -10,10 +10,7 @@ import { S3Service } from './services/s3.service'
 import { AclModule } from '../acl/acl.module'
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Attachment]),
-    AclModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Attachment]), AclModule],
   controllers: [AttachmentsController],
   providers: [
     AttachmentService,

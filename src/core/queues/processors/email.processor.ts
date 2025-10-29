@@ -1,9 +1,9 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
-import { Job } from 'bullmq';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { EmailService } from '@infrastructure/email';
-import { QueueName } from '../jobs/types';
+import { Processor, WorkerHost } from '@nestjs/bullmq'
+import { Injectable } from '@nestjs/common'
+import { Job } from 'bullmq'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { EmailService } from '@infrastructure/email'
+import { QueueName } from '../jobs/types'
 import {
   EmailJobType,
   EmailJobData,
@@ -12,92 +12,92 @@ import {
   VerifiedSuccessEmailJobData,
   PasswordResetEmailJobData,
   PasswordChangedEmailJobData,
-  CustomEmailJobData,
-} from '../jobs/email-jobs';
+  CustomEmailJobData
+} from '../jobs/email-jobs'
 
 /**
  * Email Queue Processor
- * 
+ *
  * Processes email jobs from the email queue with retry logic
  * and comprehensive error handling
  */
 @Processor(QueueName.EMAIL, {
-  concurrency: 5, // Process up to 5 emails concurrently
+  concurrency: 5 // Process up to 5 emails concurrently
 })
 @Injectable()
 export class EmailProcessor extends WorkerHost {
   constructor(
     private readonly emailService: EmailService,
     @InjectPinoLogger(EmailProcessor.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {
-    super();
+    super()
   }
 
   /**
    * Main process method - routes jobs to appropriate handlers
    */
   async process(job: Job<EmailJobData, any, EmailJobType>): Promise<any> {
-    const startTime = Date.now();
-    
+    const startTime = Date.now()
+
     this.logger.info(
       {
         jobId: job.id,
         jobType: job.name,
         attempt: job.attemptsMade + 1,
-        to: job.data.to,
+        to: job.data.to
       },
-      'Processing email job',
-    );
+      'Processing email job'
+    )
 
     try {
-      let result: any;
+      let result: any
 
       switch (job.name) {
         case EmailJobType.SEND_WELCOME:
-          result = await this.processWelcomeEmail(job.data as WelcomeEmailJobData);
-          break;
+          result = await this.processWelcomeEmail(job.data as WelcomeEmailJobData)
+          break
 
         case EmailJobType.SEND_VERIFICATION:
-          result = await this.processVerificationEmail(job.data as VerificationEmailJobData);
-          break;
+          result = await this.processVerificationEmail(job.data as VerificationEmailJobData)
+          break
 
         case EmailJobType.SEND_VERIFIED_SUCCESS:
-          result = await this.processVerifiedSuccessEmail(job.data as VerifiedSuccessEmailJobData);
-          break;
+          result = await this.processVerifiedSuccessEmail(job.data as VerifiedSuccessEmailJobData)
+          break
 
         case EmailJobType.SEND_PASSWORD_RESET:
-          result = await this.processPasswordResetEmail(job.data as PasswordResetEmailJobData);
-          break;
+          result = await this.processPasswordResetEmail(job.data as PasswordResetEmailJobData)
+          break
 
         case EmailJobType.SEND_PASSWORD_CHANGED:
-          result = await this.processPasswordChangedEmail(job.data as PasswordChangedEmailJobData);
-          break;
+          result = await this.processPasswordChangedEmail(job.data as PasswordChangedEmailJobData)
+          break
 
         case EmailJobType.SEND_CUSTOM:
-          result = await this.processCustomEmail(job.data as CustomEmailJobData);
-          break;
+          result = await this.processCustomEmail(job.data as CustomEmailJobData)
+          break
 
         default:
-          throw new Error(`Unknown email job type: ${job.name}`);
+          throw new Error(`Unknown email job type: ${job.name}`)
       }
 
-      const duration = Date.now() - startTime;
-      
+      const duration = Date.now() - startTime
+
       this.logger.info(
         {
           jobId: job.id,
           jobType: job.name,
           to: job.data.to,
-          duration,
+          duration
         },
-        'Email job completed successfully',
-      );
+        'Email job completed successfully'
+      )
 
-      return result;
+      return result
     } catch (error) {
-      const duration = Date.now() - startTime;
-      
+      const duration = Date.now() - startTime
+
       this.logger.error(
         {
           jobId: job.id,
@@ -106,12 +106,12 @@ export class EmailProcessor extends WorkerHost {
           attempt: job.attemptsMade + 1,
           error: error.message,
           stack: error.stack,
-          duration,
+          duration
         },
-        'Email job failed',
-      );
+        'Email job failed'
+      )
 
-      throw error; // Re-throw to trigger retry
+      throw error // Re-throw to trigger retry
     }
   }
 
@@ -122,8 +122,8 @@ export class EmailProcessor extends WorkerHost {
     await this.emailService.sendWelcomeEmail(
       data.to,
       data.userName || 'User',
-      data.verificationLink,
-    );
+      data.verificationLink
+    )
   }
 
   /**
@@ -134,8 +134,8 @@ export class EmailProcessor extends WorkerHost {
       data.to,
       data.userName || 'User',
       data.verificationLink,
-      data.expiresIn,
-    );
+      data.expiresIn
+    )
   }
 
   /**
@@ -145,8 +145,8 @@ export class EmailProcessor extends WorkerHost {
     await this.emailService.sendEmailVerifiedSuccess(
       data.to,
       data.userName || 'User',
-      data.loginUrl,
-    );
+      data.loginUrl
+    )
   }
 
   /**
@@ -157,8 +157,8 @@ export class EmailProcessor extends WorkerHost {
       data.to,
       data.userName || 'User',
       data.resetLink,
-      data.expiresIn,
-    );
+      data.expiresIn
+    )
   }
 
   /**
@@ -169,8 +169,8 @@ export class EmailProcessor extends WorkerHost {
       data.to,
       data.userName || 'User',
       data.changeTime,
-      data.ipAddress,
-    );
+      data.ipAddress
+    )
   }
 
   /**
@@ -181,8 +181,8 @@ export class EmailProcessor extends WorkerHost {
       to: data.to,
       subject: data.subject,
       html: data.html,
-      text: data.text,
-    });
+      text: data.text
+    })
   }
 
   /**
@@ -193,10 +193,10 @@ export class EmailProcessor extends WorkerHost {
       {
         jobId: job.id,
         jobType: job.name,
-        to: job.data.to,
+        to: job.data.to
       },
-      'Email job marked as completed',
-    );
+      'Email job marked as completed'
+    )
   }
 
   /**
@@ -209,10 +209,10 @@ export class EmailProcessor extends WorkerHost {
         jobType: job.name,
         to: job.data.to,
         attempts: job.attemptsMade,
-        error: error.message,
+        error: error.message
       },
-      'Email job failed permanently after all retry attempts',
-    );
+      'Email job failed permanently after all retry attempts'
+    )
   }
 
   /**
@@ -223,9 +223,9 @@ export class EmailProcessor extends WorkerHost {
       {
         jobId: job.id,
         jobType: job.name,
-        to: job.data.to,
+        to: job.data.to
       },
-      'Email job started processing',
-    );
+      'Email job started processing'
+    )
   }
 }

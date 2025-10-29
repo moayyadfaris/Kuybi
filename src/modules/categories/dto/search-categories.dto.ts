@@ -5,7 +5,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger'
 export class SearchCategoriesDto {
   @ApiPropertyOptional({
     description: 'Search term to filter categories by name, slug, or description',
-    example: 'technology',
+    example: 'technology'
   })
   @IsOptional()
   @IsString()
@@ -13,7 +13,7 @@ export class SearchCategoriesDto {
 
   @ApiPropertyOptional({
     description: 'Filter by active status',
-    example: true,
+    example: true
   })
   @IsOptional()
   @Type(() => Boolean)
@@ -23,7 +23,7 @@ export class SearchCategoriesDto {
   @ApiPropertyOptional({
     description: 'Include soft-deleted categories',
     example: false,
-    default: false,
+    default: false
   })
   @IsOptional()
   @Type(() => Boolean)
@@ -34,7 +34,7 @@ export class SearchCategoriesDto {
     description: 'Field to sort by',
     example: 'name',
     enum: ['name', 'slug', 'createdAt', 'updatedAt'],
-    default: 'name',
+    default: 'name'
   })
   @IsOptional()
   @IsString()
@@ -45,7 +45,7 @@ export class SearchCategoriesDto {
     description: 'Sort direction',
     example: 'ASC',
     enum: ['ASC', 'DESC'],
-    default: 'ASC',
+    default: 'ASC'
   })
   @IsOptional()
   @IsString()
@@ -56,7 +56,7 @@ export class SearchCategoriesDto {
     description: 'Page number (0-indexed)',
     example: 0,
     default: 0,
-    minimum: 0,
+    minimum: 0
   })
   @IsOptional()
   @Type(() => Number)
@@ -67,7 +67,7 @@ export class SearchCategoriesDto {
     example: 20,
     default: 50,
     minimum: 1,
-    maximum: 100,
+    maximum: 100
   })
   @IsOptional()
   @Type(() => Number)

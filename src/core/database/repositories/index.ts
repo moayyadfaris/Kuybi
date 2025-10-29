@@ -6,4 +6,3 @@ export { SessionRepository } from './session.repository'
 export { StoryRepository } from './story.repository'
 export { RoleRepository } from './role.repository'
 export { PermissionRepository } from './permission.repository'
-

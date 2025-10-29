@@ -3,7 +3,7 @@ import { IsOptional, IsNumber, IsString, Min, Max } from 'class-validator'
 import { Type } from 'class-transformer'
 
 export class PresignedUrlDto {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'URL expiration time in seconds',
     example: 3600,
     default: 3600,
@@ -17,7 +17,7 @@ export class PresignedUrlDto {
   @Max(604800) // Maximum 7 days
   expiresIn?: number = 3600
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Custom filename for download',
     example: 'my-document.pdf'
   })
@@ -27,19 +27,19 @@ export class PresignedUrlDto {
 }
 
 export class PresignedUrlResponseDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Presigned URL for temporary access',
     example: 'https://bucket.s3.amazonaws.com/file.pdf?X-Amz-Algorithm=...'
   })
   url: string
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'URL expiration timestamp',
     example: '2024-10-24T15:30:00Z'
   })
   expiresAt: Date
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Expiration duration in seconds',
     example: 3600
   })

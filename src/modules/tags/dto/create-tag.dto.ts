@@ -6,7 +6,7 @@ import {
   MinLength,
   MaxLength,
   Matches,
-  Min,
+  Min
 } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
@@ -15,7 +15,7 @@ export class CreateTagDto {
     description: 'Tag name',
     minLength: 2,
     maxLength: 200,
-    example: 'breaking-news',
+    example: 'breaking-news'
   })
   @IsString()
   @MinLength(2)
@@ -25,18 +25,18 @@ export class CreateTagDto {
   @ApiPropertyOptional({
     description: 'Tag color in hex format',
     example: '#FF5733',
-    pattern: '^#[0-9A-Fa-f]{6}$',
+    pattern: '^#[0-9A-Fa-f]{6}$'
   })
   @IsOptional()
   @IsString()
   @Matches(/^#[0-9A-Fa-f]{6}$/, {
-    message: 'Color must be a valid hex color (e.g., #FF5733)',
+    message: 'Color must be a valid hex color (e.g., #FF5733)'
   })
   color?: string
 
   @ApiPropertyOptional({
     description: 'Sort order for tag display',
-    example: 0,
+    example: 0
   })
   @IsOptional()
   @IsInt()
@@ -45,7 +45,7 @@ export class CreateTagDto {
 
   @ApiPropertyOptional({
     description: 'Whether this is a system tag',
-    example: false,
+    example: false
   })
   @IsOptional()
   @IsBoolean()
@@ -53,7 +53,7 @@ export class CreateTagDto {
 
   @ApiPropertyOptional({
     description: 'Additional metadata',
-    example: { category: 'news', importance: 'high' },
+    example: { category: 'news', importance: 'high' }
   })
   @IsOptional()
   metadata?: Record<string, any>

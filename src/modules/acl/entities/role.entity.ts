@@ -4,7 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
+  OneToMany
 } from 'typeorm'
 import { RolePermission } from './role-permission.entity'
 import { UserRole } from './user-role.entity'
@@ -33,12 +33,12 @@ export class Role {
   @Column({ default: 50 })
   priority: number // Higher priority = more permissions (1-100)
 
-  @OneToMany(() => RolePermission, (rolePermission) => rolePermission.role, {
-    cascade: true,
+  @OneToMany(() => RolePermission, rolePermission => rolePermission.role, {
+    cascade: true
   })
   rolePermissions: RolePermission[]
 
-  @OneToMany(() => UserRole, (userRole) => userRole.role)
+  @OneToMany(() => UserRole, userRole => userRole.role)
   userRoles: UserRole[]
 
   @CreateDateColumn({ type: 'timestamptz' })

@@ -17,17 +17,17 @@ export const CHECK_ABILITY = 'check_ability'
 
 /**
  * Decorator to protect routes with permission checks
- * 
+ *
  * @example
  * // Single permission check
  * @CheckAbility({ action: Action.Create, subject: Subject.Story })
- * 
+ *
  * // Multiple permission checks (OR logic - user needs ANY of these)
  * @CheckAbility(
  *   { action: Action.Update, subject: Subject.Story },
  *   { action: Action.Manage, subject: Subject.All }
  * )
- * 
+ *
  * @param requirements - One or more permission requirements
  */
 export const CheckAbility = (...requirements: RequiredRule[]) =>

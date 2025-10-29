@@ -3,10 +3,10 @@ import { CacheService } from '../../cache/services/cache.service'
 
 /**
  * Base Repository Pattern
- * 
+ *
  * Provides common data access operations with built-in caching support.
  * All entity repositories should extend this class.
- * 
+ *
  * @template T - Entity type
  */
 export abstract class BaseRepository<T> {
@@ -15,7 +15,7 @@ export abstract class BaseRepository<T> {
 
   constructor(
     protected readonly repository: Repository<T>,
-    protected readonly cacheService?: CacheService,
+    protected readonly cacheService?: CacheService
   ) {}
 
   /**
@@ -30,7 +30,7 @@ export abstract class BaseRepository<T> {
    */
   async findOne(
     where: FindOptionsWhere<T>,
-    options?: { ttl?: number; bypassCache?: boolean },
+    options?: { ttl?: number; bypassCache?: boolean }
   ): Promise<T | null> {
     const cacheKey = this.buildCacheKey('findOne', JSON.stringify(where))
 
@@ -53,7 +53,7 @@ export abstract class BaseRepository<T> {
    */
   async findById(
     id: string | number,
-    options?: { ttl?: number; bypassCache?: boolean },
+    options?: { ttl?: number; bypassCache?: boolean }
   ): Promise<T | null> {
     const cacheKey = this.buildCacheKey('id', id)
 
@@ -63,7 +63,7 @@ export abstract class BaseRepository<T> {
         async () => {
           return this.repository.findOne({ where: { id } as any })
         },
-        options?.ttl ?? this.defaultTTL,
+        options?.ttl ?? this.defaultTTL
       )
     }
 
@@ -73,9 +73,7 @@ export abstract class BaseRepository<T> {
   /**
    * Find all entities with optional caching
    */
-  async findAll(
-    options?: { ttl?: number; bypassCache?: boolean },
-  ): Promise<T[]> {
+  async findAll(options?: { ttl?: number; bypassCache?: boolean }): Promise<T[]> {
     const cacheKey = this.buildCacheKey('all')
 
     if (!options?.bypassCache && this.cacheService) {
@@ -84,7 +82,7 @@ export abstract class BaseRepository<T> {
         async () => {
           return this.repository.find()
         },
-        options?.ttl ?? this.defaultTTL,
+        options?.ttl ?? this.defaultTTL
       )
     }
 
@@ -96,10 +94,10 @@ export abstract class BaseRepository<T> {
    */
   async findMany(
     options?: FindManyOptions<T>,
-    cacheOptions?: { ttl?: number; cacheKey?: string; bypassCache?: boolean },
+    cacheOptions?: { ttl?: number; cacheKey?: string; bypassCache?: boolean }
   ): Promise<T[]> {
-    const cacheKey = cacheOptions?.cacheKey ?? 
-                     this.buildCacheKey('findMany', JSON.stringify(options ?? {}))
+    const cacheKey =
+      cacheOptions?.cacheKey ?? this.buildCacheKey('findMany', JSON.stringify(options ?? {}))
 
     if (!cacheOptions?.bypassCache && this.cacheService && cacheOptions?.cacheKey) {
       const cached = await this.cacheService.get<T[]>(cacheKey)
@@ -109,11 +107,7 @@ export abstract class BaseRepository<T> {
     const entities = await this.repository.find(options)
 
     if (this.cacheService && !cacheOptions?.bypassCache && cacheOptions?.cacheKey) {
-      await this.cacheService.set(
-        cacheKey,
-        entities,
-        cacheOptions?.ttl ?? this.defaultTTL,
-      )
+      await this.cacheService.set(cacheKey, entities, cacheOptions?.ttl ?? this.defaultTTL)
     }
 
     return entities
@@ -122,9 +116,7 @@ export abstract class BaseRepository<T> {
   /**
    * Find with pagination
    */
-  async findAndCount(
-    options?: FindManyOptions<T>,
-  ): Promise<[T[], number]> {
+  async findAndCount(options?: FindManyOptions<T>): Promise<[T[], number]> {
     return this.repository.findAndCount(options)
   }
 
@@ -134,10 +126,10 @@ export abstract class BaseRepository<T> {
   async create(data: DeepPartial<T>): Promise<T> {
     const entity = this.repository.create(data)
     const saved = await this.repository.save(entity)
-    
+
     // Invalidate list caches
     await this.invalidateListCaches()
-    
+
     return saved
   }
 
@@ -146,11 +138,11 @@ export abstract class BaseRepository<T> {
    */
   async update(id: string | number, data: DeepPartial<T>): Promise<T | null> {
     await this.repository.update(id as any, data as any)
-    
+
     // Invalidate caches
     await this.invalidateEntityCache(id)
     await this.invalidateListCaches()
-    
+
     return this.findById(id, { bypassCache: true })
   }
 
@@ -159,11 +151,11 @@ export abstract class BaseRepository<T> {
    */
   async delete(id: string | number): Promise<boolean> {
     const result = await this.repository.delete(id as any)
-    
+
     // Invalidate caches
     await this.invalidateEntityCache(id)
     await this.invalidateListCaches()
-    
+
     return (result.affected ?? 0) > 0
   }
 
@@ -172,13 +164,13 @@ export abstract class BaseRepository<T> {
    */
   async save(entity: T | DeepPartial<T>): Promise<T> {
     const saved = await this.repository.save(entity as any)
-    
+
     // Invalidate caches
     if ((saved as any).id) {
       await this.invalidateEntityCache((saved as any).id)
     }
     await this.invalidateListCaches()
-    
+
     return saved
   }
 
@@ -210,12 +202,9 @@ export abstract class BaseRepository<T> {
    */
   protected async invalidateEntityCache(id: string | number): Promise<void> {
     if (!this.cacheService) return
-    
-    const patterns = [
-      this.buildCacheKey('id', id),
-      this.buildCacheKey('findOne', '*'),
-    ]
-    
+
+    const patterns = [this.buildCacheKey('id', id), this.buildCacheKey('findOne', '*')]
+
     for (const pattern of patterns) {
       await this.cacheService.del(pattern)
     }
@@ -227,7 +216,7 @@ export abstract class BaseRepository<T> {
    */
   protected async invalidateListCaches(): Promise<void> {
     if (!this.cacheService) return
-    
+
     await this.cacheService.delPattern(`${this.entityName}:findMany:*`)
     await this.cacheService.delPattern(`${this.entityName}:list:*`)
     await this.cacheService.delPattern(`${this.entityName}:search:*`)
@@ -238,7 +227,7 @@ export abstract class BaseRepository<T> {
    */
   async invalidateAllCaches(): Promise<void> {
     if (!this.cacheService) return
-    
+
     await this.cacheService.delPattern(`${this.entityName}:*`)
   }
 }

@@ -23,13 +23,13 @@ export class RoleRepository extends BaseRepository<Role> {
    */
   async findByName(name: string): Promise<Role | null> {
     const cacheKey = this.buildCacheKey('name', name)
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
         return this.repository.findOne({
           where: { name, deletedAt: null },
-          relations: ['rolePermissions', 'rolePermissions.permission'],
+          relations: ['rolePermissions', 'rolePermissions.permission']
         })
       },
       this.defaultTTL
@@ -41,13 +41,13 @@ export class RoleRepository extends BaseRepository<Role> {
    */
   async findActive(): Promise<Role[]> {
     const cacheKey = this.buildCacheKey('active')
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
         return this.repository.find({
           where: { isActive: true, deletedAt: null },
-          order: { priority: 'DESC', name: 'ASC' },
+          order: { priority: 'DESC', name: 'ASC' }
         })
       },
       this.defaultTTL
@@ -59,13 +59,13 @@ export class RoleRepository extends BaseRepository<Role> {
    */
   async findSystemRoles(): Promise<Role[]> {
     const cacheKey = this.buildCacheKey('system')
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
         return this.repository.find({
           where: { isSystem: true, deletedAt: null },
-          order: { priority: 'DESC' },
+          order: { priority: 'DESC' }
         })
       },
       this.defaultTTL
@@ -77,13 +77,13 @@ export class RoleRepository extends BaseRepository<Role> {
    */
   async findByIdWithPermissions(id: number): Promise<Role | null> {
     const cacheKey = this.buildCacheKey('id-with-permissions', id.toString())
-    
+
     return this.cacheService.wrap(
       cacheKey,
       async () => {
         return this.repository.findOne({
           where: { id, deletedAt: null },
-          relations: ['rolePermissions', 'rolePermissions.permission'],
+          relations: ['rolePermissions', 'rolePermissions.permission']
         })
       },
       this.defaultTTL
@@ -100,8 +100,8 @@ export class RoleRepository extends BaseRepository<Role> {
     }
 
     // Add new permissions (avoiding duplicates)
-    const existingPermissionIds = role.rolePermissions.map((rp) => rp.permissionId)
-    const newPermissionIds = permissionIds.filter((id) => !existingPermissionIds.includes(id))
+    const existingPermissionIds = role.rolePermissions.map(rp => rp.permissionId)
+    const newPermissionIds = permissionIds.filter(id => !existingPermissionIds.includes(id))
 
     if (newPermissionIds.length > 0) {
       await this.repository
@@ -109,9 +109,9 @@ export class RoleRepository extends BaseRepository<Role> {
         .insert()
         .into('role_permissions')
         .values(
-          newPermissionIds.map((permissionId) => ({
+          newPermissionIds.map(permissionId => ({
             roleId,
-            permissionId,
+            permissionId
           }))
         )
         .execute()
@@ -140,7 +140,7 @@ export class RoleRepository extends BaseRepository<Role> {
    */
   async softDelete(id: number): Promise<boolean> {
     const role = await this.findById(id)
-    
+
     if (!role) {
       return false
     }
@@ -149,10 +149,7 @@ export class RoleRepository extends BaseRepository<Role> {
       throw new Error('Cannot delete system roles')
     }
 
-    const result = await this.repository.update(
-      { id },
-      { deletedAt: new Date() }
-    )
+    const result = await this.repository.update({ id }, { deletedAt: new Date() })
 
     if (result.affected && result.affected > 0) {
       await this.clearCache()

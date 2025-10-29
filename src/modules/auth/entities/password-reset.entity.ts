@@ -6,15 +6,15 @@ import {
   UpdateDateColumn,
   Index,
   ManyToOne,
-  JoinColumn,
+  JoinColumn
 } from 'typeorm'
 import { User } from '@modules/users/entities/user.entity'
 
 /**
  * Password Reset Entity
- * 
+ *
  * Stores password reset tokens for account recovery
- * 
+ *
  * Features:
  * - Unique reset tokens (UUID v4)
  * - Short expiration window (1 hour for security)
@@ -22,7 +22,7 @@ import { User } from '@modules/users/entities/user.entity'
  * - One-time use tokens
  * - Tracks used status and timestamp
  * - Audit trail for security monitoring
- * 
+ *
  * Security Considerations:
  * - Shorter expiry than email verification (1 hour vs 24 hours)
  * - Tracks both request IP and reset IP (detect suspicious activity)
@@ -30,7 +30,7 @@ import { User } from '@modules/users/entities/user.entity'
  * - Token marked as used immediately after successful reset
  */
 @Entity('password_resets')
-@Index(['email'])
+@Index(['email']) // Email index defined here - not on property level
 @Index(['token'], { unique: true })
 @Index(['userId', 'used'])
 @Index(['expiresAt'])
@@ -39,16 +39,14 @@ export class PasswordReset {
   id: string
 
   @Column({ type: 'uuid' })
-  @Index()
-  userId: string
+  userId: string // Index removed - userId is part of composite index above
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User
 
   @Column({ type: 'varchar', length: 255 })
-  @Index()
-  email: string
+  email: string // Index removed from property - already defined at class level
 
   @Column({ type: 'uuid', unique: true })
   token: string

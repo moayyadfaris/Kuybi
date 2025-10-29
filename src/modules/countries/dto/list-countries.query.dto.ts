@@ -1,12 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { Transform } from 'class-transformer'
-import {
-  IsArray,
-  IsBoolean,
-  IsIn,
-  IsOptional,
-  IsString
-} from 'class-validator'
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator'
 import { PaginationQueryDto } from '@shared/dto/pagination-query.dto'
 
 const ORDER_FIELDS = ['name', 'continent', 'currencyCode', 'phonecode']

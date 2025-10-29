@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, FindOptionsWhere, Like, ILike, In } from 'typeorm'
+import { Repository } from 'typeorm'
 import { BaseRepository } from './base.repository'
 import { User } from '@modules/users/entities/user.entity'
 import { CacheService } from '../../cache/services/cache.service'
 
 /**
  * User Repository
- * 
+ *
  * Handles all database operations for User entity with caching.
  */
 @Injectable()
@@ -18,7 +18,7 @@ export class UserRepository extends BaseRepository<User> {
   constructor(
     @InjectRepository(User)
     repository: Repository<User>,
-    cacheService: CacheService,
+    cacheService: CacheService
   ) {
     super(repository, cacheService)
   }
@@ -34,7 +34,7 @@ export class UserRepository extends BaseRepository<User> {
       async () => {
         return this.repository.findOne({ where: { email: email.toLowerCase() } })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -49,7 +49,7 @@ export class UserRepository extends BaseRepository<User> {
       async () => {
         return this.repository.findOne({ where: { mobileNumber } })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -61,7 +61,7 @@ export class UserRepository extends BaseRepository<User> {
       'role',
       role,
       `limit:${options?.limit ?? 50}`,
-      `offset:${options?.offset ?? 0}`,
+      `offset:${options?.offset ?? 0}`
     )
 
     return this.cacheService.wrap<User[]>(
@@ -71,10 +71,10 @@ export class UserRepository extends BaseRepository<User> {
           where: { role },
           take: options?.limit ?? 50,
           skip: options?.offset ?? 0,
-          order: { createdAt: 'DESC' },
+          order: { createdAt: 'DESC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -93,7 +93,7 @@ export class UserRepository extends BaseRepository<User> {
 
     if (query.search) {
       qb.where('(user.name ILIKE :search OR user.email ILIKE :search)', {
-        search: `%${query.search}%`,
+        search: `%${query.search}%`
       })
     }
 
@@ -123,7 +123,7 @@ export class UserRepository extends BaseRepository<User> {
     const cacheKey = this.buildCacheKey(
       'active',
       `limit:${options?.limit ?? 50}`,
-      `offset:${options?.offset ?? 0}`,
+      `offset:${options?.offset ?? 0}`
     )
 
     return this.cacheService.wrap<User[]>(
@@ -133,10 +133,10 @@ export class UserRepository extends BaseRepository<User> {
           where: { isActive: true },
           take: options?.limit ?? 50,
           skip: options?.offset ?? 0,
-          order: { createdAt: 'DESC' },
+          order: { createdAt: 'DESC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -145,12 +145,12 @@ export class UserRepository extends BaseRepository<User> {
    */
   async updateVerification(id: string, isVerified: boolean): Promise<User | null> {
     await this.repository.update(id, { isVerified })
-    
+
     // Invalidate caches
     await this.invalidateEntityCache(id)
     await this.cacheService.delPattern(`${this.entityName}:email:*`)
     await this.cacheService.delPattern(`${this.entityName}:mobile:*`)
-    
+
     return this.findById(id, { bypassCache: true })
   }
 
@@ -159,11 +159,11 @@ export class UserRepository extends BaseRepository<User> {
    */
   async updateActiveStatus(id: string, isActive: boolean): Promise<User | null> {
     await this.repository.update(id, { isActive })
-    
+
     // Invalidate caches
     await this.invalidateEntityCache(id)
     await this.invalidateListCaches()
-    
+
     return this.findById(id, { bypassCache: true })
   }
 
@@ -172,7 +172,7 @@ export class UserRepository extends BaseRepository<User> {
    */
   async updatePassword(id: string, passwordHash: string): Promise<void> {
     await this.repository.update(id, { passwordHash })
-    
+
     // Invalidate user cache but keep other caches
     await this.invalidateEntityCache(id)
   }
@@ -212,7 +212,7 @@ export class UserRepository extends BaseRepository<User> {
         const [total, active, verified] = await Promise.all([
           this.repository.count(),
           this.repository.count({ where: { isActive: true } }),
-          this.repository.count({ where: { isVerified: true } }),
+          this.repository.count({ where: { isVerified: true } })
         ])
 
         // Get count by role
@@ -224,13 +224,13 @@ export class UserRepository extends BaseRepository<User> {
           .getRawMany()
 
         const byRole: Record<string, number> = {}
-        rolesQuery.forEach((row) => {
+        rolesQuery.forEach(row => {
           byRole[row.role] = parseInt(row.count, 10)
         })
 
         return { total, active, verified, byRole }
       },
-      300, // 5 minutes TTL for stats
+      300 // 5 minutes TTL for stats
     )
   }
 
@@ -239,7 +239,7 @@ export class UserRepository extends BaseRepository<User> {
    */
   protected async invalidateListCaches(): Promise<void> {
     await super.invalidateListCaches()
-    
+
     // Also invalidate role and active caches
     await this.cacheService.delPattern(`${this.entityName}:role:*`)
     await this.cacheService.delPattern(`${this.entityName}:active:*`)

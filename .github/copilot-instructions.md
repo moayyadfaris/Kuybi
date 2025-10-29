@@ -60,8 +60,8 @@ npm run migration:revert
 ### Testing ACL Guards
 Use provided shell scripts for comprehensive ACL testing:
 ```bash
-./quick-acl-test.sh       # Fast validation of core ACL functionality
-./test-acl-guards.sh      # Full guard validation with edge cases
+./test/scripts/quick-acl-test.sh       # Fast validation of core ACL functionality
+./test/scripts/test-acl-guards.sh      # Full guard validation with edge cases
 ```
 Tests use pre-configured admin token and validate authentication, authorization, and CRUD operations.
 

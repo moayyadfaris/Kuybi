@@ -13,7 +13,7 @@ export const workerConfig = {
     notification: 8, // 8 concurrent notifications
     securityScan: 1, // 1 at a time (very CPU intensive)
     dataExport: 1, // 1 at a time (memory intensive)
-    reportGeneration: 3, // 3 concurrent report generations
+    reportGeneration: 3 // 3 concurrent report generations
   },
 
   // Worker process settings
@@ -25,7 +25,7 @@ export const workerConfig = {
     healthCheckInterval: 60000, // 1 minute
 
     // Metrics collection interval
-    metricsInterval: 30000, // 30 seconds
+    metricsInterval: 30000 // 30 seconds
   },
 
   // Retry strategy
@@ -37,7 +37,7 @@ export const workerConfig = {
     maxBackoff: 300000, // 5 minutes
 
     // Jitter to prevent thundering herd
-    jitter: true,
+    jitter: true
   },
 
   // Failed job handling
@@ -49,8 +49,8 @@ export const workerConfig = {
     retentionDays: 7,
 
     // Alert on failed jobs
-    alertThreshold: 10, // Alert if more than 10 jobs fail
-  },
+    alertThreshold: 10 // Alert if more than 10 jobs fail
+  }
 }
 
 /**
@@ -60,13 +60,13 @@ export function getWorkerConcurrency(workerType: string): number {
   const concurrencyMap: Record<string, number> = {
     'session-cleanup': workerConfig.concurrency.sessionCleanup,
     'log-maintenance': workerConfig.concurrency.logMaintenance,
-    'email': workerConfig.concurrency.email,
-    'sms': workerConfig.concurrency.sms,
+    email: workerConfig.concurrency.email,
+    sms: workerConfig.concurrency.sms,
     'attachment-processing': workerConfig.concurrency.attachmentProcessing,
-    'notification': workerConfig.concurrency.notification,
+    notification: workerConfig.concurrency.notification,
     'security-scan': workerConfig.concurrency.securityScan,
     'data-export': workerConfig.concurrency.dataExport,
-    'report-generation': workerConfig.concurrency.reportGeneration,
+    'report-generation': workerConfig.concurrency.reportGeneration
   }
 
   return concurrencyMap[workerType] || 1

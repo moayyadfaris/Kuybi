@@ -4,7 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
+  OneToMany
 } from 'typeorm'
 import { RolePermission } from './role-permission.entity'
 import { Action } from '../types/actions.enum'
@@ -21,13 +21,13 @@ export class Permission {
 
   @Column({
     type: 'enum',
-    enum: Action,
+    enum: Action
   })
   action: Action
 
   @Column({
     type: 'enum',
-    enum: Subject,
+    enum: Subject
   })
   subject: Subject
 
@@ -43,7 +43,7 @@ export class Permission {
   @Column({ type: 'text', nullable: true })
   reason?: string // Why this permission exists (documentation)
 
-  @OneToMany(() => RolePermission, (rolePermission) => rolePermission.permission)
+  @OneToMany(() => RolePermission, rolePermission => rolePermission.permission)
   rolePermissions: RolePermission[]
 
   @CreateDateColumn({ type: 'timestamptz' })

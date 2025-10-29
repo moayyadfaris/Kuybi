@@ -6,7 +6,7 @@ import {
   IsDateString,
   Min,
   IsUUID,
-  IsBoolean,
+  IsBoolean
 } from 'class-validator'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
@@ -16,7 +16,7 @@ export class StoryFilterDto {
   @ApiPropertyOptional({
     description: 'Filter by story status',
     enum: StoryStatus,
-    example: StoryStatus.PUBLISHED,
+    example: StoryStatus.PUBLISHED
   })
   @IsOptional()
   @IsEnum(StoryStatus)
@@ -25,7 +25,7 @@ export class StoryFilterDto {
   @ApiPropertyOptional({
     description: 'Filter by story type',
     enum: StoryType,
-    example: StoryType.STORY,
+    example: StoryType.STORY
   })
   @IsOptional()
   @IsEnum(StoryType)
@@ -33,7 +33,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Filter by user ID',
-    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
   })
   @IsOptional()
   @IsUUID()
@@ -42,7 +42,7 @@ export class StoryFilterDto {
   @ApiPropertyOptional({
     description: 'Filter by priority',
     enum: StoryPriority,
-    example: StoryPriority.HIGH,
+    example: StoryPriority.HIGH
   })
   @IsOptional()
   @IsEnum(StoryPriority)
@@ -50,7 +50,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Filter by country ID',
-    example: 1,
+    example: 1
   })
   @IsOptional()
   @IsInt()
@@ -60,7 +60,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Filter by parent story ID',
-    example: 123,
+    example: 123
   })
   @IsOptional()
   @IsInt()
@@ -70,7 +70,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Filter by date from (ISO string)',
-    example: '2024-01-01T00:00:00Z',
+    example: '2024-01-01T00:00:00Z'
   })
   @IsOptional()
   @IsDateString()
@@ -78,7 +78,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Filter by date to (ISO string)',
-    example: '2024-12-31T23:59:59Z',
+    example: '2024-12-31T23:59:59Z'
   })
   @IsOptional()
   @IsDateString()
@@ -86,7 +86,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Search in title and details',
-    example: 'breaking news',
+    example: 'breaking news'
   })
   @IsOptional()
   @IsString()
@@ -94,7 +94,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Include deleted stories',
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
@@ -105,7 +105,7 @@ export class StoryFilterDto {
     description: 'Page number',
     minimum: 1,
     default: 1,
-    example: 1,
+    example: 1
   })
   @IsOptional()
   @IsInt()
@@ -118,7 +118,7 @@ export class StoryFilterDto {
     minimum: 1,
     maximum: 100,
     default: 20,
-    example: 20,
+    example: 20
   })
   @IsOptional()
   @IsInt()
@@ -128,7 +128,7 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Sort by field',
-    example: 'createdAt',
+    example: 'createdAt'
   })
   @IsOptional()
   @IsString()
@@ -138,7 +138,7 @@ export class StoryFilterDto {
     description: 'Sort order',
     enum: ['ASC', 'DESC'],
     default: 'DESC',
-    example: 'DESC',
+    example: 'DESC'
   })
   @IsOptional()
   @IsEnum(['ASC', 'DESC'])

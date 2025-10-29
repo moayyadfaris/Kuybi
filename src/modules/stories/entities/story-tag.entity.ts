@@ -5,7 +5,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  PrimaryColumn,
+  PrimaryColumn
 } from 'typeorm'
 import { Story } from './story.entity'
 import { Tag } from '../../tags/entities/tag.entity'
@@ -22,13 +22,13 @@ export class StoryTag {
   tagId: number
 
   @ManyToOne(() => Story, {
-    onDelete: 'CASCADE',
+    onDelete: 'CASCADE'
   })
   @JoinColumn({ name: 'storyId' })
   story: Story
 
   @ManyToOne(() => Tag, {
-    onDelete: 'CASCADE',
+    onDelete: 'CASCADE'
   })
   @JoinColumn({ name: 'tagId' })
   tag: Tag

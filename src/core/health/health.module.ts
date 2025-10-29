@@ -6,6 +6,6 @@ import { CacheService } from '../cache/services/cache.service'
 @Module({
   imports: [TerminusModule],
   controllers: [HealthController],
-  providers: [CacheService],
+  providers: [CacheService]
 })
 export class HealthModule {}

@@ -3,7 +3,7 @@ import { SetMetadata } from '@nestjs/common'
 /**
  * Custom cache key decorator
  * Use this to define custom cache keys for methods
- * 
+ *
  * @example
  * @CacheKey('user:profile')
  * async getUserProfile(userId: string) { ... }
@@ -14,7 +14,7 @@ export const CacheKey = (key: string) => SetMetadata(CACHE_KEY_METADATA, key)
 /**
  * Cache TTL decorator
  * Override default TTL for specific methods
- * 
+ *
  * @example
  * @CacheTTL(600) // 10 minutes
  * async getCountries() { ... }

@@ -11,44 +11,44 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
             type: 'integer',
             isPrimary: true,
             isGenerated: true,
-            generationStrategy: 'increment',
+            generationStrategy: 'increment'
           },
           {
             name: 'userId',
             type: 'uuid',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'roleId',
             type: 'integer',
-            isNullable: false,
+            isNullable: false
           },
           {
             name: 'assignedBy',
             type: 'uuid',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'assignedAt',
             type: 'timestamptz',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'expiresAt',
             type: 'timestamptz',
-            isNullable: true,
+            isNullable: true
           },
           {
             name: 'isActive',
             type: 'boolean',
-            default: true,
+            default: true
           },
           {
             name: 'createdAt',
             type: 'timestamptz',
-            default: 'CURRENT_TIMESTAMP',
-          },
-        ],
+            default: 'CURRENT_TIMESTAMP'
+          }
+        ]
       }),
       true
     )
@@ -61,7 +61,7 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
         columnNames: ['userId'],
         referencedTableName: 'users',
         referencedColumnNames: ['id'],
-        onDelete: 'CASCADE',
+        onDelete: 'CASCADE'
       })
     )
 
@@ -72,7 +72,7 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
         columnNames: ['roleId'],
         referencedTableName: 'roles',
         referencedColumnNames: ['id'],
-        onDelete: 'CASCADE',
+        onDelete: 'CASCADE'
       })
     )
 
@@ -82,7 +82,7 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
       new TableIndex({
         name: 'IDX_USER_ROLES_UNIQUE',
         columnNames: ['userId', 'roleId'],
-        isUnique: true,
+        isUnique: true
       })
     )
 
@@ -91,7 +91,7 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
       'user_roles',
       new TableIndex({
         name: 'IDX_USER_ROLES_USER',
-        columnNames: ['userId'],
+        columnNames: ['userId']
       })
     )
 
@@ -99,7 +99,7 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
       'user_roles',
       new TableIndex({
         name: 'IDX_USER_ROLES_ROLE',
-        columnNames: ['roleId'],
+        columnNames: ['roleId']
       })
     )
 
@@ -107,7 +107,7 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
       'user_roles',
       new TableIndex({
         name: 'IDX_USER_ROLES_IS_ACTIVE',
-        columnNames: ['isActive'],
+        columnNames: ['isActive']
       })
     )
 
@@ -115,7 +115,7 @@ export class CreateUserRolesTable1712001400000 implements MigrationInterface {
       'user_roles',
       new TableIndex({
         name: 'IDX_USER_ROLES_EXPIRES_AT',
-        columnNames: ['expiresAt'],
+        columnNames: ['expiresAt']
       })
     )
   }

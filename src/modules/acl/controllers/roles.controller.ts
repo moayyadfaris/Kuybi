@@ -9,7 +9,7 @@ import {
   ParseIntPipe,
   UseGuards,
   HttpCode,
-  HttpStatus,
+  HttpStatus
 } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger'
 import { RolesService } from '../services/roles.service'
@@ -86,14 +86,14 @@ export class RolesController {
   @CheckAbility({ action: Action.Update, subject: Subject.Role })
   @ApiOperation({ summary: 'Update a role' })
   @ApiResponse({ status: 200, description: 'Role updated successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request - invalid data or system role restriction' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid data or system role restriction'
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Role not found' })
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateRoleDto: UpdateRoleDto,
-  ) {
+  async update(@Param('id', ParseIntPipe) id: number, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(id, updateRoleDto)
   }
 
@@ -107,7 +107,7 @@ export class RolesController {
   @ApiResponse({ status: 404, description: 'Role not found' })
   async assignPermissions(
     @Param('id', ParseIntPipe) id: number,
-    @Body() assignPermissionsDto: AssignPermissionsDto,
+    @Body() assignPermissionsDto: AssignPermissionsDto
   ) {
     return this.rolesService.assignPermissions(id, assignPermissionsDto)
   }
@@ -117,13 +117,16 @@ export class RolesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Remove permissions from a role' })
   @ApiResponse({ status: 200, description: 'Permissions removed successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request - cannot remove all permissions from system role' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - cannot remove all permissions from system role'
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Role not found' })
   async removePermissions(
     @Param('id', ParseIntPipe) id: number,
-    @Body() removePermissionsDto: RemovePermissionsDto,
+    @Body() removePermissionsDto: RemovePermissionsDto
   ) {
     return this.rolesService.removePermissions(id, removePermissionsDto)
   }

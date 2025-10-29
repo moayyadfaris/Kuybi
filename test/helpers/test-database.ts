@@ -3,18 +3,18 @@
  * Helpers for database setup, cleanup, and seeding
  */
 
-import { DataSource } from 'typeorm';
-import { testConfig } from '../test.config';
+import { DataSource } from 'typeorm'
+import { testConfig } from '../test.config'
 
 export class TestDatabase {
-  private static dataSource: DataSource;
+  private static dataSource: DataSource
 
   /**
    * Create a test database connection
    */
   static async createConnection(entities: any[]): Promise<DataSource> {
     if (this.dataSource?.isInitialized) {
-      return this.dataSource;
+      return this.dataSource
     }
 
     this.dataSource = new DataSource({
@@ -27,11 +27,11 @@ export class TestDatabase {
       entities,
       synchronize: true,
       dropSchema: false,
-      logging: false,
-    });
+      logging: false
+    })
 
-    await this.dataSource.initialize();
-    return this.dataSource;
+    await this.dataSource.initialize()
+    return this.dataSource
   }
 
   /**
@@ -39,7 +39,7 @@ export class TestDatabase {
    */
   static async closeConnection(): Promise<void> {
     if (this.dataSource?.isInitialized) {
-      await this.dataSource.destroy();
+      await this.dataSource.destroy()
     }
   }
 
@@ -48,22 +48,22 @@ export class TestDatabase {
    */
   static async clearDatabase(): Promise<void> {
     if (!this.dataSource?.isInitialized) {
-      return;
+      return
     }
 
-    const entities = this.dataSource.entityMetadatas;
-    
+    const entities = this.dataSource.entityMetadatas
+
     // Disable foreign key checks
-    await this.dataSource.query('SET session_replication_role = replica;');
+    await this.dataSource.query('SET session_replication_role = replica;')
 
     // Truncate all tables
     for (const entity of entities) {
-      const repository = this.dataSource.getRepository(entity.name);
-      await repository.query(`TRUNCATE TABLE "${entity.tableName}" CASCADE;`);
+      const repository = this.dataSource.getRepository(entity.name)
+      await repository.query(`TRUNCATE TABLE "${entity.tableName}" CASCADE;`)
     }
 
     // Re-enable foreign key checks
-    await this.dataSource.query('SET session_replication_role = DEFAULT;');
+    await this.dataSource.query('SET session_replication_role = DEFAULT;')
   }
 
   /**
@@ -71,7 +71,7 @@ export class TestDatabase {
    */
   static async runMigrations(): Promise<void> {
     if (this.dataSource?.isInitialized) {
-      await this.dataSource.runMigrations();
+      await this.dataSource.runMigrations()
     }
   }
 
@@ -80,7 +80,7 @@ export class TestDatabase {
    */
   static async revertMigration(): Promise<void> {
     if (this.dataSource?.isInitialized) {
-      await this.dataSource.undoLastMigration();
+      await this.dataSource.undoLastMigration()
     }
   }
 
@@ -88,6 +88,6 @@ export class TestDatabase {
    * Get repository for testing
    */
   static getRepository<Entity extends object>(entity: new () => Entity) {
-    return this.dataSource.getRepository(entity);
+    return this.dataSource.getRepository(entity)
   }
 }
