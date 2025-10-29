@@ -115,6 +115,23 @@ Structured logging with Pino for observability.
 
 ---
 
+### Response Compression
+
+Automatic gzip compression for bandwidth optimization.
+
+| Document | Type | Description |
+|----------|------|-------------|
+| [Response Compression](./features/compression/RESPONSE_COMPRESSION.md) | Feature Guide | **⭐ Gzip compression with client requirements** |
+
+**Key Features:**
+- ✅ 60-87% bandwidth reduction
+- ✅ Configurable threshold & level
+- ✅ Smart filtering (bypasses small responses)
+- ✅ Browser-compatible (automatic)
+- ✅ Production-ready defaults
+
+---
+
 ## 📘 Guides
 
 Quick references and how-to guides.
