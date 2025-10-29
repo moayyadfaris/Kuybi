@@ -1,8 +1,8 @@
-# DDD Migration Plan for Susanoo
+# DDD Migration Plan for Kuybi
 
 ## Executive Summary
 
-This document provides a **practical, step-by-step plan** to migrate the Susanoo NestJS application from a module-centric architecture to a Domain-Driven Design (DDD) architecture with clear bounded contexts.
+This document provides a **practical, step-by-step plan** to migrate the Kuybi NestJS application from a module-centric architecture to a Domain-Driven Design (DDD) architecture with clear bounded contexts.
 
 **Estimated Timeline**: 6-8 weeks  
 **Team Size**: 2-3 developers  

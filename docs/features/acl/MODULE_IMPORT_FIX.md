@@ -39,7 +39,7 @@ import { AclModule } from '../acl/acl.module'
 
 1. Restart the server:
 ```bash
-cd /Users/moayyadfaris/projects/susanoo/nest-app
+cd /Users/moayyadfaris/projects/kuybi/nest-app
 npm run start:dev
 ```
 

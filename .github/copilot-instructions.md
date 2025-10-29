@@ -1,7 +1,7 @@
-# Susanoo NestJS - AI Coding Assistant Guide
+# Kuybi NestJS - AI Coding Assistant Guide
 
 ## Project Overview
-Enterprise-grade NestJS backend for Susanoo platform with sophisticated authentication, ACL, caching, and content management. Built using Domain-Driven Design principles with repository pattern and extensive Redis caching.
+Enterprise-grade NestJS backend for Kuybi platform with sophisticated authentication, ACL, caching, and content management. Built using Domain-Driven Design principles with repository pattern and extensive Redis caching.
 
 ## Architecture Patterns
 
@@ -50,7 +50,7 @@ npm run migration:run
 
 # Seed data  
 npm run db:seed:countries
-npm run db:seed:users     # Creates admin@susano.dev / Admin@123
+npm run db:seed:users     # Creates admin@kuybi.dev / Admin@123
 npm run db:seed:acl       # Sets up roles/permissions
 
 # Revert last migration
@@ -193,4 +193,4 @@ npm run start:dev  # Runs on http://localhost:4000/api
 # Health check at http://localhost:4000/api/health
 ```
 
-Default admin: `admin@susano.dev` / `Admin@123`
+Default admin: `admin@kuybi.dev` / `Admin@123`

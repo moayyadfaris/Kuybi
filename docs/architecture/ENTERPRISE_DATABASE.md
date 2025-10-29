@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Susanoo Enhanced Database Layer provides a comprehensive, production-ready enhancement to the existing database architecture with enterprise-grade features including audit trails, field-level encryption, multi-level caching, soft deletes, and GDPR compliance.
+The Kuybi Enhanced Database Layer provides a comprehensive, production-ready enhancement to the existing database architecture with enterprise-grade features including audit trails, field-level encryption, multi-level caching, soft deletes, and GDPR compliance.
 
 ## Architecture
 

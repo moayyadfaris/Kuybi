@@ -2,7 +2,7 @@
 
 ## What Was Built
 
-A complete integration testing infrastructure for the Susanoo NestJS application with real database and Redis integration.
+A complete integration testing infrastructure for the Kuybi NestJS application with real database and Redis integration.
 
 ### 📁 Files Created (14 files)
 
@@ -38,10 +38,10 @@ A complete integration testing infrastructure for the Susanoo NestJS application
 
 ```bash
 # Create PostgreSQL test database
-createdb susanoo_test
+createdb kuybi_test
 
 # Or using psql
-psql -U postgres -c "CREATE DATABASE susanoo_test;"
+psql -U postgres -c "CREATE DATABASE kuybi_test;"
 ```
 
 ### 2. Install Dependencies
@@ -68,7 +68,7 @@ cp .env.test .env.test.local
 ```bash
 # Set to test database
 export NODE_ENV=test
-export DATABASE_NAME=susanoo_test
+export DATABASE_NAME=kuybi_test
 
 # Run migrations
 npm run migration:run
@@ -379,13 +379,13 @@ it('should access protected route', async () => {
 ### Database Connection Errors
 ```bash
 # Verify database exists
-psql -l | grep susanoo_test
+psql -l | grep kuybi_test
 
 # Check credentials in .env.test
 cat .env.test
 
 # Test connection
-psql -h localhost -U postgres -d susanoo_test -c "SELECT 1"
+psql -h localhost -U postgres -d kuybi_test -c "SELECT 1"
 ```
 
 ### Redis Connection Errors

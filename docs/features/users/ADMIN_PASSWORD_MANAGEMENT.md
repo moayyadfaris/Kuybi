@@ -50,7 +50,7 @@ Admin resets user password. System generates secure random password.
   "email": "user@example.com",
   "temporaryPassword": "aB3$cD4!eF5@",  // Only in system-generated
   "forcePasswordChange": true,
-  "changedBy": "admin@susano.dev",
+  "changedBy": "admin@kuybi.dev",
   "changedAt": "2024-10-28T20:00:00.000Z",
   "reason": "User forgot password and called support"
 }
@@ -94,7 +94,7 @@ Admin sets specific password for user (emergency scenarios).
   "email": "user@example.com",
   // No temporaryPassword in response (admin set it, they know it)
   "forcePasswordChange": true,
-  "changedBy": "admin@susano.dev",
+  "changedBy": "admin@kuybi.dev",
   "changedAt": "2024-10-28T20:00:00.000Z",
   "reason": "Emergency access for critical task"
 }
@@ -159,7 +159,7 @@ All password changes are logged with PinoLogger:
   userId: "uuid",
   userEmail: "user@example.com",
   adminId: "admin-uuid",
-  adminEmail: "admin@susano.dev",
+  adminEmail: "admin@kuybi.dev",
   reason: "User forgot password",
   revokedSessions: 3,
   forcePasswordChange: true,
@@ -175,7 +175,7 @@ All password changes are logged with PinoLogger:
   userId: "uuid",
   userEmail: "user@example.com",
   adminId: "admin-uuid",
-  adminEmail: "admin@susano.dev",
+  adminEmail: "admin@kuybi.dev",
   reason: "Emergency access",
   revokedSessions: 2,
   forcePasswordChange: true,

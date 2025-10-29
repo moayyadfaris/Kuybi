@@ -21,13 +21,13 @@ const parseList = (value: string | undefined, fallback: string[]): string[] => {
 }
 
 export default () => {
-  const defaultBucket = process.env.S3_BUCKET || 'susanoo-dev-attachments'
+  const defaultBucket = process.env.S3_BUCKET || 'kuybi-dev-attachments'
   const env = process.env.NODE_ENV || 'development'
   const logDir = process.env.LOG_DIR || './logs'
 
   return {
     app: {
-      name: process.env.APP_NAME || 'susanoo-nest',
+      name: process.env.APP_NAME || 'kuybi-nest',
       env
     },
     http: {
@@ -75,11 +75,11 @@ export default () => {
       port: parseInt(process.env.DB_PORT || '5432', 10),
       username: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
-      name: process.env.DB_NAME || 'susanoo',
+      name: process.env.DB_NAME || 'kuybi',
       logging: process.env.TYPEORM_LOGGING === 'true'
     },
     auth: {
-      jwtSecret: process.env.JWT_SECRET || 'change-me-susanoo-secret',
+      jwtSecret: process.env.JWT_SECRET || 'change-me-kuybi-secret',
       jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '10m',
       jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
     },
@@ -102,8 +102,8 @@ export default () => {
       uploadPrefix: process.env.S3_UPLOAD_PREFIX || 'uploads'
     },
     email: {
-      from: process.env.EMAIL_FROM || 'noreply@susano.dev',
-      supportEmail: process.env.EMAIL_SUPPORT || 'support@susano.dev',
+      from: process.env.EMAIL_FROM || 'noreply@kuybi.dev',
+      supportEmail: process.env.EMAIL_SUPPORT || 'support@kuybi.dev',
       smtp: {
         host: process.env.SMTP_HOST || 'smtp.ethereal.email',
         port: parseInt(process.env.SMTP_PORT || '587', 10),

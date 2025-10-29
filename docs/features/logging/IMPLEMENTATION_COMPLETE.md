@@ -103,10 +103,10 @@ npm run logs:cleanup
 Add to crontab:
 ```bash
 # Rotate daily at midnight
-0 0 * * * cd /path/to/susanoo/nest-app && npm run logs:rotate
+0 0 * * * cd /path/to/kuybi/nest-app && npm run logs:rotate
 
 # Cleanup at 1 AM
-0 1 * * * cd /path/to/susanoo/nest-app && npm run logs:cleanup
+0 1 * * * cd /path/to/kuybi/nest-app && npm run logs:cleanup
 ```
 
 ## 📊 Log Levels & When to Use

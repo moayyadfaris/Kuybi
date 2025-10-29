@@ -31,7 +31,7 @@ export default async function globalSetup() {
     port: parseInt(process.env.TEST_DB_PORT || '5432', 10),
     username: process.env.TEST_DB_USERNAME || 'postgres',
     password: process.env.TEST_DB_PASSWORD || 'postgres',
-    database: process.env.TEST_DB_NAME || 'susanoo_test',
+    database: process.env.TEST_DB_NAME || 'kuybi_test',
     entities: ['src/modules/**/*.entity.ts'],
     synchronize: false,
     logging: ['error', 'warn'], // Enable error logging to see what's failing
@@ -64,7 +64,7 @@ export default async function globalSetup() {
       port: parseInt(process.env.TEST_DB_PORT || '5432', 10),
       username: process.env.TEST_DB_USERNAME || 'postgres',
       password: process.env.TEST_DB_PASSWORD || 'postgres',
-      database: process.env.TEST_DB_NAME || 'susanoo_test',
+      database: process.env.TEST_DB_NAME || 'kuybi_test',
       entities: ['src/modules/**/*.entity.ts'],
       synchronize: true, // Enable auto-sync on fresh connection
       logging: ['error', 'warn'],

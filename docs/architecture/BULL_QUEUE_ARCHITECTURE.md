@@ -1,4 +1,4 @@
-# Bull Queue Enterprise Architecture - Susanoo NestJS
+# Bull Queue Enterprise Architecture - Kuybi NestJS
 
 ## Executive Summary
 

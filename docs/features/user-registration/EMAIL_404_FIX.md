@@ -62,7 +62,7 @@ SMTP_HOST='smtp.ethereal.email'
 SMTP_PORT=587
 SMTP_SECURE=false                            # Changed from true
 EMAIL_FROM='Saul Crona <myrna.schmeler@ethereal.email>'
-EMAIL_SUPPORT=support@susano.dev
+EMAIL_SUPPORT=support@kuybi.dev
 ```
 
 ## Resolution Steps

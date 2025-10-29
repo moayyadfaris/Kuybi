@@ -48,7 +48,7 @@ async function bootstrap() {
   )
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Susanoo Countries API')
+    .setTitle('Kuybi Countries API')
     .setDescription('Country listing endpoints for the NestJS scaffold')
     .setVersion('1.0.0')
     .addServer(`http://${httpConfig.host}:${httpConfig.port}`)

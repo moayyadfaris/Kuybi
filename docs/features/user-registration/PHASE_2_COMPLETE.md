@@ -51,8 +51,8 @@ Updated configuration files:
 **src/config/configuration.ts**:
 ```typescript
 email: {
-  from: process.env.EMAIL_FROM || 'noreply@susano.dev',
-  supportEmail: process.env.EMAIL_SUPPORT || 'support@susano.dev',
+  from: process.env.EMAIL_FROM || 'noreply@kuybi.dev',
+  supportEmail: process.env.EMAIL_SUPPORT || 'support@kuybi.dev',
   smtp: {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
@@ -73,8 +73,8 @@ SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 
 # Email addresses
-EMAIL_FROM=Susanoo <noreply@susano.dev>
-EMAIL_SUPPORT=support@susano.dev
+EMAIL_FROM=Kuybi <noreply@kuybi.dev>
+EMAIL_SUPPORT=support@kuybi.dev
 ```
 
 ### ✅ 4. DTOs and Interfaces
@@ -184,8 +184,8 @@ SMTP_SECURE=false
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password  # Generate at https://myaccount.google.com/apppasswords
 
-EMAIL_FROM=Susanoo <noreply@susano.dev>
-EMAIL_SUPPORT=support@susano.dev
+EMAIL_FROM=Kuybi <noreply@kuybi.dev>
+EMAIL_SUPPORT=support@kuybi.dev
 ```
 
 **Gmail Users**: 
@@ -378,7 +378,7 @@ export class UserRegistrationService {
   async registerUser(email: string, name: string) {
     // ... create user logic ...
     
-    const verificationLink = `https://app.susano.dev/verify?token=${token}`;
+    const verificationLink = `https://app.kuybi.dev/verify?token=${token}`;
     
     await this.emailService.sendWelcomeEmail(
       email,

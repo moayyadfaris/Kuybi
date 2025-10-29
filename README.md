@@ -1,137 +1,213 @@
-# Susanoo Nest Scaffold
+# 🦊 Kuybi - Enterprise NestJS Backend
 
-This NestJS project bootstraps a modern service template modeled after the existing Susanoo API. It ships with:
+> *"Within you is the power of the Nine-Tails"* - Inspired by Naruto's Kurama (Kuybi)
 
-- Global configuration & validation (`@nestjs/config`)
-- PostgreSQL integration via TypeORM
-- Global error filter and response interceptor for consistent envelopes
-- Swagger UI served at `/api/docs` with JSON spec at `/api/swagger.json`
-- Countries feature module mirroring the current enterprise endpoints
+**Kuybi** is an enterprise-grade NestJS backend application featuring advanced authentication, role-based access control (RBAC), audit logging, caching, and content management. Built with Domain-Driven Design principles, it provides a robust foundation for scalable microservices.
 
-## Getting Started
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-10.3-red.svg)](https://nestjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-red.svg)](https://redis.io/)
+
+---
+
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Quick Start](#-quick-start)
+- [Documentation](#-documentation)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication & Authorization
+- **JWT-based authentication** with access & refresh token rotation
+- **Multi-session management** with device tracking
+- **Role-Based Access Control (RBAC)** using CASL
+- **Fine-grained permissions** with field-level access control
+- **Time-based role expiration** and activation
+
+### 📊 Audit & Compliance
+- **Comprehensive audit logging** for all operations
+- **Searchable audit logs** with filtering
+- **Retention policies** and archiving
+- **GDPR-compliant** data tracking
+
+### ⚡ Performance
+- **Redis caching** (25-80x improvements)
+- **Repository pattern** with caching
+- **Bull Queue** for background jobs
+- **PM2 cluster mode** support
+
+### 📧 Communication
+- **Email verification** workflow
+- **Password reset** with secure tokens
+- **Handlebars templates** for emails
+- **SMTP integration** ready
+
+---
+
+## 🏗️ Architecture
+
+### Tech Stack
+- **Framework**: NestJS 10.3
+- **Language**: TypeScript 5.3
+- **Database**: PostgreSQL 16
+- **Cache**: Redis 7
+- **Queue**: Bull
+- **Logger**: Pino
+
+### Design Patterns
+- Domain-Driven Design (DDD)
+- Repository Pattern
+- Dependency Injection
+- CQRS-ready architecture
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js >= 20.x
+- PostgreSQL >= 14.x
+- Redis >= 6.x
+
+### Installation
 
 ```bash
-cd nest-app
+# Clone repository
+git clone https://github.com/moayyadfaris/kuybi.git
+cd kuybi/nest-app
+
+# Install dependencies
 npm install
+
+# Configure environment
 cp .env.example .env
+# Edit .env with your credentials
+
+# Setup database
+createdb kuybi
 npm run migration:run
 npm run db:seed:countries
+npm run db:seed:acl
 npm run db:seed:users
+
+# Start development server
 npm run start:dev
 ```
 
-The API will be available at `http://localhost:4000/api`, with documentation at `http://localhost:4000/api/docs`.
+### Access Points
+- **API**: http://localhost:4040/api
+- **Docs**: http://localhost:4040/api/docs
+- **Health**: http://localhost:4040/api/health
 
-## Countries Endpoint
-
-`GET /api/countries`
-
-Query parameters:
-
-| Parameter | Description |
-|-----------|-------------|
-| `page` | Zero-based page index (default `0`) |
-| `limit` | Page size up to 500 (default `50`) |
-| `search` | Fuzzy search across `name`, `nicename`, `iso`, `iso3` |
-| `continent` | Exact match on continent (case insensitive) |
-| `isActive` | Boolean filter (`true`, `false`, `1`, `0`) |
-| `fields` | Comma separated projection list |
-| `orderBy` | Sort field (`name`, `continent`, `currencyCode`, `phonecode`) |
-| `orderDirection` | `asc` or `desc` |
-
-The response envelope matches the legacy API: `{ success, data }`, where `data` includes `results`, `total`, and `pagination` metadata.
-
-## Auth Endpoint
-
-`POST /api/auth/login`
-
-Body:
-
+### Default Credentials
 ```json
 {
-  "email": "admin@susano.dev",
-  "password": "Admin@123",
-  "deviceType": "Web"
+  "email": "admin@kuybi.dev",
+  "password": "Admin@123"
 }
 ```
 
-Response:
+> ⚠️ Change these in production!
 
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "<JWT>",
-    "refreshToken": "<refresh-token>",
-    "user": {
-      "id": "...",
-      "name": "Susanoo Admin",
-      "email": "admin@susano.dev",
-      "role": "ROLE_SUPERADMIN"
-    }
-  }
-}
+---
+
+## 📚 Documentation
+
+Comprehensive docs in [`docs/`](./docs):
+
+### Getting Started
+- [API Reference](./docs/API_REFERENCE.md)
+- [Super Admin Guide](./docs/SUPER_ADMIN_ACCESS.md)
+
+### Architecture
+- [Architecture Standards](./docs/architecture/ARCHITECTURE_STANDARDIZATION.md)
+- [DDD Guide](./docs/architecture/DOMAIN_DRIVEN_DESIGN.md)
+- [Repository Pattern](./docs/architecture/REPOSITORY_PATTERN.md)
+- [Queue Architecture](./docs/architecture/BULL_QUEUE_ARCHITECTURE.md)
+
+### Features
+- **Auth**: [Authentication Module](./docs/features/auth/)
+- **ACL**: [Access Control](./docs/features/acl/README.md)
+- **Audit**: [Audit Logging](./docs/features/audit/README.md)
+- **Cache**: [Caching Strategy](./docs/features/cache/)
+- **Logging**: [Structured Logging](./docs/features/logging/)
+
+### Testing & Deployment
+- [Integration Tests](./docs/testing/INTEGRATION_TESTING_SETUP.md)
+- [PM2 Deployment](./docs/deployment/PM2_GUIDE.md)
+- [Test Scripts](./test/scripts/README.md)
+
+---
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+npm run test
+
+# Integration tests
+npm run test:integration
+
+# Coverage
+npm run test:cov
 ```
 
-Use the bearer `accessToken` for protected endpoints. Persist the `refreshToken` securely to obtain new access tokens without prompting for credentials.
+### Manual Testing
+```bash
+# ACL tests
+./test/scripts/test-acl-guards.sh
 
-`POST /api/auth/refresh`
-
-Body:
-
-```json
-{
-  "refreshToken": "<refresh-token>"
-}
+# Audit tests
+./test/scripts/test-audit-integration.sh
 ```
 
-Response mirrors the login payload but only contains the token pair:
+**Results**: ✅ 42/42 tests passing (~15s)
 
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "<new-JWT>",
-    "refreshToken": "<rotated-refresh-token>"
-  }
-}
+---
+
+## 🚀 Deployment
+
+### Build & Deploy
+```bash
+# Build
+npm run build
+
+# Run migrations
+npm run migration:run
+
+# Start with PM2
+pm2 start ecosystem.config.js
 ```
 
-`POST /api/auth/logout`
+### PM2 Management
+```bash
+./pm2.sh start    # Start all
+./pm2.sh stop     # Stop all
+./pm2.sh restart  # Restart all
+pm2 logs kuybi-api
+```
 
-- Requires bearer token in `Authorization` header
-- Body: `{ "refreshToken": "<token>", "logoutAll": false, "reason": "user_initiated" }`
-- Invalidates the provided refresh token (and optionally all sessions)
+---
 
-`GET /api/auth/sessions`
+## 📞 Support
 
-- Requires bearer token
-- Query params support pagination (`page`, `limit`), status filters (`filterByStatus`), device filters (`filterByDevice`), and anonymization flags
-- Returns session list with optional risk assessment metadata
+- **Docs**: [./docs](./docs)
+- **Issues**: GitHub Issues
+- **Email**: support@kuybi.dev
 
-## Database Tasks
+---
 
-- `npm run migration:run` — applies TypeORM migrations using the shared data source.
-- `npm run migration:revert` — rolls back the last migration.
-- `npm run db:seed:countries` — upserts the curated set of enhanced countries.
-- `npm run db:seed:users` — provisions the initial admin account (`admin@susano.dev / Admin@123`).
+<div align="center">
 
-## Attachments Endpoint
+**Built with ❤️ using NestJS**
 
-`POST /api/attachments`
+*Harness the power of the Nine-Tails* 🦊
 
-- Requires `Authorization: Bearer <accessToken>` header
-- Multipart form-data with `file` field; optional fields: `category`, `description`, `tags`, `generateThumbnails`, `isPublic`, `allowDuplicates`
-- Returns an attachment payload containing download/preview URLs and metadata
-
-> Notes:
-> - Uploaded files are streamed to the S3 bucket defined in your `.env` (`S3_BUCKET`, `S3_REGION`, `S3_BASE_URL`).
-> - Ensure the process has AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional session tokens) with write access to the bucket.
-
-## Next Steps
-
-- Add your remaining domain modules following the Countries blueprint
-- Register additional entities in `DatabaseModule`
-- Extend the common layer with guards, policies, and metrics as needed
-
-Happy building!
+</div>

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Log cleanup script for Susanoo NestJS
+# Log cleanup script for Kuybi NestJS
 # Retains logs for 7 days, then removes them
 
 LOG_DIR="./logs"

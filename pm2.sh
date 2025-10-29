@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# PM2 Quick Start Script for Susanoo NestJS
+# PM2 Quick Start Script for Kuybi NestJS
 # This script helps quickly start/stop/manage PM2 processes
 
 set -e
@@ -23,7 +23,7 @@ print_message() {
 print_header() {
     echo ""
     print_message "$BLUE" "=========================================="
-    print_message "$BLUE" "  Susanoo NestJS - PM2 Manager"
+    print_message "$BLUE" "  Kuybi NestJS - PM2 Manager"
     print_message "$BLUE" "=========================================="
     echo ""
 }
@@ -208,7 +208,7 @@ show_help() {
     print_message "$YELLOW" "Examples:"
     print_message "$NC" "  ./pm2.sh start development    Start in dev mode"
     print_message "$NC" "  ./pm2.sh start production     Start in prod mode"
-    print_message "$NC" "  ./pm2.sh logs susanoo-api     Show API logs"
+    print_message "$NC" "  ./pm2.sh logs kuybi-api     Show API logs"
     print_message "$NC" "  ./pm2.sh monitor              Monitor all processes"
     echo ""
 }

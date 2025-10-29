@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ACL module provides enterprise-grade role-based access control (RBAC) for the Susanoo platform using the CASL library. It supports fine-grained permissions with dynamic conditions, field-level access control, and time-based role assignments.
+The ACL module provides enterprise-grade role-based access control (RBAC) for the Kuybi platform using the CASL library. It supports fine-grained permissions with dynamic conditions, field-level access control, and time-based role assignments.
 
 ## Architecture
 

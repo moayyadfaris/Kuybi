@@ -19,7 +19,7 @@ export class EmailService implements OnModuleInit {
     @InjectPinoLogger(EmailService.name)
     private readonly logger: PinoLogger
   ) {
-    this.defaultFrom = this.configService.get<string>('email.from', 'noreply@susano.dev')
+    this.defaultFrom = this.configService.get<string>('email.from', 'noreply@kuybi.dev')
   }
 
   async onModuleInit() {
@@ -175,7 +175,7 @@ export class EmailService implements OnModuleInit {
   async sendWelcomeEmail(email: string, userName: string, verificationLink: string): Promise<void> {
     return this.sendTemplatedEmail({
       to: email,
-      subject: 'Welcome to Susanoo! Verify Your Email',
+      subject: 'Welcome to Kuybi! Verify Your Email',
       template: 'welcome' as any,
       context: {
         userName,
@@ -234,7 +234,7 @@ export class EmailService implements OnModuleInit {
   ): Promise<void> {
     return this.sendTemplatedEmail({
       to: email,
-      subject: 'Reset Your Password - Susanoo',
+      subject: 'Reset Your Password - Kuybi',
       template: 'password-reset' as any,
       context: {
         userName,
@@ -256,7 +256,7 @@ export class EmailService implements OnModuleInit {
   ): Promise<void> {
     return this.sendTemplatedEmail({
       to: email,
-      subject: 'Your Password Was Changed - Susanoo',
+      subject: 'Your Password Was Changed - Kuybi',
       template: 'password-changed' as any,
       context: {
         userName,

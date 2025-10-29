@@ -1,4 +1,4 @@
-# API Reference - Susanoo NestJS
+# API Reference - Kuybi NestJS
 
 ## Base URL
 

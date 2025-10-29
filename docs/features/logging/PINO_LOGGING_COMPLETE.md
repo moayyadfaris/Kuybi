@@ -594,7 +594,7 @@ node benchmark.js
 
 ## Conclusion
 
-Pino structured logging is now fully integrated into the Susanoo NestJS application, providing enterprise-grade observability with superior performance. The SessionsController demonstrates best practices for structured logging, and the configuration supports both development (pretty-print) and production (JSON) environments.
+Pino structured logging is now fully integrated into the Kuybi NestJS application, providing enterprise-grade observability with superior performance. The SessionsController demonstrates best practices for structured logging, and the configuration supports both development (pretty-print) and production (JSON) environments.
 
 **Status:** ✅ **PRODUCTION-READY**
 

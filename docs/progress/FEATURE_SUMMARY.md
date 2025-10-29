@@ -154,7 +154,7 @@ Response:
   "email": "user@example.com",
   "temporaryPassword": "aB3$cD4!eF5@",  // 12 chars, secure random
   "forcePasswordChange": true,
-  "changedBy": "admin@susano.dev",
+  "changedBy": "admin@kuybi.dev",
   "changedAt": "2024-10-28T20:00:00.000Z",
   "reason": "User forgot password"
 }
@@ -180,7 +180,7 @@ Response:
   "email": "user@example.com",
   // No temporaryPassword (admin knows it)
   "forcePasswordChange": true,
-  "changedBy": "admin@susano.dev",
+  "changedBy": "admin@kuybi.dev",
   "changedAt": "2024-10-28T20:00:00.000Z",
   "reason": "Emergency access"
 }

@@ -146,11 +146,11 @@ curl "http://localhost:4040/api/v1/auth/check-availability?email=test@example.co
 {
   "available": false,
   "field": "email",
-  "value": "admin@susano.dev",
+  "value": "admin@kuybi.dev",
   "suggestions": [
-    "admin1@susano.dev",
-    "admin2468@susano.dev",
-    "admin.24@susano.dev"
+    "admin1@kuybi.dev",
+    "admin2468@kuybi.dev",
+    "admin.24@kuybi.dev"
   ]
 }
 

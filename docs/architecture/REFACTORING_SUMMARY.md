@@ -109,7 +109,7 @@ import { UserRepository } from '../../../core/database/repositories/user.reposit
 
 ```bash
 $ npm run build
-> susanoo-nest@0.1.0 build
+> kuybi-nest@0.1.0 build
 > nest build
 
 # Compiles successfully

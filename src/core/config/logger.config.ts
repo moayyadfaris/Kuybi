@@ -191,7 +191,7 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
               pid: process.pid,
               hostname: process.env.HOSTNAME,
               environment: appEnv,
-              service: configService.get<string>('app.name', 'susanoo-nest'),
+              service: configService.get<string>('app.name', 'kuybi-nest'),
               version: process.env.npm_package_version || '1.0.0'
             },
       timestamp: () => `,"time":"${new Date().toISOString()}"`

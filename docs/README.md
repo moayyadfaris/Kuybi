@@ -1,6 +1,6 @@
-# 📚 Susanoo NestJS Documentation
+# 📚 Kuybi NestJS Documentation
 
-Welcome to the Susanoo NestJS API documentation. This directory contains comprehensive guides, implementation details, and architectural decisions for the enterprise-grade NestJS backend.
+Welcome to the Kuybi NestJS API documentation. This directory contains comprehensive guides, implementation details, and architectural decisions for the enterprise-grade NestJS backend.
 
 ---
 

@@ -1,7 +1,7 @@
 {
-  "name": "susanoo-nest",
+  "name": "kuybi-nest",
   "version": "0.1.0",
-  "description": "NestJS starter for Susanoo microservices",
+  "description": "Enterprise-grade NestJS backend inspired by Naruto's Kuybi",
   "private": true,
   "scripts": {
     "build": "nest build",

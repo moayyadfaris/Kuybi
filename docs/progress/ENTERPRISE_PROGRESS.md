@@ -749,7 +749,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 
 ### BullMQ Queue Infrastructure (In Progress)
 - ✅ Queue scaffolding (`QueuesModule`, queue config, bull-board dashboard)
-- ✅ Worker bootstrap (`src/worker.ts`) + PM2 entry (`susanoo-worker`)
+- ✅ Worker bootstrap (`src/worker.ts`) + PM2 entry (`kuybi-worker`)
 - ✅ Session cleanup processor & scheduler wired into BullMQ
 - ⏳ Producers + removal of legacy `@Cron` jobs (next milestone)
 - [ ] Notification history

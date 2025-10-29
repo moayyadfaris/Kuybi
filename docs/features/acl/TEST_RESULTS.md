@@ -2,7 +2,7 @@
 
 **Test Date:** October 25, 2025  
 **Server:** http://localhost:4040/api  
-**Test User:** admin@susano.dev (super-admin role)  
+**Test User:** admin@kuybi.dev (super-admin role)  
 **Test Duration:** ~2 minutes  
 
 ## ✅ Test Summary

@@ -2,7 +2,7 @@
 
 ## Overview
 
-PM2 (Process Manager 2) is used to manage all Susanoo application processes including:
+PM2 (Process Manager 2) is used to manage all Kuybi application processes including:
 - **API Servers** - Multiple instances in cluster mode for load balancing
 - **Bull Board Dashboard** - Queue monitoring UI
 - **Background Workers** - Session cleanup, logs, email, attachments (future phases)
@@ -54,8 +54,8 @@ npm run pm2:start:dev
 npm run pm2:start:prod
 
 # Start specific app only
-pm2 start ecosystem.config.js --only susanoo-api
-pm2 start ecosystem.config.js --only susanoo-dashboard
+pm2 start ecosystem.config.js --only kuybi-api
+pm2 start ecosystem.config.js --only kuybi-dashboard
 
 # Stop all processes
 pm2 stop ecosystem.config.js
@@ -74,8 +74,8 @@ pm2 delete ecosystem.config.js
 npm run pm2:delete
 
 # Delete specific app
-pm2 delete susanoo-api
-pm2 delete susanoo-dashboard
+pm2 delete kuybi-api
+pm2 delete kuybi-dashboard
 ```
 
 ### Monitoring
@@ -95,29 +95,29 @@ pm2 logs
 npm run pm2:logs
 
 # View logs for specific process
-pm2 logs susanoo-api
-pm2 logs susanoo-dashboard
+pm2 logs kuybi-api
+pm2 logs kuybi-dashboard
 
 # Clear log files
 pm2 flush
 npm run pm2:flush
 
 # Show process details
-pm2 show susanoo-api
-pm2 show susanoo-dashboard
+pm2 show kuybi-api
+pm2 show kuybi-dashboard
 ```
 
 ### Scaling
 
 ```bash
 # Scale API servers to 8 instances
-pm2 scale susanoo-api 8
+pm2 scale kuybi-api 8
 
 # Scale down to 2 instances
-pm2 scale susanoo-api 2
+pm2 scale kuybi-api 2
 
 # Scale to max CPU cores
-pm2 scale susanoo-api max
+pm2 scale kuybi-api max
 ```
 
 ### Auto-startup
@@ -135,7 +135,7 @@ pm2 resurrect
 
 ## Process Configuration
 
-### API Server (`susanoo-api`)
+### API Server (`kuybi-api`)
 
 - **Instances**: 4 (configurable in ecosystem.config.js)
 - **Mode**: Cluster (load balanced)
@@ -148,7 +148,7 @@ pm2 resurrect
 - `APP_MODE=api` - Runs in API mode (no workers)
 - See `ecosystem.config.js` for full list
 
-### Dashboard (`susanoo-dashboard`)
+### Dashboard (`kuybi-dashboard`)
 
 - **Instances**: 1
 - **Mode**: Fork
@@ -164,13 +164,13 @@ pm2 resurrect
 
 ### Queue Worker
 
-- **Process Name:** `susanoo-worker`
+- **Process Name:** `kuybi-worker`
 - **Script:** `dist/worker.js`
 - **Mode:** Fork (1 instance)
 - **Purpose:** Runs BullMQ processors (SessionCleanupProcessor, etc.)
 - **Logs:** `logs/pm2/worker-out.log`, `logs/pm2/worker-error.log`
 
-Enable/disable the worker via `pm2 start ecosystem.config.js --only susanoo-worker`.
+Enable/disable the worker via `pm2 start ecosystem.config.js --only kuybi-worker`.
 
 Future specialized workers (email, attachments, etc.) can be cloned from this base configuration when new processors land.
 
@@ -324,7 +324,7 @@ pm2 gracefulReload ecosystem.config.js
 pm2 monit
 
 # Show process metrics
-pm2 show susanoo-api
+pm2 show kuybi-api
 
 # Web-based monitoring (install pm2-web)
 npm install -g pm2-web
@@ -339,7 +339,7 @@ pm2-web
 pm2 logs
 
 # Specific process
-pm2 logs susanoo-api
+pm2 logs kuybi-api
 
 # Last 100 lines
 pm2 logs --lines 100
@@ -378,10 +378,10 @@ pm2 list
 pm2 list
 
 # Detailed metrics
-pm2 show susanoo-api
+pm2 show kuybi-api
 
 # Reset restart counter
-pm2 reset susanoo-api
+pm2 reset kuybi-api
 ```
 
 ## Troubleshooting
@@ -398,12 +398,12 @@ pm2 reset susanoo-api
 
 2. Verify environment variables:
    ```bash
-   pm2 show susanoo-api
+   pm2 show kuybi-api
    ```
 
 3. Check logs:
    ```bash
-   pm2 logs susanoo-api --lines 50
+   pm2 logs kuybi-api --lines 50
    ```
 
 4. Test application directly:
@@ -455,7 +455,7 @@ pm2 reset susanoo-api
 **Solutions:**
 1. Verify cluster mode:
    ```bash
-   pm2 show susanoo-api
+   pm2 show kuybi-api
    ```
 
 2. Check instance count:
@@ -465,7 +465,7 @@ pm2 reset susanoo-api
 
 3. Scale manually:
    ```bash
-   pm2 scale susanoo-api 4
+   pm2 scale kuybi-api 4
    ```
 
 ### Database Connection Errors
@@ -486,7 +486,7 @@ pm2 reset susanoo-api
 
 3. Test connection:
    ```bash
-   psql -h localhost -U postgres -d susanoo
+   psql -h localhost -U postgres -d kuybi
    redis-cli ping
    ```
 
@@ -513,7 +513,7 @@ pm2 reset susanoo-api
 
 1. **Scale based on CPU cores:**
    ```bash
-   pm2 scale susanoo-api max
+   pm2 scale kuybi-api max
    ```
 
 2. **Monitor memory usage:**

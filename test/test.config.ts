@@ -17,7 +17,7 @@ export const testConfig = {
     port: parseInt(process.env.TEST_DB_PORT || '5432', 10),
     username: process.env.TEST_DB_USERNAME || 'postgres',
     password: process.env.TEST_DB_PASSWORD || 'postgres',
-    database: process.env.TEST_DB_NAME || 'susanoo_test',
+    database: process.env.TEST_DB_NAME || 'kuybi_test',
     synchronize: true, // Auto-sync schema for tests  
     dropSchema: false, // Schema dropped in global setup
     logging: false, // Disable SQL logging in tests

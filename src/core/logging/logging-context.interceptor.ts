@@ -28,7 +28,7 @@ export class LoggingContextInterceptor implements NestInterceptor {
       userId: request?.user?.id,
       path: request?.originalUrl ?? request?.url,
       method: request?.method,
-      service: this.configService.get<string>('app.name', 'susanoo-nest'),
+      service: this.configService.get<string>('app.name', 'kuybi-nest'),
       environment: this.configService.get<string>('app.env', 'development')
     })
 

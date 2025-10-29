@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Log rotation script for Susanoo NestJS
+# Log rotation script for Kuybi NestJS
 # Archives current logs with timestamp
 
 LOG_DIR="./logs"

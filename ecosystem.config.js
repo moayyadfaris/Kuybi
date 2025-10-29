@@ -1,5 +1,5 @@
 /**
- * PM2 Ecosystem Configuration for Susanoo NestJS Application
+ * PM2 Ecosystem Configuration for Kuybi NestJS Application
  * 
  * This configuration manages:
  * - API servers (cluster mode for load balancing)
@@ -30,7 +30,7 @@ module.exports = {
      * No background jobs - pure request/response
      */
     {
-      name: 'susanoo-api',
+      name: 'kuybi-api',
       script: './dist/main.js',
       instances: 4, // Number of instances (can be set to 'max' for CPU cores)
       exec_mode: 'cluster', // Enable load balancing
@@ -81,7 +81,7 @@ module.exports = {
      * Processes background BullMQ jobs (session cleanup, etc.)
      */
     {
-      name: 'susanoo-worker',
+      name: 'kuybi-worker',
       script: './dist/worker.js',
       instances: 1,
       exec_mode: 'fork',
@@ -109,7 +109,7 @@ module.exports = {
      * Web UI for viewing and managing background jobs
      */
     {
-      name: 'susanoo-dashboard',
+      name: 'kuybi-dashboard',
       script: './dist/dashboard.js',
       instances: 1,
       exec_mode: 'fork',
@@ -142,7 +142,7 @@ module.exports = {
      * UNCOMMENT WHEN IMPLEMENTING PHASE 2
      */
     // {
-    //   name: 'susanoo-worker-sessions',
+    //   name: 'kuybi-worker-sessions',
     //   script: './dist/worker.js',
     //   instances: 1,
     //   exec_mode: 'fork',
@@ -168,7 +168,7 @@ module.exports = {
      * UNCOMMENT WHEN IMPLEMENTING PHASE 3
      */
     // {
-    //   name: 'susanoo-worker-logs',
+    //   name: 'kuybi-worker-logs',
     //   script: './dist/worker.js',
     //   instances: 1,
     //   exec_mode: 'fork',
@@ -194,7 +194,7 @@ module.exports = {
      * UNCOMMENT WHEN IMPLEMENTING PHASE 5
      */
     // {
-    //   name: 'susanoo-worker-email',
+    //   name: 'kuybi-worker-email',
     //   script: './dist/worker.js',
     //   instances: 2, // Can handle multiple email jobs in parallel
     //   exec_mode: 'fork',
@@ -221,7 +221,7 @@ module.exports = {
      * UNCOMMENT WHEN IMPLEMENTING PHASE 5
      */
     // {
-    //   name: 'susanoo-worker-attachments',
+    //   name: 'kuybi-worker-attachments',
     //   script: './dist/worker.js',
     //   instances: 1, // CPU intensive - keep low
     //   exec_mode: 'fork',
@@ -251,8 +251,8 @@ module.exports = {
       user: 'deploy',
       host: ['production-server.example.com'],
       ref: 'origin/main',
-      repo: 'git@github.com:moayyadfaris/susanoo.git',
-      path: '/var/www/susanoo',
+      repo: 'git@github.com:moayyadfaris/kuybi.git',
+      path: '/var/www/kuybi',
       'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
       env: {
         NODE_ENV: 'production'
@@ -264,8 +264,8 @@ module.exports = {
       user: 'deploy',
       host: ['staging-server.example.com'],
       ref: 'origin/develop',
-      repo: 'git@github.com:moayyadfaris/susanoo.git',
-      path: '/var/www/susanoo-staging',
+      repo: 'git@github.com:moayyadfaris/kuybi.git',
+      path: '/var/www/kuybi-staging',
       'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env staging',
       env: {
         NODE_ENV: 'staging'

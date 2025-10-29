@@ -7,7 +7,7 @@ async function seedUsers() {
     await AppDataSource.initialize()
     const userRepository = AppDataSource.getRepository(User)
 
-    const adminEmail = 'admin@susano.dev'
+    const adminEmail = 'admin@kuybi.dev'
     const existing = await userRepository.findOne({ where: { email: adminEmail } })
 
     if (existing) {
@@ -18,7 +18,7 @@ async function seedUsers() {
     const passwordHash = await bcrypt.hash('Admin@123', 10)
 
     const admin = userRepository.create({
-      name: 'Susanoo Admin',
+      name: 'Kuybi Admin',
       email: adminEmail,
       mobileNumber: '0000000000',
       passwordHash,

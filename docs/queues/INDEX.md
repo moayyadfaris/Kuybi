@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains all documentation for the Bull Queue implementation in the Susanoo NestJS application. The implementation follows a phased approach to migrate all background jobs from in-process cron jobs to dedicated queue workers.
+This directory contains all documentation for the Bull Queue implementation in the Kuybi NestJS application. The implementation follows a phased approach to migrate all background jobs from in-process cron jobs to dedicated queue workers.
 
 ## Quick Links
 
