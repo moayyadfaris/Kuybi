@@ -37,10 +37,12 @@
 - **Retention policies** and archiving
 - **GDPR-compliant** data tracking
 
-### ⚡ Performance
+### ⚡ Performance & Background Jobs
 - **Redis caching** (25-80x improvements)
 - **Repository pattern** with caching
-- **Bull Queue** for background jobs
+- **Bull Queue** for background job processing
+- **Queue Dashboard** (Bull Board) at http://localhost:4050
+- **Dedicated worker process** for queue processing
 - **PM2 cluster mode** support
 
 ### 📧 Communication
@@ -101,18 +103,11 @@ npm run db:seed:users
 npm run start:dev
 ```
 
-### Access Points
-- **API**: http://localhost:4040/api
-- **Docs**: http://localhost:4040/api/docs
-- **Health**: http://localhost:4040/api/health
-
-### Default Credentials
-```json
-{
-  "email": "admin@kuybi.dev",
-  "password": "Admin@123"
-}
-```
+5. **Access the API**:
+   - API: http://localhost:4040/api
+   - Swagger Docs: http://localhost:4040/api/docs
+   - Queue Dashboard: http://localhost:4050 (Bull Board)
+   - Default login: `admin@kuybi.dev` / `Admin@123`
 
 > ⚠️ Change these in production!
 
@@ -188,11 +183,18 @@ pm2 start ecosystem.config.js
 
 ### PM2 Management
 ```bash
-./pm2.sh start    # Start all
+./pm2.sh start    # Start all (API + Worker + Dashboard)
 ./pm2.sh stop     # Stop all
 ./pm2.sh restart  # Restart all
 pm2 logs kuybi-api
+pm2 logs kuybi-worker
+pm2 logs kuybi-dashboard
 ```
+
+**PM2 Processes:**
+- `kuybi-api` - Main API server (port 4040)
+- `kuybi-worker` - Background job processor
+- `kuybi-dashboard` - Queue monitoring dashboard (port 4050)
 
 ---
 
