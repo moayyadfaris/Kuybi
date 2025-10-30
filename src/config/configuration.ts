@@ -81,7 +81,14 @@ export default () => {
       username: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       name: process.env.DB_NAME || 'kuybi',
-      logging: process.env.TYPEORM_LOGGING === 'true'
+      logging: process.env.TYPEORM_LOGGING === 'true',
+      pool: {
+        enabled: parseBoolean(process.env.DB_POOL_ENABLED, env === 'production'),
+        min: parseNumber(process.env.DB_POOL_MIN, env === 'production' ? 2 : 1),
+        max: parseNumber(process.env.DB_POOL_MAX, env === 'production' ? 10 : 5),
+        acquireTimeoutMillis: parseNumber(process.env.DB_POOL_ACQUIRE_TIMEOUT, 30000),
+        idleTimeoutMillis: parseNumber(process.env.DB_POOL_IDLE_TIMEOUT, 30000)
+      }
     },
     auth: {
       jwtSecret: process.env.JWT_SECRET || 'change-me-kuybi-secret',
@@ -97,7 +104,12 @@ export default () => {
       port: parseInt(process.env.REDIS_PORT || '6379', 10),
       password: process.env.REDIS_PASSWORD || undefined,
       db: parseInt(process.env.REDIS_DB || '0', 10),
-      ttl: parseInt(process.env.REDIS_TTL || '3600', 10) // 1 hour default
+      ttl: parseInt(process.env.REDIS_TTL || '3600', 10), // 1 hour default
+      pool: {
+        enabled: parseBoolean(process.env.REDIS_POOL_ENABLED, env === 'production'),
+        min: parseNumber(process.env.REDIS_POOL_MIN, env === 'production' ? 2 : 1),
+        max: parseNumber(process.env.REDIS_POOL_MAX, env === 'production' ? 10 : 5)
+      }
     },
     s3: {
       bucket: defaultBucket,

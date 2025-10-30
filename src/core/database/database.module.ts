@@ -22,7 +22,9 @@ import { AuditLog } from '@modules/audit/entities/audit-log.entity'
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const database = configService.get('database')
-        return {
+        const poolConfig = database.pool
+
+        const config: any = {
           type: 'postgres',
           host: database.host,
           port: database.port,
@@ -48,6 +50,18 @@ import { AuditLog } from '@modules/audit/entities/audit-log.entity'
           synchronize: false,
           logging: database.logging
         }
+
+        // Add connection pooling if enabled
+        if (poolConfig.enabled) {
+          config.extra = {
+            min: poolConfig.min,
+            max: poolConfig.max,
+            idleTimeoutMillis: poolConfig.idleTimeoutMillis,
+            connectionTimeoutMillis: poolConfig.acquireTimeoutMillis
+          }
+        }
+
+        return config
       }
     })
   ]

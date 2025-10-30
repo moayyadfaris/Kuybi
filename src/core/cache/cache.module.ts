@@ -23,6 +23,7 @@ import { Logger } from 'nestjs-pino'
       inject: [ConfigService, Logger],
       useFactory: async (configService: ConfigService, logger: Logger) => {
         const redisConfig = configService.get('redis')
+        const poolConfig = redisConfig.pool
 
         logger.log({
           msg: 'Configuring Redis cache store',
@@ -30,9 +31,13 @@ import { Logger } from 'nestjs-pino'
           host: redisConfig.host,
           port: redisConfig.port,
           db: redisConfig.db,
-          hasPassword: !!redisConfig.password
+          hasPassword: !!redisConfig.password,
+          poolEnabled: poolConfig.enabled,
+          poolMin: poolConfig.min,
+          poolMax: poolConfig.max
         })
 
+        // Build connection string with pool parameters
         const connectionString = redisConfig.password
           ? `redis://:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`
           : `redis://${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`
@@ -41,19 +46,23 @@ import { Logger } from 'nestjs-pino'
         const keyv = new Keyv(connectionString)
 
         // Error handling
-        keyv.on('error', err => {
+        keyv.on('error', (err: Error & { code?: string }) => {
           logger.error({
             msg: 'Keyv connection error',
             context: 'CacheConfigModule',
             error: err.message,
-            code: err.code,
+            code: err.code || 'UNKNOWN',
             stack: err.stack
           })
         })
 
         logger.log({
           msg: 'Redis cache store initialized successfully',
-          context: 'CacheConfigModule'
+          context: 'CacheConfigModule',
+          poolingEnabled: poolConfig.enabled,
+          note: poolConfig.enabled
+            ? `Pool configured: min=${poolConfig.min}, max=${poolConfig.max}`
+            : 'Simple connection (development mode)'
         })
 
         // For cache-manager v7, we pass Keyv directly as the store
