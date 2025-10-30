@@ -127,6 +127,17 @@ export default () => {
         user: process.env.SMTP_USER || '',
         password: process.env.SMTP_PASSWORD || ''
       }
+    },
+    sentry: {
+      enabled: parseBoolean(process.env.SENTRY_ENABLED, env === 'production'),
+      dsn: process.env.SENTRY_DSN || '',
+      environment: process.env.SENTRY_ENVIRONMENT || env,
+      release: process.env.SENTRY_RELEASE || 'kuybi-nest@0.1.0',
+      tracesSampleRate:
+        parseNumber(process.env.SENTRY_TRACES_SAMPLE_RATE, env === 'production' ? 10 : 0) / 100,
+      profilesSampleRate:
+        parseNumber(process.env.SENTRY_PROFILES_SAMPLE_RATE, env === 'production' ? 10 : 0) / 100,
+      debug: parseBoolean(process.env.SENTRY_DEBUG, false)
     }
   }
 }
