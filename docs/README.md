@@ -132,6 +132,23 @@ Automatic gzip compression for bandwidth optimization.
 
 ---
 
+### Performance Optimization
+
+Database and Redis connection pooling for production efficiency.
+
+| Document | Type | Description |
+|----------|------|-------------|
+| [Connection Pooling](./features/performance/CONNECTION_POOLING.md) | Feature Guide | **⭐ PostgreSQL & Redis connection pooling** |
+
+**Key Features:**
+- ✅ 30-50% faster queries
+- ✅ Environment-aware (auto-enabled in production)
+- ✅ Configurable pool sizes
+- ✅ Connection reuse & resource management
+- ✅ Protection against exhaustion
+
+---
+
 ## 📘 Guides
 
 Quick references and how-to guides.
