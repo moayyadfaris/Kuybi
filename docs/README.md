@@ -115,6 +115,25 @@ Structured logging with Pino for observability.
 
 ---
 
+### Monitoring & Error Tracking
+
+Production-grade error monitoring and performance tracking with Sentry.
+
+| Document | Type | Description |
+|----------|------|-------------|
+| [Sentry Integration](./features/monitoring/SENTRY_INTEGRATION.md) | Feature Guide | **⭐ Complete Sentry error tracking setup** |
+
+**Key Features:**
+- ✅ Automatic error capture (500+ HTTP errors)
+- ✅ Performance monitoring with 10% sampling
+- ✅ User context tracking
+- ✅ Sensitive data filtering
+- ✅ Integration with Audit & Auth services
+- ✅ Environment-based enable/disable
+- ✅ Development testing endpoints
+
+---
+
 ### Response Compression
 
 Automatic gzip compression for bandwidth optimization.
