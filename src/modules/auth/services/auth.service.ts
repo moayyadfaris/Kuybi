@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import type { StringValue } from 'ms'
 import * as bcrypt from 'bcrypt'
+import { SentryService } from '@core/sentry'
 import { UsersService } from '@modules/users/services/users.service'
 import { User } from '@modules/users/entities/user.entity'
 import { Session } from '../entities/session.entity'
@@ -37,21 +38,43 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly sessionsService: SessionsService,
-    private readonly tokenBlacklistService: TokenBlacklistService
+    private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly sentryService: SentryService
   ) {}
 
   async validateUser(email: string, password: string): Promise<User> {
     const user = await this.usersService.findByEmail(email)
     if (!user) {
+      // Capture failed login attempts to Sentry for security monitoring
+      this.sentryService.captureMessage(`Failed login attempt for email: ${email}`, 'warning', {
+        email,
+        reason: 'user_not_found'
+      })
       throw new UnauthorizedException('Invalid credentials')
     }
 
     const passwordValid = await bcrypt.compare(password, user.passwordHash)
     if (!passwordValid) {
+      // Capture invalid password attempts to Sentry
+      this.sentryService.captureMessage(
+        `Invalid password attempt for user: ${user.id}`,
+        'warning',
+        {
+          userId: user.id,
+          email: user.email,
+          reason: 'invalid_password'
+        }
+      )
       throw new UnauthorizedException('Invalid credentials')
     }
 
     if (!user.isActive) {
+      // Capture inactive user login attempts
+      this.sentryService.captureMessage(`Inactive user login attempt: ${user.id}`, 'warning', {
+        userId: user.id,
+        email: user.email,
+        reason: 'user_inactive'
+      })
       throw new UnauthorizedException('User is inactive')
     }
 

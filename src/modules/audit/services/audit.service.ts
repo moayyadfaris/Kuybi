@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Request } from 'express'
+import { SentryService } from '@core/sentry'
 import { AuditLogRepository } from '../database/audit-log.repository'
 import { AuditLog, AuditAction, AuditSeverity, AuditStatus } from '../entities/audit-log.entity'
 import { User } from '@modules/users/entities/user.entity'
@@ -43,6 +44,7 @@ export class AuditService {
     private readonly auditLogRepository: AuditLogRepository,
     private readonly contextFactory: AuditContextFactory,
     private readonly configService: ConfigService,
+    private readonly sentryService: SentryService,
     @InjectPinoLogger(AuditService.name)
     private readonly logger: PinoLogger
   ) {}
@@ -134,6 +136,16 @@ export class AuditService {
 
       return saved
     } catch (error) {
+      // Capture critical audit logging failures to Sentry
+      this.sentryService.captureException(error, {
+        action: options.action,
+        entityType: options.entityType,
+        entityId: options.entityId,
+        userId: context.userId,
+        severity: options.severity,
+        errorContext: 'audit_log_creation_failed'
+      })
+
       this.logger.error(
         {
           action: options.action,
@@ -451,6 +463,15 @@ export class AuditService {
     resource: string,
     reason: string
   ): Promise<AuditLog> {
+    // Capture unauthorized access to Sentry for security monitoring
+    this.sentryService.captureMessage(`Unauthorized access attempt to ${resource}`, 'warning', {
+      userId: context.userId,
+      resource,
+      reason,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent
+    })
+
     return this.logAction(context, {
       action: AuditAction.UNAUTHORIZED_ACCESS,
       description: `Unauthorized access to ${resource}: ${reason}`,
@@ -471,6 +492,15 @@ export class AuditService {
     activityType: string,
     details: Record<string, any>
   ): Promise<AuditLog> {
+    // Capture suspicious activity to Sentry with high priority
+    this.sentryService.captureMessage(`Suspicious activity detected: ${activityType}`, 'error', {
+      userId: context.userId,
+      activityType,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      ...details
+    })
+
     return this.logAction(context, {
       action: AuditAction.SUSPICIOUS_ACTIVITY,
       description: `Suspicious activity detected: ${activityType}`,
