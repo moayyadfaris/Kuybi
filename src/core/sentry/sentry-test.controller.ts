@@ -1,6 +1,6 @@
 import { Controller, Get, Post, HttpException, HttpStatus } from '@nestjs/common'
 import { ApiTags, ApiOperation } from '@nestjs/swagger'
-import { SentryService } from '@core/sentry'
+import { SentryService } from './sentry.service'
 
 @ApiTags('Sentry Test')
 @Controller('sentry-test')
