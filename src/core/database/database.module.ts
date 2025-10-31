@@ -22,7 +22,7 @@ import { AuditLog } from '@modules/audit/entities/audit-log.entity'
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const database = configService.get('database')
-        const poolConfig = database.pool
+        const poolConfig = database?.pool || {}
 
         const config: any = {
           type: 'postgres',
@@ -52,7 +52,7 @@ import { AuditLog } from '@modules/audit/entities/audit-log.entity'
         }
 
         // Add connection pooling if enabled
-        if (poolConfig.enabled) {
+        if (poolConfig?.enabled) {
           config.extra = {
             min: poolConfig.min,
             max: poolConfig.max,

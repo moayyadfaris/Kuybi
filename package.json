@@ -63,6 +63,8 @@
     "@nestjs/terminus": "^11.0.0",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
+    "@sentry/node": "^10.22.0",
+    "@sentry/profiling-node": "^10.22.0",
     "@types/cache-manager": "^4.0.6",
     "@types/mime-types": "^3.0.1",
     "@types/nodemailer": "^7.0.3",

@@ -23,7 +23,7 @@ import { Logger } from 'nestjs-pino'
       inject: [ConfigService, Logger],
       useFactory: async (configService: ConfigService, logger: Logger) => {
         const redisConfig = configService.get('redis')
-        const poolConfig = redisConfig.pool
+        const poolConfig = redisConfig?.pool || {}
 
         logger.log({
           msg: 'Configuring Redis cache store',
@@ -32,9 +32,9 @@ import { Logger } from 'nestjs-pino'
           port: redisConfig.port,
           db: redisConfig.db,
           hasPassword: !!redisConfig.password,
-          poolEnabled: poolConfig.enabled,
-          poolMin: poolConfig.min,
-          poolMax: poolConfig.max
+          poolEnabled: poolConfig?.enabled || false,
+          poolMin: poolConfig?.min || 1,
+          poolMax: poolConfig?.max || 5
         })
 
         // Build connection string with pool parameters
