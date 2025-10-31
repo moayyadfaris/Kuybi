@@ -8,10 +8,16 @@ import { AuditQueryService } from './services/audit-query.service'
 import { AuditController } from './controllers/audit.controller'
 import { AuditLogInterceptor } from './interceptors/audit-log.interceptor'
 import { CacheConfigModule } from '@core/cache/cache.module'
+import { SentryModule } from '@core/sentry'
 import { AclModule } from '../acl/acl.module'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AuditLog]), CacheConfigModule, AclModule],
+  imports: [
+    TypeOrmModule.forFeature([AuditLog]),
+    CacheConfigModule,
+    SentryModule.forRoot(),
+    AclModule
+  ],
   controllers: [AuditController],
   providers: [
     AuditContextFactory,

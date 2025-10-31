@@ -24,12 +24,14 @@ import { PasswordResetService } from './services/password-reset.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { CacheService } from '@core/cache/services/cache.service'
 import { SessionRepository } from '@core/database/repositories/session.repository'
+import { SentryModule } from '@core/sentry'
 import { AuditModule } from '@modules/audit/audit.module'
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     EmailModule,
+    SentryModule.forRoot(),
     AuditModule,
     TypeOrmModule.forFeature([Session, PasswordReset, User, EmailVerification]),
     PassportModule,
