@@ -333,6 +333,108 @@ Context Fields Tracked:
 
 ---
 
+### 2.4 Sentry Error Monitoring ✅ COMPLETE
+**Status:** Production-ready  
+**Completion Date:** October 27, 2025
+
+**What Was Built:**
+- Sentry SDK integration (@sentry/node v10.22.0)
+- Global SentryModule with dynamic configuration
+- SentryService with comprehensive error tracking API
+- SentryInterceptor for automatic HTTP request tracking
+- SentryFilter for server error capture (500+ only)
+- Environment-based enable/disable
+- Integration with Audit and Auth services
+- Development test endpoints
+
+**Features:**
+- ✅ Automatic error capture (500+ HTTP errors)
+- ✅ Performance monitoring (10% sampling in production)
+- ✅ User context tracking from JWT tokens
+- ✅ Request breadcrumb tracking
+- ✅ Sensitive data filtering (passwords, tokens, cookies)
+- ✅ Environment-based configuration
+- ✅ Development testing endpoints
+- ✅ Integration with existing services
+
+**Performance:**
+- 10% traces sample rate in production
+- 10% profiles sample rate in production
+- 0% sampling in development (disabled by default)
+- Minimal overhead on request processing
+
+**Security:**
+- Automatic filtering of passwords and tokens
+- Authorization headers redacted
+- Cookie values sanitized
+- PII detection and removal
+- Configurable beforeSend hook
+
+**Integration Points:**
+- **AuditService**: Captures audit log failures, unauthorized access, suspicious activity
+- **AuthService**: Captures failed logins, invalid passwords, inactive user attempts
+- **HTTP Layer**: Automatic request/response tracking with error context
+
+**API Endpoints (Development):**
+- `GET /api/sentry-test/status` - Check Sentry status
+- `POST /api/sentry-test/error` - Trigger test error
+- `POST /api/sentry-test/message` - Send test message
+- `POST /api/sentry-test/user` - Test user context
+- `POST /api/sentry-test/breadcrumb` - Test breadcrumb
+
+**Configuration:**
+```typescript
+SENTRY_ENABLED=true              # Auto-enabled in production
+SENTRY_DSN=https://...           # Your Sentry DSN
+SENTRY_ENVIRONMENT=production    # Environment name
+SENTRY_RELEASE=kuybi-nest@1.0.0  # Release version
+SENTRY_TRACES_SAMPLE_RATE=10     # 10% sampling
+SENTRY_PROFILES_SAMPLE_RATE=10   # 10% profiling
+SENTRY_DEBUG=false               # Debug mode
+```
+
+**Files Created:**
+- `src/core/sentry/sentry.module.ts` - Global module
+- `src/core/sentry/sentry.service.ts` - Core service
+- `src/core/sentry/sentry.interceptor.ts` - HTTP tracking
+- `src/core/sentry/sentry.filter.ts` - Exception filter
+- `src/core/sentry/sentry-test.controller.ts` - Test endpoints
+- `src/core/sentry/index.ts` - Barrel exports
+
+**Files Modified:**
+- `src/config/configuration.ts` - Added Sentry config
+- `.env.example` - Documented Sentry variables
+- `src/main.ts` - Registered interceptor and filter
+- `src/app.module.ts` - Registered SentryModule
+- `src/modules/audit/services/audit.service.ts` - Added error tracking
+- `src/modules/auth/services/auth.service.ts` - Added login failure tracking
+- `src/core/database/database.module.ts` - Fixed config dependencies
+- `src/core/cache/cache.module.ts` - Fixed config dependencies
+- `src/modules/audit/audit.module.ts` - Added SentryModule import
+- `src/modules/auth/auth.module.ts` - Added SentryModule import
+
+**Bug Fixes:**
+- ✅ Fixed configuration dependencies (database/cache modules)
+- ✅ Resolved circular import in test controller
+- ✅ Fixed worker dependency injection (explicit module imports)
+
+**Production Readiness:**
+- ✅ All code complete and tested
+- ✅ Configuration documented
+- ✅ Environment variables defined
+- ✅ Integration tested (API + worker)
+- ✅ Documentation comprehensive
+- ✅ Safe defaults (disabled in development)
+
+**Documentation:**
+- `docs/features/monitoring/SENTRY_INTEGRATION.md` - Complete implementation guide (400+ lines)
+
+**Build Status:** ✅ Production-ready (0 errors, 0 warnings, all processes running)
+
+**Dependencies:** @sentry/node, @sentry/profiling-node ✅
+
+---
+
 ## 🏗️ Phase 3: Feature Parity (PENDING)
 
 ### 3.1 Stories Module ✅ COMPLETE + Enhanced Tag Assignment + Auto Relations ✨
@@ -883,15 +985,15 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 
 ## 📈 Progress Summary
 
-### Overall Completion: 71% (10/14 major tasks)
+### Overall Completion: 79% (11/14 major tasks)
 
 | Phase | Tasks Complete | Tasks Total | Progress |
 |-------|---------------|-------------|----------|
 | Phase 1: Foundation | 3 | 3 | ✅ 100% |
-| Phase 2: Testing & Tools | 2 | 3 | ✅ 67% (Structured Logging ✅, Integration Tests ✅) |
+| Phase 2: Testing & Tools | 3 | 3 | ✅ 100% (Structured Logging ✅, Integration Tests ✅, Sentry ✅) |
 | Phase 3: Feature Parity | 5 | 5 | ✅ 100% (Categories ✅, Sessions ✅, Stories ✅, Attachments ✅, ACL ✅) |
 | Phase 4: Observability | 0 | 3 | ⏳ 0% |
-| **Total** | **10** | **14** | **71%** |
+| **Total** | **11** | **14** | **79%** |
 
 ### Code Metrics
 
@@ -902,6 +1004,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 | Type Safety | ⚠️ Partial | ✅ Full | **IMPROVED** |
 | Testing | ⚠️ Minimal | ✅ Integration Tests (27/27) | **IMPROVED** ✅ |
 | Logging | ⚠️ Console | ✅ Pino (Structured) | **IMPROVED** ✅ |
+| Error Tracking | ❌ No | ✅ Sentry | **IMPROVED** ✅ |
 | Metrics | ✅ Yes | ⏳ Pending | **PLANNED** |
 | ACL | ❌ No | ✅ Yes | **COMPLETE** ✅ |
 | Stories | ✅ Yes | ✅ Yes | **COMPLETE** ✅ |
@@ -1031,6 +1134,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - `features/logging/PINO_LOGGING_COMPLETE.md` - Pino core setup guide ✨
 - `features/logging/PINO_LOGGING_EXPANSION.md` - Pino expansion to all auth modules ✨
 - `features/logging/PINO_LOGGING_SUMMARY.md` - Executive logging summary ✨
+- `features/monitoring/SENTRY_INTEGRATION.md` - Complete Sentry implementation guide ✨
 - `features/auth/SESSION_MANAGEMENT_COMPLETE.md` - Sessions implementation
 - `features/auth/SESSIONS_CONTROLLER_COMPLETE.md` - Sessions API documentation
 - `features/auth/SESSION_DTOS_COMPLETE.md` - Session DTOs reference
@@ -1144,7 +1248,17 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
    - **3 comprehensive documentation files** ✨
    - **Core implementation: 75% complete** (testing pending)
 
-10. **Production Ready Foundation** ✅
+10. **Sentry Error Monitoring** ✅ **COMPLETE!**
+   - Production-grade error tracking
+   - Automatic error capture (500+ HTTP errors)
+   - Performance monitoring (10% sampling)
+   - User context tracking
+   - Sensitive data filtering
+   - Integration with Audit & Auth services
+   - Environment-based enable/disable
+   - Complete documentation (400+ lines)
+
+11. **Production Ready Foundation** ✅
    - Zero compilation errors
    - Zero runtime errors
    - Error handling in place
