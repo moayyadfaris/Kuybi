@@ -1,6 +1,7 @@
 import { Module, DynamicModule, Global } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { SentryService } from './sentry.service'
+import { SentryTestController } from './sentry-test.controller'
 
 @Global()
 @Module({})
@@ -9,6 +10,7 @@ export class SentryModule {
     return {
       module: SentryModule,
       imports: [ConfigModule],
+      controllers: [SentryTestController], // Only in development for testing
       providers: [
         {
           provide: 'SENTRY_OPTIONS',

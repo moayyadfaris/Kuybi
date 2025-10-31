@@ -11,6 +11,7 @@ import { TransformInterceptor } from '@shared/interceptors/transform.interceptor
 import { LoggingContextService } from '@core/logging/logging-context.service'
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
+import { SentryService, SentryInterceptor, SentryFilter } from '@core/sentry'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true })
@@ -29,6 +30,9 @@ async function bootstrap() {
   // Set Pino as the application logger
   const appLogger = app.get(Logger)
   app.useLogger(appLogger)
+
+  // Get Sentry service for conditional middleware
+  const sentryService = app.get(SentryService)
 
   app.use(helmet())
   
@@ -64,11 +68,25 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter(pinoLogger, configService))
 
   const loggingContextService = app.get(LoggingContextService)
-  app.useGlobalInterceptors(
-    new RequestIdInterceptor(),
+  
+  // Register global interceptors (Sentry first for error tracking)
+  const globalInterceptors = [new RequestIdInterceptor()]
+  
+  if (sentryService.isEnabled()) {
+    globalInterceptors.push(new SentryInterceptor(sentryService))
+  }
+  
+  globalInterceptors.push(
     new LoggingContextInterceptor(loggingContextService, configService),
     new TransformInterceptor()
   )
+  
+  app.useGlobalInterceptors(...globalInterceptors)
+  
+  // Register Sentry global filter (must be before other filters)
+  if (sentryService.isEnabled()) {
+    app.useGlobalFilters(new SentryFilter(sentryService))
+  }
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Kuybi Countries API')
