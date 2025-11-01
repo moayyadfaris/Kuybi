@@ -985,6 +985,32 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 
 ## 📈 Progress Summary
 
+
+## 🚧 Kuybi Dashboard (Vue) Development Progress
+
+### Overview
+Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, Admin, Moderator, and User roles. The dashboard will provide:
+- Login/authentication
+- Stories management
+- Categories management
+- Tags management
+- Role-based access control (RBAC) matching backend ACL
+
+### Initial Setup (November 1, 2025)
+- Created folder structure: `src/pages`, `src/components`, `src/store`, `public`
+- Added dashboard README with tech stack, features, and next steps
+- Planned integration with Kuybi backend REST API
+
+### Next Steps
+- Scaffold main Vue files (App.vue, main.js/ts, router, Pinia store)
+- Implement login/authentication flow
+- Add RBAC logic for route/page access
+- Build Stories, Categories, Tags management pages
+- Connect to Kuybi backend endpoints
+- Document progress and architecture in `kuybi-dashboard/README.md`
+
+---
+
 ### Overall Completion: 79% (11/14 major tasks)
 
 | Phase | Tasks Complete | Tasks Total | Progress |
