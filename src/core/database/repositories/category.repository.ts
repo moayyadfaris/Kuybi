@@ -107,9 +107,11 @@ export class CategoryRepository extends BaseRepository<Category> {
     builder.orderBy(`category.${orderBy}`, orderDirection)
 
     // Apply pagination
-    const page = query.page ?? 0
     const limit = query.limit ?? 50
-    builder.skip(page * limit).take(limit)
+    const page = query.page ?? 1
+    const currentPage = page >= 1 ? page : 1
+    const offset = (currentPage - 1) * limit
+    builder.skip(offset).take(limit)
 
     // Execute query
     const [results, total] = await builder.getManyAndCount()
@@ -118,7 +120,7 @@ export class CategoryRepository extends BaseRepository<Category> {
       results,
       total,
       pagination: {
-        page,
+        page: currentPage,
         limit,
         totalPages: Math.ceil(total / limit) || 0
       }

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsBoolean, IsIn } from 'class-validator'
+import { IsOptional, IsString, IsBoolean, IsIn, IsInt, Min, Max } from 'class-validator'
 import { Type } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 
@@ -53,14 +53,16 @@ export class SearchCategoriesDto {
   orderDirection?: 'ASC' | 'DESC'
 
   @ApiPropertyOptional({
-    description: 'Page number (0-indexed)',
-    example: 0,
-    default: 0,
-    minimum: 0
+    description: 'Page number (1-based)',
+    example: 1,
+    default: 1,
+    minimum: 1
   })
   @IsOptional()
   @Type(() => Number)
-  page?: number
+  @IsInt()
+  @Min(1)
+  page?: number = 1
 
   @ApiPropertyOptional({
     description: 'Number of items per page',
@@ -71,5 +73,8 @@ export class SearchCategoriesDto {
   })
   @IsOptional()
   @Type(() => Number)
-  limit?: number
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 50
 }
