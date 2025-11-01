@@ -2,17 +2,42 @@ import { Injectable } from '@nestjs/common'
 import * as bcrypt from 'bcrypt'
 import { User } from '@modules/users/entities/user.entity'
 import { UserRepository } from '@core/database/repositories/user.repository'
+import { CacheService } from '@core/cache/services/cache.service'
+import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly cacheService: CacheService
+  ) {}
 
   findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findByEmail(email)
   }
 
-  findById(id: string): Promise<User | null> {
-    return this.userRepository.findById(id)
+  async findById(id: string): Promise<User | null> {
+    const cacheKey = `user:profile:${id}`
+    return this.cacheService.wrap<User>(
+      cacheKey,
+      async () => this.userRepository.findById(id, { bypassCache: true }),
+      900 // 15 min TTL
+    )
+  }
+
+  /**
+   * Get user profile (safe DTO without sensitive fields)
+   */
+  async getUserProfile(id: string): Promise<UserProfileDto | null> {
+    const cacheKey = `user:profile:safe:${id}`
+    return this.cacheService.wrap<UserProfileDto>(
+      cacheKey,
+      async () => {
+        const user = await this.userRepository.findById(id, { bypassCache: true })
+        return user ? UserProfileDto.fromEntity(user) : null
+      },
+      900 // 15 min TTL
+    )
   }
 
   async createUser(payload: {
@@ -36,7 +61,11 @@ export class UsersService {
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User | null> {
-    return this.userRepository.update(id, data)
+    const updated = await this.userRepository.update(id, data)
+    // Invalidate both internal and safe profile caches
+    await this.cacheService.del(`user:profile:${id}`)
+    await this.cacheService.del(`user:profile:safe:${id}`)
+    return updated
   }
 
   async deleteUser(id: string): Promise<boolean> {

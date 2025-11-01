@@ -7,6 +7,7 @@ import { UserRepository } from '@core/database/repositories/user.repository'
 import { CacheService } from '@core/cache/services/cache.service'
 import { UserRolesController } from './controllers/user-roles.controller'
 import { AdminUsersController } from './controllers/admin-users.controller'
+import { CurrentUserController } from './controllers/current-user.controller'
 import { UserRolesService } from './services/user-roles.service'
 import { UserAvailabilityService } from './services/user-availability.service'
 import { AdminPasswordManagementService } from './services/admin-password-management.service'
@@ -23,7 +24,7 @@ import { EmailModule } from '@infrastructure/email'
     EmailModule,
     forwardRef(() => AuthModule)
   ],
-  controllers: [UserRolesController, AdminUsersController],
+  controllers: [UserRolesController, AdminUsersController, CurrentUserController],
   providers: [
     UsersService,
     UserRolesService,
