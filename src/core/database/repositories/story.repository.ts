@@ -254,6 +254,7 @@ export class StoryRepository extends BaseRepository<Story> {
     priority?: StoryPriority
     countryId?: number
     parentId?: number
+    categoryIds?: string[]
     fromDate?: string
     toDate?: string
     includeDeleted?: boolean
@@ -315,6 +316,11 @@ export class StoryRepository extends BaseRepository<Story> {
 
     if (filters.parentId) {
       builder.andWhere('story.parentId = :parentId', { parentId: filters.parentId })
+    }
+
+    // Filter by category IDs (stories that have ANY of the specified categories)
+    if (filters.categoryIds && filters.categoryIds.length > 0) {
+      builder.andWhere('categories.id IN (:...categoryIds)', { categoryIds: filters.categoryIds })
     }
 
     // Date range filters

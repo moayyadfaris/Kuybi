@@ -6,7 +6,8 @@ import {
   IsDateString,
   Min,
   IsUUID,
-  IsBoolean
+  IsBoolean,
+  IsArray
 } from 'class-validator'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { Type, Transform } from 'class-transformer'
@@ -72,6 +73,21 @@ export class StoryFilterDto {
   @Min(1)
   @Type(() => Number)
   parentId?: number
+
+  @ApiPropertyOptional({
+    description: 'Filter by category IDs (comma-separated)',
+    example: 'e37e94ea-c33c-4b06-8582-370058d81d7e,43903de1-9023-40ed-935f-0f2780e6291f'
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map(id => id.trim())
+    }
+    return value
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  categoryIds?: string[]
 
   @ApiPropertyOptional({
     description: 'Filter by date from (ISO string)',

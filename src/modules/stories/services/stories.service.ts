@@ -212,6 +212,7 @@ export class StoriesService {
       priority: filters.priority,
       countryId: filters.countryId,
       parentId: filters.parentId,
+      categoryIds: filters.categoryIds,
       fromDate: filters.fromDate,
       toDate: filters.toDate,
       includeDeleted: filters.includeDeleted,
@@ -351,9 +352,10 @@ export class StoriesService {
         }
       }
 
-      // Extract tags from updateDto to handle separately
-      const { tags: _, ...updateData } = updateStoryDto
+      // Extract relationship fields that need special handling
+      const { tags, categoryIds, tagIds, ...updateData } = updateStoryDto
 
+      // Update basic story fields (excluding relationship arrays)
       const updated = await this.storyRepository.update(id, {
         ...updateData,
         fromTime: updateStoryDto.fromTime ? new Date(updateStoryDto.fromTime) : undefined,
@@ -362,6 +364,38 @@ export class StoriesService {
         lastModifiedBy: userId,
         version: story.version + 1
       })
+
+      // Handle category updates if provided
+      if (categoryIds !== undefined && categoryIds.length > 0) {
+        // Detach all existing categories first, then attach new ones
+        const existingStory = await this.storyRepository.findById(id)
+        if (existingStory?.categories && existingStory.categories.length > 0) {
+          await this.detachCategories(
+            id,
+            { categoryIds: existingStory.categories.map(c => c.id) },
+            userId
+          )
+        }
+        await this.attachCategories(id, { categoryIds }, userId)
+      }
+
+      // Handle tag updates if provided (tags by name)
+      if (tags !== undefined && tags.length > 0) {
+        const existingStory = await this.storyRepository.findById(id)
+        if (existingStory?.tags && existingStory.tags.length > 0) {
+          await this.detachTags(id, { tagIds: existingStory.tags.map(t => t.id) }, userId)
+        }
+        await this.attachTags(id, { tags }, userId)
+      }
+
+      // Handle tag updates by ID if provided
+      if (tagIds !== undefined && tagIds.length > 0) {
+        const existingStory = await this.storyRepository.findById(id)
+        if (existingStory?.tags && existingStory.tags.length > 0) {
+          await this.detachTags(id, { tagIds: existingStory.tags.map(t => t.id) }, userId)
+        }
+        await this.attachTags(id, { tagIds }, userId)
+      }
 
       this.logger.info(
         { action: 'update_story', storyId: id, userId, version: updated.version },
