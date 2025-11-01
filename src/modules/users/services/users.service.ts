@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import * as bcrypt from 'bcrypt'
 import { User } from '@modules/users/entities/user.entity'
 import { UserRepository } from '@core/database/repositories/user.repository'
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import { CacheService } from '@core/cache/services/cache.service'
 import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
 
@@ -9,6 +10,7 @@ import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
 export class UsersService {
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly attachmentRepository: AttachmentRepository,
     private readonly cacheService: CacheService
   ) {}
 
@@ -94,5 +96,47 @@ export class UsersService {
   async updatePassword(id: string, newPassword: string): Promise<void> {
     const passwordHash = await bcrypt.hash(newPassword, 10)
     return this.userRepository.updatePassword(id, passwordHash)
+  }
+
+  /**
+   * Update user profile image
+   */
+  async updateProfileImage(userId: string, attachmentId: string): Promise<User | null> {
+    // Verify the attachment exists and belongs to the user
+    const attachment = await this.attachmentRepository.findById(attachmentId)
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found')
+    }
+
+    if (attachment.userId !== userId) {
+      throw new BadRequestException('Attachment does not belong to this user')
+    }
+
+    // Verify it's an image
+    if (!attachment.mimeType.startsWith('image/')) {
+      throw new BadRequestException('Attachment must be an image')
+    }
+
+    // Update user with the profile image
+    const updated = await this.userRepository.update(userId, { profileImageId: attachmentId })
+
+    // Invalidate caches
+    await this.cacheService.del(`user:profile:${userId}`)
+    await this.cacheService.del(`user:profile:safe:${userId}`)
+
+    return updated
+  }
+
+  /**
+   * Remove user profile image
+   */
+  async removeProfileImage(userId: string): Promise<User | null> {
+    const updated = await this.userRepository.update(userId, { profileImageId: null })
+
+    // Invalidate caches
+    await this.cacheService.del(`user:profile:${userId}`)
+    await this.cacheService.del(`user:profile:safe:${userId}`)
+
+    return updated
   }
 }

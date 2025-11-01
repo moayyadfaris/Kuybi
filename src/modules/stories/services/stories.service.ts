@@ -1142,4 +1142,78 @@ export class StoriesService {
     )
     return resolvedTags
   }
+
+  /**
+   * Update story main image
+   */
+  async updateMainImage(storyId: number, attachmentId: string, userId: string): Promise<Story> {
+    const requestLogger = this.loggingContext.getLogger({
+      context: StoriesService.name,
+      action: 'update_main_image'
+    })
+
+    requestLogger.info({ storyId, attachmentId, userId }, 'Updating story main image')
+
+    // Find the story
+    const story = await this.storyRepository.findById(storyId)
+    if (!story) {
+      throw new NotFoundException(`Story with ID ${storyId} not found`)
+    }
+
+    // Verify the attachment exists
+    const attachment = await this.attachmentRepository.findOne({ where: { id: attachmentId } })
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found')
+    }
+
+    // Verify attachment belongs to the user
+    if (attachment.userId !== userId) {
+      throw new BadRequestException('Attachment does not belong to this user')
+    }
+
+    // Verify it's an image
+    if (!attachment.mimeType.startsWith('image/')) {
+      throw new BadRequestException('Attachment must be an image')
+    }
+
+    // Update story with the main image
+    story.mainImageId = attachmentId
+    story.lastModifiedBy = userId
+    story.version += 1
+
+    const updated = await this.storyEntityRepository.save(story)
+
+    requestLogger.info({ storyId, attachmentId }, 'Story main image updated successfully')
+
+    return updated
+  }
+
+  /**
+   * Remove story main image
+   */
+  async removeMainImage(storyId: number, userId: string): Promise<Story> {
+    const requestLogger = this.loggingContext.getLogger({
+      context: StoriesService.name,
+      action: 'remove_main_image'
+    })
+
+    requestLogger.info({ storyId, userId }, 'Removing story main image')
+
+    // Find the story
+    const story = await this.storyRepository.findById(storyId)
+    if (!story) {
+      throw new NotFoundException(`Story with ID ${storyId} not found`)
+    }
+
+    // Remove main image
+    story.mainImageId = null
+    story.lastModifiedBy = userId
+    story.version += 1
+
+    const updated = await this.storyEntityRepository.save(story)
+
+    requestLogger.info({ storyId }, 'Story main image removed successfully')
+
+    return updated
+  }
 }

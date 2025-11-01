@@ -24,6 +24,31 @@ export class UserRepository extends BaseRepository<User> {
   }
 
   /**
+   * Override findById to include profileImage relation
+   */
+  async findById(id: string, options?: { ttl?: number; bypassCache?: boolean }): Promise<User | null> {
+    const cacheKey = this.buildCacheKey('id', id)
+
+    if (options?.bypassCache) {
+      return this.repository.findOne({
+        where: { id },
+        relations: ['profileImage']
+      })
+    }
+
+    return this.cacheService.wrap<User>(
+      cacheKey,
+      async () => {
+        return this.repository.findOne({
+          where: { id },
+          relations: ['profileImage']
+        })
+      },
+      options?.ttl ?? this.defaultTTL
+    )
+  }
+
+  /**
    * Find user by email with caching
    */
   async findByEmail(email: string): Promise<User | null> {
@@ -32,7 +57,10 @@ export class UserRepository extends BaseRepository<User> {
     return this.cacheService.wrap<User>(
       cacheKey,
       async () => {
-        return this.repository.findOne({ where: { email: email.toLowerCase() } })
+        return this.repository.findOne({
+          where: { email: email.toLowerCase() },
+          relations: ['profileImage']
+        })
       },
       this.defaultTTL
     )

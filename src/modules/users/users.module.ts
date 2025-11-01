@@ -2,8 +2,10 @@ import { Module, forwardRef } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { User } from './entities/user.entity'
 import { EmailVerification } from './entities/email-verification.entity'
+import { Attachment } from '../attachments/entities/attachment.entity'
 import { UsersService } from './services/users.service'
 import { UserRepository } from '@core/database/repositories/user.repository'
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import { CacheService } from '@core/cache/services/cache.service'
 import { UserRolesController } from './controllers/user-roles.controller'
 import { AdminUsersController } from './controllers/admin-users.controller'
@@ -19,7 +21,7 @@ import { EmailModule } from '@infrastructure/email'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserRole, Role, EmailVerification]),
+    TypeOrmModule.forFeature([User, UserRole, Role, EmailVerification, Attachment]),
     AclModule,
     EmailModule,
     forwardRef(() => AuthModule)
@@ -31,6 +33,7 @@ import { EmailModule } from '@infrastructure/email'
     UserAvailabilityService,
     AdminPasswordManagementService,
     UserRepository,
+    AttachmentRepository,
     CacheService
   ],
   exports: [UsersService, UserAvailabilityService, UserRepository]

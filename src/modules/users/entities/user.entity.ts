@@ -3,10 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm'
 import { UserRole } from '../../acl/entities/user-role.entity'
+import { Attachment } from '../../attachments/entities/attachment.entity'
 import { Action } from '../../acl/types/actions.enum'
 import { Subject } from '../../acl/types/subjects.enum'
 
@@ -44,6 +47,13 @@ export class User {
 
   @Column({ default: false })
   forcePasswordChange: boolean
+
+  @Column({ type: 'uuid', nullable: true })
+  profileImageId?: string
+
+  @ManyToOne(() => Attachment, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'profileImageId' })
+  profileImage?: Attachment
 
   @OneToMany(() => UserRole, userRole => userRole.user)
   userRoles: UserRole[]

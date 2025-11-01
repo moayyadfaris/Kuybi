@@ -176,6 +176,32 @@ export class AttachmentService {
     return this.formatAttachmentResponse(attachment)
   }
 
+  async listAll(query: AttachmentQueryDto) {
+    const result = await this.attachmentRepository.listAll({
+      category: query.category,
+      mimeType: query.mimeType,
+      isPublic: query.isPublic,
+      securityStatus: query.securityStatus,
+      minSize: query.minSize,
+      maxSize: query.maxSize,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      includeDeleted: query.includeDeleted,
+      page: query.page || 1,
+      limit: query.limit || 20,
+      sortBy: query.sortBy || 'createdAt',
+      sortOrder: query.sortOrder || 'DESC'
+    })
+
+    return {
+      data: result.data.map(a => this.formatAttachmentResponse(a)),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: Math.ceil(result.total / result.limit)
+    }
+  }
+
   async getUserAttachments(userId: string, query: AttachmentQueryDto) {
     const attachments = await this.attachmentRepository.findByUserId(userId, query)
     return {

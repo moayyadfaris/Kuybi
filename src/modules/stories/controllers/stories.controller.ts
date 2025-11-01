@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
@@ -19,7 +20,8 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
-  ApiQuery
+  ApiQuery,
+  ApiBody
 } from '@nestjs/swagger'
 import { Request } from 'express'
 import { StoriesService } from '@modules/stories/services/stories.service'
@@ -34,6 +36,7 @@ import {
   AttachCategoriesDto,
   DetachCategoriesDto
 } from '@modules/stories/dto'
+import { UpdateStoryMainImageDto } from '@modules/stories/dto/update-story-main-image.dto'
 import { StoryStatus, StoryType } from '@modules/stories/entities/story.entity'
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
@@ -412,5 +415,44 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   getCategories(@Param('id', ParseIntPipe) id: number) {
     return this.storiesService.getCategories(id)
+  }
+
+  @Put(':id/main-image')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Update, subject: Subject.Story })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update story main image' })
+  @ApiParam({ name: 'id', description: 'Story ID' })
+  @ApiBody({ type: UpdateStoryMainImageDto })
+  @ApiResponse({ status: 200, description: 'Main image updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid attachment or not an image' })
+  @ApiResponse({ status: 404, description: 'Story or attachment not found' })
+  @ApiResponse({ status: 403, description: 'Forbidden - attachment does not belong to user' })
+  updateMainImage(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateStoryMainImageDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    const userId = req.user?.userId
+    if (!userId) {
+      throw new Error('User not authenticated')
+    }
+    return this.storiesService.updateMainImage(id, dto.attachmentId, userId)
+  }
+
+  @Delete(':id/main-image')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Update, subject: Subject.Story })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove story main image' })
+  @ApiParam({ name: 'id', description: 'Story ID' })
+  @ApiResponse({ status: 200, description: 'Main image removed successfully' })
+  @ApiResponse({ status: 404, description: 'Story not found' })
+  removeMainImage(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+    const userId = req.user?.userId
+    if (!userId) {
+      throw new Error('User not authenticated')
+    }
+    return this.storiesService.removeMainImage(id, userId)
   }
 }
