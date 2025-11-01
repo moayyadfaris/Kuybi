@@ -9,8 +9,13 @@ import {
   IsBoolean
 } from 'class-validator'
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { StoryType, StoryStatus, StoryPriority } from '../entities/story.entity'
+
+export enum StorySortOrder {
+  ASC = 'ASC',
+  DESC = 'DESC'
+}
 
 export class StoryFilterDto {
   @ApiPropertyOptional({
@@ -136,11 +141,12 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Sort order',
-    enum: ['ASC', 'DESC'],
-    default: 'DESC',
-    example: 'DESC'
+    enum: StorySortOrder,
+    default: StorySortOrder.DESC,
+    example: StorySortOrder.DESC
   })
   @IsOptional()
-  @IsEnum(['ASC', 'DESC'])
-  sortOrder?: 'ASC' | 'DESC' = 'DESC'
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+  @IsEnum(StorySortOrder)
+  sortOrder?: StorySortOrder = StorySortOrder.DESC
 }
