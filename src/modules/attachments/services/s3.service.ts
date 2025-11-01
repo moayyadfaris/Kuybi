@@ -48,19 +48,46 @@ export class S3Service {
     this.bucket = this.configService.get<string>('s3.bucket')
     this.baseUrl = this.configService.get<string>('s3.baseUrl', '')
 
+    // WORKAROUND: Use process.env directly as ConfigService is returning empty strings
+    const accessKeyId =
+      process.env.S3_ACCESS || process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
+    const secretAccessKey =
+      process.env.S3_SECRET || process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY
+
     if (!this.bucket) {
       throw new Error('S3 bucket configuration is missing')
+    }
+
+    if (!accessKeyId || !secretAccessKey) {
+      this.logger.error(
+        {
+          hasAccessKey: !!accessKeyId,
+          hasSecretKey: !!secretAccessKey,
+          accessKeyLength: accessKeyId?.length,
+          secretKeyLength: secretAccessKey?.length,
+          envVars: {
+            S3_ACCESS: !!process.env.S3_ACCESS,
+            S3_SECRET: !!process.env.S3_SECRET
+          }
+        },
+        'S3 credentials are missing or invalid'
+      )
+      throw new Error(
+        'S3 credentials are missing or invalid. Check S3_ACCESS and S3_SECRET in .env'
+      )
     }
 
     this.s3Client = new S3Client({
       region: this.region,
       credentials: {
-        accessKeyId: this.configService.get<string>('s3.accessKeyId'),
-        secretAccessKey: this.configService.get<string>('s3.secretAccessKey')
+        accessKeyId,
+        secretAccessKey
       }
     })
 
-    this.logger.info(`S3 Service initialized for bucket: ${this.bucket} in region: ${this.region}`)
+    this.logger.info(
+      `S3 Service initialized for bucket: ${this.bucket} in region: ${this.region} (credentials: ${accessKeyId.substring(0, 8)}...)`
+    )
   }
 
   /**
@@ -89,8 +116,23 @@ export class S3Service {
         etag: result.ETag
       }
     } catch (error) {
-      this.logger.error(`Failed to upload file to S3: ${options.key}`, error)
-      throw new InternalServerErrorException('Failed to upload file to storage')
+      this.logger.error(
+        {
+          errorMessage: error?.message || 'Unknown error',
+          errorName: error?.name,
+          errorCode: error?.Code || error?.code,
+          statusCode: error?.$metadata?.httpStatusCode,
+          requestId: error?.$metadata?.requestId,
+          key: options.key,
+          bucket: this.bucket,
+          region: this.region,
+          fullError: JSON.stringify(error, null, 2)
+        },
+        `Failed to upload file to S3: ${options.key}`
+      )
+      throw new InternalServerErrorException(
+        `Failed to upload file to storage: ${error?.message || 'Unknown S3 error'}`
+      )
     }
   }
 

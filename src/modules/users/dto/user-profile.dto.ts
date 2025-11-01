@@ -44,6 +44,18 @@ export class UserProfileDto {
   @ApiProperty({ description: 'Account last update date', example: '2025-11-01T00:00:00.000Z' })
   updatedAt: Date
 
+  @ApiPropertyOptional({
+    description: 'Profile image attachment ID',
+    example: '123e4567-e89b-12d3-a456-426614174000'
+  })
+  profileImageId?: string | null
+
+  @ApiPropertyOptional({
+    description: 'Profile image URL',
+    example: 'https://bucket.s3.amazonaws.com/uploads/user-id/image.jpg'
+  })
+  profileImageUrl?: string | null
+
   /**
    * Create a safe user profile DTO from a User entity
    * Excludes sensitive fields like passwordHash and forcePasswordChange
@@ -61,6 +73,14 @@ export class UserProfileDto {
     profile.emailVerifiedAt = user.emailVerifiedAt
     profile.createdAt = user.createdAt
     profile.updatedAt = user.updatedAt
+    profile.profileImageId = user.profileImageId
+
+    // Construct profile image URL if attachment exists
+    if (user.profileImage) {
+      const baseUrl = process.env.S3_BASE_URL || 'https://susano.s3.eu-west-1.amazonaws.com'
+      profile.profileImageUrl = `${baseUrl}/${user.profileImage.path}`
+    }
+
     return profile
   }
 }

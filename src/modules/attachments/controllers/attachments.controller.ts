@@ -94,6 +94,27 @@ export class AttachmentsController {
     return { attachment: result }
   }
 
+  @Get()
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Read, subject: Subject.Attachment })
+  @ApiQuery({ name: 'page', required: false, type: 'number' })
+  @ApiQuery({ name: 'limit', required: false, type: 'number' })
+  @ApiQuery({ name: 'category', required: false, type: 'string' })
+  @ApiQuery({ name: 'mimeType', required: false, type: 'string' })
+  @ApiQuery({ name: 'isPublic', required: false, type: 'boolean' })
+  @ApiQuery({ name: 'securityStatus', required: false, type: 'string' })
+  @ApiQuery({ name: 'minSize', required: false, type: 'number' })
+  @ApiQuery({ name: 'maxSize', required: false, type: 'number' })
+  @ApiQuery({ name: 'startDate', required: false, type: 'string' })
+  @ApiQuery({ name: 'endDate', required: false, type: 'string' })
+  @ApiQuery({ name: 'includeDeleted', required: false, type: 'boolean' })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['createdAt', 'size', 'originalName', 'downloadCount'] })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
+  @ApiOkResponse({ description: 'List of attachments retrieved' })
+  async list(@Query() query: AttachmentQueryDto) {
+    return this.attachmentService.listAll(query)
+  }
+
   @Get('stats')
   @ApiOkResponse({ description: 'Get attachment statistics' })
   async getStatistics() {

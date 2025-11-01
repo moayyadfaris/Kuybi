@@ -147,6 +147,13 @@ export class Story {
   @JoinColumn({ name: 'countryId' })
   country?: Country
 
+  @Column({ type: 'uuid', nullable: true })
+  mainImageId?: string
+
+  @ManyToOne(() => Attachment, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'mainImageId' })
+  mainImage?: Attachment
+
   @Column({ length: 255, nullable: true })
   deletionReason?: string
 

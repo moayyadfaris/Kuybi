@@ -69,6 +69,57 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }
 
   /**
+   * List all attachments with pagination and filters
+   */
+  async listAll(
+    options: Partial<AttachmentQueryOptions> & {
+      page?: number
+      limit?: number
+      sortBy?: string
+      sortOrder?: 'ASC' | 'DESC'
+    } = {}
+  ): Promise<{ data: Attachment[]; total: number; page: number; limit: number }> {
+    const page = options.page || 1
+    const limit = options.limit || 20
+    const sortBy = options.sortBy || 'createdAt'
+    const sortOrder = options.sortOrder || 'DESC'
+
+    const cacheKey = this.buildCacheKey('list', JSON.stringify(options))
+
+    return this.withCache(
+      cacheKey,
+      async () => {
+        const query = this.repository
+          .createQueryBuilder('attachment')
+          .leftJoinAndSelect('attachment.user', 'user')
+
+        this.applyFilters(query, options)
+
+        // Add sorting
+        const validSortFields = ['createdAt', 'size', 'originalName', 'downloadCount', 'updatedAt']
+        const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt'
+        query.orderBy(`attachment.${sortField}`, sortOrder)
+
+        // Get total count
+        const total = await query.getCount()
+
+        // Apply pagination
+        query.skip((page - 1) * limit).take(limit)
+
+        const data = await query.getMany()
+
+        return {
+          data,
+          total,
+          page,
+          limit
+        }
+      },
+      300
+    ) // 5 minutes cache for lists
+  }
+
+  /**
    * Find all attachments by user ID
    */
   async findByUserId(

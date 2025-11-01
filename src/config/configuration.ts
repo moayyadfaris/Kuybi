@@ -114,6 +114,8 @@ export default () => {
     s3: {
       bucket: defaultBucket,
       region: process.env.S3_REGION || 'us-east-1',
+      accessKeyId: process.env.S3_ACCESS || process.env.S3_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.S3_SECRET || process.env.S3_SECRET_ACCESS_KEY || '',
       baseUrl: process.env.S3_BASE_URL || `https://${defaultBucket}.s3.amazonaws.com`,
       uploadPrefix: process.env.S3_UPLOAD_PREFIX || 'uploads'
     },
