@@ -94,6 +94,16 @@ export class AclSeeder {
       { action: Action.Archive, subject: Subject.Story, reason: 'Archive stories' },
       { action: Action.Moderate, subject: Subject.Story, reason: 'Moderate stories' },
 
+      // Story Version permissions
+      { action: Action.Create, subject: Subject.StoryVersion, reason: 'Create story versions' },
+      { action: Action.Read, subject: Subject.StoryVersion, reason: 'Read all story versions' },
+      {
+        action: Action.Update,
+        subject: Subject.StoryVersion,
+        reason: 'Update story versions (rollback, merge)'
+      },
+      { action: Action.Delete, subject: Subject.StoryVersion, reason: 'Delete story versions' },
+
       // Attachment permissions
       { action: Action.Create, subject: Subject.Attachment, reason: 'Upload attachments' },
       { action: Action.Read, subject: Subject.Attachment, reason: 'Read all attachments' },
@@ -294,6 +304,9 @@ export class AclSeeder {
       findPerm(Action.Moderate, Subject.Story),
       findPerm(Action.Publish, Subject.Story),
       findPerm(Action.Archive, Subject.Story),
+      findPerm(Action.Read, Subject.StoryVersion),
+      findPerm(Action.Create, Subject.StoryVersion),
+      findPerm(Action.Update, Subject.StoryVersion),
       findPerm(Action.Read, Subject.Attachment),
       findPerm(Action.Update, Subject.Attachment),
       findPerm(Action.Delete, Subject.Attachment),
@@ -317,6 +330,10 @@ export class AclSeeder {
       findPerm(Action.Read, Subject.Story),
       findPerm(Action.Update, Subject.Story, { userId: '${userId}' }),
       findPerm(Action.Delete, Subject.Story, { userId: '${userId}' }),
+      // Story versions (can view and create versions for stories)
+      findPerm(Action.Create, Subject.StoryVersion),
+      findPerm(Action.Read, Subject.StoryVersion),
+      findPerm(Action.Update, Subject.StoryVersion),
       // Own attachments
       findPerm(Action.Create, Subject.Attachment),
       findPerm(Action.Read, Subject.Attachment),

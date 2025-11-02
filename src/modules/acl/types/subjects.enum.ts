@@ -12,6 +12,9 @@ export enum Subject {
   /** Story management */
   Story = 'Story',
 
+  /** Story version management */
+  StoryVersion = 'StoryVersion',
+
   /** Attachment/file management */
   Attachment = 'Attachment',
 

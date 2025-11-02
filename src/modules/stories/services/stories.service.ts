@@ -31,6 +31,9 @@ import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { Tag } from '@modules/tags/entities/tag.entity'
 import { Category } from '@modules/categories/entities/category.entity'
 import { LoggingContextService } from '@core/logging/logging-context.service'
+import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
+import { StoryVersionService } from './story-version.service'
+import { VersionType } from '../entities/story-version.entity'
 
 @Injectable()
 export class StoriesService {
@@ -44,7 +47,8 @@ export class StoriesService {
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly logger: PinoLogger,
-    private readonly loggingContext: LoggingContextService
+    private readonly loggingContext: LoggingContextService,
+    private readonly versionService: StoryVersionService
   ) {
     this.logger.setContext(StoriesService.name)
   }
@@ -188,7 +192,7 @@ export class StoriesService {
 
       const finalStory = await this.findOne(story.id, userId, { bypassCache: true })
       requestLogger.info({ storyId: story.id, userId }, 'Story creation completed successfully')
-      return finalStory
+      return this.enrichStoryMedia(finalStory) as Story
     } catch (error) {
       requestLogger.error(
         { action: 'create_story', userId, error: error.message, stack: error.stack },
@@ -204,7 +208,7 @@ export class StoriesService {
   async findAll(filters: StoryFilterDto) {
     this.logger.debug({ action: 'find_all_stories', filters }, 'Finding stories with filters')
 
-    return this.storyRepository.search({
+    const result = await this.storyRepository.search({
       search: filters.search,
       status: filters.status,
       type: filters.type,
@@ -221,6 +225,11 @@ export class StoriesService {
       sortBy: filters.sortBy,
       sortOrder: filters.sortOrder
     })
+
+    return {
+      ...result,
+      results: this.enrichStoriesCollection(result.results)
+    }
   }
 
   /**
@@ -235,7 +244,7 @@ export class StoriesService {
       throw new NotFoundException(`Story with ID ${id} not found`)
     }
 
-    return story
+    return this.enrichStoryMedia(story) as Story
   }
 
   /**
@@ -253,11 +262,13 @@ export class StoriesService {
 
     const offset = options?.page ? (options.page - 1) * (options?.limit || 20) : undefined
 
-    return this.storyRepository.findByUser(userId, {
+    const stories = await this.storyRepository.findByUser(userId, {
       includeDeleted: options?.includeDeleted,
       limit: options?.limit,
       offset
     })
+
+    return this.enrichStoriesCollection(stories)
   }
 
   /**
@@ -274,10 +285,12 @@ export class StoriesService {
 
     const offset = options?.page ? (options.page - 1) * (options?.limit || 20) : undefined
 
-    return this.storyRepository.findByStatus(status, {
+    const stories = await this.storyRepository.findByStatus(status, {
       limit: options?.limit,
       offset
     })
+
+    return this.enrichStoriesCollection(stories)
   }
 
   /**
@@ -294,10 +307,12 @@ export class StoriesService {
 
     const offset = options?.page ? (options.page - 1) * (options?.limit || 20) : undefined
 
-    return this.storyRepository.findByType(type, {
+    const stories = await this.storyRepository.findByType(type, {
       limit: options?.limit,
       offset
     })
+
+    return this.enrichStoriesCollection(stories)
   }
 
   /**
@@ -309,7 +324,9 @@ export class StoriesService {
       'Finding child stories'
     )
 
-    return this.storyRepository.findChildren(parentId, { includeDeleted })
+    const stories = await this.storyRepository.findChildren(parentId, { includeDeleted })
+
+    return this.enrichStoriesCollection(stories)
   }
 
   /**
@@ -402,7 +419,30 @@ export class StoriesService {
         'Story updated successfully'
       )
 
-      return updated
+      // Create automatic version after update
+      try {
+        await this.versionService.createVersion(
+          updated,
+          {
+            versionType: VersionType.AUTO,
+            versionLabel: `Auto version ${updated.version}`,
+            commitMessage: `Automatic version created after update`
+          },
+          userId
+        )
+        this.logger.debug({ storyId: id, version: updated.version }, 'Auto version created')
+      } catch (versionError) {
+        // Log but don't fail the update if versioning fails
+        this.logger.warn(
+          {
+            storyId: id,
+            error: versionError instanceof Error ? versionError.message : 'Unknown error'
+          },
+          'Failed to create automatic version'
+        )
+      }
+
+      return this.enrichStoryMedia(updated) as Story
     } catch (error) {
       this.logger.error(
         { action: 'update_story', storyId: id, userId, error: error.message },
@@ -525,7 +565,7 @@ export class StoriesService {
         'Story restored successfully'
       )
 
-      return restored
+      return this.enrichStoryMedia(restored) as Story
     } catch (error) {
       this.logger.error(
         { action: 'restore_story', storyId: id, userId, error: error.message },
@@ -567,7 +607,7 @@ export class StoriesService {
         'Story status updated'
       )
 
-      return updated
+      return this.enrichStoryMedia(updated) as Story
     } catch (error) {
       this.logger.error(
         { action: 'update_status', storyId: id, userId, status, error: error.message },
@@ -597,6 +637,37 @@ export class StoriesService {
       drafts: stats.drafts,
       deleted: stats.deleted
     }
+  }
+
+  private enrichStoryAttachment(attachment?: Attachment | null): Attachment | undefined {
+    if (!attachment) {
+      return undefined
+    }
+
+    const enriched = toAttachmentResponse(attachment)
+    return enriched as unknown as Attachment
+  }
+
+  private enrichStoryMedia<T extends Story | null | undefined>(story: T): T {
+    if (!story) {
+      return story
+    }
+
+    if (story.mainImage) {
+      story.mainImage = this.enrichStoryAttachment(story.mainImage)
+    }
+
+    if (Array.isArray(story.attachments) && story.attachments.length > 0) {
+      story.attachments = story.attachments
+        .map(attachment => this.enrichStoryAttachment(attachment))
+        .filter((attachment): attachment is Attachment => Boolean(attachment))
+    }
+
+    return story
+  }
+
+  private enrichStoriesCollection(stories: Story[]): Story[] {
+    return stories.map(story => this.enrichStoryMedia(story) as Story)
   }
 
   /**
@@ -890,7 +961,11 @@ export class StoriesService {
       throw new NotFoundException(`Story with ID ${storyId} not found`)
     }
 
-    return story.attachments || []
+    return (
+      story.attachments?.map(
+        attachment => toAttachmentResponse(attachment) as unknown as Attachment
+      ) || []
+    )
   }
 
   /**
