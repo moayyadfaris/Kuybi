@@ -29,7 +29,8 @@ export class StoryRepository extends BaseRepository<Story> {
   }
 
   /**
-   * Override findById to include tags and categories relations
+   * Override findById to include tags, categories, mainImage, and user relations
+   * This prevents N+1 queries when accessing these relations
    */
   async findById(
     id: string | number,
@@ -43,7 +44,7 @@ export class StoryRepository extends BaseRepository<Story> {
         async () => {
           return this.repository.findOne({
             where: { id } as any,
-            relations: ['tags', 'categories']
+            relations: ['tags', 'categories', 'mainImage', 'user']
           })
         },
         options?.ttl ?? this.defaultTTL
@@ -52,12 +53,13 @@ export class StoryRepository extends BaseRepository<Story> {
 
     return this.repository.findOne({
       where: { id } as any,
-      relations: ['tags', 'categories']
+      relations: ['tags', 'categories', 'mainImage', 'user']
     })
   }
 
   /**
    * Find stories by user with caching
+   * Includes mainImage and user to prevent N+1 queries
    */
   async findByUser(
     userId: string,
@@ -76,6 +78,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .createQueryBuilder('story')
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
+          .leftJoinAndSelect('story.mainImage', 'mainImage')
+          .leftJoinAndSelect('story.user', 'user')
           .where('story.userId = :userId', { userId })
           .orderBy('story.createdAt', 'DESC')
 
@@ -99,6 +103,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
   /**
    * Find stories by status with caching
+   * Includes mainImage and user to prevent N+1 queries
    */
   async findByStatus(
     status: StoryStatus,
@@ -116,6 +121,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .createQueryBuilder('story')
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
+          .leftJoinAndSelect('story.mainImage', 'mainImage')
+          .leftJoinAndSelect('story.user', 'user')
           .where('story.status = :status', { status })
           .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
@@ -136,6 +143,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
   /**
    * Find stories by type with caching
+   * Includes mainImage and user to prevent N+1 queries
    */
   async findByType(
     type: StoryType,
@@ -153,6 +161,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .createQueryBuilder('story')
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
+          .leftJoinAndSelect('story.mainImage', 'mainImage')
+          .leftJoinAndSelect('story.user', 'user')
           .where('story.type = :type', { type })
           .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
@@ -173,6 +183,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
   /**
    * Find stories by priority with caching
+   * Includes mainImage and user to prevent N+1 queries
    */
   async findByPriority(
     priority: StoryPriority,
@@ -190,6 +201,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .createQueryBuilder('story')
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
+          .leftJoinAndSelect('story.mainImage', 'mainImage')
+          .leftJoinAndSelect('story.user', 'user')
           .where('story.priority = :priority', { priority })
           .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
@@ -210,6 +223,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
   /**
    * Find child stories (by parent ID)
+   * Includes mainImage and user to prevent N+1 queries
    */
   async findChildren(
     parentId: number,
@@ -230,6 +244,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .createQueryBuilder('story')
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
+          .leftJoinAndSelect('story.mainImage', 'mainImage')
+          .leftJoinAndSelect('story.user', 'user')
           .where('story.parentId = :parentId', { parentId })
           .orderBy('story.createdAt', 'DESC')
 
@@ -245,6 +261,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
   /**
    * Search stories with advanced filters
+   * Includes mainImage and user to prevent N+1 queries
    */
   async search(filters: {
     search?: string
@@ -275,6 +292,8 @@ export class StoryRepository extends BaseRepository<Story> {
       .createQueryBuilder('story')
       .leftJoinAndSelect('story.tags', 'tags')
       .leftJoinAndSelect('story.categories', 'categories')
+      .leftJoinAndSelect('story.mainImage', 'mainImage')
+      .leftJoinAndSelect('story.user', 'user')
 
     // Exclude soft-deleted by default
     if (!filters.includeDeleted) {
