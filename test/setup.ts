@@ -1,7 +1,7 @@
 /**
  * Global test setup
  * This file runs once before all test suites
- * 
+ *
  * Register path aliases before loading entities
  */
 import * as dotenv from 'dotenv'
@@ -34,29 +34,29 @@ export default async function globalSetup() {
     database: process.env.TEST_DB_NAME || 'kuybi_test',
     entities: ['src/modules/**/*.entity.ts'],
     synchronize: false,
-    logging: ['error', 'warn'], // Enable error logging to see what's failing
+    logging: ['error', 'warn'] // Enable error logging to see what's failing
   })
 
   try {
     await dataSource.initialize()
-    
+
     console.log(`  ↳ Loaded ${dataSource.entityMetadatas.length} entities`)
     // Removed detailed listing - checked and confirmed duplicates
-    
+
     // Drop and recreate schema completely (CASCADE removes all objects)
     await dataSource.query('DROP SCHEMA IF EXISTS public CASCADE;')
     await dataSource.query('CREATE SCHEMA public;')
     await dataSource.query(`GRANT ALL ON SCHEMA public TO ${process.env.TEST_DB_USERNAME};`)
     await dataSource.query('GRANT ALL ON SCHEMA public TO public;')
     console.log('  ↳ Dropped and recreated public schema')
-    
+
     // Enable required PostgreSQL extensions
     await dataSource.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
     console.log('  ↳ Enabled uuid-ossp extension')
-    
+
     // Close connection completely and create new DataSource instance
     await dataSource.destroy()
-    
+
     // Create fresh DataSource to avoid TypeORM's internal caching issues
     const freshDataSource = new DataSource({
       type: 'postgres',
@@ -67,9 +67,9 @@ export default async function globalSetup() {
       database: process.env.TEST_DB_NAME || 'kuybi_test',
       entities: ['src/modules/**/*.entity.ts'],
       synchronize: true, // Enable auto-sync on fresh connection
-      logging: ['error', 'warn'],
+      logging: ['error', 'warn']
     })
-    
+
     await freshDataSource.initialize()
     console.log('  ↳ Created all tables and relations')
 
@@ -83,4 +83,3 @@ export default async function globalSetup() {
     throw error
   }
 }
-
