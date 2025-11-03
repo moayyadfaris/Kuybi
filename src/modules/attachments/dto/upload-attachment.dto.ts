@@ -49,16 +49,16 @@ export class UploadAttachmentDto {
   @IsBoolean()
   generateThumbnails: boolean = true
 
-  @ApiPropertyOptional({ description: 'Mark attachment as public', default: false })
+  @ApiPropertyOptional({ description: 'Mark attachment as public', default: true })
   @Transform(({ value }) => {
-    if (value === undefined || value === null) return false
+    if (value === undefined || value === null) return true
     if (typeof value === 'boolean') return value
     const normalized = value.toString().toLowerCase()
-    if (['true', '1', 'yes'].includes(normalized)) return true
-    return false
+    if (['false', '0', 'no'].includes(normalized)) return false
+    return true
   })
   @IsBoolean()
-  isPublic: boolean = false
+  isPublic: boolean = true
 
   @ApiPropertyOptional({ description: 'Allow storing duplicate files', default: false })
   @Transform(({ value }) => {
