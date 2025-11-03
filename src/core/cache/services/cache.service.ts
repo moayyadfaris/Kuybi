@@ -57,14 +57,74 @@ export class CacheService {
    */
   async delPattern(pattern: string): Promise<void> {
     try {
-      // Access the underlying store
+      this.logger.info({ pattern }, 'Attempting to delete cache keys matching pattern')
+
       const cacheStore: any = this.cacheManager
-      if (cacheStore.store?.client && typeof cacheStore.store.client.keys === 'function') {
-        const keys = await cacheStore.store.client.keys(pattern)
-        if (keys.length > 0) {
-          await Promise.all(keys.map((key: string) => this.del(key)))
+      const keyvInstance: any = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
+      const keyvStore: any =
+        keyvInstance?._store ?? keyvInstance?.store ?? keyvInstance?.opts?.store ?? null
+
+      const namespace: string =
+        keyvInstance?.opts?.namespace ??
+        keyvInstance?._namespace ??
+        keyvStore?.namespace ??
+        keyvStore?._namespace ??
+        ''
+
+      const separator: string =
+        keyvStore?.keyPrefixSeparator ??
+        keyvStore?._keyPrefixSeparator ??
+        keyvInstance?.opts?.keyPrefixSeparator ??
+        '::'
+
+      const prefix = namespace ? `${namespace}${separator}` : ''
+      const namespacedPattern = prefix ? `${prefix}${pattern}` : pattern
+
+      const redisClient: any =
+        keyvStore?.client ??
+        keyvStore?._client ??
+        cacheStore?.store?.client ??
+        cacheStore?.store?._client ??
+        null
+
+      const keysToDelete: string[] = []
+
+      if (redisClient?.scanIterator) {
+        for await (const rawKey of redisClient.scanIterator({ MATCH: namespacedPattern })) {
+          const key = typeof rawKey === 'string' ? rawKey : rawKey.toString()
+          const normalizedKey = prefix && key.startsWith(prefix) ? key.slice(prefix.length) : key
+          keysToDelete.push(normalizedKey)
         }
+      } else if (redisClient?.keys) {
+        const redisKeys = await redisClient.keys(namespacedPattern)
+        for (const key of redisKeys) {
+          const normalizedKey = prefix && key.startsWith(prefix) ? key.slice(prefix.length) : key
+          keysToDelete.push(normalizedKey)
+        }
+      } else if (typeof keyvInstance?.iterator === 'function') {
+        const toRegex = (value: string): RegExp => {
+          const escaped = value.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
+          return new RegExp(`^${escaped.replace(/\*/g, '.*')}$`)
+        }
+
+        const matcher = toRegex(pattern)
+        for await (const [key] of keyvInstance.iterator(namespace || undefined)) {
+          if (matcher.test(key)) {
+            keysToDelete.push(key)
+          }
+        }
+      } else {
+        this.logger.warn({ pattern }, 'Cache store does not support pattern deletion')
+        return
       }
+
+      if (keysToDelete.length === 0) {
+        this.logger.info({ pattern }, 'No cache keys found matching pattern')
+        return
+      }
+
+      await Promise.all(keysToDelete.map((key: string) => this.del(key)))
+      this.logger.info({ pattern, deletedCount: keysToDelete.length }, 'Cache keys deleted')
     } catch (error) {
       this.logger.error({ msg: 'Cache delete pattern error', pattern, error: error.message })
     }

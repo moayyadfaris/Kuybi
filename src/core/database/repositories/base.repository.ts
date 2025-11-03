@@ -206,7 +206,11 @@ export abstract class BaseRepository<T> {
     const patterns = [this.buildCacheKey('id', id), this.buildCacheKey('findOne', '*')]
 
     for (const pattern of patterns) {
-      await this.cacheService.del(pattern)
+      if (pattern.includes('*')) {
+        await this.cacheService.delPattern(pattern)
+      } else {
+        await this.cacheService.del(pattern)
+      }
     }
   }
 

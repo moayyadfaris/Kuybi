@@ -509,14 +509,39 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
    * Invalidate cache for a specific attachment
    */
   private async invalidateCacheForEntity(id: string): Promise<void> {
-    // Clear all cache entries related to this attachment
+    if (!this.cacheService) return
+
+    // Clear specific attachment cache
+    await this.cacheService.del(this.buildCacheKey('id', id))
+    await this.cacheService.delPattern(this.buildCacheKey('findOne', '*'))
+    
+    // Clear list caches (very important for list queries)
+    await this.invalidateListCaches()
+  }
+
+  /**
+   * Override invalidateListCaches to include attachment-specific patterns
+   */
+  protected async invalidateListCaches(): Promise<void> {
+    if (!this.cacheService) {
+      return
+    }
+
+    // Clear all list and search caches
     const patterns = [
-      this.buildCacheKey('id', id.toString(), '*'),
-      this.buildCacheKey('*') // Clear all attachment caches to be safe
+      `${this.entityName}:list:*`,
+      `${this.entityName}:user:*`,
+      `${this.entityName}:category:*`,
+      `${this.entityName}:mimetype:*`,
+      `${this.entityName}:public:*`,
+      `${this.entityName}:security-status:*`,
+      `${this.entityName}:tags:*`,
+      `${this.entityName}:stats:*`,
+      `${this.entityName}:checksum:*`
     ]
 
     for (const pattern of patterns) {
-      await this.cacheService.del(pattern)
+      await this.cacheService.delPattern(pattern)
     }
   }
 }
