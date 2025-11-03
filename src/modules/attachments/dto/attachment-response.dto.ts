@@ -74,9 +74,35 @@ export class AttachmentResponseDto {
   @ApiPropertyOptional({ description: 'Public URL (if isPublic=true)' })
   url?: string
 
+  @ApiPropertyOptional({ description: 'Original full-size image URL' })
+  originalImageUrl?: string
+
   @ApiPropertyOptional({ description: 'Download URL (authenticated or presigned)' })
   downloadUrl?: string
 
   @ApiPropertyOptional({ description: 'Preview/thumbnail URL' })
   previewUrl?: string
+
+  @ApiPropertyOptional({
+    description: 'Thumbnail variants with accessible URLs',
+    type: 'object',
+    additionalProperties: {
+      type: 'object',
+      properties: {
+        key: { type: 'string' },
+        url: { type: 'string' },
+        width: { type: 'number' },
+        height: { type: 'number' },
+        size: { type: 'number' },
+        format: { type: 'string' }
+      }
+    }
+  })
+  thumbnails?: Record<
+    string,
+    { key: string; url?: string; width?: number; height?: number; size?: number; format?: string }
+  >
+
+  @ApiPropertyOptional({ description: 'Low-quality placeholder URL for progressive loading' })
+  placeholderUrl?: string
 }

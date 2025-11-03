@@ -9,6 +9,7 @@ import { PasswordReset } from '@modules/auth/entities/password-reset.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { Category } from '@modules/categories/entities/category.entity'
 import { Story } from '@modules/stories/entities/story.entity'
+import { StoryVersion } from '@modules/stories/entities/story-version.entity'
 import { Tag } from '@modules/tags/entities/tag.entity'
 import { Role } from '@modules/acl/entities/role.entity'
 import { Permission } from '@modules/acl/entities/permission.entity'
@@ -40,6 +41,7 @@ import { AuditLog } from '@modules/audit/entities/audit-log.entity'
             Attachment,
             Category,
             Story,
+            StoryVersion,
             Tag,
             Role,
             Permission,

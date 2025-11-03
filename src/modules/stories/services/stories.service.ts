@@ -34,6 +34,8 @@ import { LoggingContextService } from '@core/logging/logging-context.service'
 import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
 import { StoryVersionService } from './story-version.service'
 import { VersionType } from '../entities/story-version.entity'
+import { S3Service } from '@modules/attachments/services/s3.service'
+import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
 
 @Injectable()
 export class StoriesService {
@@ -48,7 +50,8 @@ export class StoriesService {
     private readonly categoryRepository: Repository<Category>,
     private readonly logger: PinoLogger,
     private readonly loggingContext: LoggingContextService,
-    private readonly versionService: StoryVersionService
+    private readonly versionService: StoryVersionService,
+    private readonly s3Service: S3Service
   ) {
     this.logger.setContext(StoriesService.name)
   }
@@ -1251,16 +1254,53 @@ export class StoriesService {
       throw new BadRequestException('Attachment must be an image')
     }
 
-    // Update story with the main image
-    story.mainImageId = attachmentId
-    story.lastModifiedBy = userId
-    story.version += 1
+    // Make the attachment public in S3 if it's not already
+    if (!attachment.isPublic) {
+      await this.s3Service.makePublic(attachment.path)
+      if (attachment.thumbnailPath) {
+        await this.s3Service.makePublic(attachment.thumbnailPath)
+      }
 
-    const updated = await this.storyEntityRepository.save(story)
+      const metadata = (attachment.metadata || {}) as AttachmentMetadata
+      const thumbnails = metadata.thumbnails
+      if (thumbnails) {
+        const keys = Object.values(thumbnails)
+          .map(thumb => thumb?.key)
+          .filter((key): key is string => Boolean(key))
+
+        await Promise.all(keys.map(key => this.s3Service.makePublic(key)))
+      }
+
+      const optimization = metadata.optimization
+      const placeholderKey = optimization?.placeholderKey
+      if (placeholderKey) {
+        await this.s3Service.makePublic(placeholderKey)
+      }
+
+      if (optimization || placeholderKey !== undefined) {
+        metadata.optimization = {
+          ...(optimization || {}),
+          placeholderKey
+        }
+      }
+
+      // Update attachment record to reflect it's now public
+      await this.attachmentRepository.update(attachmentId, { isPublic: true, metadata })
+
+      requestLogger.info({ attachmentId }, 'Attachment made public for main image')
+    }
+
+    // Update story with the main image using repository to handle cache invalidation
+    await this.storyRepository.update(storyId, {
+      mainImageId: attachmentId,
+      lastModifiedBy: userId,
+      version: story.version + 1
+    })
 
     requestLogger.info({ storyId, attachmentId }, 'Story main image updated successfully')
 
-    return updated
+    // Return the updated story with relations
+    return (await this.storyRepository.findById(storyId))!
   }
 
   /**
@@ -1280,15 +1320,16 @@ export class StoriesService {
       throw new NotFoundException(`Story with ID ${storyId} not found`)
     }
 
-    // Remove main image
-    story.mainImageId = null
-    story.lastModifiedBy = userId
-    story.version += 1
-
-    const updated = await this.storyEntityRepository.save(story)
+    // Remove main image using repository to handle cache invalidation
+    await this.storyRepository.update(storyId, {
+      mainImageId: null,
+      lastModifiedBy: userId,
+      version: story.version + 1
+    })
 
     requestLogger.info({ storyId }, 'Story main image removed successfully')
 
-    return updated
+    // Return the updated story with relations
+    return (await this.storyRepository.findById(storyId))!
   }
 }

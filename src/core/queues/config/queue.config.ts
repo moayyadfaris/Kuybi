@@ -148,6 +148,19 @@ export const queueConfig = {
         timeout: 180000, // 3 minutes timeout
         attempts: 2
       }
+    },
+
+    // Version Cleanup Queue (Maintenance)
+    [QueueName.VERSION_CLEANUP]: {
+      limiter: {
+        max: 50, // Moderate throughput
+        duration: 60000
+      },
+      defaultJobOptions: {
+        priority: 3, // Medium priority
+        timeout: 300000, // 5 minutes timeout
+        attempts: 2 // Retry once on failure
+      }
     }
   }
 }

@@ -7,6 +7,7 @@ export interface ThumbnailSize {
   width: number
   height?: number
   fit?: keyof sharp.FitEnum
+  format?: 'jpeg' | 'png' | 'webp'
 }
 
 export interface ImageProcessingResult {
@@ -26,6 +27,7 @@ export interface ThumbnailResult {
     width: number
     height: number
     size: number
+    format: string
   }
 }
 
@@ -63,21 +65,46 @@ export class ImageProcessingService {
       fit?: keyof sharp.FitEnum
       withoutEnlargement?: boolean
       quality?: number
+      format?: 'jpeg' | 'png' | 'webp'
+      background?:
+        | string
+        | {
+            r: number
+            g: number
+            b: number
+            alpha?: number
+          }
     } = {}
   ): Promise<ImageProcessingResult> {
     try {
-      const { fit = 'inside', withoutEnlargement = true, quality = 90 } = options
+      const {
+        fit = 'inside',
+        withoutEnlargement = true,
+        quality = 90,
+        format = 'jpeg',
+        background
+      } = options
 
-      const resized = sharp(buffer)
-        .resize({
-          width,
-          height,
-          fit,
-          withoutEnlargement
-        })
-        .jpeg({ quality, progressive: true })
-        .png({ quality, compressionLevel: 9 })
-        .webp({ quality })
+      let resized = sharp(buffer).resize({
+        width,
+        height,
+        fit,
+        withoutEnlargement,
+        background
+      })
+
+      switch (format) {
+        case 'png':
+          resized = resized.png({ quality, compressionLevel: 9 })
+          break
+        case 'webp':
+          resized = resized.webp({ quality })
+          break
+        case 'jpeg':
+        default:
+          resized = resized.jpeg({ quality, progressive: true })
+          break
+      }
 
       const resultBuffer = await resized.toBuffer({ resolveWithObject: true })
 
@@ -108,14 +135,17 @@ export class ImageProcessingService {
         thumbnailSizes.map(async size => {
           const resized = await this.resize(buffer, size.width, size.height, {
             fit: size.fit || 'cover',
-            quality: 85
+            quality: 85,
+            format: size.format || 'jpeg',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
           })
 
           results[size.name] = {
             buffer: resized.buffer,
             width: resized.metadata.width,
             height: resized.metadata.height,
-            size: resized.metadata.size
+            size: resized.metadata.size,
+            format: resized.metadata.format
           }
         })
       )

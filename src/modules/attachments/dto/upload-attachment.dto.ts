@@ -70,4 +70,19 @@ export class UploadAttachmentDto {
   })
   @IsBoolean()
   allowDuplicates: boolean = false
+
+  @ApiPropertyOptional({
+    description: 'Process image asynchronously in background queue',
+    default: false
+  })
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return false
+    if (typeof value === 'boolean') return value
+    const normalized = value.toString().toLowerCase()
+    if (['true', '1', 'yes'].includes(normalized)) return true
+    return false
+  })
+  @IsBoolean()
+  @IsOptional()
+  async?: boolean
 }

@@ -59,6 +59,7 @@ export class UserProfileDto {
   /**
    * Create a safe user profile DTO from a User entity
    * Excludes sensitive fields like passwordHash and forcePasswordChange
+   * Note: profileImageUrl should be set separately using S3Service.getPresignedUrl()
    */
   static fromEntity(user: User): UserProfileDto {
     const profile = new UserProfileDto()
@@ -74,12 +75,7 @@ export class UserProfileDto {
     profile.createdAt = user.createdAt
     profile.updatedAt = user.updatedAt
     profile.profileImageId = user.profileImageId
-
-    // Construct profile image URL if attachment exists
-    if (user.profileImage) {
-      const baseUrl = process.env.S3_BASE_URL || 'https://susano.s3.eu-west-1.amazonaws.com'
-      profile.profileImageUrl = `${baseUrl}/${user.profileImage.path}`
-    }
+    profile.profileImageUrl = null // Set by service layer with presigned URL
 
     return profile
   }

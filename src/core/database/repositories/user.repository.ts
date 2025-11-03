@@ -26,7 +26,10 @@ export class UserRepository extends BaseRepository<User> {
   /**
    * Override findById to include profileImage relation
    */
-  async findById(id: string, options?: { ttl?: number; bypassCache?: boolean }): Promise<User | null> {
+  async findById(
+    id: string,
+    options?: { ttl?: number; bypassCache?: boolean }
+  ): Promise<User | null> {
     const cacheKey = this.buildCacheKey('id', id)
 
     if (options?.bypassCache) {

@@ -17,6 +17,7 @@ import { UserRole } from '../acl/entities/user-role.entity'
 import { Role } from '../acl/entities/role.entity'
 import { AclModule } from '../acl/acl.module'
 import { AuthModule } from '../auth/auth.module'
+import { AttachmentsModule } from '../attachments/attachments.module'
 import { EmailModule } from '@infrastructure/email'
 
 @Module({
@@ -24,6 +25,7 @@ import { EmailModule } from '@infrastructure/email'
     TypeOrmModule.forFeature([User, UserRole, Role, EmailVerification, Attachment]),
     AclModule,
     EmailModule,
+    AttachmentsModule,
     forwardRef(() => AuthModule)
   ],
   controllers: [UserRolesController, AdminUsersController, CurrentUserController],

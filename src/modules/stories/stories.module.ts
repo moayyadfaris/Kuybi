@@ -4,7 +4,6 @@ import { StoriesService } from './services/stories.service'
 import { StoryVersionService } from './services/story-version.service'
 import { StoriesController } from './controllers/stories.controller'
 import { StoryVersionController } from './controllers/story-version.controller'
-import { VersionCleanupJob } from './jobs/version-cleanup.job'
 import { Story } from './entities/story.entity'
 import { StoryVersion } from './entities/story-version.entity'
 import { StoryAttachment } from './entities/story-attachment.entity'
@@ -17,6 +16,7 @@ import { StoryVersionRepository } from '@core/database/repositories/story-versio
 import { TagRepository } from '@core/database/repositories/tag.repository'
 import { CacheConfigModule } from '@core/cache/cache.module'
 import { AclModule } from '../acl/acl.module'
+import { AttachmentsModule } from '../attachments/attachments.module'
 
 @Module({
   imports: [
@@ -30,13 +30,13 @@ import { AclModule } from '../acl/acl.module'
       Category
     ]),
     CacheConfigModule,
-    AclModule
+    AclModule,
+    AttachmentsModule
   ],
   controllers: [StoriesController, StoryVersionController],
   providers: [
     StoriesService,
     StoryVersionService,
-    VersionCleanupJob,
     StoryRepository,
     StoryVersionRepository,
     TagRepository
@@ -50,5 +50,3 @@ import { AclModule } from '../acl/acl.module'
   ]
 })
 export class StoriesModule {}
-
-

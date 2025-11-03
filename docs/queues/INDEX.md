@@ -9,7 +9,8 @@ This directory contains all documentation for the Bull Queue implementation in t
 ### 📚 Core Documentation
 - **[Architecture Document](../architecture/BULL_QUEUE_ARCHITECTURE.md)** - Complete enterprise architecture design
 - **[Phase 1 Complete](./PHASE_1_COMPLETE.md)** - Infrastructure setup summary
-- **[Queue README](../../src/queues/README.md)** - Technical implementation guide
+- **[Attachment Processing Queue](./ATTACHMENT_PROCESSING_QUEUE.md)** - Image processing implementation
+- **[Version Cleanup Queue](./VERSION_CLEANUP_QUEUE.md)** - Story version lifecycle management
 
 ### 🚀 Getting Started
 1. Read the [Architecture Document](../architecture/BULL_QUEUE_ARCHITECTURE.md)
@@ -148,17 +149,18 @@ npm run start:worker:dev  # Phase 4
 
 ## Registered Queues
 
-| Queue | Purpose | Status |
-|-------|---------|--------|
-| session-cleanup-queue | Session lifecycle management | ✅ Registered |
-| log-maintenance-queue | Log rotation and cleanup | ✅ Registered |
-| email-queue | Email notifications | ✅ Registered |
-| sms-queue | SMS notifications | ✅ Registered |
-| attachment-processing-queue | Image processing, thumbnails | ✅ Registered |
-| notification-queue | Push & in-app notifications | ✅ Registered |
-| security-scan-queue | Virus scanning, security checks | ✅ Registered |
-| data-export-queue | GDPR exports, data dumps | ✅ Registered |
-| report-generation-queue | Analytics and reports | ✅ Registered |
+| Queue | Purpose | Status | Docs |
+|-------|---------|--------|------|
+| attachment-processing-queue | Image processing, thumbnails | ✅ Active | [📄](./ATTACHMENT_PROCESSING_QUEUE.md) |
+| version-cleanup-queue | Story version lifecycle | ✅ Active | [📄](./VERSION_CLEANUP_QUEUE.md) |
+| session-cleanup-queue | Session lifecycle management | ✅ Active | - |
+| log-maintenance-queue | Log rotation and cleanup | ✅ Active | - |
+| email-queue | Email notifications | ✅ Registered | - |
+| sms-queue | SMS notifications | ✅ Registered | - |
+| notification-queue | Push & in-app notifications | ✅ Registered | - |
+| security-scan-queue | Virus scanning, security checks | ✅ Registered | - |
+| data-export-queue | GDPR exports, data dumps | ✅ Registered | - |
+| report-generation-queue | Analytics and reports | ✅ Registered | - |
 
 ## Configuration
 

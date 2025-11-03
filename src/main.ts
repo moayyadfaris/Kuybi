@@ -35,7 +35,7 @@ async function bootstrap() {
   const sentryService = app.get(SentryService)
 
   app.use(helmet())
-  
+
   // Response compression middleware with optimized settings
   if (compressionConfig.enabled) {
     app.use(
@@ -53,7 +53,7 @@ async function bootstrap() {
       })
     )
   }
-  
+
   app.enableCors({ origin: httpConfig.corsOrigin, credentials: true })
   app.setGlobalPrefix('api')
 
@@ -68,21 +68,21 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter(pinoLogger, configService))
 
   const loggingContextService = app.get(LoggingContextService)
-  
+
   // Register global interceptors (Sentry first for error tracking)
   const globalInterceptors = [new RequestIdInterceptor()]
-  
+
   if (sentryService.isEnabled()) {
     globalInterceptors.push(new SentryInterceptor(sentryService))
   }
-  
+
   globalInterceptors.push(
     new LoggingContextInterceptor(loggingContextService, configService),
     new TransformInterceptor()
   )
-  
+
   app.useGlobalInterceptors(...globalInterceptors)
-  
+
   // Register Sentry global filter (must be before other filters)
   if (sentryService.isEnabled()) {
     app.useGlobalFilters(new SentryFilter(sentryService))

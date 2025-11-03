@@ -43,7 +43,8 @@ import { EmailModule } from '@infrastructure/email'
       { name: QueueName.NOTIFICATION, ...queueConfig.queues[QueueName.NOTIFICATION] },
       { name: QueueName.SECURITY_SCAN, ...queueConfig.queues[QueueName.SECURITY_SCAN] },
       { name: QueueName.DATA_EXPORT, ...queueConfig.queues[QueueName.DATA_EXPORT] },
-      { name: QueueName.REPORT_GENERATION, ...queueConfig.queues[QueueName.REPORT_GENERATION] }
+      { name: QueueName.REPORT_GENERATION, ...queueConfig.queues[QueueName.REPORT_GENERATION] },
+      { name: QueueName.VERSION_CLEANUP, ...queueConfig.queues[QueueName.VERSION_CLEANUP] }
     )
   ],
   providers: [EmailProcessor],

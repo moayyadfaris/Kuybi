@@ -72,7 +72,11 @@ export class AttachmentsController {
         },
         generateThumbnails: { type: 'boolean' },
         isPublic: { type: 'boolean' },
-        allowDuplicates: { type: 'boolean' }
+        allowDuplicates: { type: 'boolean' },
+        async: {
+          type: 'boolean',
+          description: 'Process image asynchronously in background queue'
+        }
       },
       required: ['file']
     }
@@ -89,9 +93,17 @@ export class AttachmentsController {
       throw new Error('User context missing; ensure auth guard adds req.user')
     }
 
-    const result = await this.attachmentService.uploadAttachment(file as any, body, userId)
+    // Use async processing if requested via body.async or if env var is set
+    const useAsync = body.async ?? process.env.ATTACHMENT_ASYNC_PROCESSING === 'true'
 
-    return { attachment: result }
+    const result = useAsync
+      ? await this.attachmentService.uploadAttachmentAsync(file as any, body, userId)
+      : await this.attachmentService.uploadAttachment(file as any, body, userId)
+
+    return {
+      attachment: result,
+      processing: useAsync ? 'async' : 'sync'
+    }
   }
 
   @Get()
@@ -108,7 +120,11 @@ export class AttachmentsController {
   @ApiQuery({ name: 'startDate', required: false, type: 'string' })
   @ApiQuery({ name: 'endDate', required: false, type: 'string' })
   @ApiQuery({ name: 'includeDeleted', required: false, type: 'boolean' })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['createdAt', 'size', 'originalName', 'downloadCount'] })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: ['createdAt', 'size', 'originalName', 'downloadCount']
+  })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
   @ApiOkResponse({ description: 'List of attachments retrieved' })
   async list(@Query() query: AttachmentQueryDto) {

@@ -3,14 +3,18 @@ import * as bcrypt from 'bcrypt'
 import { User } from '@modules/users/entities/user.entity'
 import { UserRepository } from '@core/database/repositories/user.repository'
 import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+import { S3Service } from '@modules/attachments/services/s3.service'
 import { CacheService } from '@core/cache/services/cache.service'
 import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
+import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly attachmentRepository: AttachmentRepository,
+    private readonly s3Service: S3Service,
     private readonly cacheService: CacheService
   ) {}
 
@@ -36,7 +40,24 @@ export class UsersService {
       cacheKey,
       async () => {
         const user = await this.userRepository.findById(id, { bypassCache: true })
-        return user ? UserProfileDto.fromEntity(user) : null
+        if (!user) return null
+
+        const profile = UserProfileDto.fromEntity(user)
+
+        // Generate presigned URL for profile image if exists
+        if (user.profileImage?.path) {
+          try {
+            profile.profileImageUrl = user.profileImage.isPublic
+              ? this.s3Service.getPublicUrl(user.profileImage.path)
+              : await this.s3Service.getPresignedUrl(user.profileImage.path, 86400)
+          } catch (error) {
+            // Log error but don't fail the request
+            console.error('Failed to generate profile image URL:', error)
+            profile.profileImageUrl = null
+          }
+        }
+
+        return profile
       },
       900 // 15 min TTL
     )
@@ -117,6 +138,8 @@ export class UsersService {
       throw new BadRequestException('Attachment must be an image')
     }
 
+    await this.ensureAttachmentPublic(attachment)
+
     // Update user with the profile image
     const updated = await this.userRepository.update(userId, { profileImageId: attachmentId })
 
@@ -138,5 +161,49 @@ export class UsersService {
     await this.cacheService.del(`user:profile:safe:${userId}`)
 
     return updated
+  }
+
+  private async ensureAttachmentPublic(attachment: Attachment): Promise<void> {
+    if (attachment.isPublic) {
+      return
+    }
+
+    await this.s3Service.makePublic(attachment.path)
+
+    if (attachment.thumbnailPath) {
+      await this.s3Service.makePublic(attachment.thumbnailPath)
+    }
+
+    const metadata = (attachment.metadata || {}) as AttachmentMetadata
+
+    const thumbnails = metadata.thumbnails
+    if (thumbnails) {
+      const thumbnailKeys = Object.values(thumbnails)
+        .map(thumb => thumb?.key)
+        .filter((key): key is string => Boolean(key))
+
+      await Promise.all(thumbnailKeys.map(key => this.s3Service.makePublic(key)))
+    }
+
+    const optimization = metadata.optimization
+    const placeholderKey = optimization?.placeholderKey
+    if (placeholderKey) {
+      await this.s3Service.makePublic(placeholderKey)
+    }
+
+    if (optimization || placeholderKey) {
+      metadata.optimization = {
+        ...(optimization || {}),
+        placeholderKey
+      }
+    }
+
+    attachment.isPublic = true
+    attachment.metadata = metadata
+
+    await this.attachmentRepository.update(attachment.id, {
+      isPublic: true,
+      metadata
+    })
   }
 }

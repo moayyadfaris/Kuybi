@@ -7,10 +7,12 @@ import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
   HeadObjectCommand,
-  CopyObjectCommand
+  CopyObjectCommand,
+  PutObjectAclCommand
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { PinoLogger } from 'nestjs-pino'
+import { posix as pathPosix } from 'path'
 
 export interface S3UploadOptions {
   key: string
@@ -276,6 +278,25 @@ export class S3Service {
   }
 
   /**
+   * Make an existing S3 object public
+   */
+  async makePublic(key: string): Promise<void> {
+    try {
+      const command = new PutObjectAclCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ACL: 'public-read'
+      })
+
+      await this.s3Client.send(command)
+      this.logger.info(`File ACL updated to public: ${key}`)
+    } catch (error) {
+      this.logger.error(`Failed to update file ACL to public: ${key}`, error)
+      throw new InternalServerErrorException('Failed to update file permissions')
+    }
+  }
+
+  /**
    * Get public URL for a file (if bucket has public access)
    */
   getPublicUrl(key: string): string {
@@ -319,18 +340,43 @@ export class S3Service {
   /**
    * Generate upload key with organized structure
    */
-  generateKey(userId: string, originalFilename: string, category?: string): string {
+  generateKey(
+    userId: string,
+    originalFilename: string,
+    category?: string,
+    options?: { extension?: string }
+  ): string {
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const day = String(now.getDate()).padStart(2, '0')
 
     // Sanitize filename
-    const ext = originalFilename.substring(originalFilename.lastIndexOf('.'))
+    const ext = this.resolveExtension(originalFilename, options?.extension)
     const timestamp = Date.now()
     const random = Math.random().toString(36).substring(2, 8)
 
     const baseCategory = category || 'uploads'
     return `${baseCategory}/${userId}/${year}/${month}/${day}/${timestamp}-${random}${ext}`
+  }
+
+  generateVariantKey(baseKey: string, variant: string, extension?: string): string {
+    const parsed = pathPosix.parse(baseKey)
+    const ext = extension || parsed.ext || '.jpg'
+    const sanitizedVariant = variant.replace(/[^a-z0-9_-]/gi, '-')
+    const fileName = `${parsed.name}__${sanitizedVariant}${ext.startsWith('.') ? ext : `.${ext}`}`
+    return pathPosix.join(parsed.dir, fileName)
+  }
+
+  private resolveExtension(originalFilename: string, override?: string): string {
+    if (override) {
+      return override.startsWith('.') ? override : `.${override}`
+    }
+    const lastDot = originalFilename.lastIndexOf('.')
+    if (lastDot === -1) {
+      return '.bin'
+    }
+    const candidate = originalFilename.substring(lastDot)
+    return candidate.trim().length > 0 ? candidate : '.bin'
   }
 }

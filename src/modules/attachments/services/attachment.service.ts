@@ -5,6 +5,8 @@ import {
   ForbiddenException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
 import { PinoLogger } from 'nestjs-pino'
 import * as crypto from 'crypto'
 import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
@@ -14,6 +16,15 @@ import { ImageOptimizationService } from './image-optimization.service'
 import { ExifProcessorService } from './exif-processor.service'
 import { S3Service } from './s3.service'
 import { Attachment } from '../entities/attachment.entity'
+import { QueueName, AttachmentJobType } from '@core/queues/jobs/types'
+import {
+  mapFormatToContentType,
+  resolveExtensionFromFormat,
+  extractFormatFromMime,
+  shouldForcePublic,
+  ThumbnailMetadata,
+  AttachmentMetadata
+} from '../utils/attachment-image.util'
 import {
   UploadAttachmentDto,
   UpdateAttachmentDto,
@@ -26,6 +37,8 @@ import {
 
 @Injectable()
 export class AttachmentService {
+  private readonly useAsyncProcessing: boolean
+
   constructor(
     private readonly attachmentRepository: AttachmentRepository,
     private readonly fileValidationService: FileValidationService,
@@ -34,9 +47,14 @@ export class AttachmentService {
     private readonly exifProcessorService: ExifProcessorService,
     private readonly s3Service: S3Service,
     private readonly configService: ConfigService,
-    private readonly logger: PinoLogger
+    private readonly logger: PinoLogger,
+    @InjectQueue(QueueName.ATTACHMENT_PROCESSING)
+    private readonly attachmentQueue: Queue
   ) {
     this.logger.setContext(AttachmentService.name)
+    // Enable async processing via environment variable
+    this.useAsyncProcessing =
+      this.configService.get<string>('ATTACHMENT_ASYNC_PROCESSING') === 'true'
   }
 
   async uploadAttachment(
@@ -49,12 +67,16 @@ export class AttachmentService {
       throw new BadRequestException('File validation failed: ' + validationResult.errors.join(', '))
     }
 
+    const isPublic = shouldForcePublic(dto.category) || dto.isPublic
+    const isImage = file.mimetype.startsWith('image/')
+
     let processedBuffer = file.buffer
-    let metadata: Record<string, unknown> = {}
+    let metadata: AttachmentMetadata = {}
     let thumbnailPath: string | undefined
+    let processedFormat: string | undefined = extractFormatFromMime(file.mimetype)
+    let placeholderBuffer: Buffer | undefined
 
     // Process images with advanced optimization and EXIF stripping
-    const isImage = file.mimetype.startsWith('image/')
     if (isImage) {
       try {
         // Strip sensitive EXIF data first
@@ -67,7 +89,8 @@ export class AttachmentService {
         processedBuffer = exifResult.buffer
 
         // Generate metadata summary (safe, no GPS/sensitive info)
-        metadata = await this.exifProcessorService.generateMetadataSummary(file.buffer)
+        const summary = await this.exifProcessorService.generateMetadataSummary(file.buffer)
+        metadata = { ...summary } as AttachmentMetadata
 
         // Validate metadata for security concerns
         const metadataValidation = await this.exifProcessorService.validateMetadata(file.buffer)
@@ -77,6 +100,7 @@ export class AttachmentService {
             'Image metadata validation issues detected'
           )
         }
+        metadata.validation = metadataValidation
 
         // Generate optimized responsive image set
         const optimizationResult = await this.imageOptimizationService.optimizeImage(
@@ -95,21 +119,11 @@ export class AttachmentService {
 
         // Use the optimized buffer
         processedBuffer = optimizationResult.buffer
+        processedFormat = optimizationResult.format || processedFormat
 
         // Upload thumbnail (Low-Quality Image Placeholder)
         if (optimizationResult.placeholder) {
-          const thumbnailKey = this.s3Service.generateKey(
-            userId,
-            `thumb_${file.originalname}`,
-            dto.category
-          )
-          await this.s3Service.upload({
-            key: thumbnailKey,
-            buffer: optimizationResult.placeholder,
-            contentType: 'image/jpeg',
-            isPublic: dto.isPublic
-          })
-          thumbnailPath = thumbnailKey
+          placeholderBuffer = optimizationResult.placeholder
         }
 
         // Store optimization metadata
@@ -140,30 +154,148 @@ export class AttachmentService {
     }
 
     const checksum = crypto.createHash('sha256').update(processedBuffer).digest('hex')
-    const storageKey = this.s3Service.generateKey(userId, file.originalname, dto.category)
+    const storageExtension = resolveExtensionFromFormat(
+      processedFormat,
+      file.mimetype,
+      file.originalname
+    )
+    const storageKey = this.s3Service.generateKey(userId, file.originalname, dto.category, {
+      extension: storageExtension
+    })
+
+    const storedMimeType = isImage ? mapFormatToContentType(processedFormat) : file.mimetype
 
     await this.s3Service.upload({
       key: storageKey,
       buffer: processedBuffer,
-      contentType: file.mimetype,
-      isPublic: dto.isPublic
+      contentType: storedMimeType,
+      isPublic
     })
+
+    if (placeholderBuffer) {
+      const placeholderKey = this.s3Service.generateVariantKey(storageKey, 'placeholder', '.jpg')
+      await this.s3Service.upload({
+        key: placeholderKey,
+        buffer: placeholderBuffer,
+        contentType: 'image/jpeg',
+        isPublic
+      })
+      metadata.optimization = {
+        ...(metadata.optimization || {}),
+        placeholderKey
+      }
+    }
+
+    if (isImage && dto.generateThumbnails !== false) {
+      try {
+        const { thumbnails: uploadedThumbnails, previewKey } = await this.uploadThumbnailVariants(
+          storageKey,
+          processedBuffer,
+          isPublic
+        )
+        thumbnailPath = previewKey
+        metadata.thumbnails = uploadedThumbnails
+      } catch (error) {
+        this.logger.error(
+          { error: error instanceof Error ? error.message : 'Unknown', storageKey },
+          'Failed to upload thumbnail variants'
+        )
+      }
+    }
 
     const attachment = await this.attachmentRepository.create({
       userId,
       originalName: file.originalname,
-      mimeType: file.mimetype,
+      mimeType: storedMimeType,
       size: processedBuffer.length,
       path: storageKey,
       category: dto.category,
       description: dto.description,
       tags: dto.tags || [],
-      isPublic: dto.isPublic || false,
+      isPublic,
       checksum,
       securityStatus: 'pending',
       thumbnailPath,
       metadata
     } as Partial<Attachment>)
+
+    return this.formatAttachmentResponse(attachment)
+  }
+
+  /**
+   * Upload attachment with async processing via queue
+   * Creates attachment record immediately but processes image in background
+   */
+  async uploadAttachmentAsync(
+    file: MulterFile,
+    dto: UploadAttachmentDto,
+    userId: string
+  ): Promise<AttachmentResponseDto> {
+    const validationResult = await this.fileValidationService.validateFile(file)
+    if (!validationResult.isValid) {
+      throw new BadRequestException('File validation failed: ' + validationResult.errors.join(', '))
+    }
+
+    const isPublic = shouldForcePublic(dto.category) || dto.isPublic
+    const isImage = file.mimetype.startsWith('image/')
+    const processedFormat = isImage ? extractFormatFromMime(file.mimetype) : undefined
+    const storageExtension = resolveExtensionFromFormat(
+      processedFormat,
+      file.mimetype,
+      file.originalname
+    )
+    const storageKey = this.s3Service.generateKey(userId, file.originalname, dto.category, {
+      extension: storageExtension
+    })
+
+    const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex')
+    const storedMimeType = isImage ? mapFormatToContentType(processedFormat) : file.mimetype
+
+    // Upload original file to S3 first
+    await this.s3Service.upload({
+      key: storageKey,
+      buffer: file.buffer,
+      contentType: storedMimeType,
+      isPublic
+    })
+
+    // Create attachment record with "processing" status
+    const attachment = await this.attachmentRepository.create({
+      userId,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      path: storageKey,
+      category: dto.category,
+      description: dto.description,
+      tags: dto.tags || [],
+      isPublic,
+      checksum,
+      securityStatus: 'processing',
+      metadata: { processingStatus: 'queued' }
+    } as Partial<Attachment>)
+
+    // Queue image processing job if it's an image
+    if (isImage) {
+      await this.attachmentQueue.add(
+        AttachmentJobType.PROCESS_IMAGE,
+        {
+          attachmentId: attachment.id,
+          s3Key: storageKey,
+          originalName: file.originalname,
+          userId,
+          category: dto.category,
+          isPublic,
+          generateThumbnails: dto.generateThumbnails !== false
+        },
+        {
+          priority: 5,
+          attempts: 2
+        }
+      )
+
+      this.logger.info({ attachmentId: attachment.id }, 'Image processing job queued')
+    }
 
     return this.formatAttachmentResponse(attachment)
   }
@@ -301,13 +433,122 @@ export class AttachmentService {
   }
 
   private formatAttachmentResponse(attachment: Attachment): AttachmentResponseDto {
+    const metadata = (attachment.metadata || {}) as AttachmentMetadata
+    const optimization = metadata.optimization
+    const thumbnailsMeta = metadata.thumbnails
+    const allowPublicUrls = attachment.isPublic
+
+    let thumbnails:
+      | Record<
+          string,
+          {
+            key: string
+            url?: string
+            width?: number
+            height?: number
+            size?: number
+            format?: string
+          }
+        >
+      | undefined
+
+    if (thumbnailsMeta && typeof thumbnailsMeta === 'object') {
+      thumbnails = Object.entries(thumbnailsMeta).reduce(
+        (acc, [variant, data]) => {
+          if (data && typeof data === 'object') {
+            const key = data.key
+            if (!key) {
+              return acc
+            }
+            acc[variant] = {
+              key,
+              url: allowPublicUrls ? this.s3Service.getPublicUrl(key) : undefined,
+              width: data.width,
+              height: data.height,
+              size: data.size,
+              format: data.format
+            }
+          }
+          return acc
+        },
+        {} as Record<
+          string,
+          {
+            key: string
+            url?: string
+            width?: number
+            height?: number
+            size?: number
+            format?: string
+          }
+        >
+      )
+    }
+
+    const placeholderKey = optimization?.placeholderKey
+    const placeholderUrl =
+      allowPublicUrls && placeholderKey ? this.s3Service.getPublicUrl(placeholderKey) : undefined
+
     return {
       ...attachment,
-      url: attachment.isPublic ? this.s3Service.getPublicUrl(attachment.path) : undefined,
+      url: allowPublicUrls ? this.s3Service.getPublicUrl(attachment.path) : undefined,
+      originalImageUrl: allowPublicUrls ? this.s3Service.getPublicUrl(attachment.path) : undefined,
       downloadUrl: `/api/attachments/${attachment.id}/download`,
-      previewUrl: attachment.thumbnailPath
-        ? this.s3Service.getPublicUrl(attachment.thumbnailPath)
-        : undefined
+      previewUrl:
+        allowPublicUrls && attachment.thumbnailPath
+          ? this.s3Service.getPublicUrl(attachment.thumbnailPath)
+          : undefined,
+      thumbnails,
+      placeholderUrl
     }
+  }
+
+  private async uploadThumbnailVariants(
+    baseKey: string,
+    buffer: Buffer,
+    isPublic: boolean
+  ): Promise<{ thumbnails: Record<string, ThumbnailMetadata>; previewKey?: string }> {
+    const generated = await this.imageProcessingService.generateThumbnails(buffer)
+    const thumbnails: Record<string, ThumbnailMetadata> = {}
+
+    await Promise.all(
+      Object.entries(generated).map(async ([variant, data]) => {
+        const extension = resolveExtensionFromFormat(data.format)
+        const key = this.s3Service.generateVariantKey(baseKey, variant, extension)
+
+        await this.s3Service.upload({
+          key,
+          buffer: data.buffer,
+          contentType: mapFormatToContentType(data.format),
+          isPublic
+        })
+
+        thumbnails[variant] = {
+          key,
+          width: data.width,
+          height: data.height,
+          size: data.size,
+          format: data.format
+        }
+      })
+    )
+
+    const previewPriority = ['medium', 'large', 'small', 'preview']
+    let previewKey: string | undefined
+
+    for (const variant of previewPriority) {
+      const entry = thumbnails[variant]
+      if (entry) {
+        previewKey = entry.key
+        break
+      }
+    }
+
+    if (!previewKey) {
+      const first = Object.values(thumbnails)[0]
+      previewKey = first?.key
+    }
+
+    return { thumbnails, previewKey }
   }
 }

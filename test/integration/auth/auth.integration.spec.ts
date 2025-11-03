@@ -95,17 +95,17 @@ describe('Auth Integration Tests', () => {
           }
         }),
         TypeOrmModule.forRoot({
-        type: 'postgres',
-        host: process.env.TEST_DB_HOST,
-        port: parseInt(process.env.TEST_DB_PORT || '5432'),
-        username: process.env.TEST_DB_USERNAME,
-        password: process.env.TEST_DB_PASSWORD,
-        database: process.env.TEST_DB_NAME,
-        entities: [User, Session, UserRole, Role, Permission, RolePermission, AuditLog],
-        synchronize: false, // Schema created in global setup
-        dropSchema: false, // Don't drop - global setup handles this
-        logging: false,
-      }),
+          type: 'postgres',
+          host: process.env.TEST_DB_HOST,
+          port: parseInt(process.env.TEST_DB_PORT || '5432'),
+          username: process.env.TEST_DB_USERNAME,
+          password: process.env.TEST_DB_PASSWORD,
+          database: process.env.TEST_DB_NAME,
+          entities: [User, Session, UserRole, Role, Permission, RolePermission, AuditLog],
+          synchronize: false, // Schema created in global setup
+          dropSchema: false, // Don't drop - global setup handles this
+          logging: false
+        }),
         AuthModule,
         UsersModule
       ]

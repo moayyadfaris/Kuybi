@@ -10,7 +10,8 @@ export enum QueueName {
   NOTIFICATION = 'notification-queue',
   SECURITY_SCAN = 'security-scan-queue',
   DATA_EXPORT = 'data-export-queue',
-  REPORT_GENERATION = 'report-generation-queue'
+  REPORT_GENERATION = 'report-generation-queue',
+  VERSION_CLEANUP = 'version-cleanup-queue'
 }
 
 /**
@@ -73,6 +74,15 @@ export enum NotificationJobType {
   PUSH_NOTIFICATION = 'push-notification',
   IN_APP_NOTIFICATION = 'in-app-notification',
   BROADCAST = 'broadcast-notification'
+}
+
+/**
+ * Version Cleanup Job Types
+ */
+export enum VersionCleanupJobType {
+  CLEANUP_EXPIRED = 'cleanup-expired-versions',
+  ARCHIVE_OLD = 'archive-old-versions',
+  MANUAL_CLEANUP = 'manual-cleanup-versions'
 }
 
 /**

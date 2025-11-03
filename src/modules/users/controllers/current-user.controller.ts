@@ -58,10 +58,7 @@ export class CurrentUserController {
   @ApiResponse({ status: 404, description: 'Attachment not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @HttpCode(HttpStatus.OK)
-  async updateProfileImage(
-    @Req() req: AuthenticatedRequest,
-    @Body() dto: UpdateProfileImageDto
-  ) {
+  async updateProfileImage(@Req() req: AuthenticatedRequest, @Body() dto: UpdateProfileImageDto) {
     const userId = req.user?.userId
     if (!userId) {
       throw new Error('User ID not found in request')
