@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Request } from 'express'
 import { SentryService } from '@core/sentry'
 import { AuditLogRepository } from '../database/audit-log.repository'
@@ -45,6 +46,7 @@ export class AuditService {
     private readonly contextFactory: AuditContextFactory,
     private readonly configService: ConfigService,
     private readonly sentryService: SentryService,
+    private readonly eventEmitter: EventEmitter2,
     @InjectPinoLogger(AuditService.name)
     private readonly logger: PinoLogger
   ) {}
@@ -133,6 +135,9 @@ export class AuditService {
 
       // Log to Pino for immediate visibility
       this.logToPino(saved)
+
+      // Emit event for security monitoring
+      this.eventEmitter.emit('audit.log.created', saved)
 
       return saved
     } catch (error) {

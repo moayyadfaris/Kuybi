@@ -18,6 +18,7 @@ import { StoriesModule } from '@modules/stories/stories.module'
 import { TagsModule } from '@modules/tags/tags.module'
 import { AclModule } from '@modules/acl/acl.module'
 import { AuditModule } from '@modules/audit/audit.module'
+import { SecurityModule } from '@modules/security/security.module'
 import { QueuesModule } from '@core/queues/queues.module'
 import { EmailModule } from '@infrastructure/email/email.module'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
@@ -69,6 +70,7 @@ import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware
     StoriesModule,
     AclModule,
     AuditModule,
+    SecurityModule,
     LoggingModule
   ],
   providers: [

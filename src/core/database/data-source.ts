@@ -16,6 +16,10 @@ import { Permission } from '@modules/acl/entities/permission.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
 import { UserRole } from '@modules/acl/entities/user-role.entity'
 import { AuditLog } from '@modules/audit/entities/audit-log.entity'
+import { AlertRule } from '@modules/security/entities/alert-rule.entity'
+import { Alert } from '@modules/security/entities/alert.entity'
+import { AlertEscalation } from '@modules/security/entities/alert-escalation.entity'
+import { AlertNotification } from '@modules/security/entities/alert-notification.entity'
 
 loadEnv()
 
@@ -43,7 +47,11 @@ export const AppDataSource = new DataSource({
     Permission,
     RolePermission,
     UserRole,
-    AuditLog
+    AuditLog,
+    AlertRule,
+    Alert,
+    AlertEscalation,
+    AlertNotification
   ],
   migrations: ['src/core/database/migrations/*.ts'],
   migrationsTableName: 'migrations'

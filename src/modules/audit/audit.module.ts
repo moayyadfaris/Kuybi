@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { EventEmitterModule } from '@nestjs/event-emitter'
 import { AuditLog } from './entities/audit-log.entity'
 import { AuditLogRepository } from './database/audit-log.repository'
 import { AuditService } from './services/audit.service'
@@ -14,6 +15,7 @@ import { AclModule } from '../acl/acl.module'
 @Module({
   imports: [
     TypeOrmModule.forFeature([AuditLog]),
+    EventEmitterModule.forRoot(),
     CacheConfigModule,
     SentryModule.forRoot(),
     AclModule
