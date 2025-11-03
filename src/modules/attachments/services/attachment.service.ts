@@ -154,11 +154,11 @@ export class AttachmentService {
     }
 
     const checksum = crypto.createHash('sha256').update(processedBuffer).digest('hex')
-    
+
     // Check for duplicate uploads (same checksum, same user)
     if (!dto.allowDuplicates) {
       const existing = await this.attachmentRepository.findByChecksum(userId, checksum)
-      
+
       if (existing && !existing.deletedAt) {
         this.logger.info(
           { checksum, userId, existingId: existing.id },
@@ -167,7 +167,7 @@ export class AttachmentService {
         return this.formatAttachmentResponse(existing)
       }
     }
-    
+
     const storageExtension = resolveExtensionFromFormat(
       processedFormat,
       file.mimetype,

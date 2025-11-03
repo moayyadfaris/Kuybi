@@ -514,7 +514,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     // Clear specific attachment cache
     await this.cacheService.del(this.buildCacheKey('id', id))
     await this.cacheService.delPattern(this.buildCacheKey('findOne', '*'))
-    
+
     // Clear list caches (very important for list queries)
     await this.invalidateListCaches()
   }
