@@ -216,7 +216,8 @@ export class AttachmentProcessor extends WorkerHost {
         thumbnailPath,
         metadata,
         mimeType: contentType,
-        isPublic: publicAccess
+        isPublic: publicAccess,
+        securityStatus: 'completed'
       })
 
       const result = {
@@ -236,6 +237,24 @@ export class AttachmentProcessor extends WorkerHost {
         { error: error instanceof Error ? error.message : 'Unknown error', attachmentId },
         'Image processing failed'
       )
+
+      // Update attachment record with failed status
+      try {
+        await this.attachmentRepository.update(attachmentId, {
+          securityStatus: 'failed',
+          metadata: {
+            processingStatus: 'failed',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            failedAt: new Date().toISOString()
+          }
+        })
+      } catch (updateError) {
+        this.logger.error(
+          { updateError: updateError instanceof Error ? updateError.message : 'Unknown' },
+          'Failed to update attachment with error status'
+        )
+      }
+
       throw error
     }
   }

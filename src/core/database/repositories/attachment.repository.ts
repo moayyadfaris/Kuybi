@@ -249,6 +249,24 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }
 
   /**
+   * Find attachment by checksum for duplicate detection
+   */
+  async findByChecksum(userId: string, checksum: string): Promise<Attachment | null> {
+    const cacheKey = this.buildCacheKey('checksum', userId, checksum)
+
+    return this.withCache(cacheKey, async () => {
+      return this.repository
+        .createQueryBuilder('attachment')
+        .where('attachment.userId = :userId', { userId })
+        .andWhere('attachment.checksum = :checksum', { checksum })
+        .andWhere('attachment.deletedAt IS NULL')
+        .leftJoinAndSelect('attachment.user', 'user')
+        .orderBy('attachment.createdAt', 'DESC')
+        .getOne()
+    })
+  }
+
+  /**
    * Find attachments by tags
    */
   async findByTags(tags: string[]): Promise<Attachment[]> {
