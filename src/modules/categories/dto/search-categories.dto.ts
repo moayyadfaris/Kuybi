@@ -31,6 +31,16 @@ export class SearchCategoriesDto {
   includeDeleted?: boolean
 
   @ApiPropertyOptional({
+    description: 'Include story count for each category',
+    example: true,
+    default: false
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  includeCounts?: boolean
+
+  @ApiPropertyOptional({
     description: 'Field to sort by',
     example: 'name',
     enum: ['name', 'slug', 'createdAt', 'updatedAt'],

@@ -44,6 +44,7 @@ export class CategoriesService {
       search: searchDto.search,
       isActive: searchDto.isActive,
       includeDeleted: searchDto.includeDeleted,
+      includeCounts: searchDto.includeCounts,
       orderBy: searchDto.orderBy,
       orderDirection: searchDto.orderDirection,
       page: searchDto.page,

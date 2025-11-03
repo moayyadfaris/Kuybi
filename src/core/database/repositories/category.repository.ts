@@ -65,12 +65,13 @@ export class CategoryRepository extends BaseRepository<Category> {
     search?: string
     isActive?: boolean
     includeDeleted?: boolean
+    includeCounts?: boolean
     orderBy?: string
     orderDirection?: 'ASC' | 'DESC'
     page?: number
     limit?: number
   }): Promise<{
-    results: Category[]
+    results: (Category & { storyCount?: number })[]
     total: number
     pagination: {
       page: number
@@ -79,6 +80,15 @@ export class CategoryRepository extends BaseRepository<Category> {
     }
   }> {
     const builder = this.repository.createQueryBuilder('category')
+
+    // Include story count if requested
+    if (query.includeCounts) {
+      builder
+        .leftJoin('story_categories', 'sc', 'sc.categoryId = category.id')
+        .leftJoin('stories', 's', 's.id = sc.storyId AND s.deletedAt IS NULL')
+        .addSelect('COUNT(DISTINCT s.id)', 'storyCount')
+        .groupBy('category.id')
+    }
 
     // Exclude soft-deleted by default
     if (!query.includeDeleted) {
@@ -114,7 +124,40 @@ export class CategoryRepository extends BaseRepository<Category> {
     builder.skip(offset).take(limit)
 
     // Execute query
-    const [results, total] = await builder.getManyAndCount()
+    let results: (Category & { storyCount?: number })[]
+    let total: number
+
+    if (query.includeCounts) {
+      // Get results with counts
+      const rawResults = await builder.getRawAndEntities()
+      results = rawResults.entities.map((entity, index) => ({
+        ...entity,
+        storyCount: parseInt(rawResults.raw[index].storyCount || '0', 10)
+      }))
+
+      // Get total count separately (without grouping)
+      const countBuilder = this.repository.createQueryBuilder('category')
+      if (!query.includeDeleted) {
+        countBuilder.andWhere('category.deletedAt IS NULL')
+      }
+      if (query.search) {
+        countBuilder.andWhere(
+          new Brackets(qb => {
+            qb.where('category.name ILIKE :search', { search: `%${query.search}%` })
+              .orWhere('category.slug ILIKE :search', { search: `%${query.search}%` })
+              .orWhere('category.description ILIKE :search', { search: `%${query.search}%` })
+          })
+        )
+      }
+      if (query.isActive !== undefined) {
+        countBuilder.andWhere('category.isActive = :isActive', { isActive: query.isActive })
+      }
+      total = await countBuilder.getCount()
+    } else {
+      const [entities, count] = await builder.getManyAndCount()
+      results = entities
+      total = count
+    }
 
     return {
       results,
