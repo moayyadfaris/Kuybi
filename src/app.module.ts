@@ -22,9 +22,10 @@ import { AuditModule } from '@modules/audit/audit.module'
 import { QueuesModule } from '@core/queues/queues.module'
 import { EmailModule } from '@infrastructure/email/email.module'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
-import { APP_GUARD } from '@nestjs/core'
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { LoggingModule } from '@core/logging/logging.module'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
+import { TracingInterceptor } from '@core/observability'
 
 @Module({
   imports: [
@@ -77,6 +78,10 @@ import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TracingInterceptor
     }
   ]
 })

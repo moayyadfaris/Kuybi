@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cache } from 'cache-manager'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { trace, context, SpanStatusCode, Span } from '@opentelemetry/api'
 
 /**
  * Cache Service
@@ -20,35 +21,96 @@ export class CacheService {
    * Get cached value by key
    */
   async get<T>(key: string): Promise<T | undefined> {
-    try {
-      return await this.cacheManager.get<T>(key)
-    } catch (error) {
-      this.logger.error({ msg: 'Cache get error', key, error: error.message })
-      return undefined
-    }
+    const tracer = trace.getTracer('cache-service')
+    const span = tracer.startSpan('cache.get', {
+      attributes: {
+        'cache.operation': 'get',
+        'cache.key': this.sanitizeKey(key),
+      },
+    })
+
+    return await context.with(trace.setSpan(context.active(), span), async () => {
+      try {
+        const value = await this.cacheManager.get<T>(key)
+        const hit = value !== undefined && value !== null
+        span.setAttribute('cache.hit', hit)
+
+        if (hit && typeof value === 'string') {
+          span.setAttribute('cache.size', Buffer.byteLength(value))
+        }
+
+        span.setStatus({ code: SpanStatusCode.OK })
+        return value
+      } catch (error) {
+        this.logger.error({ msg: 'Cache get error', key, error: error.message })
+        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+        return undefined
+      } finally {
+        span.end()
+      }
+    })
   }
 
   /**
    * Set cached value with optional TTL (seconds)
    */
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
-    try {
-      const ttlMs = this.normalizeTtl(ttl)
-      await this.cacheManager.set(key, value, ttlMs)
-    } catch (error) {
-      this.logger.error({ msg: 'Cache set error', key, ttl, error: error.message })
-    }
+    const tracer = trace.getTracer('cache-service')
+    const span = tracer.startSpan('cache.set', {
+      attributes: {
+        'cache.operation': 'set',
+        'cache.key': this.sanitizeKey(key),
+        ...(ttl && { 'cache.ttl': ttl })
+      }
+    })
+
+    return await context.with(trace.setSpan(context.active(), span), async () => {
+      try {
+        const ttlMs = this.normalizeTtl(ttl)
+
+        if (typeof value === 'string') {
+          span.setAttribute('cache.size', Buffer.byteLength(value))
+        } else if (value) {
+          span.setAttribute('cache.size', JSON.stringify(value).length)
+        }
+
+        await this.cacheManager.set(key, value, ttlMs)
+        span.setStatus({ code: SpanStatusCode.OK })
+      } catch (error) {
+        this.logger.error({ msg: 'Cache set error', key, ttl, error: error.message })
+        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+      } finally {
+        span.end()
+      }
+    })
   }
 
   /**
    * Delete cached value by key
    */
   async del(key: string): Promise<void> {
-    try {
-      await this.cacheManager.del(key)
-    } catch (error) {
-      this.logger.error({ msg: 'Cache delete error', key, error: error.message })
-    }
+    const tracer = trace.getTracer('cache-service')
+    const span = tracer.startSpan('cache.del', {
+      attributes: {
+        'cache.operation': 'del',
+        'cache.key': this.sanitizeKey(key)
+      }
+    })
+
+    return await context.with(trace.setSpan(context.active(), span), async () => {
+      try {
+        await this.cacheManager.del(key)
+        span.setStatus({ code: SpanStatusCode.OK })
+      } catch (error) {
+        this.logger.error({ msg: 'Cache delete error', key, error: error.message })
+        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+      } finally {
+        span.end()
+      }
+    })
   }
 
   /**
@@ -151,14 +213,31 @@ export class CacheService {
    * Wrap a function with caching
    */
   async wrap<T>(key: string, fn: () => Promise<T>, ttl?: number): Promise<T> {
-    try {
-      const ttlMs = this.normalizeTtl(ttl)
-      return await this.cacheManager.wrap(key, fn, ttlMs)
-    } catch (error) {
-      this.logger.error({ msg: 'Cache wrap error', key, error: error.message })
-      // Fallback to executing the function directly
-      return await fn()
-    }
+    const tracer = trace.getTracer('cache-service')
+    const span = tracer.startSpan('cache.wrap', {
+      attributes: {
+        'cache.operation': 'wrap',
+        'cache.key': this.sanitizeKey(key),
+        ...(ttl && { 'cache.ttl': ttl })
+      }
+    })
+
+    return await context.with(trace.setSpan(context.active(), span), async () => {
+      try {
+        const ttlMs = this.normalizeTtl(ttl)
+        const result = await this.cacheManager.wrap(key, fn, ttlMs)
+        span.setStatus({ code: SpanStatusCode.OK })
+        return result
+      } catch (error) {
+        this.logger.error({ msg: 'Cache wrap error', key, error: error.message })
+        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+        // Fallback to executing the function directly
+        return await fn()
+      } finally {
+        span.end()
+      }
+    })
   }
 
   /**
@@ -192,5 +271,16 @@ export class CacheService {
       return undefined
     }
     return Math.round(ttl * 1000)
+  }
+
+  /**
+   * Sanitize cache key for tracing (remove sensitive data, limit length)
+   */
+  private sanitizeKey(key: string): string {
+    // Limit key length for trace attributes
+    if (key.length > 100) {
+      return key.substring(0, 97) + '...'
+    }
+    return key
   }
 }

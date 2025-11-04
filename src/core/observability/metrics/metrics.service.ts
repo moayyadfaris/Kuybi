@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { Counter, Histogram, Gauge, Registry, register } from 'prom-client'
+import { trace } from '@opentelemetry/api'
 
 /**
  * Metrics Service for collecting and exposing Prometheus metrics
@@ -161,5 +162,22 @@ export class MetricsService {
 
   recordFileUpload(status: 'success' | 'failure') {
     this.fileUploads.inc({ status })
+  }
+
+  /**
+   * Get current trace context for correlation
+   * Returns trace ID and span ID if available
+   */
+  getCurrentTraceContext(): { traceId?: string; spanId?: string } {
+    const span = trace.getActiveSpan()
+    if (!span) {
+      return {}
+    }
+
+    const spanContext = span.spanContext()
+    return {
+      traceId: spanContext.traceId,
+      spanId: spanContext.spanId
+    }
   }
 }
