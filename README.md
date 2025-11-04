@@ -62,12 +62,21 @@
 - **Cache**: Redis 7
 - **Queue**: Bull
 - **Logger**: Pino
+- **API Docs**: Swagger with auto-generation plugin
 
 ### Design Patterns
 - Domain-Driven Design (DDD)
 - Repository Pattern
 - Dependency Injection
 - CQRS-ready architecture
+
+### Developer Experience
+- **Auto-generated API docs** via NestJS Swagger Plugin
+- **Type-safe** DTOs with automatic OpenAPI annotations
+- **Minimal boilerplate** - decorators inferred from TypeScript types
+- **JSDoc comments** automatically become API descriptions
+
+> 📘 See [Swagger Plugin Migration Guide](./docs/SWAGGER_PLUGIN_MIGRATION.md) for details
 
 ---
 
@@ -113,12 +122,54 @@ npm run start:dev
 
 ---
 
-## 📚 Documentation
+## � API Endpoints
+
+**Quick Reference**: Common endpoints for authentication, users, categories, stories, and more.
+
+### Authentication
+- `POST /api/v1/auth/login` - Login with email/password
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - Logout and invalidate session
+
+### Users
+- `GET /api/v1/users/me` - Get current user profile
+- `GET /api/v1/users` - List users (Admin)
+- `POST /api/v1/users` - Create user (Admin)
+
+### Categories
+- `GET /api/v1/categories?includeCounts=true` - List categories with story counts
+- `POST /api/v1/categories` - Create category (Admin)
+
+### Stories
+- `GET /api/v1/stories?status=published` - List stories
+- `POST /api/v1/stories` - Create story
+- `POST /api/v1/stories/:id/publish` - Publish story
+
+### Attachments
+- `POST /api/v1/attachments` - Upload file (multipart/form-data)
+- `GET /api/v1/attachments` - List attachments
+
+### Audit & ACL (Admin)
+- `GET /api/v1/audit` - Search audit logs
+- `GET /api/v1/acl/roles` - List roles
+- `POST /api/v1/acl/users/:userId/roles` - Assign role
+
+### Health
+- `GET /api/health` - System health check
+
+> �� **Complete API Reference**: See [API Endpoints Documentation](./docs/API_ENDPOINTS.md) for detailed request/response examples.
+>
+> 🔍 **Interactive Documentation**: Visit [Swagger UI](http://localhost:4040/api/docs) for live API testing.
+
+---
+
+## �📚 Documentation
 
 Comprehensive docs in [`docs/`](./docs):
 
 ### Getting Started
-- [API Reference](./docs/API_REFERENCE.md)
+- [API Endpoints](./docs/API_ENDPOINTS.md) - Complete endpoint reference with examples
+- [API Reference](./docs/API_REFERENCE.md) - High-level API overview
 - [Super Admin Guide](./docs/SUPER_ADMIN_ACCESS.md)
 
 ### Architecture
