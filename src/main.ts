@@ -1,3 +1,9 @@
+// Initialize OpenTelemetry BEFORE any other imports
+import { initializeOpenTelemetry } from '@core/observability/instrumentation/otel-init'
+
+// Must be called before NestJS imports for auto-instrumentation to work
+initializeOpenTelemetry()
+
 import { NestFactory } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'

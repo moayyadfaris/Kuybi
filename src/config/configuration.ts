@@ -154,6 +154,23 @@ export default () => {
       profilesSampleRate:
         parseNumber(process.env.SENTRY_PROFILES_SAMPLE_RATE, env === 'production' ? 10 : 0) / 100,
       debug: parseBoolean(process.env.SENTRY_DEBUG, false)
+    },
+    observability: {
+      enabled: parseBoolean(process.env.OTEL_ENABLED, env === 'production'),
+      serviceName: process.env.OTEL_SERVICE_NAME || process.env.APP_NAME || 'kuybi-nest',
+      serviceVersion: process.env.OTEL_SERVICE_VERSION || '0.1.0',
+      environment: process.env.OTEL_ENVIRONMENT || env,
+      tracing: {
+        enabled: parseBoolean(process.env.OTEL_TRACING_ENABLED, true),
+        sampleRate: parseFloat(process.env.OTEL_TRACING_SAMPLE_RATE || '1.0'),
+        exporter: process.env.OTEL_TRACING_EXPORTER || 'console',
+        jaegerEndpoint: process.env.OTEL_JAEGER_ENDPOINT || 'http://localhost:14268/api/traces',
+        otlpEndpoint: process.env.OTEL_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces'
+      },
+      metrics: {
+        enabled: parseBoolean(process.env.OTEL_METRICS_ENABLED, true),
+        port: parseNumber(process.env.OTEL_METRICS_PORT, 9464)
+      }
     }
   }
 }

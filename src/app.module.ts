@@ -8,6 +8,7 @@ import { createLoggerConfig } from '@core/config/logger.config'
 import { DatabaseModule } from '@core/database/database.module'
 import { CacheConfigModule } from '@core/cache/cache.module'
 import { SentryModule } from '@core/sentry'
+import { ObservabilityModule } from '@core/observability'
 import { HealthModule } from '@core/health/health.module'
 import { CountriesModule } from '@modules/countries/countries.module'
 import { UsersModule } from '@modules/users/users.module'
@@ -57,6 +58,7 @@ import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware
     DatabaseModule,
     CacheConfigModule,
     SentryModule.forRoot(), // Global error tracking and monitoring
+    ObservabilityModule, // OpenTelemetry tracing and Prometheus metrics
     QueuesModule, // Bull queue infrastructure
     EmailModule, // Email infrastructure with SMTP
     HealthModule,
