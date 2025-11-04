@@ -55,7 +55,8 @@ async function bootstrap() {
     new Queue(QueueName.SECURITY_SCAN, { connection }),
     new Queue(QueueName.DATA_EXPORT, { connection }),
     new Queue(QueueName.REPORT_GENERATION, { connection }),
-    new Queue(QueueName.VERSION_CLEANUP, { connection })
+    new Queue(QueueName.VERSION_CLEANUP, { connection }),
+    new Queue(QueueName.ACCOUNT_SECURITY, { connection })
   ]
 
   // Create Bull Board

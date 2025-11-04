@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Injectable, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
@@ -69,12 +69,28 @@ export class AuthService {
         failedAttempts: lockInfo.failedAttempts
       })
 
-      // Return user-friendly message with unlock time
-      const lockedUntilTime = lockInfo.lockedUntil
-        ? new Date(lockInfo.lockedUntil).toLocaleString()
-        : 'unknown'
-      throw new UnauthorizedException(
-        `Account is locked until ${lockedUntilTime}. Too many failed login attempts.`
+      // Calculate unlock time in seconds
+      const unlockInSeconds = lockInfo.lockedUntil
+        ? Math.max(0, Math.floor((new Date(lockInfo.lockedUntil).getTime() - Date.now()) / 1000))
+        : 0
+
+        console.log('Account is locked, throwing 423 Locked exception')
+      // Return 423 Locked with detailed information
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.LOCKED,
+          message: `Account has been locked due to too many failed attempts. It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.`,
+          error: 'Locked',
+          details: {
+            lockedAt: lockInfo.lockedAt,
+            lockedUntil: lockInfo.lockedUntil,
+            unlockIn: unlockInSeconds,
+            failedAttempts: lockInfo.failedAttempts,
+            maxAttempts: lockInfo.maxAttempts,
+            lockReason: lockInfo.lockReason
+          }
+        },
+        HttpStatus.LOCKED
       )
     }
 
@@ -99,13 +115,27 @@ export class AuthService {
         }
       )
 
-      // If account was just locked, inform user
+      // If account was just locked, inform user with 423 Locked
       if (lockInfo.isLocked) {
-        const lockedUntilTime = lockInfo.lockedUntil
-          ? new Date(lockInfo.lockedUntil).toLocaleString()
-          : 'unknown'
-        throw new UnauthorizedException(
-          `Account has been locked due to too many failed attempts. It will be unlocked at ${lockedUntilTime}.`
+        const unlockInSeconds = lockInfo.lockedUntil
+          ? Math.max(0, Math.floor((new Date(lockInfo.lockedUntil).getTime() - Date.now()) / 1000))
+          : 0
+
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.LOCKED,
+            message: `Account has been locked due to too many failed attempts. It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.`,
+            error: 'Locked',
+            details: {
+              lockedAt: lockInfo.lockedAt,
+              lockedUntil: lockInfo.lockedUntil,
+              unlockIn: unlockInSeconds,
+              failedAttempts: lockInfo.failedAttempts,
+              maxAttempts: lockInfo.maxAttempts,
+              lockReason: lockInfo.lockReason
+            }
+          },
+          HttpStatus.LOCKED
         )
       }
 
