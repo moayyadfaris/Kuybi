@@ -13,8 +13,10 @@ Welcome to the Kuybi NestJS API documentation. This directory contains comprehen
   - [Caching](#caching)
   - [Categories](#categories)
   - [Logging](#logging)
+  - [Observability & Monitoring](#observability--monitoring)
 - [Guides](#-guides)
 - [Progress Tracking](#-progress-tracking)
+- [Planning](#-planning)
 
 ---
 
@@ -255,6 +257,41 @@ Development progress and completion status.
 
 ---
 
+## 📊 Observability & Monitoring
+
+Distributed tracing, metrics, and performance monitoring.
+
+| Document | Type | Description |
+|----------|------|-------------|
+| [OpenTelemetry Implementation Plan](./planning/OPENTELEMETRY_IMPLEMENTATION_PLAN.md) | Planning | **⭐ Complete OTel + Metrics implementation guide** |
+
+**Planned Features:**
+- 📋 OpenTelemetry distributed tracing
+- 📋 Prometheus metrics export
+- 📋 Grafana dashboards
+- 📋 Custom business KPIs
+- 📋 Performance monitoring
+- 📋 Alert rules configuration
+
+**Current Monitoring:**
+- ✅ Pino structured logging
+- ✅ Sentry error tracking
+- ✅ Health checks (Terminus)
+- ✅ Bull Board (queue monitoring)
+
+---
+
+## 📋 Planning
+
+Future features and architectural plans.
+
+| Document | Description |
+|----------|-------------|
+| [OpenTelemetry Implementation Plan](./planning/OPENTELEMETRY_IMPLEMENTATION_PLAN.md) | Comprehensive plan for distributed tracing & metrics |
+| [Error Standardization Plan](./planning/ERROR_STANDARDIZATION_PLAN.md) | Error handling standardization |
+
+---
+
 ## 🎯 Quick Links
 
 ### Most Important Docs
@@ -262,6 +299,7 @@ Development progress and completion status.
 2. [Enterprise Progress](./progress/ENTERPRISE_PROGRESS.md) - Current status
 3. [Session Management Complete](./features/auth/SESSION_MANAGEMENT_COMPLETE.md) - Core feature
 4. [Token Blacklist Implementation](./features/auth/TOKEN_BLACKLIST_IMPLEMENTATION.md) - Security critical
+5. [OpenTelemetry Plan](./planning/OPENTELEMETRY_IMPLEMENTATION_PLAN.md) - **Next major feature**
 
 ### Quick References
 - [Repository Quick Ref](./guides/quick-references/REPOSITORY_QUICKREF.md)
@@ -281,6 +319,7 @@ Development progress and completion status.
 | **Quick Ref** | Cheat sheet, quick commands | CATEGORIES_QUICKREF.md |
 | **Summary** | Executive summary | TOKEN_BLACKLIST_SUMMARY.md |
 | **Progress** | Development timeline | SESSION_PROGRESS.md |
+| **Planning** | Future feature plans | OPENTELEMETRY_IMPLEMENTATION_PLAN.md |
 
 ---
 
@@ -293,6 +332,7 @@ When adding new documentation:
    - Quick refs → `guides/quick-references/`
    - Architecture → `architecture/`
    - Progress → `progress/`
+   - Planning → `planning/`
 
 2. **Follow naming conventions:**
    - Feature guides: `{FEATURE}_COMPLETE.md`
