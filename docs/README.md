@@ -9,6 +9,7 @@ Welcome to the Kuybi NestJS API documentation. This directory contains comprehen
 - [Architecture](#-architecture)
 - [Features](#-features)
   - [Authentication & Sessions](#authentication--sessions)
+  - [Security & Validation](#security--validation)
   - [Caching](#caching)
   - [Categories](#categories)
   - [Logging](#logging)
@@ -57,6 +58,24 @@ Complete authentication, session management, and security features.
 - ✅ Redis-based token blacklisting
 - ✅ Immediate logout enforcement
 - ✅ Comprehensive audit trails
+
+---
+
+### Security & Validation
+
+Input sanitization, XSS prevention, and file upload validation.
+
+| Document | Type | Description |
+|----------|------|-------------|
+| [Security Validation](./features/security/VALIDATION.md) | Feature Guide | **⭐ Complete security validation layer** |
+
+**Key Features:**
+- ✅ Custom class-validator decorators (no class-transformer dependency)
+- ✅ XSS prevention with DOMPurify
+- ✅ SQL injection protection
+- ✅ File upload validation via magic numbers
+- ✅ Payload size limits
+- ✅ Filename sanitization
 
 ---
 
