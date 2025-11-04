@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Locked - Security Alert</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #ff6b7a 100%);
+            color: #ffffff;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #dc3545;
+            font-size: 22px;
+            margin-top: 0;
+        }
+        .content p {
+            margin: 15px 0;
+            color: #555;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 28px;
+            margin: 25px 0;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+        }
+        .button:hover {
+            opacity: 0.9;
+        }
+        .alert-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .alert-box p {
+            margin: 0 0 10px 0;
+        }
+        .alert-box p:last-child {
+            margin-bottom: 0;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .success-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 25px 30px;
+            text-align: center;
+            color: #777;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #11998e;
+            text-decoration: none;
+        }
+        .divider {
+            border: 0;
+            height: 1px;
+            background: #e0e0e0;
+            margin: 30px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #555;
+        }
+        .detail-value {
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-icon">🔒</div>
+            <h1>Account Locked</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Hello {{userName}}!</h2>
+            
+            <div class="alert-box">
+                <p><strong>⚠️ Security Alert!</strong></p>
+                <p>Your <strong>{{appName}}</strong> account has been locked due to {{failedAttempts}} failed login attempts.</p>
+            </div>
+            
+            <p>To protect your account security, we've temporarily locked your account after detecting multiple unsuccessful login attempts.</p>
+            
+            <div class="info-box">
+                <p style="margin: 0 0 10px 0;"><strong>Lockout Details:</strong></p>
+                <div class="detail-row">
+                    <span class="detail-label">📧 Account Email:</span>
+                    <span class="detail-value">{{userEmail}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">⏰ Locked At:</span>
+                    <span class="detail-value">{{lockedAt}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">🔓 Unlocks At:</span>
+                    <span class="detail-value">{{lockedUntil}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">📍 Last IP Address:</span>
+                    <span class="detail-value">{{ipAddress}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">❌ Failed Attempts:</span>
+                    <span class="detail-value">{{failedAttempts}}</span>
+                </div>
+            </div>
+            
+            <hr class="divider">
+            
+            <h3 style="color: #11998e;">🔓 What Happens Next?</h3>
+            
+            <div class="success-box">
+                <p style="margin: 0;"><strong>Automatic Unlock:</strong> Your account will be automatically unlocked at <strong>{{lockedUntil}}</strong>.</p>
+            </div>
+            
+            <p>Once your account is unlocked, you can try logging in again. Make sure to use the correct password.</p>
+            
+            <hr class="divider">
+            
+            <h3 style="color: #dc3545;">🚨 Didn't Try to Log In?</h3>
+            
+            <div class="alert-box">
+                <p><strong>This is a security concern!</strong></p>
+                <p>If you didn't attempt to log in, someone may be trying to access your account.</p>
+            </div>
+            
+            <p><strong>We recommend taking the following actions:</strong></p>
+            <ul style="color: #555;">
+                <li>Contact our security team immediately at <a href="mailto:{{securityEmail}}" style="color: #dc3545;">{{securityEmail}}</a></li>
+                <li>Change your password once your account is unlocked</li>
+                <li>Enable two-factor authentication for added security</li>
+                <li>Review your recent account activity for suspicious behavior</li>
+            </ul>
+            
+            <hr class="divider">
+            
+            <h3 style="color: #6c757d;">💡 Tips to Prevent Lockouts:</h3>
+            
+            <ul style="color: #777; font-size: 14px;">
+                <li>Double-check your password before submitting</li>
+                <li>Use a password manager to store your credentials securely</li>
+                <li>Reset your password if you've forgotten it</li>
+                <li>Keep your browser's saved passwords up to date</li>
+            </ul>
+            
+            <p style="margin-top: 30px;">
+                <a href="{{resetPasswordUrl}}" class="button">Reset Your Password</a>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>Questions? Contact us at <a href="mailto:{{supportEmail}}">{{supportEmail}}</a></p>
+            <p style="margin-top: 15px;">
+                © {{year}} {{appName}}. All rights reserved.
+            </p>
+            <p style="margin-top: 10px; font-size: 12px;">
+                <a href="{{appUrl}}">Visit our website</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -268,6 +268,86 @@ export class EmailService implements OnModuleInit {
   }
 
   /**
+   * Send account locked email
+   */
+  async sendAccountLockedEmail(
+    email: string,
+    userName: string,
+    lockedAt: Date,
+    lockedUntil: Date,
+    failedAttempts: number,
+    ipAddress?: string
+  ): Promise<void> {
+    const appName = 'Kuybi'
+    const appUrl = this.configService.get<string>('app.url', 'https://kuybi.dev')
+    const supportEmail = this.configService.get<string>('email.supportEmail', 'support@kuybi.dev')
+    const securityEmail = this.configService.get<string>(
+      'email.securityEmail',
+      'security@kuybi.dev'
+    )
+
+    return this.sendTemplatedEmail({
+      to: email,
+      subject: `Account Locked - ${appName}`,
+      template: 'account-locked' as any,
+      context: {
+        userName,
+        userEmail: email,
+        appName,
+        appUrl,
+        supportEmail,
+        securityEmail,
+        lockedAt: lockedAt.toLocaleString(),
+        lockedUntil: lockedUntil.toLocaleString(),
+        failedAttempts: failedAttempts.toString(),
+        ipAddress: ipAddress || 'Unknown',
+        resetPasswordUrl: `${appUrl}/auth/reset-password`,
+        year: new Date().getFullYear()
+      }
+    })
+  }
+
+  /**
+   * Send account unlocked email
+   */
+  async sendAccountUnlockedEmail(
+    email: string,
+    userName: string,
+    unlockedAt: Date,
+    unlockType: 'automatic' | 'manual',
+    previousAttempts?: number
+  ): Promise<void> {
+    const appName = 'Kuybi'
+    const appUrl = this.configService.get<string>('app.url', 'https://kuybi.dev')
+    const supportEmail = this.configService.get<string>('email.supportEmail', 'support@kuybi.dev')
+    const securityEmail = this.configService.get<string>(
+      'email.securityEmail',
+      'security@kuybi.dev'
+    )
+
+    return this.sendTemplatedEmail({
+      to: email,
+      subject: `Account Unlocked - ${appName}`,
+      template: 'account-unlocked' as any,
+      context: {
+        userName,
+        userEmail: email,
+        appName,
+        appUrl,
+        supportEmail,
+        securityEmail,
+        unlockedAt: unlockedAt.toLocaleString(),
+        unlockType: unlockType === 'automatic' ? 'Automatic (Timer Expired)' : 'Manual (Admin)',
+        wasAutomatic: unlockType === 'automatic',
+        previousAttempts: previousAttempts?.toString() || undefined,
+        loginUrl: `${appUrl}/auth/login`,
+        changePasswordUrl: `${appUrl}/auth/change-password`,
+        year: new Date().getFullYear()
+      }
+    })
+  }
+
+  /**
    * Test email configuration
    */
   async testConnection(): Promise<boolean> {

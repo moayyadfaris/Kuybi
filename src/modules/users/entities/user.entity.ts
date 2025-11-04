@@ -48,6 +48,33 @@ export class User {
   @Column({ default: false })
   forcePasswordChange: boolean
 
+  @Column({ default: 0, comment: 'Number of consecutive failed login attempts' })
+  failedLoginAttempts: number
+
+  @Column({ default: false, comment: 'Whether the account is currently locked' })
+  isLocked: boolean
+
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+    comment: 'Timestamp when the account was locked'
+  })
+  lockedAt: Date | null
+
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+    comment: 'Timestamp when the account will be automatically unlocked'
+  })
+  lockedUntil: Date | null
+
+  @Column({
+    length: 100,
+    nullable: true,
+    comment: 'Reason for account lock: FAILED_ATTEMPTS, ADMIN_LOCK, SECURITY_VIOLATION'
+  })
+  lockReason: string | null
+
   @Column({ type: 'uuid', nullable: true })
   profileImageId?: string
 

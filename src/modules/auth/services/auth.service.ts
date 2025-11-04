@@ -10,6 +10,7 @@ import { User } from '@modules/users/entities/user.entity'
 import { Session } from '../entities/session.entity'
 import { SessionsService } from './sessions.service'
 import { TokenBlacklistService } from './token-blacklist.service'
+import { AccountLockoutService } from './account-lockout.service'
 
 interface SessionContext {
   ipAddress?: string
@@ -39,10 +40,11 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly sessionsService: SessionsService,
     private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly accountLockoutService: AccountLockoutService,
     private readonly sentryService: SentryService
   ) {}
 
-  async validateUser(email: string, password: string): Promise<User> {
+  async validateUser(email: string, password: string, context?: SessionContext): Promise<User> {
     const user = await this.usersService.findByEmail(email)
     if (!user) {
       // Capture failed login attempts to Sentry for security monitoring
@@ -53,8 +55,37 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials')
     }
 
+    // Check if account is locked
+    const isLocked = await this.accountLockoutService.isAccountLocked(user.id)
+    if (isLocked) {
+      const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
+
+      // Log lockout attempt to Sentry
+      this.sentryService.captureMessage(`Locked account login attempt: ${user.id}`, 'warning', {
+        userId: user.id,
+        email: user.email,
+        reason: 'account_locked',
+        lockedUntil: lockInfo.lockedUntil,
+        failedAttempts: lockInfo.failedAttempts
+      })
+
+      // Return user-friendly message with unlock time
+      const lockedUntilTime = lockInfo.lockedUntil
+        ? new Date(lockInfo.lockedUntil).toLocaleString()
+        : 'unknown'
+      throw new UnauthorizedException(
+        `Account is locked until ${lockedUntilTime}. Too many failed login attempts.`
+      )
+    }
+
     const passwordValid = await bcrypt.compare(password, user.passwordHash)
     if (!passwordValid) {
+      // Record failed attempt and potentially lock account
+      await this.accountLockoutService.recordFailedAttempt(user.id, context?.ipAddress)
+
+      // Get updated lock info to check if account was just locked
+      const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
+
       // Capture invalid password attempts to Sentry
       this.sentryService.captureMessage(
         `Invalid password attempt for user: ${user.id}`,
@@ -62,9 +93,22 @@ export class AuthService {
         {
           userId: user.id,
           email: user.email,
-          reason: 'invalid_password'
+          reason: 'invalid_password',
+          failedAttempts: lockInfo.failedAttempts,
+          accountLocked: lockInfo.isLocked
         }
       )
+
+      // If account was just locked, inform user
+      if (lockInfo.isLocked) {
+        const lockedUntilTime = lockInfo.lockedUntil
+          ? new Date(lockInfo.lockedUntil).toLocaleString()
+          : 'unknown'
+        throw new UnauthorizedException(
+          `Account has been locked due to too many failed attempts. It will be unlocked at ${lockedUntilTime}.`
+        )
+      }
+
       throw new UnauthorizedException('Invalid credentials')
     }
 
@@ -78,10 +122,13 @@ export class AuthService {
       throw new UnauthorizedException('User is inactive')
     }
 
+    // Successful login - reset failed attempts counter
+    await this.accountLockoutService.resetFailedAttempts(user.id)
+
     return user
   }
 
-  async login(user: User, context: SessionContext) {
+  async login(user: User, context: SessionContext = {}) {
     this.logger.info(
       {
         userId: user.id,

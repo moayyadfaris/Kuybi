@@ -2,10 +2,12 @@ import { Module, forwardRef } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
+import { BullModule } from '@nestjs/bullmq'
 import { UsersModule } from '../users/users.module'
 import { EmailModule } from '@infrastructure/email'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { StringValue } from 'ms'
+import { QueueName } from '@core/queues/jobs/types'
 import { Session } from './entities/session.entity'
 import { PasswordReset } from './entities/password-reset.entity'
 import { User } from '../users/entities/user.entity'
@@ -17,7 +19,8 @@ import {
   AuthService,
   SessionsService,
   SessionCleanupService,
-  TokenBlacklistService
+  TokenBlacklistService,
+  AccountLockoutService
 } from './services'
 import { RegistrationService } from './services/registration.service'
 import { PasswordResetService } from './services/password-reset.service'
@@ -34,6 +37,9 @@ import { AuditModule } from '@modules/audit/audit.module'
     SentryModule.forRoot(),
     AuditModule,
     TypeOrmModule.forFeature([Session, PasswordReset, User, EmailVerification]),
+    BullModule.registerQueue({
+      name: QueueName.ACCOUNT_SECURITY
+    }),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -52,6 +58,7 @@ import { AuditModule } from '@modules/audit/audit.module'
     SessionsService,
     SessionCleanupService,
     TokenBlacklistService,
+    AccountLockoutService,
     RegistrationService,
     PasswordResetService,
     JwtStrategy,
@@ -62,6 +69,7 @@ import { AuditModule } from '@modules/audit/audit.module'
     AuthService,
     SessionsService,
     TokenBlacklistService,
+    AccountLockoutService,
     RegistrationService,
     PasswordResetService,
     SessionRepository

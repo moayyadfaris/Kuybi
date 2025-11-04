@@ -161,6 +161,22 @@ export const queueConfig = {
         timeout: 300000, // 5 minutes timeout
         attempts: 2 // Retry once on failure
       }
+    },
+
+    // Account Security Queue (Critical security operations)
+    [QueueName.ACCOUNT_SECURITY]: {
+      limiter: {
+        max: 100, // High throughput for security events
+        duration: 60000
+      },
+      defaultJobOptions: {
+        priority: 8, // High priority (security critical)
+        attempts: 3,
+        backoff: {
+          type: 'exponential' as const,
+          delay: 5000 // 5 seconds initial delay
+        }
+      }
     }
   }
 }

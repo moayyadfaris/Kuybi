@@ -13,6 +13,7 @@ import { SessionCleanupScheduler } from './services/session-cleanup.scheduler'
 import { VersionCleanupProcessor } from './processors/version-cleanup.processor'
 import { VersionCleanupScheduler } from './services/version-cleanup.scheduler'
 import { AttachmentProcessor } from './processors/attachment.processor'
+import { AccountSecurityProcessor } from './processors/account-security.processor'
 import { DatabaseModule } from '@core/database/database.module'
 import { StoryVersion } from '@modules/stories/entities/story-version.entity'
 import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
@@ -42,6 +43,7 @@ import { CacheConfigModule } from '@core/cache/cache.module'
     VersionCleanupProcessor,
     VersionCleanupScheduler,
     AttachmentProcessor,
+    AccountSecurityProcessor,
     StoryVersionRepository
   ]
 })

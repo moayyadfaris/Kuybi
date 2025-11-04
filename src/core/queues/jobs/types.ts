@@ -11,7 +11,8 @@ export enum QueueName {
   SECURITY_SCAN = 'security-scan-queue',
   DATA_EXPORT = 'data-export-queue',
   REPORT_GENERATION = 'report-generation-queue',
-  VERSION_CLEANUP = 'version-cleanup-queue'
+  VERSION_CLEANUP = 'version-cleanup-queue',
+  ACCOUNT_SECURITY = 'account-security-queue'
 }
 
 /**
@@ -83,6 +84,33 @@ export enum VersionCleanupJobType {
   CLEANUP_EXPIRED = 'cleanup-expired-versions',
   ARCHIVE_OLD = 'archive-old-versions',
   MANUAL_CLEANUP = 'manual-cleanup-versions'
+}
+
+/**
+ * Account Security Job Types
+ */
+export enum AccountSecurityJobType {
+  UNLOCK_ACCOUNT = 'unlock-account',
+  RESET_FAILED_ATTEMPTS = 'reset-failed-attempts',
+  CHECK_EXPIRED_LOCKS = 'check-expired-locks'
+}
+
+/**
+ * Account Security Job Data Interfaces
+ */
+export interface UnlockAccountJobData extends BaseJobData {
+  userId: string
+  reason: 'AUTO_UNLOCK' | 'ADMIN_UNLOCK'
+  lockedAt: Date
+}
+
+export interface ResetFailedAttemptsJobData extends BaseJobData {
+  userId: string
+  lastFailedAttempt: Date
+}
+
+export interface CheckExpiredLocksJobData extends BaseJobData {
+  batchSize?: number
 }
 
 /**
