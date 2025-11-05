@@ -1,0 +1,160 @@
+groups:
+  - name: kuybi_api_alerts
+    interval: 30s
+    rules:
+      # High HTTP error rate
+      - alert: HighHTTPErrorRate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: kuybi-api
+        annotations:
+          summary: "High HTTP 5xx error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for route {{ $labels.route }}"
+
+      # High latency
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: kuybi-api
+        annotations:
+          summary: "High P95 latency detected"
+          description: "P95 latency is {{ $value }}s for operation {{ $labels.operation }}"
+
+      # Critical P99 latency
+      - alert: CriticalP99Latency
+        expr: |
+          histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+          service: kuybi-api
+        annotations:
+          summary: "Critical P99 latency detected"
+          description: "P99 latency is {{ $value }}s for operation {{ $labels.operation }}"
+
+  - name: cache_performance_alerts
+    interval: 30s
+    rules:
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          sum(rate(cache_operations_total{result="hit"}[10m])) / 
+          sum(rate(cache_operations_total[10m])) < 0.5
+        for: 10m
+        labels:
+          severity: info
+          service: kuybi-api
+        annotations:
+          summary: "Cache hit rate below 50%"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      # Cache operation errors
+      - alert: CacheOperationErrors
+        expr: |
+          rate(cache_operations_total{result="error"}[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          service: kuybi-api
+        annotations:
+          summary: "Cache operation errors detected"
+          description: "{{ $value }} cache errors per second for operation {{ $labels.operation }}"
+
+  - name: database_performance_alerts
+    interval: 30s
+    rules:
+      # High database query latency
+      - alert: HighDatabaseLatency
+        expr: |
+          histogram_quantile(0.95, rate(db_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: kuybi-api
+        annotations:
+          summary: "High database query latency"
+          description: "P95 query latency is {{ $value }}s"
+
+      # Database connection pool exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          db_connection_pool_active / db_connection_pool_total > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          service: kuybi-api
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of connection pool in use"
+
+  - name: opentelemetry_alerts
+    interval: 30s
+    rules:
+      # Trace export failures
+      - alert: TraceExportFailures
+        expr: |
+          rate(otelcol_exporter_send_failed_spans[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: otel-collector
+        annotations:
+          summary: "Trace export failures detected"
+          description: "{{ $value }} spans failed to export per second to {{ $labels.exporter }}"
+
+      # High sampling rate (cost control)
+      - alert: HighSamplingRate
+        expr: |
+          sum(rate(traces_sampled_total[10m])) / sum(rate(traces_total[10m])) > 0.3
+        for: 10m
+        labels:
+          severity: info
+          service: kuybi-api
+        annotations:
+          summary: "Trace sampling rate above 30%"
+          description: "Current sampling rate: {{ $value | humanizePercentage }}"
+
+      # Collector memory pressure
+      - alert: CollectorHighMemoryUsage
+        expr: |
+          otelcol_process_memory_rss / 1024 / 1024 > 512
+        for: 5m
+        labels:
+          severity: warning
+          service: otel-collector
+        annotations:
+          summary: "OTLP Collector high memory usage"
+          description: "Collector using {{ $value }}MB of memory"
+
+  - name: business_metrics_alerts
+    interval: 30s
+    rules:
+      # Failed logins spike
+      - alert: HighLoginFailureRate
+        expr: |
+          rate(auth_login_attempts_total{result="failure"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: kuybi-api
+        annotations:
+          summary: "High login failure rate detected"
+          description: "{{ $value }} failed login attempts per second"
+
+      # Story creation failures
+      - alert: StoryCreationFailures
+        expr: |
+          rate(story_operations_total{operation="create",result="error"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: kuybi-api
+        annotations:
+          summary: "Story creation failures detected"
+          description: "{{ $value }} story creation errors per second"

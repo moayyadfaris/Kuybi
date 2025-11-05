@@ -1,0 +1,52 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'kuybi-dev'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Kuybi NestJS Application
+  - job_name: 'kuybi-api'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['host.docker.internal:9464']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'kuybi-api'
+
+  # OpenTelemetry Collector metrics
+  - job_name: 'otel-collector'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['otel-collector:8888']
+
+  # OpenTelemetry Collector Prometheus exporter
+  - job_name: 'otel-metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['otel-collector:8889']
+
+  # Jaeger metrics
+  - job_name: 'jaeger'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['jaeger:14269']

@@ -65,6 +65,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.66.0",
+    "@opentelemetry/exporter-jaeger": "^2.2.0",
     "@opentelemetry/exporter-prometheus": "^0.207.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
     "@opentelemetry/instrumentation-express": "^0.56.0",

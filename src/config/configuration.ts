@@ -162,10 +162,30 @@ export default () => {
       environment: process.env.OTEL_ENVIRONMENT || env,
       tracing: {
         enabled: parseBoolean(process.env.OTEL_TRACING_ENABLED, true),
-        sampleRate: parseFloat(process.env.OTEL_TRACING_SAMPLE_RATE || '1.0'),
-        exporter: process.env.OTEL_TRACING_EXPORTER || 'console',
-        jaegerEndpoint: process.env.OTEL_JAEGER_ENDPOINT || 'http://localhost:14268/api/traces',
-        otlpEndpoint: process.env.OTEL_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces'
+        sampling: {
+          rate: parseFloat(process.env.OTEL_SAMPLING_RATE || (env === 'production' ? '0.1' : '1.0')),
+          errorRate: parseFloat(process.env.OTEL_SAMPLING_ERROR_RATE || '1.0'),
+          criticalOperations: parseList(
+            process.env.OTEL_SAMPLING_CRITICAL_OPS,
+            ['auth.login', 'auth.logout', 'payment.process', 'story.create']
+          )
+        },
+        exporters: {
+          console: {
+            enabled: parseBoolean(process.env.OTEL_EXPORTER_CONSOLE, env !== 'production')
+          },
+          jaeger: {
+            enabled: parseBoolean(process.env.OTEL_EXPORTER_JAEGER, false),
+            endpoint: process.env.OTEL_JAEGER_ENDPOINT || 'http://localhost:14268/api/traces',
+            agentHost: process.env.OTEL_JAEGER_AGENT_HOST || 'localhost',
+            agentPort: parseNumber(process.env.OTEL_JAEGER_AGENT_PORT, 6831)
+          },
+          otlp: {
+            enabled: parseBoolean(process.env.OTEL_EXPORTER_OTLP, false),
+            endpoint: process.env.OTEL_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
+            headers: process.env.OTEL_OTLP_HEADERS || '{}'
+          }
+        }
       },
       metrics: {
         enabled: parseBoolean(process.env.OTEL_METRICS_ENABLED, true),
