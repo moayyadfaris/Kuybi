@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, In } from 'typeorm'
 import { PinoLogger } from 'nestjs-pino'
+import { trace, context as otelContext, SpanStatusCode } from '@opentelemetry/api'
 import {
   Story,
   StoryStatus,
@@ -60,149 +61,175 @@ export class StoriesService {
    * Create a new story
    */
   async create(createStoryDto: CreateStoryDto, userId: string, userRole?: string): Promise<Story> {
-    const requestLogger = this.loggingContext.getLogger({
-      context: StoriesService.name,
-      action: 'create_story'
-    })
-    requestLogger.info({ userId, type: createStoryDto.type }, 'Creating story')
-    requestLogger.debug(
-      {
-        title: createStoryDto.title,
-        status: createStoryDto.status,
-        priority: createStoryDto.priority,
-        hasTags: Boolean(createStoryDto.tags?.length),
-        hasTagIds: Boolean(createStoryDto.tagIds?.length),
-        hasCategories: Boolean(createStoryDto.categoryIds?.length)
-      },
-      'Story creation payload summary'
-    )
-
-    try {
-      // Validate parent story exists if parentId provided
-      if (createStoryDto.parentId) {
-        requestLogger.debug({ parentId: createStoryDto.parentId }, 'Validating parent story')
-        const parent = await this.storyRepository.findById(createStoryDto.parentId)
-        if (!parent) {
-          throw new BadRequestException(`Parent story with ID ${createStoryDto.parentId} not found`)
-        }
+    const tracer = trace.getTracer('stories-service')
+    const span = tracer.startSpan('story.create', {
+      attributes: {
+        'story.type': createStoryDto.type,
+        'story.status': createStoryDto.status || 'draft',
+        'story.priority': createStoryDto.priority || 'medium',
+        'user.id': userId,
+        'story.has_parent': Boolean(createStoryDto.parentId),
+        'story.categories_count': createStoryDto.categoryIds?.length || 0,
+        'story.tags_count': (createStoryDto.tagIds?.length || 0) + (createStoryDto.tags?.length || 0)
       }
+    })
 
-      // Extract categoryIds, tagIds, and tags from DTO
-      const { categoryIds, tagIds, tags, ...storyData } = createStoryDto
+    return await otelContext.with(trace.setSpan(otelContext.active(), span), async () => {
+      const requestLogger = this.loggingContext.getLogger({
+        context: StoriesService.name,
+        action: 'create_story'
+      })
+      requestLogger.info({ userId, type: createStoryDto.type }, 'Creating story')
       requestLogger.debug(
         {
-          categoryIds,
-          tagIds,
-          tagCount: tags?.length,
-          storyDataKeys: Object.keys(storyData)
+          title: createStoryDto.title,
+          status: createStoryDto.status,
+          priority: createStoryDto.priority,
+          hasTags: Boolean(createStoryDto.tags?.length),
+          hasTagIds: Boolean(createStoryDto.tagIds?.length),
+          hasCategories: Boolean(createStoryDto.categoryIds?.length)
         },
-        'Extracted data from DTO'
+        'Story creation payload summary'
       )
-      const story = await this.storyRepository.create({
-        ...storyData,
-        fromTime: createStoryDto.fromTime ? new Date(createStoryDto.fromTime) : undefined,
-        toTime: createStoryDto.toTime ? new Date(createStoryDto.toTime) : undefined,
-        userId,
-        createdBy: userId,
-        lastModifiedBy: userId
-      })
-      requestLogger.debug({ storyId: story.id }, 'Story created in database')
 
-      // Get story with relations for attaching categories and tags
-      const storyWithRelations = await this.storyEntityRepository.findOne({
-        where: { id: story.id },
-        relations: ['categories', 'tags']
-      })
+      try {
+        // Validate parent story exists if parentId provided
+        if (createStoryDto.parentId) {
+          span.setAttribute('story.parent_id', createStoryDto.parentId)
+          requestLogger.debug({ parentId: createStoryDto.parentId }, 'Validating parent story')
+          const parent = await this.storyRepository.findById(createStoryDto.parentId)
+          if (!parent) {
+            throw new BadRequestException(`Parent story with ID ${createStoryDto.parentId} not found`)
+          }
+        }
 
-      if (!storyWithRelations) {
-        throw new BadRequestException('Failed to create story')
-      }
-      requestLogger.debug({ storyId: story.id }, 'Fetched story with relations')
+        // Extract categoryIds, tagIds, and tags from DTO
+        const { categoryIds, tagIds, tags, ...storyData } = createStoryDto
+        requestLogger.debug(
+          {
+            categoryIds,
+            tagIds,
+            tagCount: tags?.length,
+            storyDataKeys: Object.keys(storyData)
+          },
+          'Extracted data from DTO'
+        )
+        const story = await this.storyRepository.create({
+          ...storyData,
+          fromTime: createStoryDto.fromTime ? new Date(createStoryDto.fromTime) : undefined,
+          toTime: createStoryDto.toTime ? new Date(createStoryDto.toTime) : undefined,
+          userId,
+          createdBy: userId,
+          lastModifiedBy: userId
+        })
+        
+        span.setAttribute('story.id', story.id)
+        requestLogger.debug({ storyId: story.id }, 'Story created in database')
 
-      // Attach categories if provided
-      if (categoryIds && categoryIds.length > 0) {
-        requestLogger.debug({ categoryIds, count: categoryIds.length }, 'Processing categories')
-        const categories = await this.categoryRepository.find({
-          where: { id: In(categoryIds), deletedAt: null }
+        // Get story with relations for attaching categories and tags
+        const storyWithRelations = await this.storyEntityRepository.findOne({
+          where: { id: story.id },
+          relations: ['categories', 'tags']
         })
 
-        if (categories.length !== categoryIds.length) {
-          requestLogger.warn(
-            { action: 'create_story', requested: categoryIds.length, found: categories.length },
-            'Some categories not found'
+        if (!storyWithRelations) {
+          throw new BadRequestException('Failed to create story')
+        }
+        requestLogger.debug({ storyId: story.id }, 'Fetched story with relations')
+
+        // Attach categories if provided
+        if (categoryIds && categoryIds.length > 0) {
+          requestLogger.debug({ categoryIds, count: categoryIds.length }, 'Processing categories')
+          const categories = await this.categoryRepository.find({
+            where: { id: In(categoryIds), deletedAt: null }
+          })
+
+          if (categories.length !== categoryIds.length) {
+            requestLogger.warn(
+              { action: 'create_story', requested: categoryIds.length, found: categories.length },
+              'Some categories not found'
+            )
+          }
+
+          storyWithRelations.categories = categories
+          span.setAttribute('story.categories_attached', categories.length)
+          requestLogger.debug(
+            { categoriesAttached: categories.length },
+            'Categories attached to story'
           )
         }
 
-        storyWithRelations.categories = categories
-        requestLogger.debug(
-          { categoriesAttached: categories.length },
-          'Categories attached to story'
-        )
-      }
-
-      // Attach tags if provided
-      let attachedTags: Tag[] = []
-      if ((tagIds && tagIds.length > 0) || (tags && tags.length > 0)) {
-        requestLogger.debug(
-          {
-            tagIds,
-            tagNames: tags,
-            tagIdsCount: tagIds?.length,
-            tagNamesCount: tags?.length
-          },
-          'Processing tags'
-        )
-        try {
-          attachedTags = await this.resolveAndCreateTags(tagIds, tags, userId)
-          requestLogger.debug({ tagsResolved: attachedTags.length }, 'Tags resolved and attached')
-          storyWithRelations.tags = attachedTags
-        } catch (tagError) {
-          requestLogger.error({ error: tagError, tagIds, tagNames: tags }, 'Error resolving tags')
-          throw tagError
+        // Attach tags if provided
+        let attachedTags: Tag[] = []
+        if ((tagIds && tagIds.length > 0) || (tags && tags.length > 0)) {
+          requestLogger.debug(
+            {
+              tagIds,
+              tagNames: tags,
+              tagIdsCount: tagIds?.length,
+              tagNamesCount: tags?.length
+            },
+            'Processing tags'
+          )
+          try {
+            attachedTags = await this.resolveAndCreateTags(tagIds, tags, userId)
+            requestLogger.debug({ tagsResolved: attachedTags.length }, 'Tags resolved and attached')
+            storyWithRelations.tags = attachedTags
+            span.setAttribute('story.tags_attached', attachedTags.length)
+          } catch (tagError) {
+            requestLogger.error({ error: tagError, tagIds, tagNames: tags }, 'Error resolving tags')
+            throw tagError
+          }
         }
-      }
 
-      // Save story with relations
-      if ((categoryIds && categoryIds.length > 0) || attachedTags.length > 0) {
-        requestLogger.debug(
+        // Save story with relations
+        if ((categoryIds && categoryIds.length > 0) || attachedTags.length > 0) {
+          requestLogger.debug(
+            {
+              storyId: story.id,
+              categoriesCount: categoryIds?.length,
+              tagsCount: attachedTags.length
+            },
+            'Saving story with relations'
+          )
+          await this.storyEntityRepository.save(storyWithRelations)
+          requestLogger.debug({ storyId: story.id }, 'Story with relations saved')
+
+          const cacheSvc = (this.storyRepository as any)?.cacheService
+          const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
+          if (cacheSvc && buildKey) {
+            await cacheSvc.del(buildKey('id', story.id.toString()))
+          }
+        }
+
+        requestLogger.info(
           {
             storyId: story.id,
-            categoriesCount: categoryIds?.length,
+            userId,
+            type: story.type,
+            categoriesCount: categoryIds?.length || 0,
             tagsCount: attachedTags.length
           },
-          'Saving story with relations'
+          'Story created successfully'
         )
-        await this.storyEntityRepository.save(storyWithRelations)
-        requestLogger.debug({ storyId: story.id }, 'Story with relations saved')
 
-        const cacheSvc = (this.storyRepository as any)?.cacheService
-        const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-        if (cacheSvc && buildKey) {
-          await cacheSvc.del(buildKey('id', story.id.toString()))
-        }
+        const finalStory = await this.findOne(story.id, userId, { bypassCache: true })
+        requestLogger.info({ storyId: story.id, userId }, 'Story creation completed successfully')
+        
+        span.setStatus({ code: SpanStatusCode.OK })
+        return this.enrichStoryMedia(finalStory) as Story
+      } catch (error) {
+        requestLogger.error(
+          { action: 'create_story', userId, error: error.message, stack: error.stack },
+          'Failed to create story'
+        )
+        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+        throw error
+      } finally {
+        span.end()
       }
-
-      requestLogger.info(
-        {
-          storyId: story.id,
-          userId,
-          type: story.type,
-          categoriesCount: categoryIds?.length || 0,
-          tagsCount: attachedTags.length
-        },
-        'Story created successfully'
-      )
-
-      const finalStory = await this.findOne(story.id, userId, { bypassCache: true })
-      requestLogger.info({ storyId: story.id, userId }, 'Story creation completed successfully')
-      return this.enrichStoryMedia(finalStory) as Story
-    } catch (error) {
-      requestLogger.error(
-        { action: 'create_story', userId, error: error.message, stack: error.stack },
-        'Failed to create story'
-      )
-      throw error
-    }
+    })
   }
 
   /**

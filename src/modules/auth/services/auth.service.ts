@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import type { StringValue } from 'ms'
 import * as bcrypt from 'bcrypt'
+import { trace, context as otelContext, SpanStatusCode } from '@opentelemetry/api'
 import { SentryService } from '@core/sentry'
 import { UsersService } from '@modules/users/services/users.service'
 import { User } from '@modules/users/entities/user.entity'
@@ -159,62 +160,90 @@ export class AuthService {
   }
 
   async login(user: User, context: SessionContext = {}) {
-    this.logger.info(
-      {
-        userId: user.id,
-        email: user.email,
-        ipAddress: context.ipAddress,
-        deviceType: context.deviceType,
-        action: 'user_login'
-      },
-      'User login'
-    )
-
-    // Check if user must change password
-    if (user.forcePasswordChange) {
-      this.logger.warn(
-        { userId: user.id, email: user.email, action: 'password_change_required' },
-        'User must change password before accessing system'
-      )
-
-      // Return special response indicating password change is required
-      // Do NOT create session until password is changed
-      return {
-        requiresPasswordChange: true,
-        userId: user.id,
-        message:
-          'Password change required. Please change your password before accessing the system.',
-        tempAccessToken: await this.generateTempAccessToken(user) // Limited token for password change only
+    const tracer = trace.getTracer('auth-service')
+    const span = tracer.startSpan('auth.login', {
+      attributes: {
+        'user.id': user.id,
+        'user.email': user.email,
+        'user.role': user.role || 'unknown',
+        'session.ip_address': context.ipAddress || 'unknown',
+        'session.device_type': context.deviceType || 'unknown'
       }
-    }
-
-    // Create session using SessionsService
-    const { session, refreshToken } = await this.sessionsService.createSession({
-      userId: user.id,
-      ipAddress: context.ipAddress,
-      userAgent: context.userAgent,
-      deviceType: context.deviceType,
-      sessionType: 'standard'
     })
 
-    // Generate access token
-    const accessToken = await this.generateAccessToken(user)
+    return await otelContext.with(trace.setSpan(otelContext.active(), span), async () => {
+      try {
+        this.logger.info(
+          {
+            userId: user.id,
+            email: user.email,
+            ipAddress: context.ipAddress,
+            deviceType: context.deviceType,
+            action: 'user_login'
+          },
+          'User login'
+        )
 
-    this.logger.info(
-      { sessionId: session.id, userId: user.id, action: 'session_created' },
-      'Session created for user'
-    )
+        // Check if user must change password
+        if (user.forcePasswordChange) {
+          span.setAttribute('auth.password_change_required', true)
+          this.logger.warn(
+            { userId: user.id, email: user.email, action: 'password_change_required' },
+            'User must change password before accessing system'
+          )
 
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
+          // Return special response indicating password change is required
+          // Do NOT create session until password is changed
+          const result = {
+            requiresPasswordChange: true,
+            userId: user.id,
+            message:
+              'Password change required. Please change your password before accessing the system.',
+            tempAccessToken: await this.generateTempAccessToken(user) // Limited token for password change only
+          }
+          span.setStatus({ code: SpanStatusCode.OK })
+          return result
+        }
+
+        // Create session using SessionsService
+        const { session, refreshToken } = await this.sessionsService.createSession({
+          userId: user.id,
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+          deviceType: context.deviceType,
+          sessionType: 'standard'
+        })
+
+        span.setAttribute('session.id', session.id)
+        span.setAttribute('session.type', 'standard')
+
+        // Generate access token
+        const accessToken = await this.generateAccessToken(user)
+
+        this.logger.info(
+          { sessionId: session.id, userId: user.id, action: 'session_created' },
+          'Session created for user'
+        )
+
+        span.setStatus({ code: SpanStatusCode.OK })
+        return {
+          accessToken,
+          refreshToken,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          }
+        }
+      } catch (error) {
+        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+        throw error
+      } finally {
+        span.end()
       }
-    }
+    })
   }
 
   async refresh(refreshToken: string, context: SessionContext) {
@@ -281,98 +310,132 @@ export class AuthService {
       accessToken?: string
     }
   ) {
+    const tracer = trace.getTracer('auth-service')
     const { userId, logoutAll = false, reason, accessToken } = options
-    const [tokenId, tokenSecret] = refreshToken.split('.')
 
-    if (!tokenId || !tokenSecret) {
-      throw new UnauthorizedException('Invalid refresh token format')
-    }
-
-    // Validate session
-    const validationResult = await this.sessionsService.validateSession(tokenId)
-    if (!validationResult.valid || !validationResult.session) {
-      throw new UnauthorizedException(validationResult.reason || 'Invalid session')
-    }
-
-    const session = validationResult.session
-
-    // Verify ownership
-    if (session.userId !== userId) {
-      throw new UnauthorizedException('Session does not belong to user')
-    }
-
-    // Verify refresh token secret
-    const isValid = await bcrypt.compare(tokenSecret, session.refreshTokenHash)
-    if (!isValid) {
-      await this.sessionsService.revokeSession(tokenId, 'invalid_token_secret')
-      throw new UnauthorizedException('Invalid refresh token')
-    }
-
-    // Blacklist the current access token immediately (if provided)
-    let tokenBlacklisted = false
-    if (accessToken) {
-      try {
-        const result = await this.tokenBlacklistService.blacklistToken(accessToken, {
-          userId,
-          sessionId: session.id,
-          reason: reason || (logoutAll ? 'user_logout_all' : 'user_logout')
-        })
-        tokenBlacklisted = result.success
-        this.logger.info(
-          {
-            userId,
-            sessionId: session.id,
-            tokenHash: result.tokenHash.substring(0, 16),
-            action: 'access_token_blacklisted'
-          },
-          'Access token blacklisted on logout'
-        )
-      } catch (error) {
-        this.logger.warn(
-          {
-            userId,
-            sessionId: session.id,
-            error: error.message,
-            action: 'access_token_blacklist_failed'
-          },
-          'Failed to blacklist access token (non-critical)'
-        )
+    const span = tracer.startSpan('auth.logout', {
+      attributes: {
+        'user.id': userId,
+        'auth.logout_all': logoutAll,
+        'auth.logout_reason': reason || 'user_logout'
       }
-    }
+    })
 
-    // Perform logout
-    let sessionsInvalidated = 0
-    if (logoutAll) {
-      sessionsInvalidated = await this.sessionsService.revokeAllSessions(
-        userId,
-        undefined, // Don't exclude any session
-        reason || 'user_logout_all'
-      )
-      this.logger.info(
-        {
-          userId,
+    return await otelContext.with(trace.setSpan(otelContext.active(), span), async () => {
+      try {
+        const [tokenId, tokenSecret] = refreshToken.split('.')
+
+        if (!tokenId || !tokenSecret) {
+          throw new UnauthorizedException('Invalid refresh token format')
+        }
+
+        // Validate session
+        const validationResult = await this.sessionsService.validateSession(tokenId)
+        if (!validationResult.valid || !validationResult.session) {
+          throw new UnauthorizedException(validationResult.reason || 'Invalid session')
+        }
+
+        const session = validationResult.session
+        span.setAttribute('session.id', session.id)
+
+        // Verify ownership
+        if (session.userId !== userId) {
+          throw new UnauthorizedException('Session does not belong to user')
+        }
+
+        // Verify refresh token secret
+        const isValid = await bcrypt.compare(tokenSecret, session.refreshTokenHash)
+        if (!isValid) {
+          await this.sessionsService.revokeSession(tokenId, 'invalid_token_secret')
+          throw new UnauthorizedException('Invalid refresh token')
+        }
+
+        // Blacklist the current access token immediately (if provided)
+        let tokenBlacklisted = false
+        if (accessToken) {
+          try {
+            const result = await this.tokenBlacklistService.blacklistToken(accessToken, {
+              userId,
+              sessionId: session.id,
+              reason: reason || (logoutAll ? 'user_logout_all' : 'user_logout')
+            })
+            tokenBlacklisted = result.success
+            span.setAttribute('auth.token_blacklisted', true)
+            this.logger.info(
+              {
+                userId,
+                sessionId: session.id,
+                tokenHash: result.tokenHash.substring(0, 16),
+                action: 'access_token_blacklisted'
+              },
+              'Access token blacklisted on logout'
+            )
+          } catch (error) {
+            span.setAttribute('auth.token_blacklisted', false)
+            this.logger.warn(
+              {
+                userId,
+                sessionId: session.id,
+                error: error.message,
+                action: 'access_token_blacklist_failed'
+              },
+              'Failed to blacklist access token (non-critical)'
+            )
+          }
+        }
+
+        // Perform logout
+        let sessionsInvalidated = 0
+        if (logoutAll) {
+          sessionsInvalidated = await this.sessionsService.revokeAllSessions(
+            userId,
+            undefined, // Don't exclude any session
+            reason || 'user_logout_all'
+          )
+          span.setAttribute('auth.sessions_invalidated', sessionsInvalidated)
+          this.logger.info(
+            {
+              userId,
+              sessionsInvalidated,
+              reason: reason || 'user_logout_all',
+              action: 'logout_all_devices'
+            },
+            'User logged out from all devices'
+          )
+        } else {
+          const success = await this.sessionsService.revokeSession(
+            tokenId,
+            reason || 'user_logout'
+          )
+          sessionsInvalidated = success ? 1 : 0
+          span.setAttribute('auth.sessions_invalidated', sessionsInvalidated)
+          this.logger.info(
+            {
+              userId,
+              sessionId: tokenId,
+              reason: reason || 'user_logout',
+              action: 'logout_session'
+            },
+            'User logged out from session'
+          )
+        }
+
+        span.setStatus({ code: SpanStatusCode.OK })
+        return {
           sessionsInvalidated,
-          reason: reason || 'user_logout_all',
-          action: 'logout_all_devices'
-        },
-        'User logged out from all devices'
-      )
-    } else {
-      const success = await this.sessionsService.revokeSession(tokenId, reason || 'user_logout')
-      sessionsInvalidated = success ? 1 : 0
-      this.logger.info(
-        { userId, sessionId: tokenId, reason: reason || 'user_logout', action: 'logout_session' },
-        'User logged out from session'
-      )
-    }
-
-    return {
-      sessionsInvalidated,
-      logoutType: logoutAll ? 'all_devices' : 'current_device',
-      sessionId: session.id,
-      cacheCleared: true, // SessionsService handles cache invalidation
-      tokenBlacklisted // Indicates if access token was blacklisted
-    }
+          logoutType: logoutAll ? 'all_devices' : 'current_device',
+          sessionId: session.id,
+          cacheCleared: true, // SessionsService handles cache invalidation
+          tokenBlacklisted // Indicates if access token was blacklisted
+        }
+      } catch (error) {
+        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+        throw error
+      } finally {
+        span.end()
+      }
+    })
   }
 
   async listSessions(userId: string, options: ListSessionsOptions) {
