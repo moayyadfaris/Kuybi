@@ -78,7 +78,7 @@ export default () => {
     database: {
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: "debugging",
+      username: 'debugging',
       password: process.env.DB_PASSWORD || 'postgres',
       name: process.env.DB_NAME || 'kuybi',
       logging: process.env.TYPEORM_LOGGING === 'true',
@@ -100,10 +100,7 @@ export default () => {
         enabled: parseBoolean(process.env.ACCOUNT_LOCKOUT_ENABLED, true),
         maxAttempts: parseNumber(process.env.ACCOUNT_LOCKOUT_MAX_ATTEMPTS, 5),
         lockDuration: parseNumber(process.env.ACCOUNT_LOCKOUT_DURATION, 30 * 60 * 1000), // 30 minutes
-        resetAttemptsPeriod: parseNumber(
-          process.env.ACCOUNT_LOCKOUT_RESET_PERIOD,
-          15 * 60 * 1000
-        ), // 15 minutes
+        resetAttemptsPeriod: parseNumber(process.env.ACCOUNT_LOCKOUT_RESET_PERIOD, 15 * 60 * 1000), // 15 minutes
         trackByIpAddress: parseBoolean(process.env.ACCOUNT_LOCKOUT_TRACK_IP, true),
         notifyOnLockout: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_LOCK, true),
         notifyOnUnlock: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_UNLOCK, true)

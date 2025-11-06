@@ -107,6 +107,29 @@ async function bootstrap() {
   })
 
   await app.listen(httpConfig.port, httpConfig.host)
+
+  let isShuttingDown = false
+  const shutdown = async (signal: string) => {
+    if (isShuttingDown) {
+      return
+    }
+    isShuttingDown = true
+
+    const logger = app.get(Logger)
+    logger.log({ signal }, 'Shutting down application')
+
+    try {
+      await app.close()
+      logger.log({ signal }, 'Nest application closed')
+    } catch (error) {
+      logger.error({ signal, error }, 'Error during Nest application shutdown')
+    } finally {
+      process.exit(0)
+    }
+  }
+
+  process.once('SIGINT', () => shutdown('SIGINT'))
+  process.once('SIGTERM', () => shutdown('SIGTERM'))
 }
 
 bootstrap()

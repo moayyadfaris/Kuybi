@@ -188,7 +188,7 @@ export class ImageValidationPipe extends FileValidationPipe {
     // const metadata = await sharp(file.buffer).metadata()
     // if (this.maxWidth && metadata.width > this.maxWidth) { throw... }
     // if (this.maxHeight && metadata.height > this.maxHeight) { throw... }
-    
+
     // For now, just log that dimensions would be checked
     if (file.mimetype.startsWith('image/')) {
       // Dimensions check placeholder

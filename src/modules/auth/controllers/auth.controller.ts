@@ -15,6 +15,7 @@ import { Request } from 'express'
 import { AuthService } from '../services'
 import { RegistrationService } from '../services/registration.service'
 import { PasswordResetService } from '../services/password-reset.service'
+import { PasswordStrengthService } from '../services/password-strength.service'
 import { LoginDto } from '../dto/login.dto'
 import { RefreshTokenDto } from '../dto/refresh-token.dto'
 import { LogoutDto } from '../dto/logout.dto'
@@ -27,6 +28,7 @@ import {
   ValidateResetTokenDto
 } from '../dto/password-reset.dto'
 import { ChangePasswordDto } from '../dto/change-password.dto'
+import { CheckPasswordStrengthDto } from '../dto/check-password-strength.dto'
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 import { AuditService } from '@modules/audit/services/audit.service'
@@ -48,6 +50,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly registrationService: RegistrationService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly passwordStrengthService: PasswordStrengthService,
     private readonly availabilityService: UserAvailabilityService,
     private readonly auditService: AuditService
   ) {}
@@ -453,13 +456,28 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 5, ttl: 300 } }) // 5 attempts per 5 minutes
   @ApiOperation({
-    summary: 'Change password (for users forced to change password)',
+    summary: 'Change password',
     description:
-      'Allows users who are required to change their password to do so. ' +
+      'Allows users to change their password. ' +
       'Validates current password, sets new password, and clears the forcePasswordChange flag. ' +
-      'All existing sessions will be invalidated and user must login again.'
+      'Optionally invalidates all other sessions (default: true) or keeps them active. ' +
+      'Optionally sends email notification (default: true).'
   })
-  @ApiOkResponse({ description: 'Password changed successfully, user must login again' })
+  @ApiOkResponse({
+    description: 'Password changed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Password changed successfully. Other sessions have been logged out.'
+        },
+        success: { type: 'boolean', example: true },
+        sessionsRevoked: { type: 'number', example: 3 },
+        notificationSent: { type: 'boolean', example: true }
+      }
+    }
+  })
   async changePassword(@Body() dto: ChangePasswordDto, @Req() req: AuthenticatedRequest) {
     const user = req.user
     if (!user) {
@@ -473,15 +491,29 @@ export class AuthController {
     })
 
     this.logger.info(
-      { userId: user.userId, email: user.email, action: 'change_password_attempt' },
+      {
+        userId: user.userId,
+        email: user.email,
+        action: 'change_password_attempt',
+        invalidateAllSessions: dto.invalidateAllSessions,
+        sendNotification: dto.sendNotificationEmail
+      },
       'Password change attempt'
     )
+
+    // Extract current session ID from JWT token to keep it active if requested
+    const currentSessionId = (req as any).sessionId // Assuming session ID is attached to request by auth guard
 
     const result = await this.authService.changePassword(
       user.userId,
       dto.currentPassword,
       dto.newPassword,
       dto.confirmPassword,
+      {
+        invalidateAllSessions: dto.invalidateAllSessions,
+        sendNotificationEmail: dto.sendNotificationEmail,
+        currentSessionId: dto.invalidateAllSessions === false ? undefined : currentSessionId
+      },
       {
         ipAddress: this.extractIp(req),
         userAgent: req.headers['user-agent'] as string | undefined
@@ -492,8 +524,82 @@ export class AuthController {
     await this.auditService.logPasswordChange(context)
 
     this.logger.info(
-      { userId: user.userId, action: 'change_password_success' },
+      {
+        userId: user.userId,
+        action: 'change_password_success',
+        sessionsRevoked: result.sessionsRevoked,
+        notificationSent: result.notificationSent
+      },
       'Password changed successfully'
+    )
+
+    return result
+  }
+
+  @Post('password-strength')
+  @Throttle({ default: { limit: 30, ttl: 60 } }) // 30 requests per minute
+  @ApiOperation({
+    summary: 'Check password strength',
+    description:
+      'Validates password strength and provides feedback. Returns a score (0-4) and suggestions for improvement. Useful for real-time password strength indicators during registration or password change.'
+  })
+  @ApiOkResponse({
+    description: 'Password strength analysis',
+    schema: {
+      type: 'object',
+      properties: {
+        score: {
+          type: 'number',
+          description: 'Strength score from 0 (very weak) to 4 (very strong)',
+          example: 3
+        },
+        strength: {
+          type: 'string',
+          enum: ['very-weak', 'weak', 'fair', 'strong', 'very-strong'],
+          example: 'strong'
+        },
+        passed: {
+          type: 'boolean',
+          description: 'Whether password meets minimum requirements (score >= 2)',
+          example: true
+        },
+        feedback: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Suggestions to improve password strength',
+          example: ['Add special characters (!@#$%^&*)']
+        },
+        isBreached: {
+          type: 'boolean',
+          description: 'Whether password has been exposed in data breaches (future feature)',
+          example: false
+        },
+        requirements: {
+          type: 'object',
+          properties: {
+            minLength: { type: 'boolean', example: true },
+            hasUppercase: { type: 'boolean', example: true },
+            hasLowercase: { type: 'boolean', example: true },
+            hasNumber: { type: 'boolean', example: true },
+            hasSpecialChar: { type: 'boolean', example: false }
+          }
+        }
+      }
+    }
+  })
+  async checkPasswordStrength(@Body() dto: CheckPasswordStrengthDto) {
+    this.logger.debug({ action: 'check_password_strength' }, 'Checking password strength')
+
+    const result = await this.passwordStrengthService.calculateStrength(dto.password)
+
+    this.logger.debug(
+      {
+        action: 'password_strength_checked',
+        score: result.score,
+        strength: result.strength,
+        passed: result.passed
+      },
+      'Password strength checked'
     )
 
     return result

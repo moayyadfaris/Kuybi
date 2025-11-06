@@ -11,6 +11,9 @@ import { Session } from '../entities/session.entity'
 import { SessionsService } from './sessions.service'
 import { TokenBlacklistService } from './token-blacklist.service'
 import { AccountLockoutService } from './account-lockout.service'
+import { PasswordHistoryRepository } from '../repositories/password-history.repository'
+import { PasswordStrengthService } from './password-strength.service'
+import { EmailService } from '@infrastructure/email/services/email.service'
 
 interface SessionContext {
   ipAddress?: string
@@ -41,7 +44,10 @@ export class AuthService {
     private readonly sessionsService: SessionsService,
     private readonly tokenBlacklistService: TokenBlacklistService,
     private readonly accountLockoutService: AccountLockoutService,
-    private readonly sentryService: SentryService
+    private readonly sentryService: SentryService,
+    private readonly passwordHistoryRepository: PasswordHistoryRepository,
+    private readonly passwordStrengthService: PasswordStrengthService,
+    private readonly emailService: EmailService
   ) {}
 
   async validateUser(email: string, password: string, context?: SessionContext): Promise<User> {
@@ -74,7 +80,7 @@ export class AuthService {
         ? Math.max(0, Math.floor((new Date(lockInfo.lockedUntil).getTime() - Date.now()) / 1000))
         : 0
 
-        console.log('Account is locked, throwing 423 Locked exception')
+      console.log('Account is locked, throwing 423 Locked exception')
       // Return 423 Locked with detailed information
       throw new HttpException(
         {
@@ -544,14 +550,26 @@ export class AuthService {
   }
 
   /**
-   * Change password for user forced to change password
-   * Validates current password, sets new password, and clears forcePasswordChange flag
+   * Change password for user
+   * Validates current password, sets new password, and optionally invalidates sessions
+   *
+   * @param userId - User ID
+   * @param currentPassword - Current password for verification
+   * @param newPassword - New password to set
+   * @param confirmPassword - Password confirmation
+   * @param options - Additional options for password change behavior
+   * @param context - Session context (IP, user agent, etc.)
    */
   async changePassword(
     userId: string,
     currentPassword: string,
     newPassword: string,
     confirmPassword: string,
+    options: {
+      invalidateAllSessions?: boolean
+      sendNotificationEmail?: boolean
+      currentSessionId?: string // To keep current session active
+    },
     context: SessionContext
   ) {
     // Validate passwords match
@@ -577,6 +595,28 @@ export class AuthService {
       throw new UnauthorizedException('New password must be different from current password')
     }
 
+    // Check password strength
+    const strengthResult = await this.passwordStrengthService.calculateStrength(newPassword)
+    if (!strengthResult.passed) {
+      throw new UnauthorizedException({
+        message: 'Password does not meet strength requirements',
+        errors: strengthResult.feedback,
+        strength: strengthResult.strength,
+        score: strengthResult.score
+      })
+    }
+
+    // Check password history (last 5 passwords)
+    const passwordHistory = await this.passwordHistoryRepository.findByUser(userId, 5)
+    for (const historyEntry of passwordHistory) {
+      const isReused = await bcrypt.compare(newPassword, historyEntry.passwordHash)
+      if (isReused) {
+        throw new UnauthorizedException(
+          'Password has been used recently. Please choose a different password.'
+        )
+      }
+    }
+
     // Hash new password
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(newPassword, salt)
@@ -589,27 +629,111 @@ export class AuthService {
       forcePasswordChange: false
     })
 
+    // Save password to history
+    await this.passwordHistoryRepository.addPasswordHistory(
+      userId,
+      passwordHash,
+      context.ipAddress,
+      context.userAgent,
+      5 // Keep last 5 passwords
+    )
+
     this.logger.info(
       {
         userId: user.id,
         email: user.email,
         ipAddress: context.ipAddress,
-        action: 'password_changed'
+        action: 'password_changed',
+        invalidateAllSessions: options.invalidateAllSessions,
+        sendNotification: options.sendNotificationEmail,
+        passwordStrength: strengthResult.strength
       },
       'User changed password successfully'
     )
 
-    // Invalidate all existing sessions (user will need to login again with new password)
-    await this.sessionsService.revokeAllSessions(userId, undefined, 'Password changed by user')
+    // Handle session invalidation based on user preference
+    const invalidateAllSessions = options.invalidateAllSessions !== false // Default to true
+    const sessionsRevoked = {
+      count: 0,
+      exceptCurrent: false
+    }
 
-    this.logger.info(
-      { userId: user.id, action: 'sessions_revoked_after_password_change' },
-      'All sessions revoked after password change'
-    )
+    if (invalidateAllSessions) {
+      // Invalidate all sessions EXCEPT current one (if provided)
+      const revokedCount = await this.sessionsService.revokeAllSessions(
+        userId,
+        options.currentSessionId, // Exempt current session
+        'Password changed by user'
+      )
+
+      sessionsRevoked.count = revokedCount
+      sessionsRevoked.exceptCurrent = !!options.currentSessionId
+
+      this.logger.info(
+        {
+          userId: user.id,
+          sessionsRevoked: revokedCount,
+          exceptCurrent: sessionsRevoked.exceptCurrent,
+          action: 'sessions_revoked_after_password_change'
+        },
+        `Revoked ${revokedCount} sessions after password change`
+      )
+    } else {
+      this.logger.info(
+        { userId: user.id, action: 'password_changed_sessions_kept' },
+        'Password changed, sessions kept active per user request'
+      )
+    }
+
+    // Send notification email if requested
+    if (options.sendNotificationEmail !== false) {
+      try {
+        await this.emailService.sendPasswordChangedEmail(
+          user.email,
+          user.name,
+          new Date(),
+          context.ipAddress
+        )
+
+        this.logger.info(
+          {
+            userId: user.id,
+            email: user.email,
+            action: 'password_change_notification_sent',
+            sessionsRevoked: sessionsRevoked.count
+          },
+          'Password change notification email sent successfully'
+        )
+      } catch (error) {
+        // Log error but don't fail the password change
+        this.logger.error(
+          {
+            userId: user.id,
+            email: user.email,
+            error: error.message,
+            action: 'password_change_notification_failed'
+          },
+          'Failed to send password change notification email'
+        )
+
+        // Capture to Sentry for monitoring
+        this.sentryService.captureException(error, {
+          userId: user.id,
+          email: user.email,
+          context: 'password_change_notification'
+        })
+      }
+    }
 
     return {
-      message: 'Password changed successfully. Please login with your new password.',
-      success: true
+      message: invalidateAllSessions
+        ? sessionsRevoked.exceptCurrent
+          ? 'Password changed successfully. Other sessions have been logged out.'
+          : 'Password changed successfully. Please login with your new password.'
+        : 'Password changed successfully. All sessions remain active.',
+      success: true,
+      sessionsRevoked: sessionsRevoked.count,
+      notificationSent: options.sendNotificationEmail !== false
     }
   }
 }

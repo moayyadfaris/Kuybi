@@ -1,13 +1,15 @@
-import { IsString, MinLength, Matches } from 'class-validator'
-import { ApiProperty } from '@nestjs/swagger'
+import { IsString, MinLength, Matches, IsBoolean, IsOptional } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Transform } from 'class-transformer'
 
 /**
- * DTO for users forced to change their password
+ * DTO for users changing their password
  *
  * Used when:
  * - Admin reset user password
  * - Temporary password expired
  * - Security incident requires password change
+ * - User voluntarily changes password for security
  */
 export class ChangePasswordDto {
   @ApiProperty({
@@ -36,4 +38,40 @@ export class ChangePasswordDto {
   })
   @IsString()
   confirmPassword: string
+
+  @ApiPropertyOptional({
+    description:
+      'Invalidate all existing sessions except current one. ' +
+      'If true, user will be logged out of all other devices. ' +
+      'If false, only current session remains active.',
+    default: true,
+    example: true
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    // Handle string 'true'/'false' from query params
+    if (typeof value === 'string') {
+      return value === 'true'
+    }
+    return value !== false // Default to true if not specified
+  })
+  invalidateAllSessions?: boolean = true
+
+  @ApiPropertyOptional({
+    description:
+      'Send email notification about password change. ' +
+      'Recommended for security - alerts user if change was unauthorized.',
+    default: true,
+    example: true
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value === 'true'
+    }
+    return value !== false // Default to true
+  })
+  sendNotificationEmail?: boolean = true
 }
