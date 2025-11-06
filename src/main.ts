@@ -106,30 +106,84 @@ async function bootstrap() {
     res.send(document)
   })
 
+  // Enable graceful shutdown hooks
+  app.enableShutdownHooks()
+
   await app.listen(httpConfig.port, httpConfig.host)
 
   let isShuttingDown = false
+  let shutdownTimer: NodeJS.Timeout | null = null
+
   const shutdown = async (signal: string) => {
     if (isShuttingDown) {
+      appLogger.log({ signal }, 'Shutdown already in progress, ignoring duplicate signal')
       return
     }
     isShuttingDown = true
 
-    const logger = app.get(Logger)
-    logger.log({ signal }, 'Shutting down application')
+    appLogger.log({ signal }, 'Received shutdown signal, starting graceful shutdown')
+
+    // Set a timeout to force shutdown if graceful shutdown takes too long
+    const shutdownTimeout = 30000 // 30 seconds
+    shutdownTimer = setTimeout(() => {
+      appLogger.error(
+        { signal, timeout: shutdownTimeout },
+        'Graceful shutdown timeout exceeded, forcing exit'
+      )
+      process.exit(1)
+    }, shutdownTimeout)
 
     try {
+      // Stop accepting new requests
+      appLogger.log({ signal }, 'Stopping new incoming requests')
+
+      // Close the NestJS application (triggers onModuleDestroy, beforeApplicationShutdown, onApplicationShutdown)
+      appLogger.log({ signal }, 'Closing Nest application and connections')
       await app.close()
-      logger.log({ signal }, 'Nest application closed')
-    } catch (error) {
-      logger.error({ signal, error }, 'Error during Nest application shutdown')
-    } finally {
+
+      appLogger.log({ signal }, 'All connections closed successfully')
+
+      // Clear the timeout since shutdown completed successfully
+      if (shutdownTimer) {
+        clearTimeout(shutdownTimer)
+      }
+
+      appLogger.log({ signal }, 'Graceful shutdown completed')
       process.exit(0)
+    } catch (error) {
+      appLogger.error(
+        { signal, error: error.message, stack: error.stack },
+        'Error during graceful shutdown'
+      )
+
+      // Clear the timeout
+      if (shutdownTimer) {
+        clearTimeout(shutdownTimer)
+      }
+
+      // Exit with error code
+      process.exit(1)
     }
   }
 
-  process.once('SIGINT', () => shutdown('SIGINT'))
-  process.once('SIGTERM', () => shutdown('SIGTERM'))
+  // Handle termination signals
+  process.once('SIGINT', () => shutdown('SIGINT')) // Ctrl+C
+  process.once('SIGTERM', () => shutdown('SIGTERM')) // Docker/K8s termination
+  process.once('SIGUSR2', () => shutdown('SIGUSR2')) // Nodemon restart
+
+  // Handle uncaught errors
+  process.on('uncaughtException', (error: Error) => {
+    appLogger.error(
+      { error: error.message, stack: error.stack },
+      'Uncaught exception - shutting down'
+    )
+    shutdown('uncaughtException')
+  })
+
+  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+    appLogger.error({ reason, promise }, 'Unhandled promise rejection - shutting down')
+    shutdown('unhandledRejection')
+  })
 }
 
 bootstrap()

@@ -24,6 +24,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
 import { LoggingModule } from '@core/logging/logging.module'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
+import { ShutdownModule } from '@core/shutdown/shutdown.module'
 
 @Module({
   imports: [
@@ -69,7 +70,8 @@ import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware
     StoriesModule,
     AclModule,
     AuditModule,
-    LoggingModule
+    LoggingModule,
+    ShutdownModule // Graceful shutdown handling
   ],
   providers: [
     {

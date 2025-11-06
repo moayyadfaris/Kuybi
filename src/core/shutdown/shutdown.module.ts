@@ -1,0 +1,25 @@
+import { Module } from '@nestjs/common'
+import { ShutdownService } from './shutdown.service'
+import { BullModule } from '@nestjs/bullmq'
+import { QueueName } from '@core/queues/jobs/types'
+
+/**
+ * Shutdown Module
+ *
+ * Provides graceful shutdown handling for the application
+ * Ensures all connections and queues are properly closed
+ */
+@Module({
+  imports: [
+    BullModule.registerQueue(
+      { name: QueueName.EMAIL },
+      { name: QueueName.SESSION_CLEANUP },
+      { name: QueueName.LOG_MAINTENANCE },
+      { name: QueueName.ATTACHMENT_PROCESSING },
+      { name: QueueName.ACCOUNT_SECURITY }
+    )
+  ],
+  providers: [ShutdownService],
+  exports: [ShutdownService]
+})
+export class ShutdownModule {}
