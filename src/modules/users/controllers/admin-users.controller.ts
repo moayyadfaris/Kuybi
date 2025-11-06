@@ -1,10 +1,7 @@
 import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '../../acl/abilities/ability.guard'
-import { CheckAbility } from '../../acl/abilities/ability.decorator'
-import { Action } from '../../acl/types/actions.enum'
-import { Subject } from '../../acl/types/subjects.enum'
+import { SuperAdminGuard } from '../../acl/guards/super-admin.guard'
 import { AdminPasswordManagementService } from '../services/admin-password-management.service'
 import {
   AdminResetPasswordDto,
@@ -15,17 +12,16 @@ import {
 @ApiTags('Admin - Users')
 @ApiBearerAuth()
 @Controller('admin/users')
-@UseGuards(JwtAuthGuard, AbilityGuard)
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
 export class AdminUsersController {
   constructor(private readonly adminPasswordService: AdminPasswordManagementService) {}
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @CheckAbility({ action: Action.Update, subject: Subject.User })
   @ApiOperation({
-    summary: 'Reset user password (system-generated)',
+    summary: 'Reset user password (super-admin only)',
     description:
-      'Admin resets user password. System generates a secure random password and returns it. ' +
+      'Super-admin resets user password. System generates a secure random password and returns it. ' +
       'User will be required to change password on next login. All active sessions are invalidated.'
   })
   @ApiResponse({
@@ -47,11 +43,10 @@ export class AdminUsersController {
 
   @Post('set-password')
   @HttpCode(HttpStatus.OK)
-  @CheckAbility({ action: Action.Update, subject: Subject.User })
   @ApiOperation({
-    summary: 'Set user password (admin-defined)',
+    summary: 'Set user password (super-admin only)',
     description:
-      'Admin sets a specific password for user (emergency access). ' +
+      'Super-admin sets a specific password for user (emergency access). ' +
       'Password must meet strength requirements. User can be required to change password on next login. ' +
       'All active sessions are invalidated. Optional email notification.'
   })

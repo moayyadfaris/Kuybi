@@ -15,6 +15,7 @@ import { UserRolesService } from '../services/user-roles.service'
 import { AssignRoleDto } from '../../acl/dto/assign-role.dto'
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
 import { AbilityGuard } from '../../acl/abilities/ability.guard'
+import { RoleHierarchyGuard } from '../../acl/guards/role-hierarchy.guard'
 import { CheckAbility } from '../../acl/abilities/ability.decorator'
 import { Action } from '../../acl/types/actions.enum'
 import { Subject } from '../../acl/types/subjects.enum'
@@ -39,13 +40,17 @@ export class UserRolesController {
   }
 
   @Post()
+  @UseGuards(RoleHierarchyGuard)
   @CheckAbility({ action: Action.Assign, subject: Subject.Role })
   @ApiOperation({ summary: 'Assign a role to a user' })
   @ApiParam({ name: 'userId', description: 'User UUID' })
   @ApiResponse({ status: 201, description: 'Role assigned successfully' })
   @ApiResponse({ status: 400, description: 'Bad request - invalid role or user' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - requires assign:Role permission' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - requires assign:Role permission and role hierarchy'
+  })
   @ApiResponse({ status: 404, description: 'User or role not found' })
   @ApiResponse({ status: 409, description: 'Role already assigned to user' })
   async assignRole(@Param('userId') userId: string, @Body() assignRoleDto: AssignRoleDto) {
@@ -53,6 +58,7 @@ export class UserRolesController {
   }
 
   @Delete(':roleId')
+  @UseGuards(RoleHierarchyGuard)
   @CheckAbility({ action: Action.Assign, subject: Subject.Role })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a role from a user' })
@@ -60,7 +66,10 @@ export class UserRolesController {
   @ApiParam({ name: 'roleId', description: 'Role ID' })
   @ApiResponse({ status: 204, description: 'Role revoked successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - requires assign:Role permission' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - requires assign:Role permission and role hierarchy'
+  })
   @ApiResponse({ status: 404, description: 'User role assignment not found' })
   async revokeRole(@Param('userId') userId: string, @Param('roleId', ParseIntPipe) roleId: number) {
     await this.userRolesService.revokeRole(userId, roleId)

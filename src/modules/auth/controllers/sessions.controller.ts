@@ -27,6 +27,7 @@ import { Throttle } from '@nestjs/throttler'
 import { Request } from 'express'
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import { SessionsService, SessionCleanupService } from '../services'
+import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
 import {
   SessionFilterDto,
   SessionStatsDto,
@@ -375,21 +376,18 @@ export class SessionsController {
   }
 
   @Post('cleanup')
+  @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 300 } })
-  @ApiOperation({ summary: 'Manual cleanup (admin only)' })
+  @ApiOperation({ summary: 'Manual cleanup (super-admin only)' })
   @ApiQuery({ name: 'olderThanDays', required: false, type: Number })
   @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
   async manualCleanup(
     @Query('olderThanDays') olderThanDays: number = 30,
     @Req() req: AuthenticatedRequest
   ) {
     const user = req.user
-
-    if (user?.role !== 'admin') {
-      this.logger.warn({ userId: user?.userId, role: user?.role }, 'Non-admin cleanup attempt')
-      throw new ForbiddenException('Admin access required')
-    }
 
     this.logger.info(
       { adminUserId: user.userId, olderThanDays, action: 'manual_cleanup' },

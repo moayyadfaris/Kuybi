@@ -9,6 +9,7 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 import { UserRole } from '../../acl/entities/user-role.entity'
+import { Role } from '../../acl/entities/role.entity'
 import { Attachment } from '../../attachments/entities/attachment.entity'
 import { Action } from '../../acl/types/actions.enum'
 import { Subject } from '../../acl/types/subjects.enum'
@@ -31,7 +32,14 @@ export class User {
   passwordHash: string
 
   @Column({ length: 20, default: 'ROLE_USER' })
-  role: string
+  role: string // @deprecated - Use primaryRole instead. Kept for backward compatibility.
+
+  @Column({ name: 'primary_role_id' })
+  primaryRoleId: number
+
+  @ManyToOne(() => Role, { eager: true })
+  @JoinColumn({ name: 'primary_role_id' })
+  primaryRole: Role
 
   @Column({ default: true })
   isActive: boolean
@@ -92,9 +100,48 @@ export class User {
   updatedAt: Date
 
   /**
+   * Get the primary role name
+   */
+  getPrimaryRoleName(): string {
+    return this.primaryRole?.name || 'user'
+  }
+
+  /**
+   * Get user's highest priority role
+   */
+  getHighestPriorityRole(): Role | null {
+    if (!this.userRoles || this.userRoles.length === 0) {
+      return this.primaryRole
+    }
+
+    const now = new Date()
+    const activeRoles = this.userRoles
+      .filter(
+        userRole =>
+          userRole.isActive && userRole.role && (!userRole.expiresAt || userRole.expiresAt > now)
+      )
+      .map(userRole => userRole.role)
+
+    if (activeRoles.length === 0) {
+      return this.primaryRole
+    }
+
+    return activeRoles.reduce(
+      (highest, role) => (role.priority > (highest?.priority || 0) ? role : highest),
+      this.primaryRole
+    )
+  }
+
+  /**
    * Check if user has a specific role
    */
   hasRole(roleName: string): boolean {
+    // Check primary role
+    if (this.primaryRole?.name === roleName) {
+      return true
+    }
+
+    // Check user roles
     if (!this.userRoles) {
       return false
     }
@@ -102,7 +149,7 @@ export class User {
     const now = new Date()
     return this.userRoles.some(
       userRole =>
-        userRole.role.name === roleName &&
+        userRole.role?.name === roleName &&
         userRole.isActive &&
         (!userRole.expiresAt || userRole.expiresAt > now)
     )
@@ -112,14 +159,25 @@ export class User {
    * Get all active role names for this user
    */
   getRoles(): string[] {
-    if (!this.userRoles) {
-      return []
+    const roles = new Set<string>()
+
+    // Add primary role
+    if (this.primaryRole) {
+      roles.add(this.primaryRole.name)
     }
 
-    const now = new Date()
-    return this.userRoles
-      .filter(userRole => userRole.isActive && (!userRole.expiresAt || userRole.expiresAt > now))
-      .map(userRole => userRole.role.name)
+    // Add user roles
+    if (this.userRoles) {
+      const now = new Date()
+      this.userRoles
+        .filter(
+          userRole =>
+            userRole.isActive && userRole.role && (!userRole.expiresAt || userRole.expiresAt > now)
+        )
+        .forEach(userRole => roles.add(userRole.role.name))
+    }
+
+    return Array.from(roles)
   }
 
   /**
@@ -130,9 +188,43 @@ export class User {
   }
 
   /**
-   * Check if user is an admin
+   * Check if user is an admin (including super-admin)
    */
   isAdmin(): boolean {
     return this.hasRole('admin') || this.isSuperAdmin()
+  }
+
+  /**
+   * Check if user can manage another user based on role hierarchy
+   */
+  canManageUser(targetUser: User): boolean {
+    if (this.isSuperAdmin()) {
+      return true // Super admin can manage anyone
+    }
+
+    const myPriority = this.getHighestPriorityRole()?.priority || 0
+    const targetPriority = targetUser.getHighestPriorityRole()?.priority || 0
+
+    // Can only manage users with lower priority
+    return myPriority > targetPriority
+  }
+
+  /**
+   * Check if user can assign a specific role
+   */
+  canAssignRole(role: Role): boolean {
+    if (this.isSuperAdmin()) {
+      return true // Super admin can assign any role
+    }
+
+    // Cannot assign super-admin role
+    if (role.name === 'super-admin') {
+      return false
+    }
+
+    const myPriority = this.getHighestPriorityRole()?.priority || 0
+
+    // Can only assign roles with lower priority
+    return myPriority > role.priority
   }
 }

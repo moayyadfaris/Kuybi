@@ -17,6 +17,7 @@ import { CreateRoleDto } from '../dto/create-role.dto'
 import { UpdateRoleDto } from '../dto/update-role.dto'
 import { AssignPermissionsDto, RemovePermissionsDto } from '../dto/assign-permissions.dto'
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { SuperAdminGuard } from '../guards/super-admin.guard'
 import { CheckAbility } from '../abilities/ability.decorator'
 import { AbilityGuard } from '../abilities/ability.guard'
 import { Action } from '../types/actions.enum'
@@ -25,7 +26,7 @@ import { Subject } from '../types/subjects.enum'
 @ApiTags('Roles')
 @ApiBearerAuth()
 @Controller('v1/roles')
-@UseGuards(JwtAuthGuard, AbilityGuard)
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 

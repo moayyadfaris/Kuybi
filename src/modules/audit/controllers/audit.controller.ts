@@ -1,8 +1,7 @@
 import { Controller, Get, Query, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger'
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
-import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
+import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
 import { Action, Subject } from '@modules/acl/types'
 import { AuditQueryService } from '../services/audit-query.service'
 import {
@@ -18,13 +17,12 @@ import { AuditAction } from '../entities/audit-log.entity'
 
 @ApiTags('Audit Logs')
 @Controller('audit')
-@UseGuards(JwtAuthGuard, AbilityGuard)
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
 @ApiBearerAuth()
 export class AuditController {
   constructor(private readonly auditQueryService: AuditQueryService) {}
 
   @Get('search')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Search audit logs',
     description: 'Advanced search with multiple filters and pagination. Admin only.'
@@ -55,7 +53,6 @@ export class AuditController {
   }
 
   @Get('statistics')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get audit log statistics',
     description:
@@ -71,7 +68,6 @@ export class AuditController {
   }
 
   @Get('critical-events')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get critical security events',
     description: 'Retrieve high and critical severity events for security monitoring'
@@ -86,7 +82,6 @@ export class AuditController {
   }
 
   @Get('failed-operations')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get failed operations',
     description: 'Retrieve all failed operations for troubleshooting'
@@ -102,7 +97,6 @@ export class AuditController {
   }
 
   @Get('user/:userId/activity')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get user activity summary',
     description: 'Comprehensive activity summary for a specific user including statistics'
@@ -120,7 +114,6 @@ export class AuditController {
   }
 
   @Get('user/:userId/suspicious-activity')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Detect suspicious user activity',
     description: 'Analyze user behavior patterns to detect potential security threats'
@@ -136,7 +129,6 @@ export class AuditController {
   }
 
   @Get('entity/:entityType/:entityId/history')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get entity history',
     description: 'Complete audit trail for a specific entity showing all changes'
@@ -154,7 +146,6 @@ export class AuditController {
   }
 
   @Get('action/:action')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get logs by action type',
     description: 'Retrieve all logs for a specific action type'
@@ -167,7 +158,6 @@ export class AuditController {
   }
 
   @Get('ip/:ipAddress')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get logs by IP address',
     description: 'Security analysis: all actions from a specific IP address'
@@ -184,7 +174,6 @@ export class AuditController {
   }
 
   @Get('request/:requestId')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get logs by request ID',
     description: 'Distributed tracing: all logs for a specific request'
@@ -197,7 +186,6 @@ export class AuditController {
   }
 
   @Get(':id')
-  @CheckAbility({ action: Action.Read, subject: Subject.AuditLog })
   @ApiOperation({
     summary: 'Get audit log by ID',
     description: 'Retrieve a single audit log entry with full details'

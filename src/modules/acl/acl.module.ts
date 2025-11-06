@@ -23,6 +23,11 @@ import { PermissionsController } from './controllers/permissions.controller'
 import { AbilityFactory } from './abilities/ability.factory'
 import { AbilityGuard } from './abilities/ability.guard'
 
+// Guards
+import { SuperAdminGuard } from './guards/super-admin.guard'
+import { RoleHierarchyGuard } from './guards/role-hierarchy.guard'
+import { AdminOrOwnerGuard } from './guards/admin-or-owner.guard'
+
 // Seeders
 import { AclSeeder } from './seeders/acl.seeder'
 
@@ -41,9 +46,21 @@ import { CacheConfigModule } from '@core/cache/cache.module'
     PermissionsService,
     AbilityFactory,
     AbilityGuard,
+    SuperAdminGuard,
+    RoleHierarchyGuard,
+    AdminOrOwnerGuard,
     AclSeeder
   ],
   controllers: [RolesController, PermissionsController],
-  exports: [AbilityFactory, AbilityGuard, RolesService, PermissionsService]
+  exports: [
+    AbilityFactory,
+    AbilityGuard,
+    SuperAdminGuard,
+    RoleHierarchyGuard,
+    AdminOrOwnerGuard,
+    RolesService,
+    PermissionsService,
+    TypeOrmModule
+  ]
 })
 export class AclModule {}

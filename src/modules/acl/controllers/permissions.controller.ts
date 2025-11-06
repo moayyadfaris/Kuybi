@@ -17,6 +17,7 @@ import { PermissionsService } from '../services/permissions.service'
 import { CreatePermissionDto } from '../dto/create-permission.dto'
 import { UpdatePermissionDto } from '../dto/update-permission.dto'
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { SuperAdminGuard } from '../guards/super-admin.guard'
 import { CheckAbility } from '../abilities/ability.decorator'
 import { AbilityGuard } from '../abilities/ability.guard'
 import { Action } from '../types/actions.enum'
@@ -25,7 +26,7 @@ import { Subject } from '../types/subjects.enum'
 @ApiTags('Permissions')
 @ApiBearerAuth()
 @Controller('v1/permissions')
-@UseGuards(JwtAuthGuard, AbilityGuard)
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 
