@@ -91,7 +91,9 @@ export class PasswordStrengthService {
     // Check for breached passwords (placeholder for now)
     const isBreached = await this.checkIfBreached(password)
     if (isBreached) {
-      feedback.unshift('⚠️ This password has been exposed in a data breach. Choose a different one.')
+      feedback.unshift(
+        '⚠️ This password has been exposed in a data breach. Choose a different one.'
+      )
     }
 
     const result: PasswordStrengthResult = {

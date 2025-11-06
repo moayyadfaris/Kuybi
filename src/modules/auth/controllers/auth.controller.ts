@@ -353,7 +353,8 @@ export class AuthController {
       email: user.email,
       name: user.email?.split('@')[0]
     }
-    const context = this.auditService.createContextFromRequest(req, contextUser)
+    // Context created for potential audit logging
+    this.auditService.createContextFromRequest(req, contextUser)
 
     this.logger.info(
       {
@@ -502,7 +503,7 @@ export class AuthController {
     )
 
     // Extract current session ID from JWT token to keep it active if requested
-    const currentSessionId = (req as any).sessionId // Assuming session ID is attached to request by auth guard
+    const currentSessionId = (req as AuthenticatedRequest & { sessionId?: string }).sessionId
 
     const result = await this.authService.changePassword(
       user.userId,

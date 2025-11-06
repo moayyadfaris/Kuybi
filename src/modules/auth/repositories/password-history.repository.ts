@@ -102,10 +102,7 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
    * Invalidate all cache for a specific user
    */
   private async invalidateUserCache(userId: string): Promise<void> {
-    const patterns = [
-      `${this.entityName}:user:${userId}:*`,
-      `${this.entityName}:list:*`
-    ]
+    const patterns = [`${this.entityName}:user:${userId}:*`, `${this.entityName}:list:*`]
 
     for (const pattern of patterns) {
       await this.cacheService.del(pattern)
