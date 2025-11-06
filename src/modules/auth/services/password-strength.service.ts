@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import * as crypto from 'crypto'
 
 export interface PasswordStrengthResult {
   score: number // 0-4 (0: very weak, 4: very strong)
@@ -23,7 +25,8 @@ export class PasswordStrengthService {
 
   constructor(
     @InjectPinoLogger(PasswordStrengthService.name)
-    private readonly logger: PinoLogger
+    private readonly logger: PinoLogger,
+    private readonly configService: ConfigService
   ) {}
 
   /**
@@ -213,19 +216,66 @@ export class PasswordStrengthService {
   }
 
   /**
-   * Check if password has been breached (placeholder)
-   * TODO: Integrate with HaveIBeenPwned API
+   * Check if password has been breached using HaveIBeenPwned API
+   * Uses k-anonymity model - only sends first 5 chars of hash
    */
-  private async checkIfBreached(_password: string): Promise<boolean> {
-    // Placeholder - always returns false
-    // In production, integrate with HaveIBeenPwned API:
-    // 1. Hash password with SHA-1
-    // 2. Send first 5 chars of hash to API
-    // 3. Check if full hash exists in response
+  private async checkIfBreached(password: string): Promise<boolean> {
+    const enabled = this.configService.get<boolean>('auth.enableBreachDetection', true)
 
-    this.logger.debug('Breach check skipped (not implemented)')
+    if (!enabled) {
+      this.logger.debug('Breach detection disabled via configuration')
+      return false
+    }
 
-    return false
+    try {
+      // Hash password with SHA-1
+      const hash = crypto.createHash('sha1').update(password).digest('hex').toUpperCase()
+      const prefix = hash.substring(0, 5)
+      const suffix = hash.substring(5)
+
+      this.logger.debug({ prefix }, 'Checking password breach with k-anonymity')
+
+      // Query HaveIBeenPwned API with k-anonymity
+      const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+        headers: {
+          'User-Agent': 'Kuybi-Password-Checker',
+          'Add-Padding': 'true' // HIBP recommends this for additional privacy
+        }
+      })
+
+      if (!response.ok) {
+        this.logger.warn(
+          { status: response.status, statusText: response.statusText },
+          'Failed to check password breach - HIBP API error'
+        )
+        // Fail open - don't block user if API is down
+        return false
+      }
+
+      const data = await response.text()
+      const hashes = data.split('\n')
+
+      // Check if our hash suffix appears in the list
+      const found = hashes.some(line => {
+        const [hashSuffix] = line.split(':')
+        return hashSuffix === suffix
+      })
+
+      if (found) {
+        this.logger.warn(
+          { hashPrefix: prefix },
+          'Password found in breach database - user should choose different password'
+        )
+      } else {
+        this.logger.debug('Password not found in breach database')
+      }
+
+      return found
+    } catch (error) {
+      this.logger.error({ error: error.message }, 'Error checking password breach - failing open')
+      // Fail open - don't block user if there's an error
+      return false
+    }
   }
 
   /**

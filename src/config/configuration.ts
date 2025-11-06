@@ -93,7 +93,9 @@ export default () => {
     auth: {
       jwtSecret: process.env.JWT_SECRET || 'change-me-kuybi-secret',
       jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '10m',
-      jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+      jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+      passwordChangeCooldownHours: parseNumber(process.env.PASSWORD_CHANGE_COOLDOWN_HOURS, 1),
+      enableBreachDetection: parseBoolean(process.env.ENABLE_BREACH_DETECTION, true)
     },
     security: {
       accountLockout: {

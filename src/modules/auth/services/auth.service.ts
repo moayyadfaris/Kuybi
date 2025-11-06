@@ -606,6 +606,46 @@ export class AuthService {
       })
     }
 
+    // Check password change cooldown (temporary lockout)
+    const cooldownHours = this.configService.get<number>('auth.passwordChangeCooldownHours', 1)
+    if (cooldownHours > 0) {
+      const latestChange = await this.passwordHistoryRepository.findByUser(userId, 1)
+      if (latestChange.length > 0) {
+        const lastChangeDate = latestChange[0].createdAt
+        const hoursSinceChange =
+          (Date.now() - new Date(lastChangeDate).getTime()) / (1000 * 60 * 60)
+
+        if (hoursSinceChange < cooldownHours) {
+          const remainingHours = Math.ceil(cooldownHours - hoursSinceChange)
+          const remainingMinutes = Math.ceil((cooldownHours - hoursSinceChange) * 60)
+
+          throw new UnauthorizedException({
+            message: 'Password was changed too recently',
+            code: 'PASSWORD_CHANGE_COOLDOWN',
+            cooldownHours,
+            remainingTime:
+              remainingHours >= 1
+                ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}`
+                : `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`,
+            lastChangedAt: lastChangeDate,
+            canChangeAfter: new Date(
+              new Date(lastChangeDate).getTime() + cooldownHours * 60 * 60 * 1000
+            )
+          })
+        }
+
+        this.logger.info(
+          {
+            userId,
+            hoursSinceChange: hoursSinceChange.toFixed(2),
+            cooldownHours,
+            action: 'password_cooldown_check_passed'
+          },
+          'Password change cooldown check passed'
+        )
+      }
+    }
+
     // Check password history (last 5 passwords)
     const passwordHistory = await this.passwordHistoryRepository.findByUser(userId, 5)
     for (const historyEntry of passwordHistory) {

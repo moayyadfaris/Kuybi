@@ -16,6 +16,7 @@ import { AuthService } from '../services'
 import { RegistrationService } from '../services/registration.service'
 import { PasswordResetService } from '../services/password-reset.service'
 import { PasswordStrengthService } from '../services/password-strength.service'
+import { PasswordHistoryRepository } from '../repositories/password-history.repository'
 import { LoginDto } from '../dto/login.dto'
 import { RefreshTokenDto } from '../dto/refresh-token.dto'
 import { LogoutDto } from '../dto/logout.dto'
@@ -51,6 +52,7 @@ export class AuthController {
     private readonly registrationService: RegistrationService,
     private readonly passwordResetService: PasswordResetService,
     private readonly passwordStrengthService: PasswordStrengthService,
+    private readonly passwordHistoryRepository: PasswordHistoryRepository,
     private readonly availabilityService: UserAvailabilityService,
     private readonly auditService: AuditService
   ) {}
@@ -604,6 +606,132 @@ export class AuthController {
     )
 
     return result
+  }
+
+  @Get('password-history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @ApiOperation({
+    summary: 'Get password change history',
+    description:
+      'Retrieve the history of password changes for the authenticated user. ' +
+      'Shows when, where, and from which device passwords were changed. ' +
+      'Useful for security auditing and detecting unauthorized changes.'
+  })
+  @ApiOkResponse({
+    description: 'Password change history retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 5 },
+            changes: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
+                  changedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2025-11-06T15:40:38.609Z'
+                  },
+                  ipAddress: { type: 'string', example: '192.168.1.1' },
+                  userAgent: { type: 'string', example: 'Mozilla/5.0...' },
+                  device: {
+                    type: 'object',
+                    properties: {
+                      type: { type: 'string', example: 'desktop' },
+                      browser: { type: 'string', example: 'Chrome' },
+                      os: { type: 'string', example: 'macOS' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  async getPasswordHistory(@Req() req: AuthenticatedRequest) {
+    const user = req.user
+    if (!user) {
+      throw new Error('Authenticated user not found on request context')
+    }
+
+    this.logger.info(
+      { userId: user.userId, action: 'get_password_history' },
+      'Fetching password change history'
+    )
+
+    const history = await this.passwordHistoryRepository.findByUser(user.userId, 20)
+
+    const changes = history.map(entry => ({
+      id: entry.id,
+      changedAt: entry.createdAt,
+      ipAddress: entry.ipAddress,
+      userAgent: entry.userAgent,
+      device: this.parseUserAgent(entry.userAgent)
+    }))
+
+    this.logger.info(
+      {
+        userId: user.userId,
+        action: 'password_history_retrieved',
+        count: changes.length
+      },
+      'Password history retrieved successfully'
+    )
+
+    return {
+      success: true,
+      data: {
+        total: changes.length,
+        changes
+      }
+    }
+  }
+
+  private parseUserAgent(userAgent: string | undefined): {
+    type: string
+    browser: string
+    os: string
+  } {
+    if (!userAgent) {
+      return { type: 'unknown', browser: 'unknown', os: 'unknown' }
+    }
+
+    const ua = userAgent.toLowerCase()
+
+    // Determine device type
+    let type = 'desktop'
+    if (ua.includes('mobile')) type = 'mobile'
+    else if (ua.includes('tablet') || ua.includes('ipad')) type = 'tablet'
+
+    // Determine browser
+    let browser = 'unknown'
+    if (ua.includes('firefox')) browser = 'Firefox'
+    else if (ua.includes('chrome')) browser = 'Chrome'
+    else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari'
+    else if (ua.includes('edge')) browser = 'Edge'
+    else if (ua.includes('opera')) browser = 'Opera'
+    else if (ua.includes('postman')) browser = 'Postman'
+    else if (ua.includes('curl')) browser = 'cURL'
+
+    // Determine OS
+    let os = 'unknown'
+    if (ua.includes('windows')) os = 'Windows'
+    else if (ua.includes('mac os') || ua.includes('macos')) os = 'macOS'
+    else if (ua.includes('linux')) os = 'Linux'
+    else if (ua.includes('android')) os = 'Android'
+    else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) os = 'iOS'
+
+    return { type, browser, os }
   }
 
   private extractIp(request: Request): string | undefined {
