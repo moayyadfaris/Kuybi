@@ -5,9 +5,9 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/main.js",
+    "start": "NODE_OPTIONS='--require ./dist/instrumentation.js' nest start",
+    "start:dev": "NODE_OPTIONS='--require ./dist/instrumentation.js' nest start --watch",
+    "start:prod": "node --require ./dist/instrumentation.js dist/main.js",
     "start:worker": "node dist/worker.js",
     "start:worker:dev": "ts-node -r tsconfig-paths/register src/worker.ts",
     "start:dashboard": "ts-node -r tsconfig-paths/register src/dashboard.ts",

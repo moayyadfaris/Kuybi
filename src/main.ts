@@ -12,12 +12,10 @@ import { LoggingContextService } from '@core/logging/logging-context.service'
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { SentryService, SentryInterceptor, SentryFilter } from '@core/sentry'
-import { initializeOpenTelemetry } from '@core/observability/instrumentation/otel-init'
 
 async function bootstrap() {
-  // Initialize OpenTelemetry SDK FIRST (before any NestJS app creation)
-  // This ensures auto-instrumentation captures all HTTP/DB/Redis operations
-  initializeOpenTelemetry()
+  // OpenTelemetry is initialized in instrumentation.ts (loaded via --require flag)
+  // This ensures auto-instrumentation is registered before HTTP modules are loaded
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true })
   const configService = app.get(ConfigService)
