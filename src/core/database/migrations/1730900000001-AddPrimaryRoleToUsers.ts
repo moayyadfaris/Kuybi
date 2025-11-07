@@ -40,13 +40,13 @@ export class AddPrimaryRoleToUsers1730900000001 implements MigrationInterface {
 
     // Step 5: Ensure user_roles entries exist for all users
     await queryRunner.query(`
-      INSERT INTO user_roles (user_id, role_id, is_active, expires_at, created_at, updated_at)
+      INSERT INTO user_roles ("userId", "roleId", "isActive", "expiresAt", "createdAt", "assignedAt")
       SELECT u.id, u.primary_role_id, true, NULL, NOW(), NOW()
       FROM users u
       WHERE u.primary_role_id IS NOT NULL
         AND NOT EXISTS (
           SELECT 1 FROM user_roles ur 
-          WHERE ur.user_id = u.id AND ur.role_id = u.primary_role_id
+          WHERE ur."userId" = u.id AND ur."roleId" = u.primary_role_id
         )
     `)
 
