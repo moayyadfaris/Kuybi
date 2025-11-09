@@ -88,11 +88,7 @@ export class UsersService {
     })
   }
 
-  async updateUser(
-    id: string,
-    data: Partial<User>,
-    currentUser?: User
-  ): Promise<User | null> {
+  async updateUser(id: string, data: Partial<User>, currentUser?: User): Promise<User | null> {
     // Check if current user can manage target user (role hierarchy)
     if (currentUser && !currentUser.isSuperAdmin()) {
       const targetUser = await this.userRepository.findById(id, { bypassCache: true })
