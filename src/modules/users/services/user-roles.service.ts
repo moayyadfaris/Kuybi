@@ -6,20 +6,26 @@ import {
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { UserRole } from '../../acl/entities/user-role.entity'
 import { User } from '../entities/user.entity'
 import { Role } from '../../acl/entities/role.entity'
 import { AssignRoleDto } from '../../acl/dto/assign-role.dto'
+import { AuditService } from '../../audit/services/audit.service'
+import { AuditAction, AuditSeverity } from '../../audit/entities/audit-log.entity'
 
 @Injectable()
 export class UserRolesService {
   constructor(
+    @InjectPinoLogger(UserRolesService.name)
+    private readonly logger: PinoLogger,
     @InjectRepository(UserRole)
     private readonly userRoleRepository: Repository<UserRole>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
-    private readonly roleRepository: Repository<Role>
+    private readonly roleRepository: Repository<Role>,
+    private readonly auditService: AuditService
   ) {}
 
   /**
@@ -54,7 +60,7 @@ export class UserRolesService {
   /**
    * Assign a role to a user
    */
-  async assignRole(userId: string, assignRoleDto: AssignRoleDto) {
+  async assignRole(userId: string, assignRoleDto: AssignRoleDto, assignedBy?: User) {
     // Verify user exists
     const user = await this.userRepository.findOne({
       where: { id: userId }
@@ -94,11 +100,55 @@ export class UserRolesService {
     const userRole = this.userRoleRepository.create({
       userId,
       roleId: assignRoleDto.roleId,
+      assignedBy: assignedBy?.id,
       isActive: assignRoleDto.isActive ?? true,
       expiresAt: assignRoleDto.expiresAt ? new Date(assignRoleDto.expiresAt) : null
     })
 
     const saved = await this.userRoleRepository.save(userRole)
+
+    // Log role assignment
+    this.logger.info(
+      {
+        action: 'role_assigned',
+        userId,
+        roleId: role.id,
+        roleName: role.name,
+        assignedBy: assignedBy?.id,
+        expiresAt: saved.expiresAt
+      },
+      `Role "${role.name}" assigned to user ${userId}`
+    )
+
+    // Create audit log
+    if (assignedBy) {
+      await this.auditService.logAction(
+        {
+          userId: assignedBy.id,
+          username: assignedBy.name,
+          email: assignedBy.email
+        },
+        {
+          action: AuditAction.ROLE_ASSIGN,
+          entityType: 'UserRole',
+          entityId: String(saved.id),
+          newValues: {
+            userId,
+            roleId: role.id,
+            roleName: role.name,
+            isActive: saved.isActive,
+            expiresAt: saved.expiresAt
+          },
+          severity: AuditSeverity.CRITICAL,
+          description: `Role "${role.name}" assigned to user ${user.email}`,
+          metadata: {
+            targetUserId: userId,
+            targetUserEmail: user.email,
+            rolePriority: role.priority
+          }
+        }
+      )
+    }
 
     return {
       message: 'Role assigned successfully',
@@ -117,9 +167,10 @@ export class UserRolesService {
   /**
    * Revoke a role from a user
    */
-  async revokeRole(userId: string, roleId: number): Promise<void> {
+  async revokeRole(userId: string, roleId: number, revokedBy?: User): Promise<void> {
     const userRole = await this.userRoleRepository.findOne({
-      where: { userId, roleId }
+      where: { userId, roleId },
+      relations: ['role', 'user']
     })
 
     if (!userRole) {
@@ -127,6 +178,47 @@ export class UserRolesService {
     }
 
     await this.userRoleRepository.remove(userRole)
+
+    // Log role revocation
+    this.logger.info(
+      {
+        action: 'role_revoked',
+        userId,
+        roleId,
+        roleName: userRole.role.name,
+        revokedBy: revokedBy?.id
+      },
+      `Role "${userRole.role.name}" revoked from user ${userId}`
+    )
+
+    // Create audit log
+    if (revokedBy) {
+      await this.auditService.logAction(
+        {
+          userId: revokedBy.id,
+          username: revokedBy.name,
+          email: revokedBy.email
+        },
+        {
+          action: AuditAction.ROLE_REVOKE,
+          entityType: 'UserRole',
+          entityId: String(userRole.id),
+          previousValues: {
+            userId,
+            roleId: userRole.role.id,
+            roleName: userRole.role.name,
+            isActive: userRole.isActive
+          },
+          severity: AuditSeverity.CRITICAL,
+          description: `Role "${userRole.role.name}" revoked from user ${userRole.user.email}`,
+          metadata: {
+            targetUserId: userId,
+            targetUserEmail: userRole.user.email,
+            rolePriority: userRole.role.priority
+          }
+        }
+      )
+    }
   }
 
   /**

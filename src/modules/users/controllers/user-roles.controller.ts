@@ -8,9 +8,12 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  ParseIntPipe
+  ParseIntPipe,
+  Req
 } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger'
+import { Request } from 'express'
+import { User } from '../entities/user.entity'
 import { UserRolesService } from '../services/user-roles.service'
 import { AssignRoleDto } from '../../acl/dto/assign-role.dto'
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
@@ -53,8 +56,13 @@ export class UserRolesController {
   })
   @ApiResponse({ status: 404, description: 'User or role not found' })
   @ApiResponse({ status: 409, description: 'Role already assigned to user' })
-  async assignRole(@Param('userId') userId: string, @Body() assignRoleDto: AssignRoleDto) {
-    return this.userRolesService.assignRole(userId, assignRoleDto)
+  async assignRole(
+    @Param('userId') userId: string,
+    @Body() assignRoleDto: AssignRoleDto,
+    @Req() req: Request
+  ) {
+    const currentUser = (req as unknown as { user: User }).user
+    return this.userRolesService.assignRole(userId, assignRoleDto, currentUser)
   }
 
   @Delete(':roleId')
@@ -71,8 +79,13 @@ export class UserRolesController {
     description: 'Forbidden - requires assign:Role permission and role hierarchy'
   })
   @ApiResponse({ status: 404, description: 'User role assignment not found' })
-  async revokeRole(@Param('userId') userId: string, @Param('roleId', ParseIntPipe) roleId: number) {
-    await this.userRolesService.revokeRole(userId, roleId)
+  async revokeRole(
+    @Param('userId') userId: string,
+    @Param('roleId', ParseIntPipe) roleId: number,
+    @Req() req: Request
+  ) {
+    const currentUser = (req as unknown as { user: User }).user
+    await this.userRolesService.revokeRole(userId, roleId, currentUser)
   }
 
   @Post(':roleId/activate')

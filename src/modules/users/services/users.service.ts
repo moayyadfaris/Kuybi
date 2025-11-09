@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException
+} from '@nestjs/common'
 import * as bcrypt from 'bcrypt'
 import { User } from '@modules/users/entities/user.entity'
 import { UserRepository } from '@core/database/repositories/user.repository'
@@ -83,7 +88,21 @@ export class UsersService {
     })
   }
 
-  async updateUser(id: string, data: Partial<User>): Promise<User | null> {
+  async updateUser(
+    id: string,
+    data: Partial<User>,
+    currentUser?: User
+  ): Promise<User | null> {
+    // Check if current user can manage target user (role hierarchy)
+    if (currentUser && !currentUser.isSuperAdmin()) {
+      const targetUser = await this.userRepository.findById(id, { bypassCache: true })
+      if (targetUser && !currentUser.canManageUser(targetUser)) {
+        throw new ForbiddenException(
+          'Cannot update user with equal or higher role priority. Contact a super-admin.'
+        )
+      }
+    }
+
     const updated = await this.userRepository.update(id, data)
     // Invalidate both internal and safe profile caches
     await this.cacheService.del(`user:profile:${id}`)
@@ -91,7 +110,17 @@ export class UsersService {
     return updated
   }
 
-  async deleteUser(id: string): Promise<boolean> {
+  async deleteUser(id: string, currentUser?: User): Promise<boolean> {
+    // Check if current user can manage target user (role hierarchy)
+    if (currentUser && !currentUser.isSuperAdmin()) {
+      const targetUser = await this.userRepository.findById(id, { bypassCache: true })
+      if (targetUser && !currentUser.canManageUser(targetUser)) {
+        throw new ForbiddenException(
+          'Cannot delete user with equal or higher role priority. Contact a super-admin.'
+        )
+      }
+    }
+
     return this.userRepository.delete(id)
   }
 
