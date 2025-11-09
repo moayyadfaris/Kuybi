@@ -527,7 +527,9 @@ export class AuthService {
   }
 
   private async generateAccessToken(user: User) {
-    const payload = { sub: user.id, email: user.email, role: user.role }
+    // Use primaryRole if available, otherwise fall back to legacy role column
+    const roleName = user.primaryRole?.name ?? user.getPrimaryRoleName()
+    const payload = { sub: user.id, email: user.email, role: roleName }
     return this.jwtService.signAsync(payload, {
       expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') as StringValue
     })
@@ -538,10 +540,12 @@ export class AuthService {
    * This token is valid for 15 minutes and can only be used to change password
    */
   private async generateTempAccessToken(user: User) {
+    // Use primaryRole if available, otherwise fall back to legacy role column
+    const roleName = user.primaryRole?.name ?? user.getPrimaryRoleName()
     const payload = {
       sub: user.id,
       email: user.email,
-      role: user.role,
+      role: roleName,
       tempPasswordChange: true // Flag to identify this is a temp token
     }
     return this.jwtService.signAsync(payload, {

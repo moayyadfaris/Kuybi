@@ -35,7 +35,7 @@ export class UserRepository extends BaseRepository<User> {
     if (options?.bypassCache) {
       return this.repository.findOne({
         where: { id },
-        relations: ['profileImage']
+        relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
       })
     }
 
@@ -44,7 +44,7 @@ export class UserRepository extends BaseRepository<User> {
       async () => {
         return this.repository.findOne({
           where: { id },
-          relations: ['profileImage']
+          relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
         })
       },
       options?.ttl ?? this.defaultTTL
@@ -62,7 +62,7 @@ export class UserRepository extends BaseRepository<User> {
       async () => {
         return this.repository.findOne({
           where: { email: email.toLowerCase() },
-          relations: ['profileImage']
+          relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
         })
       },
       this.defaultTTL
