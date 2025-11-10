@@ -64,20 +64,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found')
     }
 
-    // Debug: Log user entity state
-    this.logger.debug(
-      {
-        userId: user.id,
-        email: user.email,
-        hasPrimaryRole: !!user.primaryRole,
-        primaryRoleName: user.primaryRole?.name,
-        hasUserRoles: !!user.userRoles,
-        userRolesCount: user.userRoles?.length || 0,
-        hasIsSuperAdminMethod: typeof user.isSuperAdmin === 'function'
-      },
-      'JwtStrategy: User loaded from database'
-    )
-
     if (!user.isActive) {
       this.logger.warn(
         {
