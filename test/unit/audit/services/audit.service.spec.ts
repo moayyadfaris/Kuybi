@@ -54,10 +54,12 @@ describe('AuditService', () => {
 
   it('skips logging when disabled', async () => {
     const { instance, repo } = createRepositoryStub()
+    const mockSentryService = {} as any
     const service = new AuditService(
       instance,
       contextFactory,
       createConfigStub(false),
+      mockSentryService,
       loggerStub as PinoLogger
     )
 
@@ -93,10 +95,12 @@ describe('AuditService', () => {
     repo.create.mockReturnValue(savedLog)
     repo.save.mockResolvedValue(savedLog)
 
+    const mockSentryService = {} as any
     const service = new AuditService(
       instance,
       contextFactory,
       createConfigStub(true),
+      mockSentryService,
       loggerStub as PinoLogger
     )
 
