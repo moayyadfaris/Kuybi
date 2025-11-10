@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { TokenBlacklistService } from '../services/token-blacklist.service'
+import { UserRepository } from '@core/database/repositories/user.repository'
 import { Request } from 'express'
 
 @Injectable()
@@ -12,7 +13,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectPinoLogger(JwtStrategy.name)
     private readonly logger: PinoLogger,
     private readonly configService: ConfigService,
-    private readonly tokenBlacklistService: TokenBlacklistService
+    private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly userRepository: UserRepository
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -22,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     })
   }
 
-  async validate(req: Request, payload: any) {
+  async validate(req: Request, payload: { sub: string; email: string; role: string }) {
     // Extract the raw JWT token from the request
     const authHeader = req.headers.authorization
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
@@ -45,11 +47,35 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token has been revoked')
     }
 
-    // Return user data to be attached to request
-    return {
-      userId: payload.sub,
-      email: payload.email,
-      role: payload.role
+    // Load full user entity (includes primaryRole, userRoles relations)
+    // Repository automatically includes: profileImage, primaryRole, userRoles, userRoles.role
+    const user = await this.userRepository.findById(payload.sub)
+
+    if (!user) {
+      this.logger.warn(
+        {
+          userId: payload.sub,
+          email: payload.email,
+          action: 'user_not_found_in_jwt_validation'
+        },
+        'User from JWT payload not found in database'
+      )
+      throw new UnauthorizedException('User not found')
     }
+
+    if (!user.isActive) {
+      this.logger.warn(
+        {
+          userId: user.id,
+          email: user.email,
+          action: 'inactive_user_token_attempt'
+        },
+        'Inactive user attempted to use token'
+      )
+      throw new UnauthorizedException('User account is inactive')
+    }
+
+    // Return full User entity instance (with methods like isSuperAdmin())
+    return user
   }
 }

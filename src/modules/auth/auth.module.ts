@@ -29,6 +29,7 @@ import { PasswordStrengthService } from './services/password-strength.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { CacheService } from '@core/cache/services/cache.service'
 import { SessionRepository } from '@core/database/repositories/session.repository'
+import { UserRepository } from '@core/database/repositories/user.repository'
 import { PasswordHistoryRepository } from './repositories/password-history.repository'
 import { SentryModule } from '@core/sentry'
 import { AuditModule } from '@modules/audit/audit.module'
@@ -68,6 +69,7 @@ import { AuditModule } from '@modules/audit/audit.module'
     JwtStrategy,
     CacheService,
     SessionRepository,
+    UserRepository,
     PasswordHistoryRepository
   ],
   exports: [
