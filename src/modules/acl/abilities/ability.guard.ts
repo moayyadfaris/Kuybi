@@ -6,6 +6,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { AbilityFactory } from './ability.factory'
 import { CHECK_ABILITY, RequiredRule } from './ability.decorator'
 
@@ -17,7 +18,9 @@ import { CHECK_ABILITY, RequiredRule } from './ability.decorator'
 export class AbilityGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    private abilityFactory: AbilityFactory
+    private abilityFactory: AbilityFactory,
+    @InjectPinoLogger(AbilityGuard.name)
+    private readonly logger: PinoLogger
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -37,11 +40,25 @@ export class AbilityGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required')
     }
 
-    // Super-admin bypasses all permission checks
-    // Check both JWT payload role and User entity method
-    const isSuperAdmin = user.role === 'super-admin' || (user.isSuperAdmin && user.isSuperAdmin())
+    // Debug logging
+    this.logger.debug(
+      {
+        userId: user.id,
+        email: user.email,
+        hasPrimaryRole: !!user.primaryRole,
+        primaryRoleName: user.primaryRole?.name,
+        hasUserRoles: !!user.userRoles,
+        userRolesCount: user.userRoles?.length || 0,
+        hasIsSuperAdminMethod: typeof user.isSuperAdmin === 'function',
+        path: request.url
+      },
+      'AbilityGuard: Checking permissions'
+    )
 
-    if (isSuperAdmin) {
+    // Super-admin bypasses all permission checks
+    // Use User entity method (JWT strategy now returns full User entity)
+    if (user.isSuperAdmin && user.isSuperAdmin()) {
+      this.logger.debug({ userId: user.id }, 'AbilityGuard: Super-admin access granted')
       return true
     }
 

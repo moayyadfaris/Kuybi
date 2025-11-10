@@ -30,11 +30,8 @@ export class AbilityFactory {
     }
 
     // Super-admin gets unrestricted access to everything
-    // Check both JWT payload role and User entity method
-    const isSuperAdmin =
-      (user as any).role === 'super-admin' || (user.isSuperAdmin && user.isSuperAdmin())
-
-    if (isSuperAdmin) {
+    // Use User entity method (JWT strategy now returns full User entity)
+    if (user.isSuperAdmin && user.isSuperAdmin()) {
       can(Action.Manage, Subject.All)
       return build()
     }
