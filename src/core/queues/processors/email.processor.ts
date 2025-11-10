@@ -32,6 +32,7 @@ export class EmailProcessor extends WorkerHost {
     private readonly logger: PinoLogger
   ) {
     super()
+    this.logger.info('EmailProcessor initialized - ready to process email jobs')
   }
 
   /**

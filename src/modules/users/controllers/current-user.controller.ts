@@ -14,14 +14,11 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
 import { UsersService } from '../services/users.service'
 import { UserProfileDto } from '../dto/user-profile.dto'
 import { UpdateProfileImageDto } from '../dto/update-profile-image.dto'
+import { User } from '../entities/user.entity'
 import { Request } from 'express'
 
 interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string
-    email: string
-    role?: string
-  }
+  user?: User
 }
 
 @ApiTags('Users')
@@ -41,7 +38,7 @@ export class CurrentUserController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @HttpCode(HttpStatus.OK)
   async getCurrentUser(@Req() req: AuthenticatedRequest): Promise<UserProfileDto | null> {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       return null
     }
@@ -59,7 +56,7 @@ export class CurrentUserController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @HttpCode(HttpStatus.OK)
   async updateProfileImage(@Req() req: AuthenticatedRequest, @Body() dto: UpdateProfileImageDto) {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User ID not found in request')
     }
@@ -79,7 +76,7 @@ export class CurrentUserController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @HttpCode(HttpStatus.OK)
   async removeProfileImage(@Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User ID not found in request')
     }

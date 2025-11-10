@@ -33,7 +33,7 @@ import { EmailModule } from '@infrastructure/email'
     AttachmentsModule,
     forwardRef(() => AuthModule)
   ],
-  controllers: [UsersController, UserRolesController, AdminUsersController, CurrentUserController],
+  controllers: [CurrentUserController, UsersController, UserRolesController, AdminUsersController],
   providers: [
     UsersService,
     UserRolesService,

@@ -125,7 +125,9 @@ export class SessionRepository extends BaseRepository<Session> {
    * @returns Promise<Session | null>
    */
   async validateSession(sessionId: string): Promise<Session | null> {
-    const session = await this.findById(sessionId)
+    // Bypass cache to ensure we get fresh Session entity with all properties
+    // Critical for logout flow where userId comparison is required
+    const session = await this.findById(sessionId, { bypassCache: true })
 
     if (!session || session.deletedAt || !session.isActive) {
       return null

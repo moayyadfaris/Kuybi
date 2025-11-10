@@ -37,13 +37,10 @@ import {
   DeviceType
 } from '../dto'
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
+import { User } from '@modules/users/entities/user.entity'
 
 interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string
-    email: string
-    role: string
-  }
+  user?: User
 }
 
 /**
@@ -60,6 +57,14 @@ export class SessionsController {
     private readonly sessionsService: SessionsService,
     private readonly cleanupService: SessionCleanupService
   ) {}
+
+  @Get('me')
+  @Throttle({ default: { limit: 30, ttl: 60 } })
+  @ApiOperation({ summary: 'List my sessions (current user)' })
+  @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
+  async getMySessionsExplicit(@Query() filter: SessionFilterDto, @Req() req: AuthenticatedRequest) {
+    return this.listSessions(filter, req)
+  }
 
   @Get()
   @Throttle({ default: { limit: 30, ttl: 60 } })
@@ -143,6 +148,14 @@ export class SessionsController {
       },
       sessions: mapped
     }
+  }
+
+  @Get('me/stats')
+  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @ApiOperation({ summary: 'Get my session statistics (current user)' })
+  @ApiResponse({ status: 200, description: 'Statistics retrieved', type: SessionStatsDto })
+  async getMySessionStats(@Req() req: AuthenticatedRequest) {
+    return this.getSessionStats(req)
   }
 
   @Get('stats')
@@ -375,6 +388,200 @@ export class SessionsController {
     }
   }
 
+  @Get('users/:userId')
+  @UseGuards(SuperAdminGuard)
+  @Throttle({ default: { limit: 30, ttl: 60 } })
+  @ApiOperation({ summary: 'List sessions for any user (super-admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID to list sessions for' })
+  @ApiResponse({ status: 200, description: 'User sessions retrieved successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async listUserSessions(
+    @Param('userId') userId: string,
+    @Query() filter: SessionFilterDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    const startTime = Date.now()
+    const adminUser = req.user
+
+    this.logger.info(
+      {
+        adminUserId: adminUser.id,
+        targetUserId: userId,
+        filter,
+        action: 'admin_list_user_sessions'
+      },
+      'Super-admin listing user sessions'
+    )
+
+    const allSessions = await this.sessionsService.getActiveSessions(userId, filter.includeExpired)
+    let filtered = allSessions
+
+    // Apply filters
+    if (filter.filterByDevice) {
+      filtered = filtered.filter(
+        s => s.deviceType?.toLowerCase() === filter.filterByDevice?.toLowerCase()
+      )
+    }
+    if (filter.filterByType) {
+      filtered = filtered.filter(
+        s => s.sessionType?.toLowerCase() === filter.filterByType?.toLowerCase()
+      )
+    }
+    if (filter.filterBySecurityLevel) {
+      filtered = filtered.filter(s => s.securityLevel === filter.filterBySecurityLevel)
+    }
+    if (filter.searchByIp) {
+      filtered = filtered.filter(s => s.ipAddress?.includes(filter.searchByIp || ''))
+    }
+    if (filter.searchByFingerprint) {
+      filtered = filtered.filter(s => s.fingerprint?.includes(filter.searchByFingerprint || ''))
+    }
+
+    // Sort
+    const sortBy = filter.sortBy || 'createdAt'
+    const sortOrder = filter.sortOrder || 'desc'
+    filtered.sort((a, b) => {
+      const aVal = a[sortBy as keyof typeof a]
+      const bVal = b[sortBy as keyof typeof b]
+      return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1
+    })
+
+    const duration = Date.now() - startTime
+
+    this.logger.info(
+      {
+        adminUserId: adminUser.id,
+        targetUserId: userId,
+        totalSessions: allSessions.length,
+        filteredSessions: filtered.length,
+        duration,
+        action: 'admin_list_user_sessions_success'
+      },
+      'Super-admin user sessions list completed'
+    )
+
+    return {
+      success: true,
+      userId,
+      sessions: filtered,
+      total: allSessions.length,
+      filtered: filtered.length,
+      message: `Found ${filtered.length} session(s) for user`
+    }
+  }
+
+  @Delete('users/:userId/sessions/:sessionId')
+  @UseGuards(SuperAdminGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @ApiOperation({ summary: 'Revoke specific session for any user (super-admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiParam({ name: 'sessionId', description: 'Session ID to revoke' })
+  @ApiResponse({ status: 200, description: 'Session revoked successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  async revokeUserSession(
+    @Param('userId') userId: string,
+    @Param('sessionId') sessionId: string,
+    @Body() body: RevokeSessionDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    const adminUser = req.user
+
+    this.logger.info(
+      {
+        adminUserId: adminUser.id,
+        targetUserId: userId,
+        sessionId,
+        reason: body.reason,
+        action: 'admin_revoke_user_session'
+      },
+      'Super-admin revoking user session'
+    )
+
+    // Verify the session belongs to the specified user
+    const session = await this.sessionsService.getSessionById(sessionId)
+    if (!session) {
+      throw new NotFoundException('Session not found')
+    }
+
+    if (session.userId !== userId) {
+      throw new BadRequestException('Session does not belong to specified user')
+    }
+
+    const success = await this.sessionsService.revokeSession(
+      sessionId,
+      body.reason || 'Revoked by super-admin'
+    )
+
+    this.logger.info(
+      {
+        adminUserId: adminUser.id,
+        targetUserId: userId,
+        sessionId,
+        success,
+        action: 'admin_revoke_user_session_success'
+      },
+      'Super-admin revoked user session'
+    )
+
+    return {
+      success,
+      sessionId,
+      userId,
+      message: success ? 'Session revoked successfully' : 'Session not found or already revoked'
+    }
+  }
+
+  @Delete('users/:userId/sessions')
+  @UseGuards(SuperAdminGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @ApiOperation({ summary: 'Revoke all sessions for any user (super-admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'All user sessions revoked successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
+  async revokeAllUserSessions(
+    @Param('userId') userId: string,
+    @Body() body: RevokeSessionDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    const adminUser = req.user
+
+    this.logger.info(
+      {
+        adminUserId: adminUser.id,
+        targetUserId: userId,
+        reason: body.reason,
+        action: 'admin_revoke_all_user_sessions'
+      },
+      'Super-admin revoking all user sessions'
+    )
+
+    const count = await this.sessionsService.revokeAllUserSessions(
+      userId,
+      body.reason || 'All sessions revoked by super-admin'
+    )
+
+    this.logger.info(
+      {
+        adminUserId: adminUser.id,
+        targetUserId: userId,
+        sessionsRevoked: count,
+        action: 'admin_revoke_all_user_sessions_success'
+      },
+      'Super-admin revoked all user sessions'
+    )
+
+    return {
+      success: true,
+      userId,
+      sessionsRevoked: count,
+      message: `Successfully revoked ${count} session(s)`
+    }
+  }
+
   @Post('cleanup')
   @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
@@ -390,7 +597,7 @@ export class SessionsController {
     const user = req.user
 
     this.logger.info(
-      { adminUserId: user.userId, olderThanDays, action: 'manual_cleanup' },
+      { adminUserId: user.id, olderThanDays, action: 'manual_cleanup' },
       'Starting cleanup'
     )
 
@@ -402,7 +609,7 @@ export class SessionsController {
     const deletedCount = await this.cleanupService.manualCleanup(olderThanDays)
     const duration = Date.now() - startTime
 
-    this.logger.info({ adminUserId: user.userId, deletedCount, duration }, 'Cleanup completed')
+    this.logger.info({ adminUserId: user.id, deletedCount, duration }, 'Cleanup completed')
 
     return {
       success: true,
@@ -415,10 +622,10 @@ export class SessionsController {
 
   private getUserId(req: AuthenticatedRequest): string {
     const user = req.user
-    if (!user?.userId) {
+    if (!user?.id) {
       this.logger.error('User not authenticated')
       throw new UnauthorizedException('Not authenticated')
     }
-    return user.userId
+    return user.id
   }
 }

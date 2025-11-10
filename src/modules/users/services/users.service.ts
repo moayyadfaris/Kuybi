@@ -23,8 +23,8 @@ export class UsersService {
     private readonly cacheService: CacheService
   ) {}
 
-  findByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findByEmail(email)
+  findByEmail(email: string, bypassCache = false): Promise<User | null> {
+    return this.userRepository.findByEmail(email, bypassCache)
   }
 
   async findById(id: string): Promise<User | null> {
@@ -85,7 +85,7 @@ export class UsersService {
       email: payload.email.toLowerCase(),
       mobileNumber: payload.mobileNumber,
       passwordHash,
-      primaryRoleId: payload.primaryRoleId ?? 3,
+      primaryRoleId: payload.primaryRoleId ?? 4, // Default to 'user' role (ID 4)
       isVerified: payload.isVerified ?? false
     })
   }

@@ -54,8 +54,15 @@ export class UserRepository extends BaseRepository<User> {
   /**
    * Find user by email with caching
    */
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string, bypassCache = false): Promise<User | null> {
     const cacheKey = this.buildCacheKey('email', email.toLowerCase())
+
+    if (bypassCache) {
+      return this.repository.findOne({
+        where: { email: email.toLowerCase() },
+        relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
+      })
+    }
 
     return this.cacheService.wrap<User>(
       cacheKey,

@@ -197,7 +197,8 @@ export class SessionsService {
     sessionId: string,
     options: Partial<CreateSessionOptions>
   ): Promise<{ session: Session; refreshToken: string }> {
-    const currentSession = await this.sessionRepository.findById(sessionId)
+    // Bypass cache to ensure we get fresh Session entity with all properties
+    const currentSession = await this.sessionRepository.findById(sessionId, { bypassCache: true })
 
     if (!currentSession || !currentSession.isActive) {
       throw new UnauthorizedException('Invalid session')
@@ -276,6 +277,25 @@ export class SessionsService {
       'Revoked all user sessions'
     )
     return count
+  }
+
+  /**
+   * Get session by ID
+   * @param sessionId - Session ID
+   * @returns Promise<Session | null>
+   */
+  async getSessionById(sessionId: string) {
+    return this.sessionRepository.findById(sessionId, { bypassCache: true })
+  }
+
+  /**
+   * Revoke all sessions for a user (admin function)
+   * @param userId - User ID
+   * @param reason - Revocation reason
+   * @returns Promise<number> - Number of sessions revoked
+   */
+  async revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
+    return this.revokeAllSessions(userId, undefined, reason)
   }
 
   /**

@@ -51,7 +51,8 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string, context?: SessionContext): Promise<User> {
-    const user = await this.usersService.findByEmail(email)
+    // Bypass cache to ensure we get User entity with methods (not plain object from cache)
+    const user = await this.usersService.findByEmail(email, true)
     if (!user) {
       // Capture failed login attempts to Sentry for security monitoring
       this.sentryService.captureMessage(`Failed login attempt for email: ${email}`, 'warning', {

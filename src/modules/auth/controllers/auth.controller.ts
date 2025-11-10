@@ -33,13 +33,10 @@ import { CheckPasswordStrengthDto } from '../dto/check-password-strength.dto'
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 import { AuditService } from '@modules/audit/services/audit.service'
+import { User } from '@modules/users/entities/user.entity'
 
 interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string
-    email: string
-    role: string
-  }
+  user?: User
 }
 
 @ApiTags('auth')
@@ -351,7 +348,7 @@ export class AuthController {
     const authHeader = req.headers.authorization
     const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined
     const contextUser = {
-      id: user.userId,
+      id: user.id,
       email: user.email,
       name: user.email?.split('@')[0]
     }
@@ -360,7 +357,7 @@ export class AuthController {
 
     this.logger.info(
       {
-        userId: user.userId,
+        userId: user.id,
         logoutAll: body.logoutAll,
         reason: body.reason,
         hasAccessToken: !!accessToken,
@@ -370,7 +367,7 @@ export class AuthController {
     )
 
     const result = await this.authService.logout(body.refreshToken, {
-      userId: user.userId,
+      userId: user.id,
       logoutAll: body.logoutAll,
       reason: body.reason,
       accessToken, // Pass access token for blacklisting
@@ -393,7 +390,7 @@ export class AuthController {
 
     this.logger.info(
       {
-        userId: user.userId,
+        userId: user.id,
         logoutType,
         sessionsInvalidated: result.sessionsInvalidated,
         action: 'logout_success'
@@ -423,7 +420,7 @@ export class AuthController {
 
     this.logger.info(
       {
-        userId: user.userId,
+        userId: user.id,
         page: query.page,
         limit: query.limit,
         action: 'list_sessions_request'
@@ -431,11 +428,11 @@ export class AuthController {
       'List sessions request'
     )
 
-    const result = await this.authService.listSessions(user.userId, query)
+    const result = await this.authService.listSessions(user.id, query)
 
     this.logger.info(
       {
-        userId: user.userId,
+        userId: user.id,
         total: result.total,
         page: result.page,
         action: 'list_sessions_success'
@@ -488,14 +485,14 @@ export class AuthController {
     }
 
     const context = this.auditService.createContextFromRequest(req, {
-      id: user.userId,
+      id: user.id,
       email: user.email,
       name: user.email?.split('@')[0]
     })
 
     this.logger.info(
       {
-        userId: user.userId,
+        userId: user.id,
         email: user.email,
         action: 'change_password_attempt',
         invalidateAllSessions: dto.invalidateAllSessions,
@@ -508,7 +505,7 @@ export class AuthController {
     const currentSessionId = (req as AuthenticatedRequest & { sessionId?: string }).sessionId
 
     const result = await this.authService.changePassword(
-      user.userId,
+      user.id,
       dto.currentPassword,
       dto.newPassword,
       dto.confirmPassword,
@@ -528,7 +525,7 @@ export class AuthController {
 
     this.logger.info(
       {
-        userId: user.userId,
+        userId: user.id,
         action: 'change_password_success',
         sessionsRevoked: result.sessionsRevoked,
         notificationSent: result.notificationSent
@@ -665,11 +662,11 @@ export class AuthController {
     }
 
     this.logger.info(
-      { userId: user.userId, action: 'get_password_history' },
+      { userId: user.id, action: 'get_password_history' },
       'Fetching password change history'
     )
 
-    const history = await this.passwordHistoryRepository.findByUser(user.userId, 20)
+    const history = await this.passwordHistoryRepository.findByUser(user.id, 20)
 
     const changes = history.map(entry => ({
       id: entry.id,
@@ -681,7 +678,7 @@ export class AuthController {
 
     this.logger.info(
       {
-        userId: user.userId,
+        userId: user.id,
         action: 'password_history_retrieved',
         count: changes.length
       },
