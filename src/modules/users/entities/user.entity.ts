@@ -31,9 +31,6 @@ export class User {
   @Column({ type: 'text' })
   passwordHash: string
 
-  @Column({ length: 20, default: 'ROLE_USER' })
-  role: string // @deprecated - Use primaryRole instead. Kept for backward compatibility.
-
   @Column({ name: 'primary_role_id' })
   primaryRoleId: number
 

@@ -49,7 +49,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // Load full user entity (includes primaryRole, userRoles relations)
     // Repository automatically includes: profileImage, primaryRole, userRoles, userRoles.role
-    const user = await this.userRepository.findById(payload.sub)
+    // IMPORTANT: Bypass cache to ensure User entity methods are available
+    const user = await this.userRepository.findById(payload.sub, { bypassCache: true })
 
     if (!user) {
       this.logger.warn(

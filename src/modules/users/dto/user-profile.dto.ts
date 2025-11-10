@@ -20,7 +20,7 @@ export class UserProfileDto {
   @ApiProperty({ description: 'Mobile number', example: '+1234567890' })
   mobileNumber: string
 
-  @ApiProperty({ description: 'User role', example: 'ROLE_USER' })
+  @ApiProperty({ description: 'User primary role name', example: 'super-admin' })
   role: string
 
   @ApiProperty({ description: 'Is user active', example: true })
@@ -56,6 +56,28 @@ export class UserProfileDto {
   })
   profileImageUrl?: string | null
 
+  @ApiPropertyOptional({
+    description: 'Primary role info',
+    type: 'object',
+    additionalProperties: true,
+    example: {
+      id: 1,
+      name: 'super-admin',
+      description: 'Super administrator',
+      isSystem: true,
+      isActive: true,
+      priority: 100
+    }
+  })
+  roleInfo?: {
+    id: number
+    name: string
+    description?: string
+    isSystem: boolean
+    isActive: boolean
+    priority: number
+  } | null
+
   /**
    * Create a safe user profile DTO from a User entity
    * Excludes sensitive fields like passwordHash and forcePasswordChange
@@ -67,7 +89,7 @@ export class UserProfileDto {
     profile.name = user.name
     profile.email = user.email
     profile.mobileNumber = user.mobileNumber
-    profile.role = user.role
+    profile.role = user.getPrimaryRoleName()
     profile.isActive = user.isActive
     profile.isVerified = user.isVerified
     profile.isEmailVerified = user.isEmailVerified
@@ -76,6 +98,20 @@ export class UserProfileDto {
     profile.updatedAt = user.updatedAt
     profile.profileImageId = user.profileImageId
     profile.profileImageUrl = null // Set by service layer with presigned URL
+
+    // Attach primary role info if available
+    if (user.primaryRole) {
+      profile.roleInfo = {
+        id: user.primaryRole.id,
+        name: user.primaryRole.name,
+        description: user.primaryRole.description,
+        isSystem: user.primaryRole.isSystem,
+        isActive: user.primaryRole.isActive,
+        priority: user.primaryRole.priority
+      }
+    } else {
+      profile.roleInfo = null
+    }
 
     return profile
   }

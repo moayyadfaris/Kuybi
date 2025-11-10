@@ -83,7 +83,7 @@ export class UsersController {
         name: user.name,
         email: user.email,
         mobileNumber: user.mobileNumber,
-        role: user.role,
+        role: user.getPrimaryRoleName(),
         isActive: user.isActive,
         isVerified: user.isVerified,
         isEmailVerified: user.isEmailVerified,

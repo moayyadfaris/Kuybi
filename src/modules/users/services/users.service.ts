@@ -73,17 +73,19 @@ export class UsersService {
     email: string
     mobileNumber: string
     password: string
-    role?: string
+    primaryRoleId?: number
     isVerified?: boolean
   }): Promise<User> {
     const passwordHash = await bcrypt.hash(payload.password, 10)
 
+    // Default to role ID 3 (user role) if not specified
+    // Role IDs: 1=super-admin, 2=admin, 3=user (from ACL seeder)
     return this.userRepository.create({
       name: payload.name,
       email: payload.email.toLowerCase(),
       mobileNumber: payload.mobileNumber,
       passwordHash,
-      role: payload.role ?? 'ROLE_USER',
+      primaryRoleId: payload.primaryRoleId ?? 3,
       isVerified: payload.isVerified ?? false
     })
   }

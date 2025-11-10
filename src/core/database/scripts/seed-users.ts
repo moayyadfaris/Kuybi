@@ -22,7 +22,7 @@ async function seedUsers() {
       email: adminEmail,
       mobileNumber: '0000000000',
       passwordHash,
-      role: 'ROLE_SUPERADMIN',
+      primaryRoleId: 1, // Super-admin role (ID 1 from ACL seeder)
       isActive: true,
       isVerified: true
     })

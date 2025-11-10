@@ -78,7 +78,7 @@ export class RegistrationService {
       isVerified: false,
       isEmailVerified: false,
       emailVerifiedAt: null,
-      role: 'ROLE_USER'
+      primaryRoleId: 3 // Default to 'user' role (ID 3 from ACL seeder)
       // Store verification token temporarily (we'll need to add these columns)
       // For now, we'll send the email and mark as pending verification
     })

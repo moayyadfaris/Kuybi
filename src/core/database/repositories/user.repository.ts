@@ -87,10 +87,10 @@ export class UserRepository extends BaseRepository<User> {
   /**
    * Find users by role with caching
    */
-  async findByRole(role: string, options?: { limit?: number; offset?: number }): Promise<User[]> {
+  async findByRole(roleName: string, options?: { limit?: number; offset?: number }): Promise<User[]> {
     const cacheKey = this.buildCacheKey(
       'role',
-      role,
+      roleName,
       `limit:${options?.limit ?? 50}`,
       `offset:${options?.offset ?? 0}`
     )
@@ -98,12 +98,15 @@ export class UserRepository extends BaseRepository<User> {
     return this.cacheService.wrap<User[]>(
       cacheKey,
       async () => {
-        return this.repository.find({
-          where: { role },
-          take: options?.limit ?? 50,
-          skip: options?.offset ?? 0,
-          order: { createdAt: 'DESC' }
-        })
+        return this.repository
+          .createQueryBuilder('user')
+          .innerJoinAndSelect('user.primaryRole', 'role')
+          .leftJoinAndSelect('user.profileImage', 'profileImage')
+          .where('role.name = :roleName', { roleName })
+          .take(options?.limit ?? 50)
+          .skip(options?.offset ?? 0)
+          .orderBy('user.createdAt', 'DESC')
+          .getMany()
       },
       this.defaultTTL
     )
@@ -120,7 +123,10 @@ export class UserRepository extends BaseRepository<User> {
     limit?: number
     offset?: number
   }): Promise<[User[], number]> {
-    const qb = this.repository.createQueryBuilder('user')
+    const qb = this.repository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.primaryRole', 'primaryRole')
+      .leftJoinAndSelect('user.profileImage', 'profileImage')
 
     if (query.search) {
       qb.where('(user.name ILIKE :search OR user.email ILIKE :search)', {
@@ -129,7 +135,7 @@ export class UserRepository extends BaseRepository<User> {
     }
 
     if (query.role) {
-      qb.andWhere('user.role = :role', { role: query.role })
+      qb.andWhere('primaryRole.name = :role', { role: query.role })
     }
 
     if (query.isActive !== undefined) {
@@ -222,8 +228,12 @@ export class UserRepository extends BaseRepository<User> {
   /**
    * Count users by role
    */
-  async countByRole(role: string): Promise<number> {
-    return this.repository.count({ where: { role } })
+  async countByRole(roleName: string): Promise<number> {
+    return this.repository
+      .createQueryBuilder('user')
+      .innerJoin('user.primaryRole', 'role')
+      .where('role.name = :roleName', { roleName })
+      .getCount()
   }
 
   /**
@@ -246,12 +256,13 @@ export class UserRepository extends BaseRepository<User> {
           this.repository.count({ where: { isVerified: true } })
         ])
 
-        // Get count by role
+        // Get count by role using primaryRole relation
         const rolesQuery = await this.repository
           .createQueryBuilder('user')
-          .select('user.role', 'role')
+          .innerJoin('user.primaryRole', 'role')
+          .select('role.name', 'role')
           .addSelect('COUNT(*)', 'count')
-          .groupBy('user.role')
+          .groupBy('role.name')
           .getRawMany()
 
         const byRole: Record<string, number> = {}
