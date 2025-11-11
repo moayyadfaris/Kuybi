@@ -405,14 +405,21 @@ export class SessionsService {
     return this.sessionRepository.findSuspiciousSessions()
   }
 
+  /**
+   * Normalize all date fields in a session object
+   * Ensures all date values are proper Date objects, not strings or numbers
+   * Also computes dynamic revokedAt property from metadata or deletedAt
+   *
+   * @param session - Session entity to normalize
+   * @returns Session with normalized dates and computed revokedAt property
+   * @private
+   */
   private normalizeSessionDates(session: Session): Session {
     const ensureDate = (value?: Date | string | number | null): Date => {
       if (value instanceof Date) return value
       if (typeof value === 'string' || typeof value === 'number') {
-        const parsed = new Date(value)
-        if (!Number.isNaN(parsed.getTime())) {
-          return parsed
-        }
+        const date = new Date(value)
+        return isNaN(date.getTime()) ? new Date(0) : date
       }
       return new Date(0)
     }
@@ -423,15 +430,60 @@ export class SessionsService {
     session.expiresAt = ensureDate(session.expiresAt)
     session.deletedAt = session.deletedAt ? ensureDate(session.deletedAt) : undefined
 
+    // Add dynamic revokedAt property if session has been revoked
+    this.addRevokedAtProperty(session, ensureDate)
+
+    return session
+  }
+
+  /**
+   * Dynamically adds revokedAt property to session objects for API responses
+   *
+   * Checks multiple sources in priority order for backward compatibility:
+   * 1. metadata.revokedAt (preferred format)
+   * 2. metadata.revoked_at (snake_case legacy format)
+   * 3. deletedAt (fallback for sessions without metadata)
+   *
+   * The property is only added if revocation data exists, maintaining a clean API response.
+   * Uses type-safe casting to extend the Session interface without modifying the entity schema.
+   *
+   * @param session - Session entity to enhance with revokedAt property
+   * @param ensureDate - Date normalization function to ensure consistent Date objects
+   * @private
+   */
+  private addRevokedAtProperty(
+    session: Session,
+    ensureDate: (value?: Date | string | number | null) => Date
+  ): void {
+    // Check multiple sources for revocation timestamp (backward compatibility)
     const revokedAtSource =
       session.metadata?.revokedAt ||
       session.metadata?.revoked_at ||
       (session.deletedAt ? session.deletedAt : undefined)
-    if (revokedAtSource) {
-      ;(session as Session & { revokedAt?: Date }).revokedAt = ensureDate(revokedAtSource)
-    }
 
-    return session
+    if (revokedAtSource) {
+      const revokedAtDate = ensureDate(revokedAtSource)
+
+      // Log revocation detection for debugging
+      this.logger.debug(
+        {
+          sessionId: session.id,
+          userId: session.userId,
+          revokedAtSource: typeof revokedAtSource,
+          revokedAtDate: revokedAtDate.toISOString(),
+          source: session.metadata?.revokedAt
+            ? 'metadata.revokedAt'
+            : session.metadata?.revoked_at
+              ? 'metadata.revoked_at'
+              : 'deletedAt',
+          action: 'add_revoked_at_property'
+        },
+        'Added dynamic revokedAt property to session'
+      )
+
+      // Type-safe extension: add revokedAt without modifying entity schema
+      ;(session as Session & { revokedAt?: Date }).revokedAt = revokedAtDate
+    }
   }
 
   /**
