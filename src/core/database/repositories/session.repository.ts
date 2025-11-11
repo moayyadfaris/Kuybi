@@ -52,9 +52,9 @@ export class SessionRepository extends BaseRepository<Session> {
         const query = this.repository
           .createQueryBuilder('session')
           .where('session.userId = :userId', { userId })
-          .andWhere('session.deletedAt IS NULL')
 
         if (!includeInactive) {
+          query.andWhere('session.deletedAt IS NULL')
           query.andWhere('session.isActive = :isActive', { isActive: true })
           query.andWhere('session.expiresAt > :now', { now: new Date() })
         }

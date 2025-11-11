@@ -512,7 +512,7 @@ export class SessionsController {
 
     const success = await this.sessionsService.revokeSession(
       sessionId,
-      body.reason || 'Revoked by super-admin'
+      body.notes || body.reason || 'Revoked by super-admin'
     )
 
     this.logger.info(
@@ -561,7 +561,7 @@ export class SessionsController {
 
     const count = await this.sessionsService.revokeAllUserSessions(
       userId,
-      body.reason || 'All sessions revoked by super-admin'
+      body.notes || body.reason || 'All sessions revoked by super-admin'
     )
 
     this.logger.info(

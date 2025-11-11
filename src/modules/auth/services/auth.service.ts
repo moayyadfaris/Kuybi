@@ -215,6 +215,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+      sessionId: session.id,
       user: {
         id: user.id,
         name: user.name,

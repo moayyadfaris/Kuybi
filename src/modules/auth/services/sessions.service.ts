@@ -422,6 +422,15 @@ export class SessionsService {
     session.lastActivityAt = ensureDate(session.lastActivityAt)
     session.expiresAt = ensureDate(session.expiresAt)
     session.deletedAt = session.deletedAt ? ensureDate(session.deletedAt) : undefined
+
+    const revokedAtSource =
+      session.metadata?.revokedAt ||
+      session.metadata?.revoked_at ||
+      (session.deletedAt ? session.deletedAt : undefined)
+    if (revokedAtSource) {
+      ;(session as Session & { revokedAt?: Date }).revokedAt = ensureDate(revokedAtSource)
+    }
+
     return session
   }
 

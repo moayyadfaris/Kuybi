@@ -22,7 +22,7 @@ export class UserFactory {
       name: overrides.name || `Test User ${this.counter}`,
       mobileNumber: overrides.mobileNumber || `+1234567${this.counter.toString().padStart(4, '0')}`,
       password: overrides.password || 'Password123!',
-      role: overrides.role || 'user',
+      primaryRoleId: overrides.primaryRoleId || 4, // Default to 'user' role
       isActive: overrides.isActive !== undefined ? overrides.isActive : true,
       isVerified: overrides.isVerified !== undefined ? overrides.isVerified : true,
       ...overrides
@@ -49,7 +49,7 @@ export class UserFactory {
       email: 'admin@example.com',
       name: 'Admin User',
       mobileNumber: '+10000000001',
-      role: 'super-admin',
+      primaryRoleId: 1, // super-admin role
       ...overrides
     })
   }
