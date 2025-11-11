@@ -18,6 +18,7 @@ import { RequestIdInterceptor } from '@shared/interceptors/request-id.intercepto
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
+import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
 
 class AllowGuard implements CanActivate {
   canActivate(): boolean {
@@ -125,6 +126,8 @@ describe('Audit Integration (controller)', () => {
       .overrideGuard(JwtAuthGuard)
       .useClass(AllowGuard)
       .overrideGuard(AbilityGuard)
+      .useClass(AllowGuard)
+      .overrideGuard(SuperAdminGuard)
       .useClass(AllowGuard)
       .compile()
 
