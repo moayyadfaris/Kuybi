@@ -177,7 +177,7 @@ describe('Stories Integration Tests', () => {
     const userRepository = dataSource.getRepository(User)
     const hashedUser = await UserFactory.createWithHashedPassword({
       password: 'Password123!',
-      role: 'super-admin'
+      primaryRoleId: 1 // super-admin
     })
     testUser = await userRepository.save(hashedUser as User)
 

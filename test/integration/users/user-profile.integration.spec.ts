@@ -129,7 +129,7 @@ describe('User Profile Integration Tests', () => {
       email: 'test@example.com',
       password: TEST_PASSWORD,
       name: 'Test User',
-      role: 'ROLE_USER',
+      primaryRoleId: 4, // user role
       isActive: true,
       isVerified: true
     })
@@ -166,10 +166,11 @@ describe('User Profile Integration Tests', () => {
         id: testUser.id,
         name: 'Test User',
         email: 'test@example.com',
-        role: 'ROLE_USER',
         isActive: true,
         isVerified: true
       })
+      // Note: role is now derived from primaryRoleId, not stored directly
+      expect(response.body.primaryRoleId).toBe(4) // user role
 
       // Ensure sensitive fields are NOT exposed
       expect(response.body.passwordHash).toBeUndefined()
@@ -240,7 +241,7 @@ describe('User Profile Integration Tests', () => {
         email: 'unverified@example.com',
         password: TEST_PASSWORD,
         name: 'Unverified User',
-        role: 'ROLE_USER',
+        primaryRoleId: 4, // user role
         isActive: true,
         isVerified: false,
         isEmailVerified: false,

@@ -153,7 +153,7 @@ describe('Auth Integration Tests', () => {
     const newAdmin = await UserFactory.createWithHashedPassword({
       email: `admin${testCounter}@example.com`,
       name: 'Admin User',
-      role: 'super-admin',
+      primaryRoleId: 1, // super-admin
       password: ADMIN_PASSWORD
     })
     adminUser = await userRepository.save(newAdmin as User)
