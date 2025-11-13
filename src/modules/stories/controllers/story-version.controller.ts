@@ -43,7 +43,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 @ApiTags('Story Versions')
-@Controller('stories/:storyId/versions')
+@Controller('v1/stories')
 @UseGuards(JwtAuthGuard, AbilityGuard)
 @ApiBearerAuth()
 export class StoryVersionController {
@@ -62,7 +62,7 @@ export class StoryVersionController {
   /**
    * Get version history for a story
    */
-  @Get()
+  @Get(':storyId/versions')
   @CheckAbility({ action: Action.Read, subject: Subject.StoryVersion })
   @ApiOperation({
     summary: 'Get version history',
@@ -105,7 +105,7 @@ export class StoryVersionController {
   /**
    * Get specific version
    */
-  @Get(':versionNumber')
+  @Get(':storyId/versions/:versionNumber')
   @CheckAbility({ action: Action.Read, subject: Subject.StoryVersion })
   @ApiOperation({
     summary: 'Get specific version',
@@ -130,7 +130,7 @@ export class StoryVersionController {
   /**
    * Create manual version
    */
-  @Post()
+  @Post(':storyId/versions')
   @CheckAbility({ action: Action.Create, subject: Subject.StoryVersion })
   @ApiOperation({
     summary: 'Create manual version',
@@ -157,7 +157,7 @@ export class StoryVersionController {
   /**
    * Rollback to previous version
    */
-  @Post('rollback')
+  @Post(':storyId/versions/rollback')
   @CheckAbility({ action: Action.Update, subject: Subject.StoryVersion })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -192,7 +192,7 @@ export class StoryVersionController {
   /**
    * Create branch
    */
-  @Post('branch')
+  @Post(':storyId/versions/branch')
   @CheckAbility({ action: Action.Create, subject: Subject.StoryVersion })
   @ApiOperation({
     summary: 'Create branch',
@@ -225,7 +225,7 @@ export class StoryVersionController {
   /**
    * Merge branches
    */
-  @Post('merge')
+  @Post(':storyId/versions/merge')
   @CheckAbility({ action: Action.Update, subject: Subject.StoryVersion })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -264,7 +264,7 @@ export class StoryVersionController {
   /**
    * Compare two versions
    */
-  @Post('compare')
+  @Post(':storyId/versions/compare')
   @CheckAbility({ action: Action.Read, subject: Subject.StoryVersion })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -296,7 +296,7 @@ export class StoryVersionController {
   /**
    * Get branch information
    */
-  @Get('branches/info')
+  @Get(':storyId/versions/branches/info')
   @CheckAbility({ action: Action.Read, subject: Subject.StoryVersion })
   @ApiOperation({
     summary: 'Get branch info',
@@ -315,7 +315,7 @@ export class StoryVersionController {
   /**
    * Tag a version
    */
-  @Post(':versionNumber/tag')
+  @Post(':storyId/versions/:versionNumber/tag')
   @CheckAbility({ action: Action.Update, subject: Subject.StoryVersion })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
