@@ -17,6 +17,9 @@ import { Role } from '@modules/acl/entities/role.entity'
 import { Permission } from '@modules/acl/entities/permission.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
 import { AuditLog } from '@modules/audit/entities/audit-log.entity'
+import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
+import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { UserFactory } from '../../factories/user.factory'
 import { testConfig } from '../../test.config'
@@ -70,13 +73,14 @@ const TABLES_TO_TRUNCATE = [
 describe('Auth Integration Tests', () => {
   let app: INestApplication
   let dataSource: DataSource
-  let testUser: User
-  let adminUser: User
-  let adminToken: string
-  const TEST_PASSWORD = 'Password123!'
-  const ADMIN_PASSWORD = 'Admin@123'
-  let testCounter = 0
-  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+let testUser: User
+let adminUser: User
+let adminToken: string
+const TEST_PASSWORD = 'Password123!'
+const ADMIN_PASSWORD = 'Admin@123'
+let testCounter = 0
+let cacheStub: ReturnType<typeof createInMemoryCacheService>
+let roles: SeededRoles
 
   beforeAll(async () => {
     // Create Redis connection
@@ -101,7 +105,17 @@ describe('Auth Integration Tests', () => {
           username: process.env.TEST_DB_USERNAME,
           password: process.env.TEST_DB_PASSWORD,
           database: process.env.TEST_DB_NAME,
-          entities: [User, Session, UserRole, Role, Permission, RolePermission, AuditLog],
+          entities: [
+            User,
+            Session,
+            UserRole,
+            Role,
+            Permission,
+            RolePermission,
+            AuditLog,
+            Attachment,
+            PasswordHistory
+          ],
           synchronize: false, // Schema created in global setup
           dropSchema: false, // Don't drop - global setup handles this
           logging: false
@@ -142,10 +156,13 @@ describe('Auth Integration Tests', () => {
     await TestRedis.clearCache()
     await cacheStub.reset()
 
+    roles = await seedDefaultRoles(dataSource)
+
     // Create a test user with a unique email per test run
     const userRepository = dataSource.getRepository(User)
     const newUser = await UserFactory.createWithHashedPassword({
-      password: TEST_PASSWORD
+      password: TEST_PASSWORD,
+      primaryRoleId: roles['user'].id
     })
     testUser = await userRepository.save(newUser as User)
 
@@ -153,7 +170,7 @@ describe('Auth Integration Tests', () => {
     const newAdmin = await UserFactory.createWithHashedPassword({
       email: `admin${testCounter}@example.com`,
       name: 'Admin User',
-      primaryRoleId: 1, // super-admin
+      primaryRoleId: roles['super-admin'].id,
       password: ADMIN_PASSWORD
     })
     adminUser = await userRepository.save(newAdmin as User)

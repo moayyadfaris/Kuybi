@@ -10,6 +10,12 @@ const config: Config = {
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
+  globalSetup: '<rootDir>/test/setup.ts',
+  globalTeardown: '<rootDir>/test/teardown.ts',
+  setupFilesAfterEnv: ['<rootDir>/test/jest-setup.ts'],
+  testTimeout: 30000,
+  maxWorkers: 1,
+  testSequencer: '<rootDir>/test/test-sequencer.js',
   moduleNameMapper: {
     '^@app/(.*)$': '<rootDir>/src/$1',
     '^@modules/(.*)$': '<rootDir>/src/modules/$1',

@@ -22,6 +22,8 @@ import { Permission } from '@modules/acl/entities/permission.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
 import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 import { Country } from '@modules/countries/entities/country.entity'
+import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
+import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { Category } from '@modules/categories/entities/category.entity'
 import { TestRedis } from '../../helpers/test-redis'
@@ -70,9 +72,6 @@ const createInMemoryCacheService = () => {
 }
 
 const STORY_TABLES_TO_TRUNCATE = [
-  'story_tags',
-  'story_categories',
-  'story_attachments',
   'stories',
   'tags',
   'categories',
@@ -89,8 +88,9 @@ describe('Stories Integration Tests', () => {
   let app: INestApplication
   let dataSource: DataSource
   let accessToken: string
-  let testUser: User
-  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+let testUser: User
+let cacheStub: ReturnType<typeof createInMemoryCacheService>
+let roles: SeededRoles
 
   beforeAll(async () => {
     // Create Redis connection
@@ -127,10 +127,11 @@ describe('Stories Integration Tests', () => {
             Tag,
             Category,
             Attachment,
+            PasswordHistory,
             Country
           ],
-          synchronize: false, // Schema created in global setup
-          dropSchema: false, // Don't drop - global setup handles this
+          synchronize: true, // Auto-create schema for stories test
+          dropSchema: false,
           logging: false
         }),
         LoggingModule,
@@ -173,21 +174,29 @@ describe('Stories Integration Tests', () => {
       `TRUNCATE TABLE ${STORY_TABLES_TO_TRUNCATE.join(', ')} RESTART IDENTITY CASCADE`
     )
 
+    roles = await seedDefaultRoles(dataSource)
+
     // Create test user and get auth token
     const userRepository = dataSource.getRepository(User)
     const hashedUser = await UserFactory.createWithHashedPassword({
       password: 'Password123!',
-      primaryRoleId: 1 // super-admin
+      primaryRoleId: roles['super-admin'].id
     })
     testUser = await userRepository.save(hashedUser as User)
 
     // Login to get access token
-    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
-      email: testUser.email,
-      password: 'Password123!'
-    })
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email: testUser.email,
+        password: 'Password123!'
+      })
+      .expect(201)
 
     accessToken = loginResponse.body.accessToken
+    if (!accessToken) {
+      throw new Error(`Login failed in stories integration: ${JSON.stringify(loginResponse.body)}`)
+    }
     const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString())
   })
 

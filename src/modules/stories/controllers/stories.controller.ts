@@ -12,7 +12,8 @@ import {
   HttpStatus,
   UseGuards,
   Req,
-  ParseIntPipe
+  ParseIntPipe,
+  UnauthorizedException
 } from '@nestjs/common'
 import {
   ApiTags,
@@ -44,12 +45,15 @@ import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Subject } from '@modules/acl/types/subjects.enum'
 
+interface ControllerUser {
+  id?: string
+  userId?: string
+  email?: string
+  role?: string
+}
+
 interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string
-    email: string
-    role?: string
-  }
+  user?: ControllerUser
 }
 
 @ApiTags('Stories')
@@ -67,10 +71,7 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   create(@Body() createStoryDto: CreateStoryDto, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.create(createStoryDto, userId)
   }
 
@@ -151,7 +152,7 @@ export class StoriesController {
   @ApiResponse({ status: 200, description: 'Story found' })
   @ApiResponse({ status: 404, description: 'Story not found' })
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
+    const userId = req.user?.userId || req.user?.id
     return this.storiesService.findOne(id, userId)
   }
 
@@ -170,10 +171,7 @@ export class StoriesController {
     @Body() updateStoryDto: UpdateStoryDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.update(id, updateStoryDto, userId, req.user?.role)
   }
 
@@ -192,10 +190,7 @@ export class StoriesController {
     @Body('status') status: StoryStatus,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.updateStatus(id, status, userId)
   }
 
@@ -215,10 +210,7 @@ export class StoriesController {
     @Query('reason') reason: string,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.remove(id, userId, reason, req.user?.role)
   }
 
@@ -233,10 +225,7 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin only' })
   hardDelete(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.hardDelete(id, userId, req.user?.role)
   }
 
@@ -251,10 +240,7 @@ export class StoriesController {
   @ApiResponse({ status: 400, description: 'Story is not deleted' })
   @ApiResponse({ status: 403, description: 'Forbidden - not the story owner' })
   restore(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.restore(id, userId, req.user?.role)
   }
 
@@ -274,10 +260,7 @@ export class StoriesController {
     @Body() dto: AttachAttachmentsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.attachAttachments(id, dto, userId, req.user?.role)
   }
 
@@ -295,10 +278,7 @@ export class StoriesController {
     @Body() dto: DetachAttachmentsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.detachAttachments(id, dto, userId, req.user?.role)
   }
 
@@ -327,10 +307,7 @@ export class StoriesController {
     @Body() dto: AttachTagsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.attachTags(id, dto, userId, req.user?.role)
   }
 
@@ -348,10 +325,7 @@ export class StoriesController {
     @Body() dto: DetachTagsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.detachTags(id, dto, userId, req.user?.role)
   }
 
@@ -380,10 +354,7 @@ export class StoriesController {
     @Body() dto: AttachCategoriesDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.attachCategories(id, dto, userId, req.user?.role)
   }
 
@@ -401,10 +372,7 @@ export class StoriesController {
     @Body() dto: DetachCategoriesDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.detachCategories(id, dto, userId, req.user?.role)
   }
 
@@ -433,10 +401,7 @@ export class StoriesController {
     @Body() dto: UpdateStoryMainImageDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.updateMainImage(id, dto.attachmentId, userId)
   }
 
@@ -449,10 +414,15 @@ export class StoriesController {
   @ApiResponse({ status: 200, description: 'Main image removed successfully' })
   @ApiResponse({ status: 404, description: 'Story not found' })
   removeMainImage(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
-    if (!userId) {
-      throw new Error('User not authenticated')
-    }
+    const userId = this.getAuthenticatedUserId(req)
     return this.storiesService.removeMainImage(id, userId)
+  }
+
+  private getAuthenticatedUserId(req: AuthenticatedRequest): string {
+    const userId = req.user?.userId || req.user?.id
+    if (!userId) {
+      throw new UnauthorizedException('User not authenticated')
+    }
+    return userId
   }
 }

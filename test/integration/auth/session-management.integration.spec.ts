@@ -19,6 +19,7 @@ import { Permission } from '@modules/acl/entities/permission.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
 import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
 import { UserFactory } from '../../factories/user.factory'
 import { testConfig } from '../../test.config'
 import { ConfigModule } from '@nestjs/config'
@@ -95,6 +96,7 @@ describe('Session Management Integration Tests', () => {
             RolePermission,
             AuditLog,
             Attachment,
+            PasswordHistory
           ],
           synchronize: false,
           dropSchema: false,

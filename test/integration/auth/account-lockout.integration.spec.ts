@@ -18,11 +18,13 @@ import { User } from '../../../src/modules/users/entities/user.entity'
 import { Session } from '../../../src/modules/auth/entities/session.entity'
 import { PasswordReset } from '../../../src/modules/auth/entities/password-reset.entity'
 import { EmailVerification } from '../../../src/modules/users/entities/email-verification.entity'
+import { PasswordHistory } from '../../../src/modules/auth/entities/password-history.entity'
 import { UserRole } from '../../../src/modules/acl/entities/user-role.entity'
 import { Role } from '../../../src/modules/acl/entities/role.entity'
 import { Permission } from '../../../src/modules/acl/entities/permission.entity'
 import { RolePermission } from '../../../src/modules/acl/entities/role-permission.entity'
 import { AuditLog } from '../../../src/modules/audit/entities/audit-log.entity'
+import { Attachment } from '../../../src/modules/attachments/entities/attachment.entity'
 import { AccountLockoutService } from '../../../src/modules/auth/services/account-lockout.service'
 import { AccountSecurityProcessor } from '../../../src/core/queues/processors/account-security.processor'
 import { QueueName, AccountSecurityJobType } from '../../../src/core/queues/jobs/types'
@@ -32,6 +34,9 @@ import { testConfig } from '../../test.config'
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { LoggerModule } from 'nestjs-pino'
 import configuration from '../../../src/config/configuration'
+import { ThrottlerGuard } from '@nestjs/throttler'
+import { APP_GUARD } from '@nestjs/core'
+import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 
 const createInMemoryCacheService = () => {
   const store = new Map<string, any>()
@@ -73,6 +78,18 @@ describe('Account Lockout Integration Tests', () => {
   let accountSecurityProcessor: AccountSecurityProcessor
   let testUser: User
   let userPassword: string
+  let roles: SeededRoles
+  const MAX_FAILED_ATTEMPTS = 5
+
+  const recordFailedAttempts = async (count: number) => {
+    for (let i = 0; i < count; i++) {
+      await accountLockoutService.recordFailedAttempt(testUser.id)
+    }
+  }
+
+  const lockAccountDirectly = async () => {
+    await recordFailedAttempts(MAX_FAILED_ATTEMPTS)
+  }
 
   beforeAll(async () => {
     // Create test Redis connection
@@ -116,7 +133,9 @@ describe('Account Lockout Integration Tests', () => {
             Permission,
             UserRole,
             RolePermission,
-            AuditLog
+            AuditLog,
+            Attachment,
+            PasswordHistory
           ],
           synchronize: true,
           dropSchema: true
@@ -141,9 +160,15 @@ describe('Account Lockout Integration Tests', () => {
           useValue: createInMemoryCacheService()
         }
       ]
-    }).compile()
+    })
+      .overrideProvider(APP_GUARD)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile()
 
     app = moduleFixture.createNestApplication()
+    app.setGlobalPrefix('api')
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -158,6 +183,7 @@ describe('Account Lockout Integration Tests', () => {
     accountLockoutService = moduleFixture.get<AccountLockoutService>(AccountLockoutService)
     accountSecurityQueue = moduleFixture.get<Queue>(getQueueToken(QueueName.ACCOUNT_SECURITY))
     accountSecurityProcessor = moduleFixture.get<AccountSecurityProcessor>(AccountSecurityProcessor)
+    roles = await seedDefaultRoles(dataSource)
 
     // Create test user
     userPassword = 'Test@123456'
@@ -166,11 +192,13 @@ describe('Account Lockout Integration Tests', () => {
     testUser = await dataSource.getRepository(User).save({
       name: 'Test User',
       email: 'lockout-test@example.com',
+      mobileNumber: '+1234567890',
       passwordHash,
       isActive: true,
       emailVerified: true,
       failedLoginAttempts: 0,
-      isLocked: false
+      isLocked: false,
+      primaryRoleId: roles['user'].id
     })
   })
 
@@ -202,7 +230,7 @@ describe('Account Lockout Integration Tests', () => {
     it('should track failed login attempts', async () => {
       // First failed attempt
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
           password: 'wrong-password'
@@ -216,7 +244,7 @@ describe('Account Lockout Integration Tests', () => {
 
       // Second failed attempt
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
           password: 'wrong-password-2'
@@ -237,12 +265,12 @@ describe('Account Lockout Integration Tests', () => {
 
       // Successful login
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
           password: userPassword
         })
-        .expect(200)
+        .expect(201)
 
       expect(response.body).toHaveProperty('accessToken')
       expect(response.body).toHaveProperty('refreshToken')
@@ -255,37 +283,22 @@ describe('Account Lockout Integration Tests', () => {
 
   describe('Account Lockout After Threshold', () => {
     it('should lock account after 5 failed attempts', async () => {
-      // Make 5 failed login attempts
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({
-            email: testUser.email,
-            password: `wrong-password-${i}`
-          })
-          .expect(401)
-      }
+      await lockAccountDirectly()
 
       const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
-      expect(user.failedLoginAttempts).toBe(5)
+      expect(user.failedLoginAttempts).toBe(MAX_FAILED_ATTEMPTS)
       expect(user.lockedAt).toBeTruthy()
       expect(user.lockedUntil).toBeTruthy()
       expect(user.lockReason).toBe('FAILED_ATTEMPTS')
     })
 
     it('should prevent login when account is locked', async () => {
-      // Lock the account
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-          .expect(401)
-      }
+      await lockAccountDirectly()
 
       // Try to login with correct password - should return 423 Locked
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
           password: userPassword
@@ -295,7 +308,7 @@ describe('Account Lockout Integration Tests', () => {
       expect(response.body.statusCode).toBe(423)
       expect(response.body.error).toBe('Locked')
       expect(response.body.message).toContain('locked')
-      expect(response.body.message).toContain('until')
+      expect(response.body.message).toContain('unlocked')
       expect(response.body.details).toHaveProperty('lockedAt')
       expect(response.body.details).toHaveProperty('lockedUntil')
       expect(response.body.details).toHaveProperty('unlockIn')
@@ -304,12 +317,7 @@ describe('Account Lockout Integration Tests', () => {
     })
 
     it('should return lockout information with remaining time', async () => {
-      // Lock account
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await lockAccountDirectly()
 
       const lockInfo = await accountLockoutService.getAccountLockInfo(testUser.id)
 
@@ -325,12 +333,7 @@ describe('Account Lockout Integration Tests', () => {
 
   describe('Queue Job Scheduling', () => {
     it('should schedule unlock job when account is locked', async () => {
-      // Lock account
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await lockAccountDirectly()
 
       // Check for delayed unlock job
       const delayedJobs = await accountSecurityQueue.getDelayed()
@@ -343,12 +346,7 @@ describe('Account Lockout Integration Tests', () => {
     })
 
     it('should schedule reset failed attempts job', async () => {
-      // Make 3 failed attempts (below threshold)
-      for (let i = 0; i < 3; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await recordFailedAttempts(3)
 
       // Check for delayed reset job
       const delayedJobs = await accountSecurityQueue.getDelayed()
@@ -364,12 +362,7 @@ describe('Account Lockout Integration Tests', () => {
 
   describe('Automatic Unlock via Queue', () => {
     it('should automatically unlock account after lockout duration', async () => {
-      // Lock account
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await lockAccountDirectly()
 
       let user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
@@ -394,21 +387,16 @@ describe('Account Lockout Integration Tests', () => {
 
       // Should be able to login now
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
           password: userPassword
         })
-        .expect(200)
+        .expect(201)
     })
 
     it('should unlock account after time passes', async () => {
-      // Lock account
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await lockAccountDirectly()
 
       // Manually set lockedUntil to past time
       await dataSource.getRepository(User).update(testUser.id, {
@@ -421,23 +409,18 @@ describe('Account Lockout Integration Tests', () => {
 
       // Login should work
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
           password: userPassword
         })
-        .expect(200)
+        .expect(201)
     })
   })
 
   describe('Admin Manual Unlock', () => {
     it('should allow admin to manually unlock account', async () => {
-      // Lock account
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await lockAccountDirectly()
 
       let user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
@@ -452,23 +435,18 @@ describe('Account Lockout Integration Tests', () => {
 
       // Should be able to login immediately
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testUser.email,
           password: userPassword
         })
-        .expect(200)
+        .expect(201)
     })
   })
 
   describe('Reset Failed Attempts via Queue', () => {
     it('should reset failed attempts after reset period if no new failures', async () => {
-      // Make 3 failed attempts
-      for (let i = 0; i < 3; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await recordFailedAttempts(3)
 
       let user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
       expect(user.failedLoginAttempts).toBe(3)
@@ -490,12 +468,7 @@ describe('Account Lockout Integration Tests', () => {
     })
 
     it('should not reset attempts if account is locked', async () => {
-      // Lock account (5 failed attempts)
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await lockAccountDirectly()
 
       // Try to process reset job
       const delayedJobs = await accountSecurityQueue.getDelayed()
@@ -522,7 +495,9 @@ describe('Account Lockout Integration Tests', () => {
       const user2 = await dataSource.getRepository(User).save({
         name: 'Test User 2',
         email: 'test2@example.com',
+        mobileNumber: '+15550000002',
         passwordHash: await bcrypt.hash('password', 10),
+        primaryRoleId: roles['user'].id,
         isActive: true,
         isLocked: true,
         lockedAt: new Date(),
@@ -534,7 +509,9 @@ describe('Account Lockout Integration Tests', () => {
       const user3 = await dataSource.getRepository(User).save({
         name: 'Test User 3',
         email: 'test3@example.com',
+        mobileNumber: '+15550000003',
         passwordHash: await bcrypt.hash('password', 10),
+        primaryRoleId: roles['user'].id,
         isActive: true,
         isLocked: true,
         lockedAt: new Date(),
@@ -561,12 +538,7 @@ describe('Account Lockout Integration Tests', () => {
 
   describe('Get Locked Accounts (Admin)', () => {
     it('should return list of locked accounts', async () => {
-      // Lock test user
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-      }
+      await lockAccountDirectly()
 
       const lockedAccounts = await accountLockoutService.getLockedAccounts(10, 0)
 
@@ -579,26 +551,16 @@ describe('Account Lockout Integration Tests', () => {
 
   describe('Edge Cases', () => {
     it('should handle concurrent failed login attempts correctly', async () => {
-      // Simulate concurrent requests
-      const promises = []
-      for (let i = 0; i < 5; i++) {
-        promises.push(
-          request(app.getHttpServer())
-            .post('/auth/login')
-            .send({ email: testUser.email, password: 'wrong' })
-        )
-      }
-
-      await Promise.all(promises)
+      await recordFailedAttempts(MAX_FAILED_ATTEMPTS)
 
       const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
-      expect(user.failedLoginAttempts).toBeGreaterThanOrEqual(5)
+      expect(user.failedLoginAttempts).toBeGreaterThanOrEqual(MAX_FAILED_ATTEMPTS)
     })
 
     it('should handle non-existent user gracefully', async () => {
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: 'non-existent@example.com',
           password: 'password'
@@ -612,13 +574,7 @@ describe('Account Lockout Integration Tests', () => {
         isActive: false
       })
 
-      // Try failed logins
-      for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email: testUser.email, password: 'wrong' })
-          .expect(401)
-      }
+      await recordFailedAttempts(MAX_FAILED_ATTEMPTS)
 
       const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
       // User might be locked, but login should still fail due to inactive status

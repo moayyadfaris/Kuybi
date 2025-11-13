@@ -16,12 +16,15 @@ import { UserRole } from '../../../src/modules/acl/entities/user-role.entity'
 import { Role } from '../../../src/modules/acl/entities/role.entity'
 import { Permission } from '../../../src/modules/acl/entities/permission.entity'
 import { RolePermission } from '../../../src/modules/acl/entities/role-permission.entity'
+import { Attachment } from '../../../src/modules/attachments/entities/attachment.entity'
+import { PasswordHistory } from '../../../src/modules/auth/entities/password-history.entity'
 import { TestRedis } from '../../helpers/test-redis'
 import { UserFactory } from '../../factories/user.factory'
 import { testConfig } from '../../test.config'
 import { ConfigModule } from '@nestjs/config'
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { LoggerModule } from 'nestjs-pino'
+import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 
 const createInMemoryCacheService = () => {
   const store = new Map<string, unknown>()
@@ -73,6 +76,7 @@ describe('User Profile Integration Tests', () => {
   let accessToken: string
   const TEST_PASSWORD = 'Password123!'
   let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let roles: SeededRoles
 
   beforeAll(async () => {
     await TestRedis.createConnection()
@@ -97,7 +101,7 @@ describe('User Profile Integration Tests', () => {
           username: process.env.TEST_DB_USERNAME,
           password: process.env.TEST_DB_PASSWORD,
           database: process.env.TEST_DB_DATABASE,
-          entities: [User, Session, UserRole, Role, Permission, RolePermission],
+          entities: [User, Session, UserRole, Role, Permission, RolePermission, Attachment, PasswordHistory],
           synchronize: false,
           logging: false
         }),
@@ -125,11 +129,13 @@ describe('User Profile Integration Tests', () => {
       await dataSource.query(`TRUNCATE TABLE "${table}" CASCADE`)
     }
 
+    roles = await seedDefaultRoles(dataSource)
+
     const userData = await UserFactory.createWithHashedPassword({
       email: 'test@example.com',
       password: TEST_PASSWORD,
       name: 'Test User',
-      primaryRoleId: 4, // user role
+      primaryRoleId: roles['user'].id,
       isActive: true,
       isVerified: true
     })
@@ -170,7 +176,7 @@ describe('User Profile Integration Tests', () => {
         isVerified: true
       })
       // Note: role is now derived from primaryRoleId, not stored directly
-      expect(response.body.primaryRoleId).toBe(4) // user role
+      expect(response.body.primaryRoleId).toBe(roles['user'].id)
 
       // Ensure sensitive fields are NOT exposed
       expect(response.body.passwordHash).toBeUndefined()
@@ -241,7 +247,7 @@ describe('User Profile Integration Tests', () => {
         email: 'unverified@example.com',
         password: TEST_PASSWORD,
         name: 'Unverified User',
-        primaryRoleId: 4, // user role
+        primaryRoleId: roles['user'].id,
         isActive: true,
         isVerified: false,
         isEmailVerified: false,

@@ -4,7 +4,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, MoreThan } from 'typeorm'
+import { Repository, MoreThan, LessThan } from 'typeorm'
 import { EmailService } from '@infrastructure/email/services/email.service'
 import { User } from '@modules/users/entities/user.entity'
 import {
@@ -344,7 +344,7 @@ export class AccountLockoutService {
     const expiredUsers = await this.userRepository.find({
       where: {
         isLocked: true,
-        lockedUntil: MoreThan(new Date())
+        lockedUntil: LessThan(new Date())
       }
     })
 

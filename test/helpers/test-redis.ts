@@ -34,6 +34,7 @@ export class TestRedis {
   static async closeConnection(): Promise<void> {
     if (this.client) {
       await this.client.quit()
+      this.client = undefined as unknown as Redis // Reset client so next test can create a new one
     }
   }
 

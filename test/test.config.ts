@@ -39,5 +39,14 @@ export const testConfig = {
       bucket: 'test-bucket',
       endpoint: 'http://localhost:9000' // MinIO for local S3 testing
     }
+  },
+  s3: {
+    bucket:
+      process.env.S3_BUCKET ||
+      process.env.AWS_S3_BUCKET ||
+      process.env.S3_BUCKET_NAME ||
+      'test-bucket',
+    region: process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1',
+    baseUrl: process.env.S3_BASE_URL || process.env.AWS_S3_ENDPOINT || ''
   }
 }
