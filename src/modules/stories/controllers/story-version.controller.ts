@@ -31,6 +31,7 @@ import { RollbackVersionDto } from '../dto/version/rollback-version.dto'
 import { CreateBranchDto } from '../dto/version/create-branch.dto'
 import { MergeVersionDto } from '../dto/version/merge-version.dto'
 import { CompareVersionsDto } from '../dto/version/compare-versions.dto'
+import { UpdateStoryDto } from '../dto/update-story.dto'
 import { VersionResponseDto, VersionComparisonDto, BranchInfoDto } from '../dto/version'
 import { StoriesService } from '../services/stories.service'
 interface ControllerUser {
@@ -181,7 +182,9 @@ export class StoryVersionController {
   ): Promise<VersionResponseDto> {
     const userId = this.getUserId(req)
     const commitMessage = dto.commitMessage || `Rollback to version ${dto.versionNumber}`
-    const { version } = await this.versionService.rollbackToVersion(
+    
+    // Perform rollback and get restored content
+    const { version, restoredContent } = await this.versionService.rollbackToVersion(
       storyId,
       dto.versionNumber,
       userId,
@@ -189,6 +192,28 @@ export class StoryVersionController {
       dto.createBranch || false,
       dto.branchName
     )
+
+    // Apply the restored content to the actual story
+    // Only include fields that UpdateStoryDto accepts, transforming as needed
+    const updateDto: UpdateStoryDto = {
+      title: restoredContent.title,
+      details: restoredContent.details,
+      type: restoredContent.type,
+      status: restoredContent.status,
+      priority: restoredContent.priority,
+      fromTime: restoredContent.fromTime?.toISOString(),
+      toTime: restoredContent.toTime?.toISOString(),
+      latitude: restoredContent.latitude,
+      longitude: restoredContent.longitude,
+      address: restoredContent.address,
+      city: restoredContent.city,
+      region: restoredContent.region,
+      countryId: restoredContent.countryId,
+      metadata: restoredContent.metadata,
+      internalNotes: restoredContent.internalNotes
+    }
+    await this.storiesService.update(storyId, updateDto, userId)
+
     return this.versionService.toResponseDto(version)
   }
 
