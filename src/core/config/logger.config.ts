@@ -106,6 +106,7 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
   const loggingConfig = configService.get<{
     level: string
     console: { enabled: boolean; pretty: boolean }
+    http: { logSuccessRequests: boolean; successLogLevel: 'info' | 'debug' }
     directories: { active: string }
   }>('logging')
 
@@ -175,10 +176,9 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
           return 'error'
         } else if (res.statusCode >= 400) {
           return 'warn'
-        } else if (res.statusCode >= 300) {
-          return 'info'
         }
-        return 'debug'
+        // Use configured log level for successful requests (2xx and 3xx)
+        return loggingConfig?.http?.successLogLevel || 'info'
       },
       customSuccessMessage: (req, res) =>
         `${req.method} ${req.url} completed with ${res.statusCode}`,

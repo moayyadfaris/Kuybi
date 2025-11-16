@@ -46,6 +46,10 @@ export default () => {
         enabled: parseBoolean(process.env.LOG_ENABLE_CONSOLE, env !== 'production'),
         pretty: parseBoolean(process.env.LOG_PRETTY_PRINT, env !== 'production')
       },
+      http: {
+        logSuccessRequests: parseBoolean(process.env.LOG_SUCCESS_REQUESTS, true),
+        successLogLevel: (process.env.LOG_SUCCESS_LEVEL as 'info' | 'debug') || 'info'
+      },
       directories: {
         active: logDir,
         archive: process.env.LOG_ARCHIVE_DIR || `${logDir}/archive`
