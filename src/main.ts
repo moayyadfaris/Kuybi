@@ -36,7 +36,11 @@ async function bootstrap() {
 
   app.use(helmet())
 
+  app.enableCors({ origin: httpConfig.corsOrigin, credentials: true })
+  app.setGlobalPrefix('api')
+
   // Response compression middleware with optimized settings
+  // IMPORTANT: Must be registered before routes
   if (compressionConfig.enabled) {
     app.use(
       compression({
@@ -45,6 +49,10 @@ async function bootstrap() {
           if (req.headers['x-no-compression']) {
             return false
           }
+          // Force compression for JSON responses above threshold
+          if (res.getHeader('Content-Type')?.toString().includes('application/json')) {
+            return true
+          }
           // Fallback to standard filter function
           return compression.filter(req, res)
         },
@@ -52,10 +60,13 @@ async function bootstrap() {
         level: compressionConfig.level
       })
     )
+    
+    appLogger.log(
+      `✓ Compression enabled: threshold=${compressionConfig.threshold} bytes, level=${compressionConfig.level}`
+    )
+  } else {
+    appLogger.warn('⚠️  Compression is DISABLED')
   }
-
-  app.enableCors({ origin: httpConfig.corsOrigin, credentials: true })
-  app.setGlobalPrefix('api')
 
   app.useGlobalPipes(
     new ValidationPipe({
