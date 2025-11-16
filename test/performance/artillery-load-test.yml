@@ -1,0 +1,135 @@
+# Artillery Load Test Configuration for Story Version APIs
+# 
+# Install: npm install -g artillery
+# Run: artillery run test/performance/artillery-load-test.yml
+# 
+# This simulates real-world traffic patterns to identify bottlenecks
+
+config:
+  target: "http://localhost:4040"
+  phases:
+    # Warm-up phase: Gradually increase load
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm-up"
+    
+    # Sustained load: Maintain steady traffic
+    - duration: 120
+      arrivalRate: 20
+      name: "Sustained load"
+    
+    # Spike test: Sudden traffic increase
+    - duration: 60
+      arrivalRate: 50
+      name: "Spike"
+    
+    # Cool down
+    - duration: 30
+      arrivalRate: 5
+      name: "Cool down"
+  
+  # Environment variables
+  variables:
+    authToken: "YOUR_JWT_TOKEN_HERE"
+    storyId: "8"
+  
+  # Performance thresholds
+  ensure:
+    maxErrorRate: 1  # Max 1% error rate
+    p95: 1000        # 95th percentile should be under 1000ms
+    p99: 2000        # 99th percentile should be under 2000ms
+  
+  # HTTP defaults
+  http:
+    timeout: 10
+
+# Test scenarios
+scenarios:
+  # Scenario 1: Get version history (most common operation)
+  - name: "Get Version History"
+    weight: 50
+    flow:
+      - get:
+          url: "/api/v1/stories/{{ storyId }}/versions"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          capture:
+            - json: "$.data[0].versionNumber"
+              as: "latestVersion"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: "success"
+
+  # Scenario 2: Get single version
+  - name: "Get Single Version"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/v1/stories/{{ storyId }}/versions/5"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+
+  # Scenario 3: Compare versions
+  - name: "Compare Versions"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/v1/stories/{{ storyId }}/versions/compare"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            fromVersionNumber: 1
+            toVersionNumber: 5
+          expect:
+            - statusCode: 200
+
+  # Scenario 4: Create manual snapshot
+  - name: "Create Manual Snapshot"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/v1/stories/{{ storyId }}/versions"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            versionType: "MANUAL"
+            commitMessage: "Load test snapshot {{ $randomString() }}"
+          expect:
+            - statusCode: 201
+
+  # Scenario 5: Mixed operations (realistic user behavior)
+  - name: "Realistic User Session"
+    weight: 5
+    flow:
+      # View history
+      - get:
+          url: "/api/v1/stories/{{ storyId }}/versions"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      
+      # Wait (simulating user reading)
+      - think: 2
+      
+      # View specific version
+      - get:
+          url: "/api/v1/stories/{{ storyId }}/versions/3"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      
+      # Wait again
+      - think: 1
+      
+      # Compare versions
+      - post:
+          url: "/api/v1/stories/{{ storyId }}/versions/compare"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            fromVersionNumber: 2
+            toVersionNumber: 5
