@@ -33,10 +33,15 @@ import { MergeVersionDto } from '../dto/version/merge-version.dto'
 import { CompareVersionsDto } from '../dto/version/compare-versions.dto'
 import { VersionResponseDto, VersionComparisonDto, BranchInfoDto } from '../dto/version'
 import { StoriesService } from '../services/stories.service'
-import { User } from '@modules/users/entities/user.entity'
+interface ControllerUser {
+  id?: string
+  userId?: string
+  email?: string
+  role?: string
+}
 
 interface AuthenticatedRequest extends Request {
-  user?: User
+  user?: ControllerUser
 }
 
 @ApiTags('Story Versions')
@@ -50,10 +55,11 @@ export class StoryVersionController {
   ) {}
 
   private getUserId(req: AuthenticatedRequest): string {
-    if (!req.user?.id) {
+    const userId = req.user?.userId || req.user?.id
+    if (!userId) {
       throw new Error('User not authenticated')
     }
-    return req.user.id
+    return userId
   }
 
   /**
