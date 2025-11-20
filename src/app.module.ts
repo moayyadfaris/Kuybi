@@ -18,6 +18,7 @@ import { StoriesModule } from '@modules/stories/stories.module'
 import { TagsModule } from '@modules/tags/tags.module'
 import { AclModule } from '@modules/acl/acl.module'
 import { AuditModule } from '@modules/audit/audit.module'
+import { PostTypesModule } from '@modules/post-types/post-types.module'
 import { QueuesModule } from '@core/queues/queues.module'
 import { EmailModule } from '@infrastructure/email/email.module'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
@@ -70,6 +71,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     StoriesModule,
     AclModule,
     AuditModule,
+    PostTypesModule, // Dynamic Post Types System (Phase 1)
     LoggingModule,
     ShutdownModule // Graceful shutdown handling
   ],

@@ -30,6 +30,7 @@
     "db:seed:countries": "ts-node -r tsconfig-paths/register src/core/database/scripts/seed-countries.ts",
     "db:seed:users": "ts-node -r tsconfig-paths/register src/core/database/scripts/seed-users.ts",
     "db:seed:acl": "ts-node -r tsconfig-paths/register src/modules/acl/seeders/seed-acl.ts",
+    "db:seed:post-types": "ts-node -r tsconfig-paths/register src/modules/post-types/seeders/seed-post-types.ts",
     "logs:rotate": "bash scripts/rotate-logs.sh",
     "logs:cleanup": "bash scripts/cleanup-logs.sh",
     "logs:view": "tail -f logs/server.log",

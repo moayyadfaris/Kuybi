@@ -40,5 +40,14 @@ export enum Subject {
   Setting = 'Setting',
 
   /** Audit log management */
-  AuditLog = 'AuditLog'
+  AuditLog = 'AuditLog',
+
+  /** Post type management (Dynamic Content) */
+  PostType = 'PostType',
+
+  /** Field definition management (Dynamic Content) */
+  FieldDefinition = 'FieldDefinition',
+
+  /** Content management (Dynamic Content) */
+  Content = 'Content'
 }

@@ -17,6 +17,12 @@ import { Permission } from '@modules/acl/entities/permission.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
 import { UserRole } from '@modules/acl/entities/user-role.entity'
 import { AuditLog } from '@modules/audit/entities/audit-log.entity'
+import { PostType } from '@modules/post-types/entities/post-type.entity'
+import { FieldDefinition } from '@modules/post-types/entities/field-definition.entity'
+import { PostContent } from '@modules/post-types/entities/post-content.entity'
+import { PostContentAttachment } from '@modules/post-types/entities/post-content-attachment.entity'
+import { PostContentTag } from '@modules/post-types/entities/post-content-tag.entity'
+import { PostContentCategory } from '@modules/post-types/entities/post-content-category.entity'
 
 @Module({
   imports: [
@@ -49,7 +55,14 @@ import { AuditLog } from '@modules/audit/entities/audit-log.entity'
             Permission,
             RolePermission,
             UserRole,
-            AuditLog
+            AuditLog,
+            // Dynamic Post Types System
+            PostType,
+            FieldDefinition,
+            PostContent,
+            PostContentAttachment,
+            PostContentTag,
+            PostContentCategory
           ],
           synchronize: false,
           logging: database.logging
