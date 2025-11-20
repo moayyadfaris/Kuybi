@@ -84,7 +84,7 @@ export class FieldValidationService {
 
     // Validate each field in fieldData
     for (const [fieldName, value] of Object.entries(fieldData)) {
-      const fieldDef = fieldDefinitions.find((f) => f.name === fieldName)
+      const fieldDef = fieldDefinitions.find(f => f.name === fieldName)
 
       // Check if field definition exists
       if (!fieldDef) {
@@ -254,10 +254,7 @@ export class FieldValidationService {
           })
       }
     } catch (error) {
-      this.logger.error(
-        { fieldName: fieldDef.name, error: error.message },
-        'Validation error'
-      )
+      this.logger.error({ fieldName: fieldDef.name, error: error.message }, 'Validation error')
       errors.push({
         fieldName: fieldDef.name,
         fieldType: fieldDef.fieldType,
@@ -427,9 +424,7 @@ export class FieldValidationService {
 
       // Protocol validation
       if (rules.protocol) {
-        const allowedProtocols = Array.isArray(rules.protocol)
-          ? rules.protocol
-          : [rules.protocol]
+        const allowedProtocols = Array.isArray(rules.protocol) ? rules.protocol : [rules.protocol]
         if (!allowedProtocols.includes(url.protocol.replace(':', ''))) {
           errors.push({
             fieldName: fieldDef.name,
@@ -1050,7 +1045,7 @@ export class FieldValidationService {
     // Validate each image
     value.forEach((image, index) => {
       const imageErrors = this.validateImage(fieldDef, image)
-      imageErrors.forEach((err) => {
+      imageErrors.forEach(err => {
         errors.push({
           ...err,
           message: `${err.message} (image ${index + 1})`
@@ -1087,7 +1082,7 @@ export class FieldValidationService {
 
       // Validate each UUID
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      value.forEach((id) => {
+      value.forEach(id => {
         if (typeof id !== 'string' || !uuidRegex.test(id)) {
           errors.push({
             fieldName: fieldDef.name,
@@ -1299,7 +1294,7 @@ export class FieldValidationService {
       return currentDepth
     }
 
-    const depths = Object.values(obj).map((value) => this.getObjectDepth(value, currentDepth + 1))
+    const depths = Object.values(obj).map(value => this.getObjectDepth(value, currentDepth + 1))
 
     return Math.max(currentDepth, ...depths)
   }
@@ -1310,7 +1305,7 @@ export class FieldValidationService {
    */
   throwIfInvalid(result: FieldValidationResult): void {
     if (!result.isValid) {
-      const errorMessages = result.errors.map((e) => e.message).join('; ')
+      const errorMessages = result.errors.map(e => e.message).join('; ')
       throw new BadRequestException({
         message: 'Field validation failed',
         errors: result.errors,

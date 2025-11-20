@@ -2,10 +2,10 @@ import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm'
 
 /**
  * Migration: Create post_types table
- * 
+ *
  * This table stores dynamic post type definitions (like WordPress custom post types).
  * Examples: Event, Product, Recipe, Article, Portfolio, etc.
- * 
+ *
  * Key Features:
  * - JSONB settings for flexible configuration
  * - Hierarchical support (parent-child relationships)
@@ -13,7 +13,7 @@ import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm'
  * - Full audit trail with created_by/updated_by
  * - Soft delete support
  * - Optimistic locking with version field
- * 
+ *
  * Part of: Phase 1 - Dynamic Post Types System
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */
@@ -29,7 +29,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             isPrimary: true,
             default: 'uuid_generate_v4()'
           },
-          
+
           // Basic Information
           {
             name: 'name',
@@ -60,7 +60,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             isNullable: true,
             comment: 'Icon name for UI display (e.g., "calendar", "shopping-cart")'
           },
-          
+
           // Display Labels
           {
             name: 'singularLabel',
@@ -83,7 +83,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             isNullable: true,
             comment: 'Menu icon identifier for navigation'
           },
-          
+
           // Feature Flags
           {
             name: 'isHierarchical',
@@ -109,7 +109,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             default: 100,
             comment: 'Order in navigation menu (lower = higher priority)'
           },
-          
+
           // Capabilities & ACL
           {
             name: 'capabilityType',
@@ -118,7 +118,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             default: "'post'",
             comment: 'Base capability type for ACL integration'
           },
-          
+
           // REST API Configuration
           {
             name: 'showInRest',
@@ -133,7 +133,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             isNullable: true,
             comment: 'Custom REST API base path'
           },
-          
+
           // Status Flags
           {
             name: 'isActive',
@@ -147,7 +147,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             default: false,
             comment: 'System post type (cannot be deleted, e.g., "Story")'
           },
-          
+
           // Flexible Configuration (JSONB)
           {
             name: 'settings',
@@ -155,7 +155,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             default: "'{}'",
             comment: 'Additional settings as JSON'
           },
-          
+
           // Audit Trail
           {
             name: 'createdBy',
@@ -187,7 +187,7 @@ export class CreatePostTypesTable1732000100000 implements MigrationInterface {
             isNullable: true,
             comment: 'Soft delete timestamp'
           },
-          
+
           // Optimistic Locking
           {
             name: 'version',

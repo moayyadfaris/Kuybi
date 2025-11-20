@@ -112,18 +112,14 @@ export class ContentService {
     }
   ): Promise<{ data: PostContent[]; total: number }> {
     const statusEnum = options.status as ContentStatus | undefined
-    
+
     if (options.search) {
-      const data = await this.postContentRepository.fullTextSearch(
-        postTypeId,
-        options.search,
-        {
-          status: statusEnum,
-          limit: options.limit,
-          offset: options.offset,
-          includeDeleted: options.includeDeleted
-        }
-      )
+      const data = await this.postContentRepository.fullTextSearch(postTypeId, options.search, {
+        status: statusEnum,
+        limit: options.limit,
+        offset: options.offset,
+        includeDeleted: options.includeDeleted
+      })
       // TODO: Get accurate total count for search results
       return { data, total: data.length }
     }
@@ -211,16 +207,14 @@ export class ContentService {
 
     // Validate field data against field definitions if being updated
     if (data.fieldData) {
-      const fieldDefinitions = await this.fieldDefinitionsService.findByPostType(
-        content.postTypeId
-      )
-      
+      const fieldDefinitions = await this.fieldDefinitionsService.findByPostType(content.postTypeId)
+
       // Merge existing field data with updates for validation
       const mergedFieldData = {
         ...content.fieldData,
         ...data.fieldData
       }
-      
+
       const validationResult = await this.fieldValidationService.validateFieldData(
         fieldDefinitions,
         mergedFieldData
@@ -327,11 +321,7 @@ export class ContentService {
    * @param postTypeId - Optional post type filter
    * @param limit - Optional limit
    */
-  async search(
-    searchTerm: string,
-    postTypeId?: string,
-    limit?: number
-  ): Promise<PostContent[]> {
+  async search(searchTerm: string, postTypeId?: string, limit?: number): Promise<PostContent[]> {
     return this.postContentRepository.fullTextSearch(postTypeId, searchTerm, {
       status: ContentStatus.PUBLISHED,
       limit
@@ -358,7 +348,7 @@ export class ContentService {
 
     // Placeholder for now
     const fields = await this.fieldDefinitionsService.findByPostType(postTypeId)
-    const requiredFields = fields.filter((f) => f.isRequired)
+    const requiredFields = fields.filter(f => f.isRequired)
 
     for (const field of requiredFields) {
       if (!(field.name in fieldData) || fieldData[field.name] === null) {

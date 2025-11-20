@@ -88,9 +88,9 @@ describe('Stories Integration Tests', () => {
   let app: INestApplication
   let dataSource: DataSource
   let accessToken: string
-let testUser: User
-let cacheStub: ReturnType<typeof createInMemoryCacheService>
-let roles: SeededRoles
+  let testUser: User
+  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let roles: SeededRoles
 
   beforeAll(async () => {
     // Create Redis connection

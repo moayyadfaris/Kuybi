@@ -117,7 +117,7 @@ export class PostType {
    * One post type has many field definitions
    * Example: "Event" post type has fields: event_date, location, price
    */
-  @OneToMany(() => FieldDefinition, (fieldDef) => fieldDef.postType)
+  @OneToMany(() => FieldDefinition, fieldDef => fieldDef.postType)
   fieldDefinitions: FieldDefinition[]
 
   // ========== Audit Trail ==========

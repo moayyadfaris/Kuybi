@@ -75,9 +75,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
             query.andWhere('pc.deletedAt IS NULL')
           }
 
-          query
-            .orderBy('pc.publishedAt', 'DESC')
-            .addOrderBy('pc.createdAt', 'DESC')
+          query.orderBy('pc.publishedAt', 'DESC').addOrderBy('pc.createdAt', 'DESC')
 
           if (options?.status) {
             query.andWhere('pc.status = :status', { status: options.status })
@@ -106,9 +104,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
       query.andWhere('pc.deletedAt IS NULL')
     }
 
-    query
-      .orderBy('pc.publishedAt', 'DESC')
-      .addOrderBy('pc.createdAt', 'DESC')
+    query.orderBy('pc.publishedAt', 'DESC').addOrderBy('pc.createdAt', 'DESC')
 
     if (options?.status) {
       query.andWhere('pc.status = :status', { status: options.status })

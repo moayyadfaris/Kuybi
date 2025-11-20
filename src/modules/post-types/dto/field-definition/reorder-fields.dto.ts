@@ -1,6 +1,6 @@
-import { IsArray, ValidateNested, IsUUID, IsInt, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsArray, ValidateNested, IsUUID, IsInt, Min } from 'class-validator'
+import { Type } from 'class-transformer'
+import { ApiProperty } from '@nestjs/swagger'
 
 /**
  * Single field order item
@@ -8,19 +8,19 @@ import { ApiProperty } from '@nestjs/swagger';
 class FieldOrderItem {
   @ApiProperty({
     description: 'Field definition ID',
-    example: 'uuid',
+    example: 'uuid'
   })
   @IsUUID()
-  id: string;
+  id: string
 
   @ApiProperty({
     description: 'New display order',
     example: 1,
-    minimum: 1,
+    minimum: 1
   })
   @IsInt()
   @Min(1)
-  displayOrder: number;
+  displayOrder: number
 }
 
 /**
@@ -33,11 +33,11 @@ export class ReorderFieldsDto {
     example: [
       { id: 'uuid-1', displayOrder: 1 },
       { id: 'uuid-2', displayOrder: 2 },
-      { id: 'uuid-3', displayOrder: 3 },
-    ],
+      { id: 'uuid-3', displayOrder: 3 }
+    ]
   })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => FieldOrderItem)
-  fieldOrders: FieldOrderItem[];
+  fieldOrders: FieldOrderItem[]
 }

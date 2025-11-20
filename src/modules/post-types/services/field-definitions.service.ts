@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common'
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException
+} from '@nestjs/common'
 import { FieldDefinition } from '../entities/field-definition.entity'
 import { FieldDefinitionRepository } from '../repositories/field-definition.repository'
 import { PostTypesService } from './post-types.service'
@@ -207,7 +212,7 @@ export class FieldDefinitionsService {
   ): Promise<void> {
     // Validate all fields belong to this post type
     const fields = await this.fieldDefinitionRepository.findByPostType(postTypeId)
-    const fieldIds = fields.map((f) => f.id)
+    const fieldIds = fields.map(f => f.id)
 
     for (const { id } of fieldOrders) {
       if (!fieldIds.includes(id)) {
@@ -216,7 +221,7 @@ export class FieldDefinitionsService {
     }
 
     // Validate display orders are unique and sequential
-    const orders = fieldOrders.map((f) => f.displayOrder)
+    const orders = fieldOrders.map(f => f.displayOrder)
     const uniqueOrders = new Set(orders)
     if (uniqueOrders.size !== orders.length) {
       throw new BadRequestException('Display orders must be unique')
@@ -316,10 +321,14 @@ export class FieldDefinitionsService {
         )
       ) {
         if (!field.fieldOptions.choices || !Array.isArray(field.fieldOptions.choices)) {
-          throw new BadRequestException('choices must be an array for select/radio/multiselect fields')
+          throw new BadRequestException(
+            'choices must be an array for select/radio/multiselect fields'
+          )
         }
         if ((field.fieldOptions.choices as unknown[]).length === 0) {
-          throw new BadRequestException('choices array cannot be empty for select/radio/multiselect fields')
+          throw new BadRequestException(
+            'choices array cannot be empty for select/radio/multiselect fields'
+          )
         }
       }
     }

@@ -51,7 +51,7 @@ export class FieldDefinition {
   @Column({ type: 'uuid', name: 'postTypeId' })
   postTypeId: string
 
-  @ManyToOne(() => PostType, (postType) => postType.fieldDefinitions, {
+  @ManyToOne(() => PostType, postType => postType.fieldDefinitions, {
     nullable: false,
     onDelete: 'CASCADE'
   })
@@ -205,14 +205,14 @@ export class FieldDefinition {
    */
   getValidationSummary(): string {
     const rules: string[] = []
-    
+
     if (this.isRequired) rules.push('Required')
     if (this.isUnique) rules.push('Unique')
     if (this.validationRules.minLength) rules.push(`Min: ${this.validationRules.minLength}`)
     if (this.validationRules.maxLength) rules.push(`Max: ${this.validationRules.maxLength}`)
     if (this.validationRules.min !== undefined) rules.push(`Min: ${this.validationRules.min}`)
     if (this.validationRules.max !== undefined) rules.push(`Max: ${this.validationRules.max}`)
-    
+
     return rules.length > 0 ? rules.join(', ') : 'No constraints'
   }
 }

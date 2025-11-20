@@ -222,7 +222,15 @@ export class PostTypesSeeder {
       isActive: true,
       isSystem: false, // Custom type - can be modified/deleted
       settings: {
-        supports: ['thumbnail', 'excerpt', 'author', 'comments', 'custom-fields', 'tags', 'categories'],
+        supports: [
+          'thumbnail',
+          'excerpt',
+          'author',
+          'comments',
+          'custom-fields',
+          'tags',
+          'categories'
+        ],
         public: true,
         showInMenu: true,
         showInAdminBar: true,

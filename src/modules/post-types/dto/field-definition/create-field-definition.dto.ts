@@ -8,10 +8,10 @@ import {
   MinLength,
   MaxLength,
   Min,
-  Matches,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FieldType } from '../../enums/field-type.enum';
+  Matches
+} from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { FieldType } from '../../enums/field-type.enum'
 
 /**
  * DTO for creating a new field definition
@@ -20,154 +20,154 @@ export class CreateFieldDefinitionDto {
   @ApiProperty({
     description: 'Field name (snake_case)',
     example: 'prep_time',
-    pattern: '^[a-z][a-z0-9_]*$',
+    pattern: '^[a-z][a-z0-9_]*$'
   })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   @Matches(/^[a-z][a-z0-9_]*$/, {
-    message: 'Field name must be snake_case (lowercase letters, numbers, underscores)',
+    message: 'Field name must be snake_case (lowercase letters, numbers, underscores)'
   })
-  name: string;
+  name: string
 
   @ApiProperty({
     description: 'Human-readable label',
-    example: 'Preparation Time',
+    example: 'Preparation Time'
   })
   @IsString()
   @MinLength(2)
   @MaxLength(200)
-  label: string;
+  label: string
 
   @ApiProperty({
     description: 'Field type',
     enum: FieldType,
-    example: FieldType.NUMBER,
+    example: FieldType.NUMBER
   })
   @IsEnum(FieldType)
-  fieldType: FieldType;
+  fieldType: FieldType
 
   @ApiPropertyOptional({
     description: 'Field description',
-    example: 'Time to prepare in minutes',
+    example: 'Time to prepare in minutes'
   })
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  description?: string;
+  description?: string
 
   @ApiPropertyOptional({
     description: 'Default value (as string)',
-    example: '30',
+    example: '30'
   })
   @IsOptional()
   @IsString()
   @MaxLength(1000)
-  defaultValue?: string;
+  defaultValue?: string
 
   @ApiPropertyOptional({
     description: 'Placeholder text',
-    example: 'Enter preparation time',
+    example: 'Enter preparation time'
   })
   @IsOptional()
   @IsString()
   @MaxLength(200)
-  placeholder?: string;
+  placeholder?: string
 
   @ApiPropertyOptional({
     description: 'Whether field is required',
     example: true,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
-  isRequired?: boolean;
+  isRequired?: boolean
 
   @ApiPropertyOptional({
     description: 'Whether field value must be unique',
     example: false,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
-  isUnique?: boolean;
+  isUnique?: boolean
 
   @ApiPropertyOptional({
     description: 'Whether field is searchable',
     example: false,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
-  isSearchable?: boolean;
+  isSearchable?: boolean
 
   @ApiPropertyOptional({
     description: 'Whether field can be used in filters',
     example: true,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
-  isFilterable?: boolean;
+  isFilterable?: boolean
 
   @ApiPropertyOptional({
     description: 'Whether field can be used for sorting',
     example: true,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
-  isSortable?: boolean;
+  isSortable?: boolean
 
   @ApiPropertyOptional({
     description: 'Display order (1-based)',
     example: 1,
-    minimum: 1,
+    minimum: 1
   })
   @IsOptional()
   @IsInt()
   @Min(1)
-  displayOrder?: number;
+  displayOrder?: number
 
   @ApiPropertyOptional({
     description: 'Field group name',
-    example: 'Recipe Details',
+    example: 'Recipe Details'
   })
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  fieldGroup?: string;
+  fieldGroup?: string
 
   @ApiPropertyOptional({
     description: 'Help text for users',
-    example: 'Enter the time in minutes (e.g., 30)',
+    example: 'Enter the time in minutes (e.g., 30)'
   })
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  helpText?: string;
+  helpText?: string
 
   @ApiPropertyOptional({
     description: 'Validation rules',
-    example: { min: 1, max: 300, step: 5 },
+    example: { min: 1, max: 300, step: 5 }
   })
   @IsOptional()
   @IsObject()
-  validationRules?: Record<string, any>;
+  validationRules?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Field-specific options',
-    example: { suffix: ' minutes', step: 5 },
+    example: { suffix: ' minutes', step: 5 }
   })
   @IsOptional()
   @IsObject()
-  fieldOptions?: Record<string, any>;
+  fieldOptions?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Conditional logic rules (Phase 2 feature)',
-    example: { show_if: { field: 'has_prep', value: true } },
+    example: { show_if: { field: 'has_prep', value: true } }
   })
   @IsOptional()
   @IsObject()
-  conditionalLogic?: Record<string, any>;
+  conditionalLogic?: Record<string, any>
 }

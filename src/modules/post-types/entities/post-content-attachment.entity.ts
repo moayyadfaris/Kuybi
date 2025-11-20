@@ -36,7 +36,7 @@ export class PostContentAttachment {
   @Column({ type: 'uuid', name: 'postContentId' })
   postContentId: string
 
-  @ManyToOne(() => PostContent, (content) => content.attachmentRelations, {
+  @ManyToOne(() => PostContent, content => content.attachmentRelations, {
     nullable: false,
     onDelete: 'CASCADE'
   })

@@ -339,8 +339,14 @@ export class CreateJunctionTables1732000400000 implements MigrationInterface {
     await queryRunner.dropIndex('post_content_categories', 'IDX_POST_CONTENT_CATEGORIES_CATEGORY')
     await queryRunner.dropIndex('post_content_categories', 'IDX_POST_CONTENT_CATEGORIES_CONTENT')
     await queryRunner.dropIndex('post_content_categories', 'IDX_POST_CONTENT_CATEGORIES_UNIQUE')
-    await queryRunner.dropForeignKey('post_content_categories', 'FK_POST_CONTENT_CATEGORIES_CATEGORY')
-    await queryRunner.dropForeignKey('post_content_categories', 'FK_POST_CONTENT_CATEGORIES_CONTENT')
+    await queryRunner.dropForeignKey(
+      'post_content_categories',
+      'FK_POST_CONTENT_CATEGORIES_CATEGORY'
+    )
+    await queryRunner.dropForeignKey(
+      'post_content_categories',
+      'FK_POST_CONTENT_CATEGORIES_CONTENT'
+    )
     await queryRunner.dropTable('post_content_categories')
 
     // ========== Drop post_content_tags ==========
@@ -354,11 +360,20 @@ export class CreateJunctionTables1732000400000 implements MigrationInterface {
     // ========== Drop post_content_attachments ==========
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_POST_CONTENT_ATTACHMENTS_METADATA"`)
     await queryRunner.dropIndex('post_content_attachments', 'IDX_POST_CONTENT_ATTACHMENTS_ORDER')
-    await queryRunner.dropIndex('post_content_attachments', 'IDX_POST_CONTENT_ATTACHMENTS_ATTACHMENT')
+    await queryRunner.dropIndex(
+      'post_content_attachments',
+      'IDX_POST_CONTENT_ATTACHMENTS_ATTACHMENT'
+    )
     await queryRunner.dropIndex('post_content_attachments', 'IDX_POST_CONTENT_ATTACHMENTS_CONTENT')
     await queryRunner.dropIndex('post_content_attachments', 'IDX_POST_CONTENT_ATTACHMENTS_UNIQUE')
-    await queryRunner.dropForeignKey('post_content_attachments', 'FK_POST_CONTENT_ATTACHMENTS_ATTACHMENT')
-    await queryRunner.dropForeignKey('post_content_attachments', 'FK_POST_CONTENT_ATTACHMENTS_CONTENT')
+    await queryRunner.dropForeignKey(
+      'post_content_attachments',
+      'FK_POST_CONTENT_ATTACHMENTS_ATTACHMENT'
+    )
+    await queryRunner.dropForeignKey(
+      'post_content_attachments',
+      'FK_POST_CONTENT_ATTACHMENTS_CONTENT'
+    )
     await queryRunner.dropTable('post_content_attachments')
   }
 }

@@ -2,11 +2,11 @@ import { MigrationInterface, QueryRunner } from 'typeorm'
 
 /**
  * Migration: Create ENUM types for Post Types system
- * 
+ *
  * Creates two critical ENUM types:
  * 1. field_type_enum - 25 field types for dynamic schemas
  * 2. content_status_enum - 6 content statuses for publishing workflow
- * 
+ *
  * Part of: Phase 1 - Dynamic Post Types System
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */

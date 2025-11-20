@@ -82,7 +82,7 @@ describe('SuperAdminGuard', () => {
 
       expect(() => guard.canActivate(mockExecutionContext)).toThrow(ForbiddenException)
       expect(() => guard.canActivate(mockExecutionContext)).toThrow('Super Admin access required')
-      
+
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: admin.id,
@@ -123,7 +123,7 @@ describe('SuperAdminGuard', () => {
 
       expect(() => guard.canActivate(mockExecutionContext)).toThrow(ForbiddenException)
       expect(() => guard.canActivate(mockExecutionContext)).toThrow('Authentication required')
-      
+
       expect(mockLogger.warn).toHaveBeenCalledWith('SuperAdminGuard: No user in request')
     })
 
@@ -183,7 +183,7 @@ describe('SuperAdminGuard', () => {
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
 
       expect(() => guard.canActivate(mockExecutionContext)).toThrow(ForbiddenException)
-      
+
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/api/v1/sessions/users/some-id',

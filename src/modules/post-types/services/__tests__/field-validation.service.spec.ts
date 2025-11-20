@@ -39,10 +39,7 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        {}
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {})
 
       expect(result.isValid).toBe(false)
       expect(result.errors).toHaveLength(1)
@@ -67,10 +64,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { optional: null }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        optional: null
+      })
 
       expect(result.isValid).toBe(true)
     })
@@ -88,10 +84,7 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { name: 123 }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], { name: 123 })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('INVALID_TYPE')
@@ -108,10 +101,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { name: 'abc' }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        name: 'abc'
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MIN_LENGTH')
@@ -128,10 +120,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { name: 'this is too long' }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        name: 'this is too long'
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MAX_LENGTH')
@@ -148,10 +139,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { code: 'abc' }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        code: 'abc'
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('PATTERN_MISMATCH')
@@ -170,18 +160,16 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const invalid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { email: 'notanemail' }
-      )
+      const invalid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        email: 'notanemail'
+      })
 
       expect(invalid.isValid).toBe(false)
       expect(invalid.errors[0].errorCode).toBe('INVALID_EMAIL')
 
-      const valid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { email: 'test@example.com' }
-      )
+      const valid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        email: 'test@example.com'
+      })
 
       expect(valid.isValid).toBe(true)
     })
@@ -199,10 +187,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { age: 'not a number' }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        age: 'not a number'
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('INVALID_TYPE')
@@ -219,10 +206,7 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { age: 16 }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], { age: 16 })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MIN_VALUE')
@@ -239,10 +223,7 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { age: 150 }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], { age: 150 })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MAX_VALUE')
@@ -259,10 +240,7 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { count: 5.5 }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], { count: 5.5 })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('NOT_INTEGER')
@@ -281,18 +259,16 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const invalid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { birthdate: 'not a date' }
-      )
+      const invalid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        birthdate: 'not a date'
+      })
 
       expect(invalid.isValid).toBe(false)
       expect(invalid.errors[0].errorCode).toBe('INVALID_DATE')
 
-      const valid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { birthdate: '2025-01-01' }
-      )
+      const valid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        birthdate: '2025-01-01'
+      })
 
       expect(valid.isValid).toBe(true)
     })
@@ -308,10 +284,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { event_date: '2024-12-31' }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        event_date: '2024-12-31'
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MIN_DATE')
@@ -331,18 +306,14 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const invalid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { size: 'XXL' }
-      )
+      const invalid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        size: 'XXL'
+      })
 
       expect(invalid.isValid).toBe(false)
       expect(invalid.errors[0].errorCode).toBe('INVALID_CHOICE')
 
-      const valid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { size: 'M' }
-      )
+      const valid = await service.validateFieldData(fieldDefs as FieldDefinition[], { size: 'M' })
 
       expect(valid.isValid).toBe(true)
     })
@@ -361,10 +332,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { tags: 'not an array' }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        tags: 'not an array'
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('INVALID_TYPE')
@@ -382,10 +352,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { tags: ['tag1'] }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        tags: ['tag1']
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MIN_SELECTIONS')
@@ -403,10 +372,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { tags: ['tag1', 'tag2', 'tag3'] }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        tags: ['tag1', 'tag2', 'tag3']
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MAX_SELECTIONS')
@@ -426,18 +394,16 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const invalid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { related_product: 'not-a-uuid' }
-      )
+      const invalid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        related_product: 'not-a-uuid'
+      })
 
       expect(invalid.isValid).toBe(false)
       expect(invalid.errors[0].errorCode).toBe('INVALID_UUID')
 
-      const valid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { related_product: '123e4567-e89b-12d3-a456-426614174000' }
-      )
+      const valid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        related_product: '123e4567-e89b-12d3-a456-426614174000'
+      })
 
       expect(valid.isValid).toBe(true)
     })
@@ -454,12 +420,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        {
-          related_products: ['123e4567-e89b-12d3-a456-426614174000', 'invalid-uuid']
-        }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        related_products: ['123e4567-e89b-12d3-a456-426614174000', 'invalid-uuid']
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('INVALID_UUID')
@@ -479,18 +442,16 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const invalid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { brand_color: 'red' }
-      )
+      const invalid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        brand_color: 'red'
+      })
 
       expect(invalid.isValid).toBe(false)
       expect(invalid.errors[0].errorCode).toBe('INVALID_COLOR')
 
-      const valid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { brand_color: '#FF5733' }
-      )
+      const valid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        brand_color: '#FF5733'
+      })
 
       expect(valid.isValid).toBe(true)
     })
@@ -508,18 +469,16 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const invalid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { metadata: 'not an object' }
-      )
+      const invalid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        metadata: 'not an object'
+      })
 
       expect(invalid.isValid).toBe(false)
       expect(invalid.errors[0].errorCode).toBe('INVALID_TYPE')
 
-      const valid = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { metadata: { key: 'value' } }
-      )
+      const valid = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        metadata: { key: 'value' }
+      })
 
       expect(valid.isValid).toBe(true)
     })
@@ -535,18 +494,15 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        {
-          metadata: {
-            level1: {
-              level2: {
-                level3: 'too deep'
-              }
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        metadata: {
+          level1: {
+            level2: {
+              level3: 'too deep'
             }
           }
         }
-      )
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MAX_DEPTH_EXCEEDED')
@@ -565,10 +521,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { faq_items: 'not an array' }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        faq_items: 'not an array'
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('INVALID_TYPE')
@@ -585,10 +540,9 @@ describe('FieldValidationService', () => {
         }
       ]
 
-      const result = await service.validateFieldData(
-        fieldDefs as FieldDefinition[],
-        { faq_items: [{ question: 'Q1', answer: 'A1' }] }
-      )
+      const result = await service.validateFieldData(fieldDefs as FieldDefinition[], {
+        faq_items: [{ question: 'Q1', answer: 'A1' }]
+      })
 
       expect(result.isValid).toBe(false)
       expect(result.errors[0].errorCode).toBe('MIN_ITEMS')

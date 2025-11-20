@@ -7,7 +7,7 @@ import {
   IsArray,
   IsDateString,
   MinLength,
-  MaxLength,
+  MaxLength
 } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { ContentStatus } from '../../enums/content-status.enum'
@@ -18,7 +18,7 @@ import { ContentStatus } from '../../enums/content-status.enum'
 export class CreateContentDto {
   @ApiProperty({
     description: 'Content title',
-    example: 'Tech Conference 2025',
+    example: 'Tech Conference 2025'
   })
   @IsString()
   @MinLength(1)
@@ -27,7 +27,7 @@ export class CreateContentDto {
 
   @ApiPropertyOptional({
     description: 'Short excerpt',
-    example: 'Annual technology conference',
+    example: 'Annual technology conference'
   })
   @IsOptional()
   @IsString()
@@ -38,7 +38,7 @@ export class CreateContentDto {
     description: 'Content status',
     enum: ContentStatus,
     example: ContentStatus.DRAFT,
-    default: ContentStatus.DRAFT,
+    default: ContentStatus.DRAFT
   })
   @IsOptional()
   @IsEnum(ContentStatus)
@@ -46,7 +46,7 @@ export class CreateContentDto {
 
   @ApiPropertyOptional({
     description: 'Parent content ID (for hierarchical types)',
-    example: 'uuid',
+    example: 'uuid'
   })
   @IsOptional()
   @IsUUID()
@@ -58,15 +58,15 @@ export class CreateContentDto {
       event_date: '2025-12-15',
       location: 'New York',
       price: '299.00',
-      max_attendees: '500',
-    },
+      max_attendees: '500'
+    }
   })
   @IsObject()
   field_data: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Metadata (SEO, etc.)',
-    example: { seoTitle: 'Custom title', seoDescription: 'Custom description' },
+    example: { seoTitle: 'Custom title', seoDescription: 'Custom description' }
   })
   @IsOptional()
   @IsObject()
@@ -74,7 +74,7 @@ export class CreateContentDto {
 
   @ApiPropertyOptional({
     description: 'Attachment IDs',
-    example: ['uuid1', 'uuid2'],
+    example: ['uuid1', 'uuid2']
   })
   @IsOptional()
   @IsArray()
@@ -83,7 +83,7 @@ export class CreateContentDto {
 
   @ApiPropertyOptional({
     description: 'Tag IDs',
-    example: ['uuid1', 'uuid2'],
+    example: ['uuid1', 'uuid2']
   })
   @IsOptional()
   @IsArray()
@@ -92,7 +92,7 @@ export class CreateContentDto {
 
   @ApiPropertyOptional({
     description: 'Category IDs',
-    example: ['uuid1'],
+    example: ['uuid1']
   })
   @IsOptional()
   @IsArray()
@@ -101,7 +101,7 @@ export class CreateContentDto {
 
   @ApiPropertyOptional({
     description: 'Scheduled publication date',
-    example: '2025-12-01T09:00:00.000Z',
+    example: '2025-12-01T09:00:00.000Z'
   })
   @IsOptional()
   @IsDateString()

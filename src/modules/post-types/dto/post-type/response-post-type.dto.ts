@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Expose, Type } from 'class-transformer';
-import { ResponseFieldDefinitionDto } from '../field-definition/response-field-definition.dto';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Expose, Type } from 'class-transformer'
+import { ResponseFieldDefinitionDto } from '../field-definition/response-field-definition.dto'
 
 /**
  * DTO for post type responses
@@ -8,89 +8,89 @@ import { ResponseFieldDefinitionDto } from '../field-definition/response-field-d
 export class ResponsePostTypeDto {
   @ApiProperty({ description: 'Post type ID', example: 'uuid' })
   @Expose()
-  id: string;
+  id: string
 
   @ApiProperty({ description: 'Post type name', example: 'Recipe' })
   @Expose()
-  name: string;
+  name: string
 
   @ApiProperty({ description: 'URL-friendly slug', example: 'recipe' })
   @Expose()
-  slug: string;
+  slug: string
 
   @ApiProperty({ description: 'Singular label', example: 'Recipe' })
   @Expose()
-  singularLabel: string;
+  singularLabel: string
 
   @ApiProperty({ description: 'Plural label', example: 'Recipes' })
   @Expose()
-  pluralLabel: string;
+  pluralLabel: string
 
   @ApiPropertyOptional({ description: 'Description' })
   @Expose()
-  description?: string;
+  description?: string
 
   @ApiPropertyOptional({ description: 'Icon identifier' })
   @Expose()
-  icon?: string;
+  icon?: string
 
   @ApiPropertyOptional({ description: 'Menu icon identifier' })
   @Expose()
-  menuIcon?: string;
+  menuIcon?: string
 
   @ApiPropertyOptional({ description: 'Menu position' })
   @Expose()
-  menuPosition?: number;
+  menuPosition?: number
 
   @ApiProperty({ description: 'Hierarchical support' })
   @Expose()
-  isHierarchical: boolean;
+  isHierarchical: boolean
 
   @ApiProperty({ description: 'Comments support' })
   @Expose()
-  supportsComments: boolean;
+  supportsComments: boolean
 
   @ApiProperty({ description: 'Revisions support' })
   @Expose()
-  supportsRevisions: boolean;
+  supportsRevisions: boolean
 
   @ApiProperty({ description: 'Show in REST API' })
   @Expose()
-  showInRest: boolean;
+  showInRest: boolean
 
   @ApiPropertyOptional({ description: 'REST base path' })
   @Expose()
-  restBase?: string;
+  restBase?: string
 
   @ApiPropertyOptional({ description: 'Capability type' })
   @Expose()
-  capabilityType?: string;
+  capabilityType?: string
 
   @ApiProperty({ description: 'Is active' })
   @Expose()
-  isActive: boolean;
+  isActive: boolean
 
   @ApiProperty({ description: 'Is system type (protected)' })
   @Expose()
-  isSystem: boolean;
+  isSystem: boolean
 
   @ApiPropertyOptional({ description: 'Additional settings' })
   @Expose()
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 
   @ApiProperty({ description: 'Created at timestamp' })
   @Expose()
-  createdAt: Date;
+  createdAt: Date
 
   @ApiProperty({ description: 'Updated at timestamp' })
   @Expose()
-  updatedAt: Date;
+  updatedAt: Date
 
   @ApiPropertyOptional({
     description: 'Field definitions (if included)',
-    type: [ResponseFieldDefinitionDto],
+    type: [ResponseFieldDefinitionDto]
   })
   @Expose()
   @Type(() => ResponseFieldDefinitionDto)
-  fieldDefinitions?: ResponseFieldDefinitionDto[];
+  fieldDefinitions?: ResponseFieldDefinitionDto[]
 }

@@ -5,7 +5,7 @@ import { AppModule } from '../../src/app.module'
 
 /**
  * Story Version API Performance Tests
- * 
+ *
  * Tests the performance of version-related APIs under load.
  * Run with: npm run test:performance
  */
@@ -24,12 +24,10 @@ describe('Story Version API Performance Tests', () => {
     await app.init()
 
     // Login to get auth token
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: 'admin@kuybi.dev',
-        password: 'Admin@123'
-      })
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: 'admin@kuybi.dev',
+      password: 'Admin@123'
+    })
 
     authToken = loginResponse.body.data.accessToken
 

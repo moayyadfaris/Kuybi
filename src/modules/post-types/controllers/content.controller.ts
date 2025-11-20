@@ -161,7 +161,7 @@ export class ContentController {
     // Get post type by slug to get its ID
     const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
     const content = await this.contentService['postContentRepository'].findBySlug(postType.id, slug)
-    
+
     if (!content || content.deletedAt) {
       throw new NotFoundException('Content not found')
     }
@@ -194,7 +194,7 @@ export class ContentController {
   ): Promise<ResponseContentDto> {
     // Get post type by slug to get its ID
     const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-    
+
     // Map field_data to fieldData for service
     const serviceData = {
       title: createContentDto.title,
@@ -202,9 +202,11 @@ export class ContentController {
       excerpt: createContentDto.excerpt,
       fieldData: createContentDto.field_data,
       status: createContentDto.status,
-      scheduledAt: createContentDto.scheduledFor ? new Date(createContentDto.scheduledFor) : undefined
+      scheduledAt: createContentDto.scheduledFor
+        ? new Date(createContentDto.scheduledFor)
+        : undefined
     }
-    
+
     const content = await this.contentService.create(postType.id, serviceData, authorId)
     return plainToInstance(ResponseContentDto, content, {
       excludeExtraneousValues: true
@@ -247,7 +249,8 @@ export class ContentController {
     if (updateContentDto.excerpt) serviceData.excerpt = updateContentDto.excerpt
     if (updateContentDto.field_data) serviceData.fieldData = updateContentDto.field_data
     if (updateContentDto.status) serviceData.status = updateContentDto.status
-    if (updateContentDto.scheduledFor) serviceData.scheduledAt = new Date(updateContentDto.scheduledFor)
+    if (updateContentDto.scheduledFor)
+      serviceData.scheduledAt = new Date(updateContentDto.scheduledFor)
 
     const updated = await this.contentService.update(id, serviceData, updatedBy)
     return plainToInstance(ResponseContentDto, updated, {

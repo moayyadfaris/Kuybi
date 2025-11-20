@@ -35,7 +35,7 @@ export class PostContentTag {
   @Column({ type: 'uuid', name: 'postContentId' })
   postContentId: string
 
-  @ManyToOne(() => PostContent, (content) => content.tagRelations, {
+  @ManyToOne(() => PostContent, content => content.tagRelations, {
     nullable: false,
     onDelete: 'CASCADE'
   })

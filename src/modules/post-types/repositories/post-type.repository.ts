@@ -37,10 +37,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
    * @param slug - Post type slug (e.g., "event", "product")
    * @param options - Cache options
    */
-  async findBySlug(
-    slug: string,
-    options?: { bypassCache?: boolean }
-  ): Promise<PostType | null> {
+  async findBySlug(slug: string, options?: { bypassCache?: boolean }): Promise<PostType | null> {
     const cacheKey = this.buildCacheKey('slug', slug)
 
     if (!options?.bypassCache && this.cacheService) {
@@ -116,10 +113,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
    * Find post type by name with caching
    * @param name - Post type name (e.g., "Event", "Product")
    */
-  async findByName(
-    name: string,
-    options?: { bypassCache?: boolean }
-  ): Promise<PostType | null> {
+  async findByName(name: string, options?: { bypassCache?: boolean }): Promise<PostType | null> {
     const cacheKey = this.buildCacheKey('name', name)
 
     if (!options?.bypassCache && this.cacheService) {
@@ -186,7 +180,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
       this.buildCacheKey('all')
     ]
 
-    await Promise.all(keys.map((key) => this.cacheService.del(key)))
+    await Promise.all(keys.map(key => this.cacheService.del(key)))
   }
 
   /**
@@ -205,7 +199,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
     if (slug) keys.push(this.buildCacheKey('slug', slug))
     if (name) keys.push(this.buildCacheKey('name', name))
 
-    await Promise.all(keys.map((key) => this.cacheService.del(key)))
+    await Promise.all(keys.map(key => this.cacheService.del(key)))
     await this.invalidateAllCaches()
   }
 }

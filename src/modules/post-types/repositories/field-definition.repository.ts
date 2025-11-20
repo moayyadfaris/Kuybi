@@ -204,7 +204,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     fieldOrders: Array<{ id: string; displayOrder: number }>
   ): Promise<void> {
     // Update in transaction for consistency
-    await this.repository.manager.transaction(async (transactionalEntityManager) => {
+    await this.repository.manager.transaction(async transactionalEntityManager => {
       for (const { id, displayOrder } of fieldOrders) {
         await transactionalEntityManager.update(
           FieldDefinition,
@@ -231,7 +231,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
       this.buildCacheKey('searchable', postTypeId)
     ]
 
-    await Promise.all(keys.map((key) => this.cacheService.del(key)))
+    await Promise.all(keys.map(key => this.cacheService.del(key)))
   }
 
   /**
@@ -246,7 +246,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
       this.buildCacheKey('name', field.postTypeId, field.name)
     ]
 
-    await Promise.all(keys.map((key) => this.cacheService.del(key)))
+    await Promise.all(keys.map(key => this.cacheService.del(key)))
     await this.invalidateCacheForPostType(field.postTypeId)
   }
 }

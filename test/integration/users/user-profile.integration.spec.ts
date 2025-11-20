@@ -101,7 +101,16 @@ describe('User Profile Integration Tests', () => {
           username: process.env.TEST_DB_USERNAME,
           password: process.env.TEST_DB_PASSWORD,
           database: process.env.TEST_DB_DATABASE,
-          entities: [User, Session, UserRole, Role, Permission, RolePermission, Attachment, PasswordHistory],
+          entities: [
+            User,
+            Session,
+            UserRole,
+            Role,
+            Permission,
+            RolePermission,
+            Attachment,
+            PasswordHistory
+          ],
           synchronize: false,
           logging: false
         }),

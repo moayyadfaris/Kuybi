@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
-import { FieldType } from '../../enums/field-type.enum';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Expose } from 'class-transformer'
+import { FieldType } from '../../enums/field-type.enum'
 
 /**
  * DTO for field definition responses
@@ -8,85 +8,85 @@ import { FieldType } from '../../enums/field-type.enum';
 export class ResponseFieldDefinitionDto {
   @ApiProperty({ description: 'Field definition ID', example: 'uuid' })
   @Expose()
-  id: string;
+  id: string
 
   @ApiProperty({ description: 'Post type ID', example: 'uuid' })
   @Expose()
-  postTypeId: string;
+  postTypeId: string
 
   @ApiProperty({ description: 'Field name', example: 'prep_time' })
   @Expose()
-  name: string;
+  name: string
 
   @ApiProperty({ description: 'Field label', example: 'Preparation Time' })
   @Expose()
-  label: string;
+  label: string
 
   @ApiProperty({ description: 'Field type', enum: FieldType })
   @Expose()
-  fieldType: FieldType;
+  fieldType: FieldType
 
   @ApiPropertyOptional({ description: 'Field description' })
   @Expose()
-  description?: string;
+  description?: string
 
   @ApiPropertyOptional({ description: 'Default value' })
   @Expose()
-  defaultValue?: string;
+  defaultValue?: string
 
   @ApiPropertyOptional({ description: 'Placeholder text' })
   @Expose()
-  placeholder?: string;
+  placeholder?: string
 
   @ApiProperty({ description: 'Is required' })
   @Expose()
-  isRequired: boolean;
+  isRequired: boolean
 
   @ApiProperty({ description: 'Is unique' })
   @Expose()
-  isUnique: boolean;
+  isUnique: boolean
 
   @ApiProperty({ description: 'Is searchable' })
   @Expose()
-  isSearchable: boolean;
+  isSearchable: boolean
 
   @ApiProperty({ description: 'Is filterable' })
   @Expose()
-  isFilterable: boolean;
+  isFilterable: boolean
 
   @ApiProperty({ description: 'Is sortable' })
   @Expose()
-  isSortable: boolean;
+  isSortable: boolean
 
   @ApiProperty({ description: 'Display order' })
   @Expose()
-  displayOrder: number;
+  displayOrder: number
 
   @ApiPropertyOptional({ description: 'Field group' })
   @Expose()
-  fieldGroup?: string;
+  fieldGroup?: string
 
   @ApiPropertyOptional({ description: 'Help text' })
   @Expose()
-  helpText?: string;
+  helpText?: string
 
   @ApiPropertyOptional({ description: 'Validation rules' })
   @Expose()
-  validationRules?: Record<string, any>;
+  validationRules?: Record<string, any>
 
   @ApiPropertyOptional({ description: 'Field options' })
   @Expose()
-  fieldOptions?: Record<string, any>;
+  fieldOptions?: Record<string, any>
 
   @ApiPropertyOptional({ description: 'Conditional logic' })
   @Expose()
-  conditionalLogic?: Record<string, any>;
+  conditionalLogic?: Record<string, any>
 
   @ApiProperty({ description: 'Created at timestamp' })
   @Expose()
-  createdAt: Date;
+  createdAt: Date
 
   @ApiProperty({ description: 'Updated at timestamp' })
   @Expose()
-  updatedAt: Date;
+  updatedAt: Date
 }

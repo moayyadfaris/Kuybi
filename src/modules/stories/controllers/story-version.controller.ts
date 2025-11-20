@@ -182,7 +182,7 @@ export class StoryVersionController {
   ): Promise<VersionResponseDto> {
     const userId = this.getUserId(req)
     const commitMessage = dto.commitMessage || `Rollback to version ${dto.versionNumber}`
-    
+
     // Perform rollback and get restored content
     const { version, restoredContent } = await this.versionService.rollbackToVersion(
       storyId,

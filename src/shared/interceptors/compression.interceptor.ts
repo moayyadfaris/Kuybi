@@ -12,7 +12,7 @@ import * as zlib from 'zlib'
 
 /**
  * Compression Interceptor
- * 
+ *
  * Compresses response bodies using gzip when:
  * 1. Client sends Accept-Encoding: gzip header
  * 2. Response is larger than threshold (1KB default)
@@ -73,9 +73,7 @@ export class CompressionInterceptor implements NestInterceptor {
 
         // Check if content type is compressible
         const contentType = response.getHeader('Content-Type') as string
-        const isCompressible = this.compressibleTypes.some(type =>
-          contentType?.includes(type)
-        )
+        const isCompressible = this.compressibleTypes.some(type => contentType?.includes(type))
 
         if (!isCompressible) {
           return data

@@ -7,7 +7,7 @@ import { ApiProperty } from '@nestjs/swagger'
 export class ScheduleContentDto {
   @ApiProperty({
     description: 'Date and time to publish the content',
-    example: '2025-12-01T09:00:00.000Z',
+    example: '2025-12-01T09:00:00.000Z'
   })
   @IsDateString()
   scheduledFor: string

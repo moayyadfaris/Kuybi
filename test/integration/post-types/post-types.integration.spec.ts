@@ -277,10 +277,7 @@ describe('Post Types Integration Tests', () => {
     })
 
     it('should fail without authentication', async () => {
-      await request(app.getHttpServer())
-        .post('/api/post-types')
-        .send(validPostType)
-        .expect(401)
+      await request(app.getHttpServer()).post('/api/post-types').send(validPostType).expect(401)
     })
 
     it('should fail with regular user token (insufficient permissions)', async () => {
@@ -370,9 +367,7 @@ describe('Post Types Integration Tests', () => {
     })
 
     it('should list all active post types (no auth required)', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/api/post-types')
-        .expect(200)
+      const response = await request(app.getHttpServer()).get('/api/post-types').expect(200)
 
       expect(Array.isArray(response.body)).toBe(true)
       expect(response.body.length).toBe(1)
@@ -447,9 +442,7 @@ describe('Post Types Integration Tests', () => {
     })
 
     it('should return 404 for non-existent slug', async () => {
-      await request(app.getHttpServer())
-        .get('/api/post-types/slug/nonexistent')
-        .expect(404)
+      await request(app.getHttpServer()).get('/api/post-types/slug/nonexistent').expect(404)
     })
   })
 
@@ -530,15 +523,11 @@ describe('Post Types Integration Tests', () => {
         .expect(204)
 
       // Verify soft delete
-      await request(app.getHttpServer())
-        .get(`/api/post-types/${postTypeId}`)
-        .expect(404)
+      await request(app.getHttpServer()).get(`/api/post-types/${postTypeId}`).expect(404)
     })
 
     it('should fail without authentication', async () => {
-      await request(app.getHttpServer())
-        .delete(`/api/post-types/${postTypeId}`)
-        .expect(401)
+      await request(app.getHttpServer()).delete(`/api/post-types/${postTypeId}`).expect(401)
     })
 
     it('should prevent deleting system post types', async () => {

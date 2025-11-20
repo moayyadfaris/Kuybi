@@ -75,7 +75,9 @@ describe('RoleHierarchyGuard', () => {
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException)
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow('Authentication required')
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should allow when no roleId in request', async () => {

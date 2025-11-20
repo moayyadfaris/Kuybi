@@ -11,13 +11,7 @@ import {
   HttpCode,
   HttpStatus
 } from '@nestjs/common'
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam
-} from '@nestjs/swagger'
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger'
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
@@ -36,9 +30,7 @@ import { NotFoundException } from '@nestjs/common'
 @ApiTags('Field Definitions')
 @Controller('v1/post-types/:postTypeId/fields')
 export class FieldDefinitionsController {
-  constructor(
-    private readonly fieldDefinitionsService: FieldDefinitionsService
-  ) {}
+  constructor(private readonly fieldDefinitionsService: FieldDefinitionsService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all fields for a post type' })
@@ -102,10 +94,7 @@ export class FieldDefinitionsController {
     @Param('postTypeId', ParseUUIDPipe) postTypeId: string,
     @Body() createFieldDefinitionDto: CreateFieldDefinitionDto
   ): Promise<ResponseFieldDefinitionDto> {
-    const field = await this.fieldDefinitionsService.create(
-      postTypeId,
-      createFieldDefinitionDto
-    )
+    const field = await this.fieldDefinitionsService.create(postTypeId, createFieldDefinitionDto)
     return plainToInstance(ResponseFieldDefinitionDto, field, {
       excludeExtraneousValues: true
     })
@@ -163,13 +152,10 @@ export class FieldDefinitionsController {
     @Param('postTypeId', ParseUUIDPipe) postTypeId: string,
     @Body() reorderFieldsDto: ReorderFieldsDto
   ): Promise<ResponseFieldDefinitionDto[]> {
-    await this.fieldDefinitionsService.reorderFields(
-      postTypeId,
-      reorderFieldsDto.fieldOrders
-    )
+    await this.fieldDefinitionsService.reorderFields(postTypeId, reorderFieldsDto.fieldOrders)
     // Return updated fields
     const fields = await this.fieldDefinitionsService.findByPostType(postTypeId)
-    return fields.map((field) =>
+    return fields.map(field =>
       plainToInstance(ResponseFieldDefinitionDto, field, {
         excludeExtraneousValues: true
       })

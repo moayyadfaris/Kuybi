@@ -131,7 +131,7 @@ describe('Session Management Integration Tests', () => {
       superAdminRole = await roleRepository.save({
         name: 'super-admin',
         priority: 100,
-        description: 'Super Administrator',
+        description: 'Super Administrator'
       })
     }
 
@@ -140,7 +140,7 @@ describe('Session Management Integration Tests', () => {
       adminRole = await roleRepository.save({
         name: 'admin',
         priority: 80,
-        description: 'Administrator',
+        description: 'Administrator'
       })
     }
 
@@ -149,7 +149,7 @@ describe('Session Management Integration Tests', () => {
       userRole = await roleRepository.save({
         name: 'user',
         priority: 40,
-        description: 'Regular User',
+        description: 'Regular User'
       })
     }
 
@@ -197,7 +197,7 @@ describe('Session Management Integration Tests', () => {
   afterAll(async () => {
     await dataSource.query('TRUNCATE TABLE sessions CASCADE')
     await dataSource.query('TRUNCATE TABLE user_roles CASCADE')
-    await dataSource.query('DELETE FROM users WHERE email LIKE \'%@test-session.com\'')
+    await dataSource.query("DELETE FROM users WHERE email LIKE '%@test-session.com'")
     await dataSource.destroy()
     await app.close()
   })
@@ -217,9 +217,7 @@ describe('Session Management Integration Tests', () => {
     })
 
     it('should return 401 without authentication', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/sessions/me')
-        .expect(401)
+      await request(app.getHttpServer()).get('/api/v1/sessions/me').expect(401)
     })
   })
 
@@ -301,7 +299,9 @@ describe('Session Management Integration Tests', () => {
         .get(`/api/v1/sessions/users/${regularUser.id}?includeExpired=true`)
         .set('Authorization', `Bearer ${superAdminToken}`)
 
-      const revokedSession = verifyRevoked.body.sessions.find((s: { id: string }) => s.id === freshSessionId)
+      const revokedSession = verifyRevoked.body.sessions.find(
+        (s: { id: string }) => s.id === freshSessionId
+      )
       expect(revokedSession).toBeDefined()
       expect(revokedSession.revokedAt).toBeTruthy()
     })
@@ -322,7 +322,7 @@ describe('Session Management Integration Tests', () => {
 
     it('should return 404 for non-existent session', async () => {
       const fakeSessionId = '00000000-0000-0000-0000-000000000000'
-      
+
       await request(app.getHttpServer())
         .delete(`/api/v1/sessions/users/${superAdminUser.id}/sessions/${fakeSessionId}`)
         .set('Authorization', `Bearer ${superAdminToken}`)
@@ -393,9 +393,11 @@ describe('Session Management Integration Tests', () => {
         .post('/api/v1/auth/login')
         .send({ email: regularUser.email, password: USER_PASSWORD })
 
-      const newToken = (await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ email: regularUser.email, password: USER_PASSWORD })).body.accessToken
+      const newToken = (
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email: regularUser.email, password: USER_PASSWORD })
+      ).body.accessToken
 
       await request(app.getHttpServer())
         .delete(`/api/v1/sessions/users/${adminUser.id}/sessions`)

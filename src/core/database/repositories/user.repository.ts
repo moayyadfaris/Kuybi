@@ -94,7 +94,10 @@ export class UserRepository extends BaseRepository<User> {
   /**
    * Find users by role with caching
    */
-  async findByRole(roleName: string, options?: { limit?: number; offset?: number }): Promise<User[]> {
+  async findByRole(
+    roleName: string,
+    options?: { limit?: number; offset?: number }
+  ): Promise<User[]> {
     const cacheKey = this.buildCacheKey(
       'role',
       roleName,

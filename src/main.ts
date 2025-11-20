@@ -60,7 +60,7 @@ async function bootstrap() {
         level: compressionConfig.level
       })
     )
-    
+
     appLogger.log(
       `✓ Compression enabled: threshold=${compressionConfig.threshold} bytes, level=${compressionConfig.level}`
     )

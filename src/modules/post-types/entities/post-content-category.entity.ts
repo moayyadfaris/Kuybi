@@ -36,7 +36,7 @@ export class PostContentCategory {
   @Column({ type: 'uuid', name: 'postContentId' })
   postContentId: string
 
-  @ManyToOne(() => PostContent, (content) => content.categoryRelations, {
+  @ManyToOne(() => PostContent, content => content.categoryRelations, {
     nullable: false,
     onDelete: 'CASCADE'
   })

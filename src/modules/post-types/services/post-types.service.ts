@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common'
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException
+} from '@nestjs/common'
 import { PostType } from '../entities/post-type.entity'
 import { PostTypeRepository } from '../repositories/post-type.repository'
 
@@ -230,7 +235,9 @@ export class PostTypesService {
         throw new BadRequestException('Name must be between 2 and 100 characters')
       }
       if (!/^[a-zA-Z0-9\s-_]+$/.test(config.name)) {
-        throw new BadRequestException('Name can only contain letters, numbers, spaces, hyphens, and underscores')
+        throw new BadRequestException(
+          'Name can only contain letters, numbers, spaces, hyphens, and underscores'
+        )
       }
     }
 
@@ -250,14 +257,18 @@ export class PostTypesService {
     // REST base validation
     if (config.restBase) {
       if (!/^[a-z0-9-_]+$/.test(config.restBase)) {
-        throw new BadRequestException('REST base can only contain lowercase letters, numbers, hyphens, and underscores')
+        throw new BadRequestException(
+          'REST base can only contain lowercase letters, numbers, hyphens, and underscores'
+        )
       }
     }
 
     // Capability type validation
     if (config.capabilityType) {
       if (!/^[a-z0-9_]+$/.test(config.capabilityType)) {
-        throw new BadRequestException('Capability type can only contain lowercase letters, numbers, and underscores')
+        throw new BadRequestException(
+          'Capability type can only contain lowercase letters, numbers, and underscores'
+        )
       }
     }
   }

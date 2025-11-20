@@ -5,7 +5,7 @@ config()
 
 /**
  * Database Query Performance Analyzer
- * 
+ *
  * Analyzes slow queries and suggests optimizations
  * Run with: ts-node -r tsconfig-paths/register test/performance/db-performance-check.ts
  */
@@ -28,8 +28,8 @@ async function checkDatabasePerformance() {
 
     // Check 1: Story Version table statistics
     console.log('📊 Story Version Table Statistics:')
-    console.log('=' .repeat(60))
-    
+    console.log('='.repeat(60))
+
     const versionStats = await dataSource.query(`
       SELECT 
         COUNT(*) as total_versions,
@@ -46,7 +46,7 @@ async function checkDatabasePerformance() {
     // Check 2: Index usage
     console.log('\n📑 Index Analysis:')
     console.log('='.repeat(60))
-    
+
     const indexes = await dataSource.query(`
       SELECT
         schemaname,
@@ -59,7 +59,7 @@ async function checkDatabasePerformance() {
       WHERE tablename = 'story_versions'
       ORDER BY idx_scan DESC
     `)
-    
+
     indexes.forEach(idx => {
       console.log(`\n  Index: ${idx.indexname}`)
       console.log(`  Scans: ${idx.index_scans}`)
@@ -80,36 +80,46 @@ async function checkDatabasePerformance() {
 
       // Test 1: Get version history
       const start1 = Date.now()
-      await dataSource.query(`
+      await dataSource.query(
+        `
         SELECT * FROM story_versions 
         WHERE story_id = $1 
         ORDER BY version_number DESC 
         LIMIT 20
-      `, [storyId])
+      `,
+        [storyId]
+      )
       const duration1 = Date.now() - start1
       console.log(`\n  Get version history (20 items): ${duration1}ms`)
 
       // Test 2: Get single version
       const start2 = Date.now()
-      await dataSource.query(`
+      await dataSource.query(
+        `
         SELECT * FROM story_versions 
         WHERE story_id = $1 AND version_number = 1
-      `, [storyId])
+      `,
+        [storyId]
+      )
       const duration2 = Date.now() - start2
       console.log(`  Get single version: ${duration2}ms`)
 
       // Test 3: Count versions
       const start3 = Date.now()
-      await dataSource.query(`
+      await dataSource.query(
+        `
         SELECT COUNT(*) FROM story_versions 
         WHERE story_id = $1
-      `, [storyId])
+      `,
+        [storyId]
+      )
       const duration3 = Date.now() - start3
       console.log(`  Count versions: ${duration3}ms`)
 
       // Test 4: Complex query with joins
       const start4 = Date.now()
-      await dataSource.query(`
+      await dataSource.query(
+        `
         SELECT 
           sv.*,
           u.email,
@@ -120,7 +130,9 @@ async function checkDatabasePerformance() {
         WHERE sv.story_id = $1
         ORDER BY sv.version_number DESC
         LIMIT 20
-      `, [storyId])
+      `,
+        [storyId]
+      )
       const duration4 = Date.now() - start4
       console.log(`  Version history with user join: ${duration4}ms`)
     }
@@ -131,14 +143,17 @@ async function checkDatabasePerformance() {
 
     if (testStoryId.length > 0) {
       const storyId = testStoryId[0].story_id
-      
-      const explain = await dataSource.query(`
+
+      const explain = await dataSource.query(
+        `
         EXPLAIN ANALYZE
         SELECT * FROM story_versions 
         WHERE story_id = $1 
         ORDER BY version_number DESC 
         LIMIT 20
-      `, [storyId])
+      `,
+        [storyId]
+      )
 
       console.log('\nQuery: Get version history')
       explain.forEach(line => {
@@ -162,19 +177,27 @@ async function checkDatabasePerformance() {
     const indexNames = indexCheck.map(i => i.indexname)
 
     if (!indexNames.some(name => name.includes('story_id'))) {
-      suggestions.push('⚠️  Missing index on story_id - Add: CREATE INDEX idx_story_versions_story_id ON story_versions(story_id)')
+      suggestions.push(
+        '⚠️  Missing index on story_id - Add: CREATE INDEX idx_story_versions_story_id ON story_versions(story_id)'
+      )
     }
 
     if (!indexNames.some(name => name.includes('branch_name'))) {
-      suggestions.push('⚠️  Missing index on branch_name - Add: CREATE INDEX idx_story_versions_branch ON story_versions(branch_name)')
+      suggestions.push(
+        '⚠️  Missing index on branch_name - Add: CREATE INDEX idx_story_versions_branch ON story_versions(branch_name)'
+      )
     }
 
     if (!indexNames.some(name => name.includes('created_by'))) {
-      suggestions.push('⚠️  Missing index on created_by - Add: CREATE INDEX idx_story_versions_created_by ON story_versions(created_by)')
+      suggestions.push(
+        '⚠️  Missing index on created_by - Add: CREATE INDEX idx_story_versions_created_by ON story_versions(created_by)'
+      )
     }
 
     if (!indexNames.some(name => name.includes('version_number'))) {
-      suggestions.push('⚠️  Missing composite index - Add: CREATE INDEX idx_story_versions_story_version ON story_versions(story_id, version_number)')
+      suggestions.push(
+        '⚠️  Missing composite index - Add: CREATE INDEX idx_story_versions_story_version ON story_versions(story_id, version_number)'
+      )
     }
 
     if (suggestions.length === 0) {
@@ -203,21 +226,23 @@ async function checkDatabasePerformance() {
     console.log('\n🔗 Connection Information:')
     console.log('='.repeat(60))
 
-    const connections = await dataSource.query(`
+    const connections = await dataSource.query(
+      `
       SELECT 
         COUNT(*) as total_connections,
         COUNT(*) FILTER (WHERE state = 'active') as active_connections,
         COUNT(*) FILTER (WHERE state = 'idle') as idle_connections
       FROM pg_stat_activity
       WHERE datname = $1
-    `, [process.env.DB_NAME || 'kuybi'])
+    `,
+      [process.env.DB_NAME || 'kuybi']
+    )
 
     console.log(`  Total connections: ${connections[0].total_connections}`)
     console.log(`  Active connections: ${connections[0].active_connections}`)
     console.log(`  Idle connections: ${connections[0].idle_connections}`)
 
     console.log('\n✅ Database analysis complete!\n')
-
   } catch (error) {
     console.error('❌ Error:', error.message)
     throw error

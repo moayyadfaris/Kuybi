@@ -73,14 +73,14 @@ const TABLES_TO_TRUNCATE = [
 describe('Auth Integration Tests', () => {
   let app: INestApplication
   let dataSource: DataSource
-let testUser: User
-let adminUser: User
-let adminToken: string
-const TEST_PASSWORD = 'Password123!'
-const ADMIN_PASSWORD = 'Admin@123'
-let testCounter = 0
-let cacheStub: ReturnType<typeof createInMemoryCacheService>
-let roles: SeededRoles
+  let testUser: User
+  let adminUser: User
+  let adminToken: string
+  const TEST_PASSWORD = 'Password123!'
+  const ADMIN_PASSWORD = 'Admin@123'
+  let testCounter = 0
+  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let roles: SeededRoles
 
   beforeAll(async () => {
     // Create Redis connection

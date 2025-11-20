@@ -7,9 +7,9 @@ import {
   MinLength,
   MaxLength,
   Min,
-  Max,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+  Max
+} from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 /**
  * DTO for creating a new post type
@@ -19,133 +19,133 @@ export class CreatePostTypeDto {
     description: 'Name of the post type',
     example: 'Recipe',
     minLength: 2,
-    maxLength: 100,
+    maxLength: 100
   })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name: string;
+  name: string
 
   @ApiProperty({
     description: 'Singular label for display',
     example: 'Recipe',
     minLength: 2,
-    maxLength: 100,
+    maxLength: 100
   })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  singularLabel: string;
+  singularLabel: string
 
   @ApiProperty({
     description: 'Plural label for display',
     example: 'Recipes',
     minLength: 2,
-    maxLength: 100,
+    maxLength: 100
   })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  pluralLabel: string;
+  pluralLabel: string
 
   @ApiPropertyOptional({
     description: 'Description of the post type',
-    example: 'Cooking recipes with ingredients and instructions',
+    example: 'Cooking recipes with ingredients and instructions'
   })
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  description?: string;
+  description?: string
 
   @ApiPropertyOptional({
     description: 'Icon identifier',
-    example: 'chef-hat',
+    example: 'chef-hat'
   })
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  icon?: string;
+  icon?: string
 
   @ApiPropertyOptional({
     description: 'Menu icon identifier',
-    example: 'chef-hat',
+    example: 'chef-hat'
   })
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  menuIcon?: string;
+  menuIcon?: string
 
   @ApiPropertyOptional({
     description: 'Position in menu (higher = lower)',
     example: 10,
     minimum: 0,
-    maximum: 999,
+    maximum: 999
   })
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(999)
-  menuPosition?: number;
+  menuPosition?: number
 
   @ApiPropertyOptional({
     description: 'Whether this post type supports hierarchical structure (parent-child)',
     example: false,
-    default: false,
+    default: false
   })
   @IsOptional()
   @IsBoolean()
-  isHierarchical?: boolean;
+  isHierarchical?: boolean
 
   @ApiPropertyOptional({
     description: 'Whether comments are supported',
     example: true,
-    default: true,
+    default: true
   })
   @IsOptional()
   @IsBoolean()
-  supportsComments?: boolean;
+  supportsComments?: boolean
 
   @ApiPropertyOptional({
     description: 'Whether revisions are supported',
     example: true,
-    default: true,
+    default: true
   })
   @IsOptional()
   @IsBoolean()
-  supportsRevisions?: boolean;
+  supportsRevisions?: boolean
 
   @ApiPropertyOptional({
     description: 'Whether to show in REST API',
     example: true,
-    default: true,
+    default: true
   })
   @IsOptional()
   @IsBoolean()
-  showInRest?: boolean;
+  showInRest?: boolean
 
   @ApiPropertyOptional({
     description: 'REST API base path',
-    example: 'recipes',
+    example: 'recipes'
   })
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  restBase?: string;
+  restBase?: string
 
   @ApiPropertyOptional({
     description: 'Capability type for ACL',
-    example: 'recipe',
+    example: 'recipe'
   })
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  capabilityType?: string;
+  capabilityType?: string
 
   @ApiPropertyOptional({
     description: 'Additional settings in JSON format',
-    example: { supports: ['thumbnail', 'excerpt', 'author'], public: true },
+    example: { supports: ['thumbnail', 'excerpt', 'author'], public: true }
   })
   @IsOptional()
   @IsObject()
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 }

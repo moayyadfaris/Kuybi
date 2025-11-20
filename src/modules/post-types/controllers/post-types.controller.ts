@@ -10,7 +10,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
   HttpCode,
-  HttpStatus,
+  HttpStatus
 } from '@nestjs/common'
 import {
   ApiTags,
@@ -18,7 +18,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
-  ApiQuery,
+  ApiQuery
 } from '@nestjs/swagger'
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
@@ -40,14 +40,16 @@ export class PostTypesController {
     name: 'includeInactive',
     required: false,
     type: Boolean,
-    description: 'Include inactive post types',
+    description: 'Include inactive post types'
   })
   @ApiResponse({
     status: 200,
     description: 'List of post types',
-    type: [ResponsePostTypeDto],
+    type: [ResponsePostTypeDto]
   })
-  async findAll(@Query('includeInactive') includeInactive?: string): Promise<ResponsePostTypeDto[]> {
+  async findAll(
+    @Query('includeInactive') includeInactive?: string
+  ): Promise<ResponsePostTypeDto[]> {
     const includeInactiveBool = includeInactive === 'true'
     const postTypes = await this.postTypesService.findAll(includeInactiveBool)
 
@@ -62,7 +64,7 @@ export class PostTypesController {
   @ApiResponse({
     status: 200,
     description: 'Post type found',
-    type: ResponsePostTypeDto,
+    type: ResponsePostTypeDto
   })
   @ApiResponse({ status: 404, description: 'Post type not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ResponsePostTypeDto> {
@@ -78,7 +80,7 @@ export class PostTypesController {
   @ApiResponse({
     status: 200,
     description: 'Post type found',
-    type: ResponsePostTypeDto,
+    type: ResponsePostTypeDto
   })
   @ApiResponse({ status: 404, description: 'Post type not found' })
   async findBySlug(@Param('slug') slug: string): Promise<ResponsePostTypeDto> {
@@ -96,7 +98,7 @@ export class PostTypesController {
   @ApiResponse({
     status: 201,
     description: 'Post type created',
-    type: ResponsePostTypeDto,
+    type: ResponsePostTypeDto
   })
   @ApiResponse({ status: 400, description: 'Invalid data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -118,7 +120,7 @@ export class PostTypesController {
   @ApiResponse({
     status: 200,
     description: 'Post type updated',
-    type: ResponsePostTypeDto,
+    type: ResponsePostTypeDto
   })
   @ApiResponse({ status: 400, description: 'Invalid data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -148,7 +150,7 @@ export class PostTypesController {
   @ApiResponse({ status: 404, description: 'Post type not found' })
   @ApiResponse({
     status: 422,
-    description: 'Cannot delete system post type',
+    description: 'Cannot delete system post type'
   })
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.postTypesService.remove(id)

@@ -138,7 +138,7 @@ export class PostContent {
   @JoinColumn({ name: 'parentId' })
   parent?: PostContent
 
-  @OneToMany(() => PostContent, (content) => content.parent)
+  @OneToMany(() => PostContent, content => content.parent)
   children: PostContent[]
 
   @Column({ type: 'integer', default: 0, name: 'hierarchyLevel' })
@@ -193,13 +193,13 @@ export class PostContent {
 
   // ========== Relationships (Many-to-Many via Junction Tables) ==========
 
-  @OneToMany(() => PostContentAttachment, (pca) => pca.postContent)
+  @OneToMany(() => PostContentAttachment, pca => pca.postContent)
   attachmentRelations: PostContentAttachment[]
 
-  @OneToMany(() => PostContentTag, (pct) => pct.postContent)
+  @OneToMany(() => PostContentTag, pct => pct.postContent)
   tagRelations: PostContentTag[]
 
-  @OneToMany(() => PostContentCategory, (pcc) => pcc.postContent)
+  @OneToMany(() => PostContentCategory, pcc => pcc.postContent)
   categoryRelations: PostContentCategory[]
 
   // ========== Audit Trail ==========
@@ -246,7 +246,9 @@ export class PostContent {
    * Check if content is scheduled for future publication
    */
   get isScheduled(): boolean {
-    return this.status === ContentStatus.SCHEDULED && !!this.scheduledAt && this.scheduledAt > new Date()
+    return (
+      this.status === ContentStatus.SCHEDULED && !!this.scheduledAt && this.scheduledAt > new Date()
+    )
   }
 
   /**
