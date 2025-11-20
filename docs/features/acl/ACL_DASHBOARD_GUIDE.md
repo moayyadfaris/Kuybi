@@ -85,7 +85,7 @@ http://localhost:4040/api/v1
 
 #### 1. Get All Roles
 ```bash
-GET /api/v1/acl/roles
+GET /api/v1/roles
 Authorization: Bearer <token>
 ```
 
@@ -122,13 +122,13 @@ Authorization: Bearer <token>
 
 #### 2. Get Single Role
 ```bash
-GET /api/v1/acl/roles/:id
+GET /api/v1/roles/:id
 Authorization: Bearer <token>
 ```
 
 #### 3. Create Role (Super Admin only)
 ```bash
-POST /api/v1/acl/roles
+POST /api/v1/roles
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -143,20 +143,47 @@ Content-Type: application/json
 
 #### 4. Update Role (Super Admin only)
 ```bash
-PATCH /api/v1/acl/roles/:id
+PUT /api/v1/roles/:id
 Authorization: Bearer <token>
 Content-Type: application/json
 
 {
   "displayName": "Senior Content Manager",
-  "description": "Updated description",
+  "description": "Updated description"
+}
+```
+
+#### 5. Get Role Permissions
+```bash
+GET /api/v1/roles/:id/permissions
+Authorization: Bearer <token>
+```
+
+#### 6. Assign Permissions to Role (Super Admin only)
+```bash
+POST /api/v1/roles/:id/permissions
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
   "permissionIds": [5, 6, 7, 8, 9]
 }
 ```
 
-#### 5. Delete Role (Super Admin only)
+#### 7. Remove Permissions from Role (Super Admin only)
 ```bash
-DELETE /api/v1/acl/roles/:id
+DELETE /api/v1/roles/:id/permissions
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "permissionIds": [9]
+}
+```
+
+#### 8. Delete Role (Super Admin only)
+```bash
+DELETE /api/v1/roles/:id
 Authorization: Bearer <token>
 ```
 
@@ -166,7 +193,7 @@ Authorization: Bearer <token>
 
 #### 1. Get All Permissions
 ```bash
-GET /api/v1/acl/permissions
+GET /api/v1/permissions
 Authorization: Bearer <token>
 ```
 
@@ -199,13 +226,21 @@ Authorization: Bearer <token>
 
 #### 2. Get Single Permission
 ```bash
-GET /api/v1/acl/permissions/:id
+GET /api/v1/permissions/:id
 Authorization: Bearer <token>
 ```
 
-#### 3. Create Permission (Super Admin only)
+#### 3. Filter Permissions by Action or Subject
 ```bash
-POST /api/v1/acl/permissions
+GET /api/v1/permissions?action=create
+GET /api/v1/permissions?subject=Story
+GET /api/v1/permissions?action=create&subject=Story
+Authorization: Bearer <token>
+```
+
+#### 4. Create Permission (Super Admin only)
+```bash
+POST /api/v1/permissions
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -220,9 +255,9 @@ Content-Type: application/json
 }
 ```
 
-#### 4. Update Permission (Super Admin only)
+#### 5. Update Permission (Super Admin only)
 ```bash
-PATCH /api/v1/acl/permissions/:id
+PUT /api/v1/permissions/:id
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -234,9 +269,9 @@ Content-Type: application/json
 }
 ```
 
-#### 5. Delete Permission (Super Admin only)
+#### 6. Delete Permission (Super Admin only)
 ```bash
-DELETE /api/v1/acl/permissions/:id
+DELETE /api/v1/permissions/:id
 Authorization: Bearer <token>
 ```
 
@@ -244,26 +279,9 @@ Authorization: Bearer <token>
 
 ### User Role Assignment
 
-#### 1. Assign Role to User (Admin+)
+#### 1. Get User's Roles
 ```bash
-POST /api/v1/acl/users/:userId/roles
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "roleId": 3
-}
-```
-
-#### 2. Remove Role from User (Admin+)
-```bash
-DELETE /api/v1/acl/users/:userId/roles/:roleId
-Authorization: Bearer <token>
-```
-
-#### 3. Get User's Roles and Permissions
-```bash
-GET /api/v1/acl/users/:userId/permissions
+GET /api/v1/users/:userId/roles
 Authorization: Bearer <token>
 ```
 
@@ -272,31 +290,53 @@ Authorization: Bearer <token>
 {
   "success": true,
   "data": {
-    "userId": "uuid",
     "primaryRole": {
       "id": 2,
       "name": "admin",
+      "displayName": "Admin",
       "level": 4
     },
     "additionalRoles": [
       {
         "id": 3,
         "name": "editor",
-        "level": 3
-      }
-    ],
-    "effectivePermissions": [
-      {
-        "action": "create",
-        "subject": "Story"
-      },
-      {
-        "action": "update",
-        "subject": "Story"
+        "displayName": "Editor",
+        "level": 3,
+        "isActive": true,
+        "assignedAt": "2025-11-20T10:00:00Z"
       }
     ]
   }
 }
+```
+
+#### 2. Assign Role to User (Admin+)
+```bash
+POST /api/v1/users/:userId/roles
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "roleId": 3
+}
+```
+
+#### 3. Remove Role from User (Admin+)
+```bash
+DELETE /api/v1/users/:userId/roles/:roleId
+Authorization: Bearer <token>
+```
+
+#### 4. Activate User Role
+```bash
+POST /api/v1/users/:userId/roles/:roleId/activate
+Authorization: Bearer <token>
+```
+
+#### 5. Deactivate User Role
+```bash
+POST /api/v1/users/:userId/roles/:roleId/deactivate
+Authorization: Bearer <token>
 ```
 
 ---
@@ -366,13 +406,27 @@ const user = {
 
 // Fetch user's effective permissions
 async function loadUserPermissions() {
-  const response = await fetch(`/api/v1/acl/users/${user.id}/permissions`, {
+  const response = await fetch(`/api/v1/users/${user.id}/roles`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`
     }
   })
   const data = await response.json()
-  user.permissions = data.data.effectivePermissions
+  
+  // Extract all permissions from primary and additional roles
+  const allPermissions = []
+  if (data.data.primaryRole?.permissions) {
+    allPermissions.push(...data.data.primaryRole.permissions)
+  }
+  if (data.data.additionalRoles) {
+    data.data.additionalRoles.forEach(role => {
+      if (role.permissions) {
+        allPermissions.push(...role.permissions)
+      }
+    })
+  }
+  
+  user.permissions = allPermissions
 }
 
 // Check if user can perform action
@@ -432,7 +486,7 @@ export default {
 ```javascript
 // Fetch all roles for dropdown
 async function fetchRoles() {
-  const response = await fetch('/api/v1/acl/roles', {
+  const response = await fetch('/api/v1/roles', {
     headers: {
       'Authorization': `Bearer ${accessToken}`
     }
@@ -500,11 +554,15 @@ async function loadUsersWithRoles() {
 
 // Change user role
 async function changeUserRole(userId, newRoleId) {
-  // First, get current roles
-  const currentRoles = await fetch(`/api/v1/acl/users/${userId}/permissions`)
+  // Get current roles
+  const currentRoles = await fetch(`/api/v1/users/${userId}/roles`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  })
   const rolesData = await currentRoles.json()
   
-  // Update primary role
+  // Update primary role via user update endpoint
   await fetch(`/api/v1/users/${userId}`, {
     method: 'PATCH',
     headers: {
@@ -524,7 +582,7 @@ async function changeUserRole(userId, newRoleId) {
 // Create custom role
 async function createCustomRole(roleData) {
   // First, get available permissions
-  const permResponse = await fetch('/api/v1/acl/permissions', {
+  const permResponse = await fetch('/api/v1/permissions', {
     headers: {
       'Authorization': `Bearer ${accessToken}`
     }
@@ -533,7 +591,7 @@ async function createCustomRole(roleData) {
   
   // Let user select permissions from UI
   // Then create role with selected permission IDs
-  const response = await fetch('/api/v1/acl/roles', {
+  const response = await fetch('/api/v1/roles', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -553,8 +611,8 @@ async function createCustomRole(roleData) {
 
 // Update role permissions
 async function updateRolePermissions(roleId, newPermissionIds) {
-  const response = await fetch(`/api/v1/acl/roles/${roleId}`, {
-    method: 'PATCH',
+  const response = await fetch(`/api/v1/roles/${roleId}/permissions`, {
+    method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
@@ -580,7 +638,7 @@ class PermissionChecker {
 
   async loadPermissions() {
     const response = await fetch(
-      `/api/v1/acl/users/${this.user.id}/permissions`,
+      `/api/v1/users/${this.user.id}/roles`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`
@@ -588,7 +646,19 @@ class PermissionChecker {
       }
     )
     const data = await response.json()
-    this.permissions = data.data.effectivePermissions
+    
+    // Extract all permissions from primary and additional roles
+    this.permissions = []
+    if (data.data.primaryRole?.permissions) {
+      this.permissions.push(...data.data.primaryRole.permissions)
+    }
+    if (data.data.additionalRoles) {
+      data.data.additionalRoles.forEach(role => {
+        if (role.permissions && role.isActive) {
+          this.permissions.push(...role.permissions)
+        }
+      })
+    }
   }
 
   can(action, subject) {
