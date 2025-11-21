@@ -11,12 +11,20 @@ import { StoryTag } from './entities/story-tag.entity'
 import { Attachment } from '../attachments/entities/attachment.entity'
 import { Tag } from '../tags/entities/tag.entity'
 import { Category } from '../categories/entities/category.entity'
+import { User } from '../users/entities/user.entity'
+import { Country } from '../countries/entities/country.entity'
+
 import { StoryRepository } from '@core/database/repositories/story.repository'
 import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
 import { TagRepository } from '@core/database/repositories/tag.repository'
 import { CacheConfigModule } from '@core/cache/cache.module'
 import { AclModule } from '../acl/acl.module'
 import { AttachmentsModule } from '../attachments/attachments.module'
+import { UserRepository } from '@core/database/repositories/user.repository'
+import { CategoryRepository } from '@core/database/repositories/category.repository'
+import { CountryRepository } from '@core/database/repositories/country.repository'
+import { StoriesSeeder } from './seeders/stories.seeder'
+
 
 @Module({
   imports: [
@@ -27,8 +35,11 @@ import { AttachmentsModule } from '../attachments/attachments.module'
       StoryTag,
       Attachment,
       Tag,
-      Category
+      Category,
+      User,
+      Country
     ]),
+
     CacheConfigModule,
     AclModule,
     AttachmentsModule
@@ -39,8 +50,13 @@ import { AttachmentsModule } from '../attachments/attachments.module'
     StoryVersionService,
     StoryRepository,
     StoryVersionRepository,
-    TagRepository
+    TagRepository,
+    UserRepository,
+    CategoryRepository,
+    CountryRepository,
+    StoriesSeeder
   ],
+
   exports: [
     StoriesService,
     StoryVersionService,
@@ -49,4 +65,4 @@ import { AttachmentsModule } from '../attachments/attachments.module'
     TagRepository
   ]
 })
-export class StoriesModule {}
+export class StoriesModule { }

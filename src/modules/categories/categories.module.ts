@@ -7,10 +7,13 @@ import { CategoryRepository } from '@core/database/repositories/category.reposit
 import { CacheService } from '@core/cache/services/cache.service'
 import { AclModule } from '../acl/acl.module'
 
+import { CategoriesSeeder } from './seeders/categories.seeder'
+
 @Module({
   imports: [TypeOrmModule.forFeature([Category]), AclModule],
   controllers: [CategoriesController],
-  providers: [CategoriesService, CategoryRepository, CacheService],
+  providers: [CategoriesService, CategoryRepository, CacheService, CategoriesSeeder],
   exports: [CategoriesService, CategoryRepository]
 })
-export class CategoriesModule {}
+
+export class CategoriesModule { }

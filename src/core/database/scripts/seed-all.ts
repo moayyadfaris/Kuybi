@@ -3,7 +3,11 @@ import { AppModule } from '@app/app.module'
 import { AclSeeder } from '@modules/acl/seeders/acl.seeder'
 import { UsersSeeder } from '@modules/users/seeders/users.seeder'
 import { CountriesSeeder } from '@modules/countries/seeders/countries.seeder'
+import { CategoriesSeeder } from '@modules/categories/seeders/categories.seeder'
+import { TagsSeeder } from '@modules/tags/seeders/tags.seeder'
+import { StoriesSeeder } from '@modules/stories/seeders/stories.seeder'
 import { Logger } from '@nestjs/common'
+
 
 async function bootstrap() {
     const app = await NestFactory.createApplicationContext(AppModule)
@@ -32,6 +36,27 @@ async function bootstrap() {
         const countriesSeeder = app.get(CountriesSeeder)
         await countriesSeeder.seed()
         logger.log('✅ Countries seeded successfully')
+
+        // 4. Seed Categories - Independent
+        logger.log('--------------------------------------------------')
+        logger.log('📂 Seeding Categories...')
+        const categoriesSeeder = app.get(CategoriesSeeder)
+        await categoriesSeeder.seed()
+        logger.log('✅ Categories seeded successfully')
+
+        // 5. Seed Tags - Depends on Users (for createdBy)
+        logger.log('--------------------------------------------------')
+        logger.log('🏷️  Seeding Tags...')
+        const tagsSeeder = app.get(TagsSeeder)
+        await tagsSeeder.seed()
+        logger.log('✅ Tags seeded successfully')
+
+        // 6. Seed Stories - Depends on Users, Countries, Categories, Tags
+        logger.log('--------------------------------------------------')
+        logger.log('📝 Seeding Stories...')
+        const storiesSeeder = app.get(StoriesSeeder)
+        await storiesSeeder.seed()
+        logger.log('✅ Stories seeded successfully')
 
         logger.log('--------------------------------------------------')
         logger.log('✨ All seeders completed successfully!')
