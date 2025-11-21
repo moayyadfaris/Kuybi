@@ -6,6 +6,15 @@ import {
 } from '@nestjs/common'
 import { PostType } from '../entities/post-type.entity'
 import { PostTypeRepository } from '../repositories/post-type.repository'
+import {
+  POST_TYPE_NAME_REGEX,
+  POST_TYPE_REST_BASE_REGEX,
+  POST_TYPE_CAPABILITY_TYPE_REGEX,
+  SLUG_REMOVE_SPECIAL_CHARS_REGEX,
+  SLUG_REPLACE_SPACES_REGEX,
+  SLUG_TRIM_HYPHENS_REGEX
+} from '../constants'
+
 
 /**
  * PostTypesService
@@ -25,7 +34,7 @@ import { PostTypeRepository } from '../repositories/post-type.repository'
  */
 @Injectable()
 export class PostTypesService {
-  constructor(private readonly postTypeRepository: PostTypeRepository) {}
+  constructor(private readonly postTypeRepository: PostTypeRepository) { }
 
   /**
    * Create a new post type
@@ -234,11 +243,12 @@ export class PostTypesService {
       if (config.name.length < 2 || config.name.length > 100) {
         throw new BadRequestException('Name must be between 2 and 100 characters')
       }
-      if (!/^[a-zA-Z0-9\s-_]+$/.test(config.name)) {
+      if (!POST_TYPE_NAME_REGEX.test(config.name)) {
         throw new BadRequestException(
           'Name can only contain letters, numbers, spaces, hyphens, and underscores'
         )
       }
+
     }
 
     // Label validation
@@ -256,21 +266,23 @@ export class PostTypesService {
 
     // REST base validation
     if (config.restBase) {
-      if (!/^[a-z0-9-_]+$/.test(config.restBase)) {
+      if (!POST_TYPE_REST_BASE_REGEX.test(config.restBase)) {
         throw new BadRequestException(
           'REST base can only contain lowercase letters, numbers, hyphens, and underscores'
         )
       }
     }
 
+
     // Capability type validation
     if (config.capabilityType) {
-      if (!/^[a-z0-9_]+$/.test(config.capabilityType)) {
+      if (!POST_TYPE_CAPABILITY_TYPE_REGEX.test(config.capabilityType)) {
         throw new BadRequestException(
           'Capability type can only contain lowercase letters, numbers, and underscores'
         )
       }
     }
+
   }
 
   /**
@@ -281,8 +293,9 @@ export class PostTypesService {
     return name
       .toLowerCase()
       .trim()
-      .replace(/[^\w\s-]/g, '') // Remove special characters
-      .replace(/[\s_-]+/g, '-') // Replace spaces, underscores with hyphens
-      .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+      .replace(SLUG_REMOVE_SPECIAL_CHARS_REGEX, '') // Remove special characters
+      .replace(SLUG_REPLACE_SPACES_REGEX, '-') // Replace spaces, underscores with hyphens
+      .replace(SLUG_TRIM_HYPHENS_REGEX, '') // Remove leading/trailing hyphens
+
   }
 }
