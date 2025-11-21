@@ -73,6 +73,25 @@ export class RoleRepository extends BaseRepository<Role> {
   }
 
   /**
+   * Find all roles with permissions
+   */
+  async findAllWithPermissions(): Promise<Role[]> {
+    const cacheKey = this.buildCacheKey('all-with-permissions')
+
+    return this.cacheService.wrap(
+      cacheKey,
+      async () => {
+        return this.repository.find({
+          where: { deletedAt: null },
+          relations: ['rolePermissions', 'rolePermissions.permission'],
+          order: { priority: 'DESC', name: 'ASC' }
+        })
+      },
+      this.defaultTTL
+    )
+  }
+
+  /**
    * Find role with all permissions
    */
   async findByIdWithPermissions(id: number): Promise<Role | null> {

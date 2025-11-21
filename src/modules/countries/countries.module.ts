@@ -6,10 +6,13 @@ import { Country } from './entities/country.entity'
 import { CountryRepository } from '@core/database/repositories/country.repository'
 import { CacheService } from '@core/cache/services/cache.service'
 
+import { CountriesSeeder } from './seeders/countries.seeder'
+
 @Module({
   imports: [TypeOrmModule.forFeature([Country])],
   controllers: [CountriesController],
-  providers: [CountriesService, CountryRepository, CacheService],
+  providers: [CountriesService, CountryRepository, CacheService, CountriesSeeder],
   exports: [CountriesService, CountryRepository]
 })
-export class CountriesModule {}
+
+export class CountriesModule { }

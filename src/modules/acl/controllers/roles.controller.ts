@@ -6,12 +6,14 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   ParseIntPipe,
+  ParseBoolPipe,
   UseGuards,
   HttpCode,
   HttpStatus
 } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger'
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { RolesService } from '../services/roles.service'
 import { CreateRoleDto } from '../dto/create-role.dto'
 import { UpdateRoleDto } from '../dto/update-role.dto'
@@ -44,10 +46,19 @@ export class RolesController {
   @Get()
   @CheckAbility({ action: Action.Read, subject: Subject.Role })
   @ApiOperation({ summary: 'Get all roles' })
+  @ApiQuery({
+    name: 'includePermissions',
+    required: false,
+    type: Boolean,
+    description: 'Include permissions for each role'
+  })
   @ApiResponse({ status: 200, description: 'Roles retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  async findAll() {
+  async findAll(@Query('includePermissions', new ParseBoolPipe({ optional: true })) includePermissions?: boolean) {
+    if (includePermissions) {
+      return this.rolesService.findAllWithPermissions()
+    }
     return this.rolesService.findAll()
   }
 

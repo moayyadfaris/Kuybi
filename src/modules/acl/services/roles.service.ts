@@ -43,6 +43,13 @@ export class RolesService {
   }
 
   /**
+   * Get all roles with permissions
+   */
+  async findAllWithPermissions(): Promise<Role[]> {
+    return this.roleRepository.findAllWithPermissions()
+  }
+
+  /**
    * Get all active roles
    */
   async findActive(): Promise<Role[]> {

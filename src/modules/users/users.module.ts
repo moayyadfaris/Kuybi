@@ -23,6 +23,8 @@ import { AuthModule } from '../auth/auth.module'
 import { AttachmentsModule } from '../attachments/attachments.module'
 import { AuditModule } from '../audit/audit.module'
 import { EmailModule } from '@infrastructure/email'
+import { UsersSeeder } from './seeders/users.seeder'
+
 
 @Module({
   imports: [
@@ -43,8 +45,10 @@ import { EmailModule } from '@infrastructure/email'
     UserRepository,
     RoleRepository,
     AttachmentRepository,
-    CacheService
+    CacheService,
+    UsersSeeder
   ],
+
   exports: [UsersService, UserAvailabilityService, UserRepository]
 })
-export class UsersModule {}
+export class UsersModule { }
