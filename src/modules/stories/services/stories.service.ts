@@ -27,9 +27,13 @@ import {
   AttachCategoriesDto,
   DetachCategoriesDto
 } from '@modules/stories/dto'
+import { CategoryRepository } from '@core/database/repositories/category.repository'
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { Tag } from '@modules/tags/entities/tag.entity'
 import { Category } from '@modules/categories/entities/category.entity'
+
+
 import { LoggingContextService } from '@core/logging/logging-context.service'
 import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
 import { StoryVersionService } from './story-version.service'
@@ -44,11 +48,11 @@ export class StoriesService {
     private readonly tagRepository: TagRepository,
     @InjectRepository(Story)
     private readonly storyEntityRepository: Repository<Story>,
-    @InjectRepository(Attachment)
-    private readonly attachmentRepository: Repository<Attachment>,
-    @InjectRepository(Category)
-    private readonly categoryRepository: Repository<Category>,
+    private readonly attachmentRepository: AttachmentRepository,
+    private readonly categoryRepository: CategoryRepository,
+
     private readonly logger: PinoLogger,
+
     private readonly loggingContext: LoggingContextService,
     private readonly versionService: StoryVersionService,
     private readonly s3Service: S3Service
@@ -122,9 +126,10 @@ export class StoriesService {
       // Attach categories if provided
       if (categoryIds && categoryIds.length > 0) {
         requestLogger.debug({ categoryIds, count: categoryIds.length }, 'Processing categories')
-        const categories = await this.categoryRepository.find({
+        const categories = await this.categoryRepository.findMany({
           where: { id: In(categoryIds), deletedAt: null }
         })
+
 
         if (categories.length !== categoryIds.length) {
           requestLogger.warn(
@@ -727,9 +732,10 @@ export class StoriesService {
       }
 
       // Verify all attachments exist
-      const attachments = await this.attachmentRepository.find({
+      const attachments = await this.attachmentRepository.findMany({
         where: { id: In(dto.attachmentIds) }
       })
+
 
       if (attachments.length !== dto.attachmentIds.length) {
         throw new BadRequestException('One or more attachments not found')
@@ -1017,9 +1023,10 @@ export class StoriesService {
       }
 
       // Verify all categories exist and are active
-      const categories = await this.categoryRepository.find({
+      const categories = await this.categoryRepository.findMany({
         where: { id: In(dto.categoryIds), deletedAt: null }
       })
+
 
       if (categories.length !== dto.categoryIds.length) {
         throw new BadRequestException('One or more categories not found or inactive')
@@ -1239,7 +1246,8 @@ export class StoriesService {
     }
 
     // Verify the attachment exists
-    const attachment = await this.attachmentRepository.findOne({ where: { id: attachmentId } })
+    const attachment = await this.attachmentRepository.findOne({ id: attachmentId })
+
     if (!attachment) {
       throw new NotFoundException('Attachment not found')
     }

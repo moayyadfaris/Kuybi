@@ -7,17 +7,16 @@ import { TagRepository } from '@core/database/repositories/tag.repository'
 import { CacheConfigModule } from '@core/cache/cache.module'
 import { AclModule } from '../acl/acl.module'
 
-import { UserRepository } from '@core/database/repositories/user.repository'
 import { TagsSeeder } from './seeders/tags.seeder'
+import { UsersModule } from '@modules/users/users.module'
 
-import { User } from '../users/entities/user.entity'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tag, User]), CacheConfigModule, AclModule],
-
+  imports: [TypeOrmModule.forFeature([Tag]), CacheConfigModule, AclModule, UsersModule],
   controllers: [TagsController],
-  providers: [TagsService, TagRepository, UserRepository, TagsSeeder],
+  providers: [TagsService, TagRepository, TagsSeeder],
   exports: [TagsService, TagRepository]
 })
+
 
 export class TagsModule { }

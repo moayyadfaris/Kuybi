@@ -37,21 +37,18 @@ import { AbilityGuard } from '../../acl/abilities/ability.guard'
 import { CheckAbility } from '../../acl/abilities/ability.decorator'
 import { Action } from '../../acl/types/actions.enum'
 import { Subject } from '../../acl/types/subjects.enum'
+import { User } from '../../users/entities/user.entity'
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
 
 interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string
-    email: string
-    role: string
-  }
+  user?: User
 }
 
 @ApiTags('attachments')
 @ApiBearerAuth()
 @Controller('v1/attachments')
 export class AttachmentsController {
-  constructor(private readonly attachmentService: AttachmentService) {}
+  constructor(private readonly attachmentService: AttachmentService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard, AbilityGuard)
@@ -88,7 +85,7 @@ export class AttachmentsController {
     @Body() body: UploadAttachmentDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User context missing; ensure auth guard adds req.user')
     }
@@ -164,7 +161,7 @@ export class AttachmentsController {
     @Body() dto: UpdateAttachmentDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User context missing')
     }
@@ -177,7 +174,7 @@ export class AttachmentsController {
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment soft deleted' })
   async softDelete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User context missing')
     }
@@ -190,7 +187,7 @@ export class AttachmentsController {
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment permanently deleted (admin only)' })
   async hardDelete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User context missing')
     }
@@ -203,7 +200,7 @@ export class AttachmentsController {
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment restored' })
   async restore(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User context missing')
     }

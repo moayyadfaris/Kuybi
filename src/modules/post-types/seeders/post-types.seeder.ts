@@ -4,6 +4,8 @@ import { Repository } from 'typeorm'
 import { PostType } from '../entities/post-type.entity'
 import { FieldDefinition } from '../entities/field-definition.entity'
 import { FieldType } from '../enums/field-type.enum'
+import { UserRepository } from '@core/database/repositories/user.repository'
+
 
 /**
  * Post Types Seeder - Create default post types with field definitions
@@ -22,8 +24,10 @@ export class PostTypesSeeder {
     @InjectRepository(PostType)
     private readonly postTypeRepository: Repository<PostType>,
     @InjectRepository(FieldDefinition)
-    private readonly fieldDefinitionRepository: Repository<FieldDefinition>
-  ) {}
+    private readonly fieldDefinitionRepository: Repository<FieldDefinition>,
+    private readonly userRepository: UserRepository
+  ) { }
+
 
   /**
    * Run the seeder
@@ -31,19 +35,28 @@ export class PostTypesSeeder {
   async seed(): Promise<void> {
     this.logger.log('Starting post types seeder...')
 
+    // Find super-admin user
+    const admins = await this.userRepository.findByRole('super-admin')
+    if (!admins || admins.length === 0) {
+      this.logger.warn('No super-admin found. Skipping post types seeding.')
+      return
+    }
+    const adminId = admins[0].id
+
     // Create Story post type (system type)
-    const storyPostType = await this.createStoryPostType()
+    const storyPostType = await this.createStoryPostType(adminId)
     if (storyPostType) {
-      await this.createStoryFields(storyPostType.id)
+      await this.createStoryFields(storyPostType.id, adminId)
       this.logger.log('Created Story post type with fields')
     }
 
     // Create Event post type (custom type)
-    const eventPostType = await this.createEventPostType()
+    const eventPostType = await this.createEventPostType(adminId)
     if (eventPostType) {
-      await this.createEventFields(eventPostType.id)
+      await this.createEventFields(eventPostType.id, adminId)
       this.logger.log('Created Event post type with fields')
     }
+
 
     this.logger.log('Post types seeder completed successfully')
   }
@@ -51,7 +64,11 @@ export class PostTypesSeeder {
   /**
    * Create Story post type (system type)
    */
-  private async createStoryPostType(): Promise<PostType | null> {
+  /**
+   * Create Story post type (system type)
+   */
+  private async createStoryPostType(adminId: string): Promise<PostType | null> {
+
     const existing = await this.postTypeRepository.findOne({
       where: { slug: 'story' }
     })
@@ -93,9 +110,10 @@ export class PostTypesSeeder {
         },
         queryVar: 'story'
       },
-      createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e', // Super admin user
-      updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+      createdBy: adminId,
+      updatedBy: adminId
     })
+
 
     return await this.postTypeRepository.save(storyPostType)
   }
@@ -103,7 +121,11 @@ export class PostTypesSeeder {
   /**
    * Create Story field definitions
    */
-  private async createStoryFields(postTypeId: string): Promise<void> {
+  /**
+   * Create Story field definitions
+   */
+  private async createStoryFields(postTypeId: string, adminId: string): Promise<void> {
+
     const fields = [
       // Content field (WYSIWYG editor)
       {
@@ -128,8 +150,9 @@ export class PostTypesSeeder {
           mediaUpload: true,
           height: 500
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       },
       // Excerpt field (short summary)
       {
@@ -152,8 +175,9 @@ export class PostTypesSeeder {
           rows: 4,
           placeholder: 'Write a brief summary...'
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       },
       // Featured toggle
       {
@@ -174,8 +198,9 @@ export class PostTypesSeeder {
           trueLabel: 'Featured',
           falseLabel: 'Not Featured'
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       }
     ]
 
@@ -194,7 +219,11 @@ export class PostTypesSeeder {
   /**
    * Create Event post type (custom type)
    */
-  private async createEventPostType(): Promise<PostType | null> {
+  /**
+   * Create Event post type (custom type)
+   */
+  private async createEventPostType(adminId: string): Promise<PostType | null> {
+
     const existing = await this.postTypeRepository.findOne({
       where: { slug: 'event' }
     })
@@ -244,8 +273,8 @@ export class PostTypesSeeder {
         },
         queryVar: 'event'
       },
-      createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e', // Super admin user
-      updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+      createdBy: adminId,
+      updatedBy: adminId
     })
 
     return await this.postTypeRepository.save(eventPostType)
@@ -254,7 +283,11 @@ export class PostTypesSeeder {
   /**
    * Create Event field definitions
    */
-  private async createEventFields(postTypeId: string): Promise<void> {
+  /**
+   * Create Event field definitions
+   */
+  private async createEventFields(postTypeId: string, adminId: string): Promise<void> {
+
     const fields = [
       // Event date
       {
@@ -277,8 +310,9 @@ export class PostTypesSeeder {
           format: 'YYYY-MM-DD',
           placeholder: 'Select event date'
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       },
       // Location
       {
@@ -301,8 +335,9 @@ export class PostTypesSeeder {
         fieldOptions: {
           placeholder: 'Enter venue name or address'
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       },
       // Ticket price
       {
@@ -327,8 +362,9 @@ export class PostTypesSeeder {
           decimals: 2,
           prefix: '$'
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       },
       // Max attendees
       {
@@ -352,8 +388,9 @@ export class PostTypesSeeder {
           step: 1,
           placeholder: 'Enter capacity'
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       },
       // Event description
       {
@@ -378,8 +415,9 @@ export class PostTypesSeeder {
           mediaUpload: true,
           height: 300
         },
-        createdBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e',
-        updatedBy: 'db9fef37-5a9b-4d74-82f4-f2c753ed179e'
+        createdBy: adminId,
+        updatedBy: adminId
+
       }
     ]
 

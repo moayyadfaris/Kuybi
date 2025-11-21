@@ -9,21 +9,21 @@ import { StoryVersion } from './entities/story-version.entity'
 import { StoryAttachment } from './entities/story-attachment.entity'
 import { StoryTag } from './entities/story-tag.entity'
 import { Attachment } from '../attachments/entities/attachment.entity'
-import { Tag } from '../tags/entities/tag.entity'
-import { Category } from '../categories/entities/category.entity'
-import { User } from '../users/entities/user.entity'
-import { Country } from '../countries/entities/country.entity'
+
 
 import { StoryRepository } from '@core/database/repositories/story.repository'
 import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
-import { TagRepository } from '@core/database/repositories/tag.repository'
+
+
 import { CacheConfigModule } from '@core/cache/cache.module'
 import { AclModule } from '../acl/acl.module'
 import { AttachmentsModule } from '../attachments/attachments.module'
-import { UserRepository } from '@core/database/repositories/user.repository'
-import { CategoryRepository } from '@core/database/repositories/category.repository'
-import { CountryRepository } from '@core/database/repositories/country.repository'
 import { StoriesSeeder } from './seeders/stories.seeder'
+import { UsersModule } from '@modules/users/users.module'
+import { CountriesModule } from '@modules/countries/countries.module'
+import { CategoriesModule } from '@modules/categories/categories.module'
+import { TagsModule } from '@modules/tags/tags.module'
+
 
 
 @Module({
@@ -33,36 +33,33 @@ import { StoriesSeeder } from './seeders/stories.seeder'
       StoryVersion,
       StoryAttachment,
       StoryTag,
-      Attachment,
-      Tag,
-      Category,
-      User,
-      Country
+      Attachment
     ]),
-
     CacheConfigModule,
     AclModule,
-    AttachmentsModule
+    AttachmentsModule,
+    UsersModule,
+    CountriesModule,
+    CategoriesModule,
+    TagsModule
   ],
+
   controllers: [StoriesController, StoryVersionController],
   providers: [
     StoriesService,
     StoryVersionService,
     StoryRepository,
     StoryVersionRepository,
-    TagRepository,
-    UserRepository,
-    CategoryRepository,
-    CountryRepository,
     StoriesSeeder
   ],
+
 
   exports: [
     StoriesService,
     StoryVersionService,
     StoryRepository,
-    StoryVersionRepository,
-    TagRepository
+    StoryVersionRepository
   ]
+
 })
 export class StoriesModule { }

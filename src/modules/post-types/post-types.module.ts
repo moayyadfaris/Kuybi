@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { AclModule } from '@modules/acl/acl.module'
+import { UsersModule } from '@modules/users/users.module'
+
+
 
 // Entities
 import {
@@ -18,6 +21,8 @@ import {
   FieldDefinitionRepository,
   PostContentRepository
 } from './repositories'
+
+
 
 // Services
 import {
@@ -78,8 +83,10 @@ import { PostTypesController, FieldDefinitionsController, ContentController } fr
       PostContentCategory
     ]),
     // ACL module for AbilityGuard and permissions
-    AclModule
+    AclModule,
+    UsersModule
   ],
+
   controllers: [
     // REST API controllers (Phase 2)
     PostTypesController,
@@ -91,6 +98,9 @@ import { PostTypesController, FieldDefinitionsController, ContentController } fr
     PostTypeRepository,
     FieldDefinitionRepository,
     PostContentRepository,
+
+
+
     // Services
     PostTypesService,
     FieldDefinitionsService,
@@ -112,4 +122,4 @@ import { PostTypesController, FieldDefinitionsController, ContentController } fr
     PostContentRepository
   ]
 })
-export class PostTypesModule {}
+export class PostTypesModule { }
