@@ -8,6 +8,7 @@ async function bootstrap() {
   const appContext = await NestFactory.createApplicationContext(QueueWorkerModule, {
     bufferLogs: true
   })
+  appContext.enableShutdownHooks()
   const logger = await appContext.resolve(PinoLogger)
   logger.setContext('QueueWorker')
   logger.info('🚧 Queue worker started')

@@ -1,4 +1,4 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq'
+import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -19,6 +19,8 @@ import {
 import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 
 import { AttachmentJobType, QueueName } from '../jobs/types'
+
+import { BaseProcessor } from './base.processor'
 
 interface ProcessImageJobData {
   attachmentId: string
@@ -52,8 +54,8 @@ interface ExtractMetadataJobData {
   buffer: Buffer
 }
 
-@Processor(QueueName.ATTACHMENT_PROCESSING)
-export class AttachmentProcessor extends WorkerHost {
+@Processor(QueueName.ATTACHMENT_PROCESSING, { concurrency: 5 })
+export class AttachmentProcessor extends BaseProcessor {
   constructor(
     private readonly imageOptimizationService: ImageOptimizationService,
     private readonly imageProcessingService: ImageProcessingService,
@@ -61,11 +63,11 @@ export class AttachmentProcessor extends WorkerHost {
     private readonly s3Service: S3Service,
     private readonly attachmentRepository: AttachmentRepository,
     @InjectPinoLogger(AttachmentProcessor.name)
-    private readonly logger: PinoLogger,
+    logger: PinoLogger,
     @InjectQueue(QueueName.ATTACHMENT_PROCESSING)
     private readonly attachmentQueue: Queue
   ) {
-    super()
+    super(logger)
   }
 
   /**

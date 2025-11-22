@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq'
+import { Processor } from '@nestjs/bullmq'
 import { Job } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -12,18 +12,20 @@ import {
   UnlockAccountJobData
 } from '../jobs/types'
 
+import { BaseProcessor } from './base.processor'
+
 /**
  * Account Security Queue Processor
  * Handles automated account lockout/unlock operations
  */
 @Processor(QueueName.ACCOUNT_SECURITY)
-export class AccountSecurityProcessor extends WorkerHost {
+export class AccountSecurityProcessor extends BaseProcessor {
   constructor(
     @InjectPinoLogger(AccountSecurityProcessor.name)
-    private readonly logger: PinoLogger,
+    logger: PinoLogger,
     private readonly accountLockoutService: AccountLockoutService
   ) {
-    super()
+    super(logger)
   }
 
   async process(job: Job): Promise<Record<string, unknown>> {

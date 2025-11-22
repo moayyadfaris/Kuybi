@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq'
+import { Processor } from '@nestjs/bullmq'
 import { Injectable } from '@nestjs/common'
 import { EmailService } from '@infrastructure/email'
 import { Job } from 'bullmq'
@@ -16,6 +16,8 @@ import {
 } from '../jobs/email-jobs'
 import { QueueName } from '../jobs/types'
 
+import { BaseProcessor } from './base.processor'
+
 /**
  * Email Queue Processor
  *
@@ -26,13 +28,13 @@ import { QueueName } from '../jobs/types'
   concurrency: 5 // Process up to 5 emails concurrently
 })
 @Injectable()
-export class EmailProcessor extends WorkerHost {
+export class EmailProcessor extends BaseProcessor {
   constructor(
     private readonly emailService: EmailService,
     @InjectPinoLogger(EmailProcessor.name)
-    private readonly logger: PinoLogger
+    logger: PinoLogger
   ) {
-    super()
+    super(logger)
     this.logger.info('EmailProcessor initialized - ready to process email jobs')
   }
 
@@ -185,49 +187,5 @@ export class EmailProcessor extends WorkerHost {
       html: data.html,
       text: data.text
     })
-  }
-
-  /**
-   * Handle job completion
-   */
-  async onCompleted(job: Job<EmailJobData, any, EmailJobType>) {
-    this.logger.debug(
-      {
-        jobId: job.id,
-        jobType: job.name,
-        to: job.data.to
-      },
-      'Email job marked as completed'
-    )
-  }
-
-  /**
-   * Handle job failure (after all retries exhausted)
-   */
-  async onFailed(job: Job<EmailJobData, any, EmailJobType>, error: Error) {
-    this.logger.error(
-      {
-        jobId: job.id,
-        jobType: job.name,
-        to: job.data.to,
-        attempts: job.attemptsMade,
-        error: error.message
-      },
-      'Email job failed permanently after all retry attempts'
-    )
-  }
-
-  /**
-   * Handle job active (started processing)
-   */
-  async onActive(job: Job<EmailJobData, any, EmailJobType>) {
-    this.logger.debug(
-      {
-        jobId: job.id,
-        jobType: job.name,
-        to: job.data.to
-      },
-      'Email job started processing'
-    )
   }
 }

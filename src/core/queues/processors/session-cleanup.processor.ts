@@ -1,4 +1,4 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq'
+import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -7,6 +7,8 @@ import { SessionsService } from '@modules/auth/services/sessions.service'
 import { SessionRepository } from '@core/database/repositories/session.repository'
 
 import { QueueName, SessionCleanupJobType } from '../jobs/types'
+
+import { BaseProcessor } from './base.processor'
 
 interface CleanupJobData {
   olderThanDays?: number
@@ -17,16 +19,16 @@ interface ExpiringJobData extends CleanupJobData {
 }
 
 @Processor(QueueName.SESSION_CLEANUP)
-export class SessionCleanupProcessor extends WorkerHost {
+export class SessionCleanupProcessor extends BaseProcessor {
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly sessionRepository: SessionRepository,
     @InjectPinoLogger(SessionCleanupProcessor.name)
-    private readonly logger: PinoLogger,
+    logger: PinoLogger,
     @InjectQueue(QueueName.SESSION_CLEANUP)
     private readonly sessionQueue: Queue
   ) {
-    super()
+    super(logger)
   }
 
   /**

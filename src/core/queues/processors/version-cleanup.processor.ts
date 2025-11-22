@@ -1,4 +1,4 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq'
+import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -9,6 +9,8 @@ import { StoryVersion, VersionStatus } from '@modules/stories/entities/story-ver
 import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
 
 import { QueueName, VersionCleanupJobType } from '../jobs/types'
+
+import { BaseProcessor } from './base.processor'
 
 interface CleanupExpiredJobData {
   dryRun?: boolean
@@ -23,17 +25,17 @@ interface ManualCleanupJobData {
 }
 
 @Processor(QueueName.VERSION_CLEANUP)
-export class VersionCleanupProcessor extends WorkerHost {
+export class VersionCleanupProcessor extends BaseProcessor {
   constructor(
     @InjectRepository(StoryVersion)
     private readonly versionEntityRepository: Repository<StoryVersion>,
     private readonly versionRepository: StoryVersionRepository,
     @InjectPinoLogger(VersionCleanupProcessor.name)
-    private readonly logger: PinoLogger,
+    logger: PinoLogger,
     @InjectQueue(QueueName.VERSION_CLEANUP)
     private readonly versionQueue: Queue
   ) {
-    super()
+    super(logger)
   }
 
   /**
