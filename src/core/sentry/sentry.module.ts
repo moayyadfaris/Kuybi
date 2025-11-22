@@ -1,5 +1,6 @@
-import { Module, DynamicModule, Global } from '@nestjs/common'
+import { DynamicModule, Global, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
+
 import { SentryService } from './sentry.service'
 import { SentryTestController } from './sentry-test.controller'
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { AsyncLocalStorage } from 'node:async_hooks'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import pino from 'pino'
 
 @Injectable()

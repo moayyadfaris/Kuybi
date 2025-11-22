@@ -1,5 +1,6 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common'
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common'
 import { Response } from 'express'
+
 import { SentryService } from './sentry.service'
 
 @Catch()

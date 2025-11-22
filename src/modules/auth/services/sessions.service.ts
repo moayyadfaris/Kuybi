@@ -1,10 +1,12 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common'
+import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
-import { Session } from '../entities/session.entity'
-import { SessionRepository } from '@core/database/repositories/session.repository'
 import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
+import { SessionRepository } from '@core/database/repositories/session.repository'
+
+import { Session } from '../entities/session.entity'
 
 export interface CreateSessionOptions {
   userId: string

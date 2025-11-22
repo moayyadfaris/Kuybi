@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { IsOptional, IsObject, IsDate, IsIP, MaxLength, IsString } from 'class-validator'
 import { Type } from 'class-transformer'
+import { IsDate, IsIP, IsObject, IsOptional, IsString, MaxLength } from 'class-validator'
 
 /**
  * DTO for updating an existing session

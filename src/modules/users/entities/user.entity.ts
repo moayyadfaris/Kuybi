@@ -2,17 +2,16 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  OneToMany,
-  ManyToOne,
   JoinColumn,
+  ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm'
-import { UserRole } from '../../acl/entities/user-role.entity'
+
 import { Role } from '../../acl/entities/role.entity'
+import { UserRole } from '../../acl/entities/user-role.entity'
 import { Attachment } from '../../attachments/entities/attachment.entity'
-import { Action } from '../../acl/types/actions.enum'
-import { Subject } from '../../acl/types/subjects.enum'
 
 @Entity({ name: 'users' })
 export class User {

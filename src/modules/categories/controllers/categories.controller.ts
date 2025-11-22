@@ -1,26 +1,27 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  Query,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
   UseGuards
 } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger'
-import { CategoriesService } from '@modules/categories/services/categories.service'
-import { CreateCategoryDto } from '@modules/categories/dto/create-category.dto'
-import { UpdateCategoryDto } from '@modules/categories/dto/update-category.dto'
-import { SearchCategoriesDto } from '@modules/categories/dto/search-categories.dto'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
+
 import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
+import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Subject } from '@modules/acl/types/subjects.enum'
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { CreateCategoryDto } from '@modules/categories/dto/create-category.dto'
+import { SearchCategoriesDto } from '@modules/categories/dto/search-categories.dto'
+import { UpdateCategoryDto } from '@modules/categories/dto/update-category.dto'
+import { CategoriesService } from '@modules/categories/services/categories.service'
 
 @ApiTags('categories')
 @Controller('v1/categories')

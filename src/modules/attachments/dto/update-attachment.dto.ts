@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { IsOptional, IsString, IsArray, IsBoolean, MaxLength } from 'class-validator'
 import { Transform } from 'class-transformer'
+import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class UpdateAttachmentDto {
   @ApiPropertyOptional({ description: 'Attachment category', example: 'documents' })

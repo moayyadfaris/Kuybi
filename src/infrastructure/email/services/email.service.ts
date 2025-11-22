@@ -4,9 +4,11 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import * as nodemailer from 'nodemailer'
 import { Transporter } from 'nodemailer'
 import SMTPTransport from 'nodemailer/lib/smtp-transport'
-import { EmailTemplateService } from './email-template.service'
+
 import { SendEmailDto } from '../dto/send-email.dto'
 import { EmailOptions } from '../interfaces/email-template.interface'
+
+import { EmailTemplateService } from './email-template.service'
 
 @Injectable()
 export class EmailService implements OnModuleInit {

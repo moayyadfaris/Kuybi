@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
-import { CacheService } from '@core/cache/services/cache.service'
 import * as crypto from 'crypto'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
+import { CacheService } from '@core/cache/services/cache.service'
 
 /**
  * TokenBlacklistService - Manages access token invalidation via Redis

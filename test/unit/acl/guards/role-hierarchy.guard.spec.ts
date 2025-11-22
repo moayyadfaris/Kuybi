@@ -1,7 +1,8 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common'
 import { Repository } from 'typeorm'
-import { RoleHierarchyGuard } from '@modules/acl/guards/role-hierarchy.guard'
+
 import { Role } from '@modules/acl/entities/role.entity'
+import { RoleHierarchyGuard } from '@modules/acl/guards/role-hierarchy.guard'
 import { User } from '@modules/users/entities/user.entity'
 
 describe('RoleHierarchyGuard', () => {

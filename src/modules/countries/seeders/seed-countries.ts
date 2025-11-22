@@ -1,21 +1,22 @@
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from '@app/app.module'
+
 import { CountriesSeeder } from './countries.seeder'
 
 async function bootstrap() {
-    const app = await NestFactory.createApplicationContext(AppModule)
+  const app = await NestFactory.createApplicationContext(AppModule)
 
-    const seeder = app.get(CountriesSeeder)
+  const seeder = app.get(CountriesSeeder)
 
-    try {
-        await seeder.seed()
-        console.log('✅ Countries seeding completed successfully')
-    } catch (error) {
-        console.error('❌ Countries seeding failed:', error)
-        process.exit(1)
-    } finally {
-        await app.close()
-    }
+  try {
+    await seeder.seed()
+    console.log('✅ Countries seeding completed successfully')
+  } catch (error) {
+    console.error('❌ Countries seeding failed:', error)
+    process.exit(1)
+  } finally {
+    await app.close()
+  }
 }
 
 bootstrap()

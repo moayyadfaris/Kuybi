@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { VersionType, VersionStatus } from '../../entities/story-version.entity'
+
+import { VersionStatus, VersionType } from '../../entities/story-version.entity'
 
 /**
  * User info embedded in version response

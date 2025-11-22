@@ -1,12 +1,13 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
+  Entity,
   Index,
+  JoinColumn,
   ManyToOne,
-  JoinColumn
+  PrimaryGeneratedColumn
 } from 'typeorm'
+
 import { User } from '@modules/users/entities/user.entity'
 
 export enum AuditAction {

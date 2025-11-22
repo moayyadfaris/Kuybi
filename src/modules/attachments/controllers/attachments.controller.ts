@@ -1,18 +1,18 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Delete,
-  UseInterceptors,
-  UseGuards,
-  UploadedFile,
   Body,
-  Req,
+  Controller,
+  Delete,
+  Get,
   Param,
+  Patch,
+  Post,
   Query,
+  Req,
   Res,
-  StreamableFile
+  StreamableFile,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import {
@@ -20,25 +20,26 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOkResponse,
-  ApiTags,
   ApiParam,
-  ApiQuery
+  ApiQuery,
+  ApiTags
 } from '@nestjs/swagger'
 import { Request, Response } from 'express'
 import { memoryStorage } from 'multer'
-import { AttachmentService } from '../services/attachment.service'
-import {
-  UploadAttachmentDto,
-  UpdateAttachmentDto,
-  AttachmentQueryDto,
-  PresignedUrlDto
-} from '../dto'
-import { AbilityGuard } from '../../acl/abilities/ability.guard'
+
 import { CheckAbility } from '../../acl/abilities/ability.decorator'
+import { AbilityGuard } from '../../acl/abilities/ability.guard'
 import { Action } from '../../acl/types/actions.enum'
 import { Subject } from '../../acl/types/subjects.enum'
-import { User } from '../../users/entities/user.entity'
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { User } from '../../users/entities/user.entity'
+import {
+  AttachmentQueryDto,
+  PresignedUrlDto,
+  UpdateAttachmentDto,
+  UploadAttachmentDto
+} from '../dto'
+import { AttachmentService } from '../services/attachment.service'
 
 interface AuthenticatedRequest extends Request {
   user?: User
@@ -48,7 +49,7 @@ interface AuthenticatedRequest extends Request {
 @ApiBearerAuth()
 @Controller('v1/attachments')
 export class AttachmentsController {
-  constructor(private readonly attachmentService: AttachmentService) { }
+  constructor(private readonly attachmentService: AttachmentService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, AbilityGuard)

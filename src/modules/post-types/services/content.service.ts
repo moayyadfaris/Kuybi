@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+
 import { PostContent } from '../entities/post-content.entity'
+import { ContentStatus } from '../enums/content-status.enum'
 import { PostContentRepository } from '../repositories/post-content.repository'
-import { PostTypesService } from './post-types.service'
+
 import { FieldDefinitionsService } from './field-definitions.service'
 import { FieldValidationService } from './field-validation.service'
-import { ContentStatus } from '../enums/content-status.enum'
+import { PostTypesService } from './post-types.service'
 
 /**
  * ContentService

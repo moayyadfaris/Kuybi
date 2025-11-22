@@ -1,18 +1,21 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, LessThan } from 'typeorm'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { EmailQueueService } from '@infrastructure/email'
 import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { LessThan, Repository } from 'typeorm'
+
 import { User } from '@modules/users/entities/user.entity'
-import { PasswordReset } from '../entities/password-reset.entity'
+
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ValidateResetTokenDto
 } from '../dto/password-reset.dto'
-import { EmailQueueService } from '@infrastructure/email'
-import { ConfigService } from '@nestjs/config'
+import { PasswordReset } from '../entities/password-reset.entity'
+
 import { SessionsService } from './sessions.service'
 
 /**

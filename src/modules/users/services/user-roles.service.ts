@@ -1,18 +1,19 @@
 import {
-  Injectable,
-  NotFoundException,
+  BadRequestException,
   ConflictException,
-  BadRequestException
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { UserRole } from '../../acl/entities/user-role.entity'
-import { User } from '../entities/user.entity'
-import { Role } from '../../acl/entities/role.entity'
+import { Repository } from 'typeorm'
+
 import { AssignRoleDto } from '../../acl/dto/assign-role.dto'
-import { AuditService } from '../../audit/services/audit.service'
+import { Role } from '../../acl/entities/role.entity'
+import { UserRole } from '../../acl/entities/user-role.entity'
 import { AuditAction, AuditSeverity } from '../../audit/entities/audit-log.entity'
+import { AuditService } from '../../audit/services/audit.service'
+import { User } from '../entities/user.entity'
 
 @Injectable()
 export class UserRolesService {

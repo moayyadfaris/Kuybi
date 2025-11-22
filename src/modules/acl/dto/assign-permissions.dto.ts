@@ -1,5 +1,5 @@
-import { IsArray, IsInt, ArrayMinSize } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { ArrayMinSize, IsArray, IsInt } from 'class-validator'
 
 export class AssignPermissionsDto {
   @ApiProperty({

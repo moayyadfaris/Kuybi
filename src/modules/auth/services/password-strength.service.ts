@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import * as crypto from 'crypto'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 export interface PasswordStrengthResult {
   score: number // 0-4 (0: very weak, 4: very strong)

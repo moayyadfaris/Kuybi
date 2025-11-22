@@ -1,12 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  IsUUID,
-  IsString,
-  MinLength,
-  MaxLength,
-  Matches,
+  IsBoolean,
   IsOptional,
-  IsBoolean
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  MinLength
 } from 'class-validator'
 
 /**

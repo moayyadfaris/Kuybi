@@ -1,8 +1,9 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
-import { Observable } from 'rxjs'
 import { ConfigService } from '@nestjs/config'
-import { LoggingContextService } from './logging-context.service'
+import { Observable } from 'rxjs'
+
 import { RequestWithContextLogger } from './types/request-with-context-logger.interface'
+import { LoggingContextService } from './logging-context.service'
 
 @Injectable()
 export class LoggingContextInterceptor implements NestInterceptor {

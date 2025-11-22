@@ -1,5 +1,6 @@
-import { IsEnum, IsOptional, IsBoolean, IsObject, IsArray, IsString } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { IsArray, IsBoolean, IsEnum, IsObject, IsOptional, IsString } from 'class-validator'
+
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
 

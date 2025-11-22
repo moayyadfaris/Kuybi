@@ -3,29 +3,32 @@
  * Tests super-admin session management endpoints with real database
  */
 
-import { Test, TestingModule } from '@nestjs/testing'
 import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { DataSource } from 'typeorm'
+import { LoggerModule } from 'nestjs-pino'
 import * as request from 'supertest'
-import { AuthModule } from '@modules/auth/auth.module'
-import { UsersModule } from '@modules/users/users.module'
+import { DataSource } from 'typeorm'
+
 import { AclModule } from '@modules/acl/acl.module'
-import { User } from '@modules/users/entities/user.entity'
-import { Session } from '@modules/auth/entities/session.entity'
-import { Role } from '@modules/acl/entities/role.entity'
-import { UserRole } from '@modules/acl/entities/user-role.entity'
 import { Permission } from '@modules/acl/entities/permission.entity'
+import { Role } from '@modules/acl/entities/role.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
-import { AuditLog } from '@modules/audit/entities/audit-log.entity'
+import { UserRole } from '@modules/acl/entities/user-role.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { AuditLog } from '@modules/audit/entities/audit-log.entity'
+import { AuthModule } from '@modules/auth/auth.module'
 import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
+import { Session } from '@modules/auth/entities/session.entity'
+import { User } from '@modules/users/entities/user.entity'
+import { UsersModule } from '@modules/users/users.module'
+
+import { CacheService } from '@core/cache/services/cache.service'
+import configuration from '@core/config/configuration'
+
 import { UserFactory } from '../../factories/user.factory'
 import { testConfig } from '../../test.config'
-import { ConfigModule } from '@nestjs/config'
-import configuration from '@core/config/configuration'
-import { CacheService } from '@core/cache/services/cache.service'
-import { LoggerModule } from 'nestjs-pino'
 
 const createInMemoryCacheService = () => {
   const store = new Map<string, any>()

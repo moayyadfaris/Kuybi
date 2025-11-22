@@ -1,39 +1,42 @@
+import { InjectQueue } from '@nestjs/bullmq'
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
-  ForbiddenException
+  ForbiddenException,
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
-import { PinoLogger } from 'nestjs-pino'
 import * as crypto from 'crypto'
+import { PinoLogger } from 'nestjs-pino'
+
 import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
-import { FileValidationService, MulterFile } from './file-validation.service'
-import { ImageProcessingService } from './image-processing.service'
-import { ImageOptimizationService } from './image-optimization.service'
-import { ExifProcessorService } from './exif-processor.service'
-import { S3Service } from './s3.service'
-import { Attachment } from '../entities/attachment.entity'
-import { QueueName, AttachmentJobType } from '@core/queues/jobs/types'
+import { AttachmentJobType, QueueName } from '@core/queues/jobs/types'
+
 import {
-  mapFormatToContentType,
-  resolveExtensionFromFormat,
-  extractFormatFromMime,
-  shouldForcePublic,
-  ThumbnailMetadata,
-  AttachmentMetadata
-} from '../utils/attachment-image.util'
-import {
-  UploadAttachmentDto,
-  UpdateAttachmentDto,
   AttachmentQueryDto,
   AttachmentResponseDto,
+  AttachmentStatsDto,
   PresignedUrlDto,
   PresignedUrlResponseDto,
-  AttachmentStatsDto
+  UpdateAttachmentDto,
+  UploadAttachmentDto
 } from '../dto'
+import { Attachment } from '../entities/attachment.entity'
+import {
+  AttachmentMetadata,
+  extractFormatFromMime,
+  mapFormatToContentType,
+  resolveExtensionFromFormat,
+  shouldForcePublic,
+  ThumbnailMetadata
+} from '../utils/attachment-image.util'
+
+import { ExifProcessorService } from './exif-processor.service'
+import { FileValidationService, MulterFile } from './file-validation.service'
+import { ImageOptimizationService } from './image-optimization.service'
+import { ImageProcessingService } from './image-processing.service'
+import { S3Service } from './s3.service'
 
 @Injectable()
 export class AttachmentService {

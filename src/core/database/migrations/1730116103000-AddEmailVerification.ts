@@ -3,8 +3,8 @@ import {
   QueryRunner,
   Table,
   TableColumn,
-  TableIndex,
-  TableForeignKey
+  TableForeignKey,
+  TableIndex
 } from 'typeorm'
 
 export class AddEmailVerification1730116103000 implements MigrationInterface {

@@ -1,14 +1,14 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  IsArray,
   ArrayMinSize,
+  IsArray,
   IsInt,
+  IsOptional,
   IsString,
   IsUUID,
-  MinLength,
   MaxLength,
-  IsOptional
+  MinLength
 } from 'class-validator'
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 export class AttachAttachmentsDto {
   @ApiProperty({

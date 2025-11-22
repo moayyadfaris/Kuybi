@@ -1,12 +1,14 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
+  CreateDateColumn,
+  Entity,
   JoinColumn,
-  CreateDateColumn
+  ManyToOne,
+  PrimaryGeneratedColumn
 } from 'typeorm'
+
 import { User } from '../../users/entities/user.entity'
+
 import { Role } from './role.entity'
 
 /**

@@ -1,25 +1,25 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
-  ParseIntPipe,
-  UseGuards,
-  HttpCode,
-  HttpStatus
+  UseGuards
 } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
-import { PermissionsService } from '../services/permissions.service'
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
+
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { CheckAbility } from '../abilities/ability.decorator'
 import { CreatePermissionDto } from '../dto/create-permission.dto'
 import { UpdatePermissionDto } from '../dto/update-permission.dto'
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
 import { SuperAdminGuard } from '../guards/super-admin.guard'
-import { CheckAbility } from '../abilities/ability.decorator'
-import { AbilityGuard } from '../abilities/ability.guard'
+import { PermissionsService } from '../services/permissions.service'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
 

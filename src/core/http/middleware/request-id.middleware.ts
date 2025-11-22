@@ -1,6 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common'
-import { NextFunction, Request, Response } from 'express'
 import { randomUUID } from 'crypto'
+import { NextFunction, Request, Response } from 'express'
 
 const HEADER_NAME = 'x-request-id'
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{8,128}$/

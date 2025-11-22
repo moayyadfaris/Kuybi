@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } from 'typeorm'
+import { MigrationInterface, QueryRunner, Table, TableForeignKey, TableIndex } from 'typeorm'
 
 /**
  * Migration: Create audit_logs table

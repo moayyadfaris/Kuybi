@@ -6,11 +6,10 @@
  */
 import * as dotenv from 'dotenv'
 import * as path from 'path'
+import { DataSource } from 'typeorm'
 
 // Register path aliases from tsconfig before any entity imports
 import 'tsconfig-paths/register'
-
-import { DataSource } from 'typeorm'
 
 export default async function globalSetup() {
   // Load test environment variables

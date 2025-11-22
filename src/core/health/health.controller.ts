@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common'
-import { ApiTags, ApiOkResponse } from '@nestjs/swagger'
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger'
 import { HealthCheck, HealthCheckService, TypeOrmHealthIndicator } from '@nestjs/terminus'
+
 import { CacheService } from '../cache/services/cache.service'
 
 @ApiTags('health')

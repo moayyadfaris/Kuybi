@@ -1,6 +1,6 @@
-import { IsArray, ValidateNested, IsUUID, IsInt, Min } from 'class-validator'
-import { Type } from 'class-transformer'
 import { ApiProperty } from '@nestjs/swagger'
+import { Type } from 'class-transformer'
+import { IsArray, IsInt, IsUUID, Min, ValidateNested } from 'class-validator'
 
 /**
  * Single field order item

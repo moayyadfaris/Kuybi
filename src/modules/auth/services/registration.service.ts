@@ -1,19 +1,20 @@
 import {
-  Injectable,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  Injectable,
   NotFoundException
 } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import * as bcrypt from 'bcrypt'
-import { v4 as uuidv4 } from 'uuid'
-import { User } from '../../users/entities/user.entity'
-import { EmailVerification } from '../../users/entities/email-verification.entity'
-import { RegisterUserDto } from '../dto/register.dto'
-import { EmailQueueService } from '@infrastructure/email'
 import { ConfigService } from '@nestjs/config'
+import { InjectRepository } from '@nestjs/typeorm'
+import { EmailQueueService } from '@infrastructure/email'
+import * as bcrypt from 'bcrypt'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { Repository } from 'typeorm'
+import { v4 as uuidv4 } from 'uuid'
+
+import { EmailVerification } from '../../users/entities/email-verification.entity'
+import { User } from '../../users/entities/user.entity'
+import { RegisterUserDto } from '../dto/register.dto'
 
 /**
  * Registration Service

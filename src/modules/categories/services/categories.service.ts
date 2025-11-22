@@ -1,14 +1,11 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-  BadRequestException
-} from '@nestjs/common'
-import { Category } from '@modules/categories/entities/category.entity'
-import { CategoryRepository } from '@core/database/repositories/category.repository'
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+
 import { CreateCategoryDto } from '@modules/categories/dto/create-category.dto'
-import { UpdateCategoryDto } from '@modules/categories/dto/update-category.dto'
 import { SearchCategoriesDto } from '@modules/categories/dto/search-categories.dto'
+import { UpdateCategoryDto } from '@modules/categories/dto/update-category.dto'
+import { Category } from '@modules/categories/entities/category.entity'
+
+import { CategoryRepository } from '@core/database/repositories/category.repository'
 
 @Injectable()
 export class CategoriesService {

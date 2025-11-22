@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { PostType } from '../entities/post-type.entity'
-import { FieldDefinition } from '../entities/field-definition.entity'
-import { FieldType } from '../enums/field-type.enum'
+
 import { UserRepository } from '@core/database/repositories/user.repository'
 
+import { FieldDefinition } from '../entities/field-definition.entity'
+import { PostType } from '../entities/post-type.entity'
+import { FieldType } from '../enums/field-type.enum'
 
 /**
  * Post Types Seeder - Create default post types with field definitions
@@ -26,8 +27,7 @@ export class PostTypesSeeder {
     @InjectRepository(FieldDefinition)
     private readonly fieldDefinitionRepository: Repository<FieldDefinition>,
     private readonly userRepository: UserRepository
-  ) { }
-
+  ) {}
 
   /**
    * Run the seeder
@@ -57,7 +57,6 @@ export class PostTypesSeeder {
       this.logger.log('Created Event post type with fields')
     }
 
-
     this.logger.log('Post types seeder completed successfully')
   }
 
@@ -68,7 +67,6 @@ export class PostTypesSeeder {
    * Create Story post type (system type)
    */
   private async createStoryPostType(adminId: string): Promise<PostType | null> {
-
     const existing = await this.postTypeRepository.findOne({
       where: { slug: 'story' }
     })
@@ -114,7 +112,6 @@ export class PostTypesSeeder {
       updatedBy: adminId
     })
 
-
     return await this.postTypeRepository.save(storyPostType)
   }
 
@@ -125,7 +122,6 @@ export class PostTypesSeeder {
    * Create Story field definitions
    */
   private async createStoryFields(postTypeId: string, adminId: string): Promise<void> {
-
     const fields = [
       // Content field (WYSIWYG editor)
       {
@@ -152,7 +148,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       },
       // Excerpt field (short summary)
       {
@@ -177,7 +172,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       },
       // Featured toggle
       {
@@ -200,7 +194,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       }
     ]
 
@@ -223,7 +216,6 @@ export class PostTypesSeeder {
    * Create Event post type (custom type)
    */
   private async createEventPostType(adminId: string): Promise<PostType | null> {
-
     const existing = await this.postTypeRepository.findOne({
       where: { slug: 'event' }
     })
@@ -287,7 +279,6 @@ export class PostTypesSeeder {
    * Create Event field definitions
    */
   private async createEventFields(postTypeId: string, adminId: string): Promise<void> {
-
     const fields = [
       // Event date
       {
@@ -312,7 +303,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       },
       // Location
       {
@@ -337,7 +327,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       },
       // Ticket price
       {
@@ -364,7 +353,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       },
       // Max attendees
       {
@@ -390,7 +378,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       },
       // Event description
       {
@@ -417,7 +404,6 @@ export class PostTypesSeeder {
         },
         createdBy: adminId,
         updatedBy: adminId
-
       }
     ]
 

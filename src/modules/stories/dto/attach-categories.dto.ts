@@ -1,5 +1,5 @@
-import { IsArray, IsUUID, ArrayMinSize, ArrayMaxSize } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsUUID } from 'class-validator'
 
 export class AttachCategoriesDto {
   @ApiProperty({

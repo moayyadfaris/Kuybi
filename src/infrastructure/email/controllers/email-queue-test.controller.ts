@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Body, Param, Query } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+
 import { EmailQueueService } from '../services/email-queue.service'
-import { ApiTags, ApiOperation } from '@nestjs/swagger'
 
 /**
  * Email Queue Test Controller

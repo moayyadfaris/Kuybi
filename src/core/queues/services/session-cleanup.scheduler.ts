@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { Queue } from 'bullmq'
+
 import { QueueName, SessionCleanupJobType } from '../jobs/types'
 
 @Injectable()

@@ -1,13 +1,15 @@
 import {
-  Injectable,
+  BadRequestException,
   ConflictException,
-  NotFoundException,
-  BadRequestException
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
+
 import { FieldDefinition } from '../entities/field-definition.entity'
-import { FieldDefinitionRepository } from '../repositories/field-definition.repository'
-import { PostTypesService } from './post-types.service'
 import { FieldType } from '../enums/field-type.enum'
+import { FieldDefinitionRepository } from '../repositories/field-definition.repository'
+
+import { PostTypesService } from './post-types.service'
 
 /**
  * FieldDefinitionsService

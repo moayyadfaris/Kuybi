@@ -1,16 +1,18 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   DeleteDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
-  JoinColumn,
-  Index
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm'
+
 import { User } from '../../users/entities/user.entity'
+
 import { FieldDefinition } from './field-definition.entity'
 
 /**

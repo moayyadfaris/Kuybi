@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsString, Length, IsInt, Min, IsOptional, IsObject } from 'class-validator'
+import { IsInt, IsObject, IsOptional, IsString, Length, Min } from 'class-validator'
 
 /**
  * DTO for merging versions from one branch to another

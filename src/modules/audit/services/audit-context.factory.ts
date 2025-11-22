@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { Request } from 'express'
-import { AuditContext } from './audit.service'
+
 import { ContextUser } from '../types/context-user.interface'
+
+import { AuditContext } from './audit.service'
 
 @Injectable()
 export class AuditContextFactory {

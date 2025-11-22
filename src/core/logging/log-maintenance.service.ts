@@ -1,8 +1,8 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Cron, CronExpression } from '@nestjs/schedule'
+import { createReadStream, promises as fsPromises } from 'fs'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { promises as fsPromises, createReadStream } from 'fs'
 import * as path from 'path'
 
 interface LoggingConfig {

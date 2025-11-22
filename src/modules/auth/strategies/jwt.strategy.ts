@@ -1,11 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PassportStrategy } from '@nestjs/passport'
-import { ExtractJwt, Strategy } from 'passport-jwt'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { TokenBlacklistService } from '../services/token-blacklist.service'
-import { UserRepository } from '@core/database/repositories/user.repository'
 import { Request } from 'express'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { ExtractJwt, Strategy } from 'passport-jwt'
+
+import { UserRepository } from '@core/database/repositories/user.repository'
+
+import { TokenBlacklistService } from '../services/token-blacklist.service'
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {

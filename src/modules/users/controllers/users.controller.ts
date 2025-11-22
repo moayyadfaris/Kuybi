@@ -1,20 +1,22 @@
 import {
   Controller,
+  DefaultValuePipe,
   Get,
   Param,
-  Query,
-  UseGuards,
   ParseIntPipe,
-  DefaultValuePipe
+  Query,
+  UseGuards
 } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
+
 import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
+import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Subject } from '@modules/acl/types/subjects.enum'
-import { UsersService } from '../services/users.service'
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+
 import { UserProfileDto } from '../dto/user-profile.dto'
+import { UsersService } from '../services/users.service'
 
 @ApiTags('Users')
 @ApiBearerAuth()

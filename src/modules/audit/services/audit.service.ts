@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Request } from 'express'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
 import { SentryService } from '@core/sentry'
+
 import { AuditLogRepository } from '../database/audit-log.repository'
-import { AuditLog, AuditAction, AuditSeverity, AuditStatus } from '../entities/audit-log.entity'
-import { User } from '@modules/users/entities/user.entity'
-import { AuditContextFactory } from './audit-context.factory'
+import { AuditAction, AuditLog, AuditSeverity, AuditStatus } from '../entities/audit-log.entity'
 import { ContextUser } from '../types/context-user.interface'
+
+import { AuditContextFactory } from './audit-context.factory'
 
 export interface AuditContext {
   userId?: string

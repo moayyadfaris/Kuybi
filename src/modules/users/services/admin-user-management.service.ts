@@ -1,20 +1,23 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
-  ConflictException
+  ConflictException,
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { UserRepository } from '@core/database/repositories/user.repository'
-import { RoleRepository } from '@core/database/repositories/role.repository'
-import { AuditService } from '@modules/audit/services/audit.service'
+
 import { AuditAction, AuditSeverity } from '@modules/audit/entities/audit-log.entity'
-import { User } from '../entities/user.entity'
+import { AuditService } from '@modules/audit/services/audit.service'
+
+import { RoleRepository } from '@core/database/repositories/role.repository'
+import { UserRepository } from '@core/database/repositories/user.repository'
+
 import {
   AdminUpdateUserDto,
   AdminUpdateUserResponseDto,
   UpdatedUserDataDto
 } from '../dto/admin-update-user.dto'
+import { User } from '../entities/user.entity'
 
 /**
  * Admin User Management Service

@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { AuditLogRepository, AuditLogFilters } from '../database/audit-log.repository'
-import { AuditLog, AuditAction, AuditStatus } from '../entities/audit-log.entity'
 import { PaginationQueryDto } from '@shared/dto/pagination-query.dto'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
+import { AuditLogFilters, AuditLogRepository } from '../database/audit-log.repository'
+import { AuditAction, AuditLog, AuditStatus } from '../entities/audit-log.entity'
 
 export interface AuditLogSearchResult {
   logs: AuditLog[]

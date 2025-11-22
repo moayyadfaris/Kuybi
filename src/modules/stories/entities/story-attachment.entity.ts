@@ -1,14 +1,15 @@
 import {
-  Entity,
-  Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
+  Entity,
   JoinColumn,
-  PrimaryColumn
+  ManyToOne,
+  PrimaryColumn,
+  UpdateDateColumn
 } from 'typeorm'
-import { Story } from './story.entity'
+
 import { Attachment } from '../../attachments/entities/attachment.entity'
+
+import { Story } from './story.entity'
 
 /**
  * Junction table for Story-Attachment many-to-many relationship

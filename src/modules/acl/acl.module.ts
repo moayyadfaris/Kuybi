@@ -1,38 +1,32 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
-// Entities
-import { Role } from './entities/role.entity'
-import { Permission } from './entities/permission.entity'
-import { RolePermission } from './entities/role-permission.entity'
-import { UserRole } from './entities/user-role.entity'
-
+// Cache module
+import { CacheConfigModule } from '@core/cache/cache.module'
+import { PermissionRepository } from '@core/database/repositories/permission.repository'
 // Repositories
 import { RoleRepository } from '@core/database/repositories/role.repository'
-import { PermissionRepository } from '@core/database/repositories/permission.repository'
-
-// Services
-import { RolesService } from './services/roles.service'
-import { PermissionsService } from './services/permissions.service'
-
-// Controllers
-import { RolesController } from './controllers/roles.controller'
-import { PermissionsController } from './controllers/permissions.controller'
 
 // Abilities
 import { AbilityFactory } from './abilities/ability.factory'
 import { AbilityGuard } from './abilities/ability.guard'
-
+import { PermissionsController } from './controllers/permissions.controller'
+// Controllers
+import { RolesController } from './controllers/roles.controller'
+import { Permission } from './entities/permission.entity'
+// Entities
+import { Role } from './entities/role.entity'
+import { RolePermission } from './entities/role-permission.entity'
+import { UserRole } from './entities/user-role.entity'
+import { AdminOrOwnerGuard } from './guards/admin-or-owner.guard'
+import { RoleHierarchyGuard } from './guards/role-hierarchy.guard'
 // Guards
 import { SuperAdminGuard } from './guards/super-admin.guard'
-import { RoleHierarchyGuard } from './guards/role-hierarchy.guard'
-import { AdminOrOwnerGuard } from './guards/admin-or-owner.guard'
-
 // Seeders
 import { AclSeeder } from './seeders/acl.seeder'
-
-// Cache module
-import { CacheConfigModule } from '@core/cache/cache.module'
+import { PermissionsService } from './services/permissions.service'
+// Services
+import { RolesService } from './services/roles.service'
 
 @Module({
   imports: [

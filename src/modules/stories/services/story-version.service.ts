@@ -1,13 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash } from 'crypto'
 import { PinoLogger } from 'nestjs-pino'
-import { StoryVersion, VersionStatus, VersionType } from '../entities/story-version.entity'
-import { Story, StoryType, StoryStatus, StoryPriority } from '../entities/story.entity'
+
 import { User } from '@modules/users/entities/user.entity'
+
 import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
+
 import { CreateVersionDto } from '../dto/version/create-version.dto'
-import { VersionResponseDto, VersionUserDto } from '../dto/version/version-response.dto'
 import { VersionDiff } from '../dto/version/version-comparison.dto'
+import { VersionResponseDto, VersionUserDto } from '../dto/version/version-response.dto'
+import { Story, StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
+import { StoryVersion, VersionStatus, VersionType } from '../entities/story-version.entity'
 
 /**
  * Story Version Service

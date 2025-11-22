@@ -1,9 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing'
 import { BadRequestException } from '@nestjs/common'
-import { FieldValidationService } from '../field-validation.service'
+import { Test, TestingModule } from '@nestjs/testing'
+import { getLoggerToken } from 'nestjs-pino'
+
 import { FieldDefinition } from '../../entities/field-definition.entity'
 import { FieldType } from '../../enums/field-type.enum'
-import { getLoggerToken } from 'nestjs-pino'
+import { FieldValidationService } from '../field-validation.service'
 
 describe('FieldValidationService', () => {
   let service: FieldValidationService

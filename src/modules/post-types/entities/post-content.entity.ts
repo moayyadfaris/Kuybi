@@ -1,23 +1,24 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   DeleteDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
-  ManyToMany,
-  JoinColumn,
-  Index
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm'
-import { User } from '../../users/entities/user.entity'
+
 import { Attachment } from '../../attachments/entities/attachment.entity'
-import { PostType } from './post-type.entity'
-import { PostContentAttachment } from './post-content-attachment.entity'
-import { PostContentTag } from './post-content-tag.entity'
-import { PostContentCategory } from './post-content-category.entity'
+import { User } from '../../users/entities/user.entity'
 import { ContentStatus } from '../enums/content-status.enum'
+
+import { PostContentAttachment } from './post-content-attachment.entity'
+import { PostContentCategory } from './post-content-category.entity'
+import { PostContentTag } from './post-content-tag.entity'
+import { PostType } from './post-type.entity'
 
 /**
  * PostContent Entity

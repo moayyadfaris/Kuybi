@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { IsOptional, IsString, IsBoolean, IsNumber, IsEnum, Min, Max } from 'class-validator'
 import { Transform, Type } from 'class-transformer'
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
 
 export class AttachmentQueryDto {
   @ApiPropertyOptional({ description: 'Category filter', example: 'images' })

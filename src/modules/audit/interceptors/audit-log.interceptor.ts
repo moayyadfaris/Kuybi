@@ -1,11 +1,12 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common'
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { Observable, throwError } from 'rxjs'
-import { tap, catchError } from 'rxjs/operators'
 import { Request } from 'express'
-import { AuditService } from '../services/audit.service'
+import { Observable, throwError } from 'rxjs'
+import { catchError, tap } from 'rxjs/operators'
+
 import { AUDIT_LOG_KEY, AuditLogMetadata } from '../decorators/audit-log.decorator'
 import { AuditStatus } from '../entities/audit-log.entity'
+import { AuditService } from '../services/audit.service'
 
 /**
  * Interceptor to automatically create audit logs based on @AuditLog decorator

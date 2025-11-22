@@ -1,9 +1,10 @@
-import { Module, Global } from '@nestjs/common'
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager'
+import { Global, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import Keyv from '@keyv/redis'
-import { CacheService } from './services/cache.service'
 import { Logger } from 'nestjs-pino'
+
+import { CacheService } from './services/cache.service'
 
 /**
  * Global Cache Module

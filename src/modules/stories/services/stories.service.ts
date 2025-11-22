@@ -1,45 +1,42 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
-  ForbiddenException
+  ForbiddenException,
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, In } from 'typeorm'
 import { PinoLogger } from 'nestjs-pino'
-import {
-  Story,
-  StoryStatus,
-  StoryType,
-  StoryPriority
-} from '@modules/stories/entities/story.entity'
-import { StoryRepository } from '@core/database/repositories/story.repository'
-import { TagRepository } from '@core/database/repositories/tag.repository'
-import {
-  CreateStoryDto,
-  UpdateStoryDto,
-  StoryFilterDto,
-  StoryStatsDto,
-  AttachAttachmentsDto,
-  AttachTagsDto,
-  DetachAttachmentsDto,
-  DetachTagsDto,
-  AttachCategoriesDto,
-  DetachCategoriesDto
-} from '@modules/stories/dto'
-import { CategoryRepository } from '@core/database/repositories/category.repository'
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+import { In, Repository } from 'typeorm'
+
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { Tag } from '@modules/tags/entities/tag.entity'
-import { Category } from '@modules/categories/entities/category.entity'
-
-
-import { LoggingContextService } from '@core/logging/logging-context.service'
-import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
-import { StoryVersionService } from './story-version.service'
-import { VersionType } from '../entities/story-version.entity'
 import { S3Service } from '@modules/attachments/services/s3.service'
 import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
+import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
+import { Category } from '@modules/categories/entities/category.entity'
+import {
+  AttachAttachmentsDto,
+  AttachCategoriesDto,
+  AttachTagsDto,
+  CreateStoryDto,
+  DetachAttachmentsDto,
+  DetachCategoriesDto,
+  DetachTagsDto,
+  StoryFilterDto,
+  StoryStatsDto,
+  UpdateStoryDto
+} from '@modules/stories/dto'
+import { Story, StoryStatus, StoryType } from '@modules/stories/entities/story.entity'
+import { Tag } from '@modules/tags/entities/tag.entity'
+
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+import { CategoryRepository } from '@core/database/repositories/category.repository'
+import { StoryRepository } from '@core/database/repositories/story.repository'
+import { TagRepository } from '@core/database/repositories/tag.repository'
+import { LoggingContextService } from '@core/logging/logging-context.service'
+
+import { VersionType } from '../entities/story-version.entity'
+
+import { StoryVersionService } from './story-version.service'
 
 @Injectable()
 export class StoriesService {
@@ -129,7 +126,6 @@ export class StoriesService {
         const categories = await this.categoryRepository.findMany({
           where: { id: In(categoryIds), deletedAt: null }
         })
-
 
         if (categories.length !== categoryIds.length) {
           requestLogger.warn(
@@ -736,7 +732,6 @@ export class StoriesService {
         where: { id: In(dto.attachmentIds) }
       })
 
-
       if (attachments.length !== dto.attachmentIds.length) {
         throw new BadRequestException('One or more attachments not found')
       }
@@ -1026,7 +1021,6 @@ export class StoriesService {
       const categories = await this.categoryRepository.findMany({
         where: { id: In(dto.categoryIds), deletedAt: null }
       })
-
 
       if (categories.length !== dto.categoryIds.length) {
         throw new BadRequestException('One or more categories not found or inactive')

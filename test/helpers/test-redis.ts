@@ -4,6 +4,7 @@
  */
 
 import Redis from 'ioredis'
+
 import { testConfig } from '../test.config'
 
 export class TestRedis {

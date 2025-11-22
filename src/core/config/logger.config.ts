@@ -1,6 +1,6 @@
-import { Params } from 'nestjs-pino'
-import { Request } from 'express'
 import { ConfigService } from '@nestjs/config'
+import { Request } from 'express'
+import { Params } from 'nestjs-pino'
 import * as path from 'path'
 
 /**

@@ -1,16 +1,17 @@
+import { ApiPropertyOptional } from '@nestjs/swagger'
+import { Type } from 'class-transformer'
 import {
-  IsOptional,
-  IsEnum,
-  IsString,
-  IsDateString,
   IsArray,
   IsBoolean,
+  IsDateString,
+  IsEnum,
   IsInt,
-  Min,
-  Max
+  IsOptional,
+  IsString,
+  Max,
+  Min
 } from 'class-validator'
-import { Type } from 'class-transformer'
-import { ApiPropertyOptional } from '@nestjs/swagger'
+
 import { AuditAction, AuditSeverity, AuditStatus } from '../entities/audit-log.entity'
 
 export class SearchAuditLogsDto {

@@ -1,8 +1,9 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+
+import { Role } from '@modules/acl/entities/role.entity'
 import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
 import { User } from '@modules/users/entities/user.entity'
-import { Role } from '@modules/acl/entities/role.entity'
 
 describe('SuperAdminGuard', () => {
   let guard: SuperAdminGuard

@@ -1,17 +1,19 @@
+import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { InjectQueue } from '@nestjs/bullmq'
-import { Queue } from 'bullmq'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, MoreThan, LessThan } from 'typeorm'
 import { EmailService } from '@infrastructure/email/services/email.service'
+import { Queue } from 'bullmq'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { LessThan, Repository } from 'typeorm'
+
 import { User } from '@modules/users/entities/user.entity'
+
 import {
-  QueueName,
   AccountSecurityJobType,
-  UnlockAccountJobData,
-  ResetFailedAttemptsJobData
+  QueueName,
+  ResetFailedAttemptsJobData,
+  UnlockAccountJobData
 } from '@core/queues/jobs/types'
 
 export interface AccountLockoutConfig {

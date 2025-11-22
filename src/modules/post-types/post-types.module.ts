@@ -1,40 +1,34 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
+
 import { AclModule } from '@modules/acl/acl.module'
 import { UsersModule } from '@modules/users/users.module'
 
-
-
+// Controllers
+import { ContentController, FieldDefinitionsController, PostTypesController } from './controllers'
 // Entities
 import {
-  PostType,
   FieldDefinition,
   PostContent,
   PostContentAttachment,
+  PostContentCategory,
   PostContentTag,
-  PostContentCategory
+  PostType
 } from './entities'
-
 // Repositories
 import {
-  PostTypeRepository,
   FieldDefinitionRepository,
-  PostContentRepository
+  PostContentRepository,
+  PostTypeRepository
 } from './repositories'
-
-
-
+import { PostTypesSeeder } from './seeders'
 // Services
 import {
-  PostTypesService,
-  FieldDefinitionsService,
   ContentService,
-  FieldValidationService
+  FieldDefinitionsService,
+  FieldValidationService,
+  PostTypesService
 } from './services'
-import { PostTypesSeeder } from './seeders'
-
-// Controllers
-import { PostTypesController, FieldDefinitionsController, ContentController } from './controllers'
 
 /**
  * PostTypesModule
@@ -99,8 +93,6 @@ import { PostTypesController, FieldDefinitionsController, ContentController } fr
     FieldDefinitionRepository,
     PostContentRepository,
 
-
-
     // Services
     PostTypesService,
     FieldDefinitionsService,
@@ -122,4 +114,4 @@ import { PostTypesController, FieldDefinitionsController, ContentController } fr
     PostContentRepository
   ]
 })
-export class PostTypesModule { }
+export class PostTypesModule {}

@@ -7,5 +7,5 @@
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */
 
-export { FieldType } from './field-type.enum'
 export { ContentStatus } from './content-status.enum'
+export { FieldType } from './field-type.enum'

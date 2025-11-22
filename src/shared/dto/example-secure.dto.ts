@@ -1,11 +1,11 @@
-import { IsString, IsEmail, MaxLength, IsOptional, IsUrl } from 'class-validator'
 import {
-  SanitizeHtml,
-  Trim,
-  SanitizeEmail,
   AlphanumericOnly,
-  SanitizeUrl
+  SanitizeEmail,
+  SanitizeHtml,
+  SanitizeUrl,
+  Trim
 } from '@shared/decorators'
+import { IsEmail, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator'
 
 /**
  * Example DTO demonstrating sanitization decorators

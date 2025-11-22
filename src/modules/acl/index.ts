@@ -25,10 +25,10 @@
  * ```
  */
 
-export * from './types'
-export * from './entities'
-export * from './dto'
 export * from './abilities'
-export * from './services'
-export * from './controllers'
 export * from './acl.module'
+export * from './controllers'
+export * from './dto'
+export * from './entities'
+export * from './services'
+export * from './types'

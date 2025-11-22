@@ -1,16 +1,17 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  IsString,
-  IsOptional,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsObject,
-  IsEnum,
-  MinLength,
+  IsOptional,
+  IsString,
+  Matches,
   MaxLength,
   Min,
-  Matches
+  MinLength
 } from 'class-validator'
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+
 import { FieldType } from '../../enums/field-type.enum'
 
 /**

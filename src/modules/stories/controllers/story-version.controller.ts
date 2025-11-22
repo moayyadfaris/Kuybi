@@ -1,39 +1,42 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Param,
-  Query,
-  Body,
-  UseGuards,
-  ParseIntPipe,
   HttpCode,
   HttpStatus,
-  Req
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  Req,
+  UseGuards
 } from '@nestjs/common'
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
-  ApiQuery
+  ApiQuery,
+  ApiResponse,
+  ApiTags
 } from '@nestjs/swagger'
 import { Request } from 'express'
-import { StoryVersionService } from '../services/story-version.service'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
+
 import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
+import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Subject } from '@modules/acl/types/subjects.enum'
-import { CreateVersionDto } from '../dto/version/create-version.dto'
-import { RollbackVersionDto } from '../dto/version/rollback-version.dto'
-import { CreateBranchDto } from '../dto/version/create-branch.dto'
-import { MergeVersionDto } from '../dto/version/merge-version.dto'
-import { CompareVersionsDto } from '../dto/version/compare-versions.dto'
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+
 import { UpdateStoryDto } from '../dto/update-story.dto'
-import { VersionResponseDto, VersionComparisonDto, BranchInfoDto } from '../dto/version'
+import { BranchInfoDto, VersionComparisonDto, VersionResponseDto } from '../dto/version'
+import { CompareVersionsDto } from '../dto/version/compare-versions.dto'
+import { CreateBranchDto } from '../dto/version/create-branch.dto'
+import { CreateVersionDto } from '../dto/version/create-version.dto'
+import { MergeVersionDto } from '../dto/version/merge-version.dto'
+import { RollbackVersionDto } from '../dto/version/rollback-version.dto'
 import { StoriesService } from '../services/stories.service'
+import { StoryVersionService } from '../services/story-version.service'
+
 interface ControllerUser {
   id?: string
   userId?: string

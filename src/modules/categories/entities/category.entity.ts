@@ -2,10 +2,9 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
   ManyToMany,
-  JoinTable
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm'
 
 @Entity({ name: 'categories' })

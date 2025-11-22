@@ -1,14 +1,16 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  ManyToOne,
+  Entity,
+  Index,
   JoinColumn,
-  Index
+  ManyToOne,
+  PrimaryGeneratedColumn
 } from 'typeorm'
-import { Story } from './story.entity'
+
 import { User } from '../../users/entities/user.entity'
+
+import { Story } from './story.entity'
 
 export enum VersionType {
   MANUAL = 'MANUAL', // User manually created version

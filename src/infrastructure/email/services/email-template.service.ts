@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import * as Handlebars from 'handlebars'
 import * as fs from 'fs'
-import * as path from 'path'
+import * as Handlebars from 'handlebars'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import * as path from 'path'
+
 import { EmailTemplate, EmailTemplateContext } from '../interfaces/email-template.interface'
 
 @Injectable()

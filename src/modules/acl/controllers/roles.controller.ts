@@ -1,27 +1,27 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseBoolPipe,
+  ParseIntPipe,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
-  ParseIntPipe,
-  ParseBoolPipe,
-  UseGuards,
-  HttpCode,
-  HttpStatus
+  UseGuards
 } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
-import { RolesService } from '../services/roles.service'
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
+
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { CheckAbility } from '../abilities/ability.decorator'
+import { AssignPermissionsDto, RemovePermissionsDto } from '../dto/assign-permissions.dto'
 import { CreateRoleDto } from '../dto/create-role.dto'
 import { UpdateRoleDto } from '../dto/update-role.dto'
-import { AssignPermissionsDto, RemovePermissionsDto } from '../dto/assign-permissions.dto'
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
 import { SuperAdminGuard } from '../guards/super-admin.guard'
-import { CheckAbility } from '../abilities/ability.decorator'
-import { AbilityGuard } from '../abilities/ability.guard'
+import { RolesService } from '../services/roles.service'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
 
@@ -55,7 +55,9 @@ export class RolesController {
   @ApiResponse({ status: 200, description: 'Roles retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  async findAll(@Query('includePermissions', new ParseBoolPipe({ optional: true })) includePermissions?: boolean) {
+  async findAll(
+    @Query('includePermissions', new ParseBoolPipe({ optional: true })) includePermissions?: boolean
+  ) {
     if (includePermissions) {
       return this.rolesService.findAllWithPermissions()
     }

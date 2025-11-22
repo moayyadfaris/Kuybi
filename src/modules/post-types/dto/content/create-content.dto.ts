@@ -1,15 +1,16 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsObject,
-  IsUUID,
   IsArray,
   IsDateString,
-  MinLength,
-  MaxLength
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength
 } from 'class-validator'
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+
 import { ContentStatus } from '../../enums/content-status.enum'
 
 /**

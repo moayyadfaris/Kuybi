@@ -1,14 +1,16 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq'
 import { Job } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import {
-  QueueName,
-  AccountSecurityJobType,
-  UnlockAccountJobData,
-  ResetFailedAttemptsJobData,
-  CheckExpiredLocksJobData
-} from '../jobs/types'
+
 import { AccountLockoutService } from '@modules/auth/services/account-lockout.service'
+
+import {
+  AccountSecurityJobType,
+  CheckExpiredLocksJobData,
+  QueueName,
+  ResetFailedAttemptsJobData,
+  UnlockAccountJobData
+} from '../jobs/types'
 
 /**
  * Account Security Queue Processor

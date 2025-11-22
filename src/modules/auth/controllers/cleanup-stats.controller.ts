@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger'
-import { SessionCleanupService } from '../services'
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common'
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
+
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
+import { SessionCleanupService } from '../services'
 
 @ApiTags('admin/cleanup')
 @Controller('v1/admin/cleanup')

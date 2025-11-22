@@ -1,13 +1,14 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  JoinColumn,
+  Column,
   CreateDateColumn,
-  Column
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn
 } from 'typeorm'
-import { Role } from './role.entity'
+
 import { Permission } from './permission.entity'
+import { Role } from './role.entity'
 
 /**
  * Junction table for Role-Permission many-to-many relationship

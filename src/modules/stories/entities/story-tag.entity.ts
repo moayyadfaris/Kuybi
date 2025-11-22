@@ -1,14 +1,15 @@
 import {
-  Entity,
-  Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
+  Entity,
   JoinColumn,
-  PrimaryColumn
+  ManyToOne,
+  PrimaryColumn,
+  UpdateDateColumn
 } from 'typeorm'
-import { Story } from './story.entity'
+
 import { Tag } from '../../tags/entities/tag.entity'
+
+import { Story } from './story.entity'
 
 /**
  * Junction table for Story-Tag many-to-many relationship

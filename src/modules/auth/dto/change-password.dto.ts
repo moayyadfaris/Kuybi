@@ -1,6 +1,6 @@
-import { IsString, MinLength, Matches, IsBoolean, IsOptional } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { Transform } from 'class-transformer'
+import { IsBoolean, IsOptional, IsString, Matches, MinLength } from 'class-validator'
 
 /**
  * DTO for users changing their password

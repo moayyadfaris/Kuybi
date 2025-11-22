@@ -3,10 +3,11 @@
  * Helpers for creating test modules with mocked dependencies
  */
 
+import { CacheModule } from '@nestjs/cache-manager'
+import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { ConfigModule } from '@nestjs/config'
-import { CacheModule } from '@nestjs/cache-manager'
+
 import { testConfig } from '../test.config'
 
 /**

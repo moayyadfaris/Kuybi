@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, SelectQueryBuilder } from 'typeorm'
-import { BaseRepository } from '@core/database/repositories/base.repository'
+
 import { CacheService } from '@core/cache/services/cache.service'
-import { AuditLog, AuditAction, AuditSeverity, AuditStatus } from '../entities/audit-log.entity'
+import { BaseRepository } from '@core/database/repositories/base.repository'
+
+import { AuditAction, AuditLog, AuditSeverity, AuditStatus } from '../entities/audit-log.entity'
 
 export interface AuditLogFilters {
   userId?: string

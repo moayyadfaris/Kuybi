@@ -1,13 +1,14 @@
-import { Injectable, OnApplicationShutdown } from '@nestjs/common'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { ModuleRef } from '@nestjs/core'
 import { InjectQueue } from '@nestjs/bullmq'
-import { Queue } from 'bullmq'
-import { QueueName } from '@core/queues/jobs/types'
-import { DataSource } from 'typeorm'
-import { InjectDataSource } from '@nestjs/typeorm'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Injectable, OnApplicationShutdown } from '@nestjs/common'
+import { ModuleRef } from '@nestjs/core'
+import { InjectDataSource } from '@nestjs/typeorm'
+import { Queue } from 'bullmq'
 import { Cache } from 'cache-manager'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { DataSource } from 'typeorm'
+
+import { QueueName } from '@core/queues/jobs/types'
 
 /**
  * Centralized shutdown service for graceful cleanup of all resources

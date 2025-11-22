@@ -1,15 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsEnum,
-  IsObject,
-  IsIP,
-  MaxLength,
-  MinLength
-} from 'class-validator'
 import { Type } from 'class-transformer'
+import {
+  IsEnum,
+  IsIP,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength
+} from 'class-validator'
 
 export enum SessionType {
   STANDARD = 'standard',

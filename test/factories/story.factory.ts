@@ -4,11 +4,12 @@
  */
 
 import { randomUUID } from 'crypto'
+
 import {
   Story,
-  StoryType,
+  StoryPriority,
   StoryStatus,
-  StoryPriority
+  StoryType
 } from '@modules/stories/entities/story.entity'
 
 export class StoryFactory {

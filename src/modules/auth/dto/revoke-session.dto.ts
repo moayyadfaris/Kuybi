@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsBoolean, IsOptional, IsString, MaxLength, IsEnum, IsArray } from 'class-validator'
 import { Transform } from 'class-transformer'
+import { IsArray, IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator'
+
 import { DeviceType } from './create-session.dto'
 
 export enum RevocationReason {

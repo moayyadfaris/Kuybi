@@ -1,8 +1,9 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common'
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
+import { Request } from 'express'
 import { Observable, throwError } from 'rxjs'
 import { catchError, tap } from 'rxjs/operators'
+
 import { SentryService } from './sentry.service'
-import { Request } from 'express'
 
 interface AuthenticatedRequest extends Request {
   user?: { id?: string; email?: string; username?: string }

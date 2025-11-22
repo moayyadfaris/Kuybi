@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, FindOptionsWhere, Not, IsNull } from 'typeorm'
-import { BaseRepository } from './base.repository'
+import { FindOptionsWhere, IsNull, Not, Repository } from 'typeorm'
+
 import { StoryVersion } from '@modules/stories/entities/story-version.entity'
+
 import { CacheService } from '../../cache/services/cache.service'
+
+import { BaseRepository } from './base.repository'
 
 /**
  * Story Version Repository

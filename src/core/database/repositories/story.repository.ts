@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, Brackets, Between, IsNull } from 'typeorm'
-import { BaseRepository } from './base.repository'
+import { Between, Brackets, IsNull, Repository } from 'typeorm'
+
 import {
   Story,
-  StoryType,
+  StoryPriority,
   StoryStatus,
-  StoryPriority
+  StoryType
 } from '@modules/stories/entities/story.entity'
+
 import { CacheService } from '../../cache/services/cache.service'
+
+import { BaseRepository } from './base.repository'
 
 /**
  * Story Repository

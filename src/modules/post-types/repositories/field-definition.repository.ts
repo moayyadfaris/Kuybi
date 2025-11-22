@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { BaseRepository } from '@core/database/repositories/base.repository'
+
 import { CacheService } from '@core/cache/services/cache.service'
+import { BaseRepository } from '@core/database/repositories/base.repository'
+
 import { FieldDefinition } from '../entities/field-definition.entity'
 import { FieldType } from '../enums/field-type.enum'
 

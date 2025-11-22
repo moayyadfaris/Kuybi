@@ -2,12 +2,13 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
-  Index
+  UpdateDateColumn
 } from 'typeorm'
+
 import { User } from '@modules/users/entities/user.entity'
 
 /**

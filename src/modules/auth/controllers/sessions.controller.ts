@@ -1,43 +1,45 @@
 import {
-  Controller,
-  Get,
-  Delete,
-  Post,
-  Param,
-  Query,
+  BadRequestException,
   Body,
-  UseGuards,
-  Req,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Param,
+  Post,
+  Query,
+  Req,
   UnauthorizedException,
-  BadRequestException,
-  ForbiddenException
+  UseGuards
 } from '@nestjs/common'
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
-  ApiQuery
+  ApiQuery,
+  ApiResponse,
+  ApiTags
 } from '@nestjs/swagger'
 import { Throttle } from '@nestjs/throttler'
 import { Request } from 'express'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
-import { SessionsService, SessionCleanupService } from '../services'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
 import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
+import { User } from '@modules/users/entities/user.entity'
+
 import {
-  SessionFilterDto,
-  SessionStatsDto,
-  RevokeSessionDto,
+  DeviceType,
   RevokeByDeviceDto,
+  RevokeSessionDto,
   RevokeSessionResponseDto,
-  DeviceType
+  SessionFilterDto,
+  SessionStatsDto
 } from '../dto'
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
-import { User } from '@modules/users/entities/user.entity'
+import { SessionCleanupService, SessionsService } from '../services'
 
 interface AuthenticatedRequest extends Request {
   user?: User

@@ -2,18 +2,18 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  OneToMany,
-  ManyToMany,
   JoinColumn,
-  JoinTable
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm'
-import { User } from '../../users/entities/user.entity'
-import { Country } from '../../countries/entities/country.entity'
+
 import { Attachment } from '../../attachments/entities/attachment.entity'
+import { Country } from '../../countries/entities/country.entity'
 import { Tag } from '../../tags/entities/tag.entity'
+import { User } from '../../users/entities/user.entity'
 
 export enum StoryType {
   TIP_OFF = 'TIP_OFF',

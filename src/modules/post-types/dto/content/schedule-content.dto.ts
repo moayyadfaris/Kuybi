@@ -1,5 +1,5 @@
-import { IsDateString } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { IsDateString } from 'class-validator'
 
 /**
  * DTO for scheduling content publication

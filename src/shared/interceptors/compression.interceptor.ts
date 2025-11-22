@@ -1,13 +1,13 @@
 import {
+  CallHandler,
+  ExecutionContext,
   Injectable,
   NestInterceptor,
-  ExecutionContext,
-  CallHandler,
   StreamableFile
 } from '@nestjs/common'
+import { Response } from 'express'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { Response } from 'express'
 import * as zlib from 'zlib'
 
 /**

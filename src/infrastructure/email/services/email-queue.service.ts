@@ -1,19 +1,20 @@
-import { Injectable } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { Injectable } from '@nestjs/common'
 import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { QueueName } from '@core/queues/jobs/types'
+
 import {
+  CustomEmailJobData,
+  DEFAULT_EMAIL_JOB_OPTIONS,
+  EmailJobOptions,
   EmailJobType,
-  WelcomeEmailJobData,
+  PasswordChangedEmailJobData,
+  PasswordResetEmailJobData,
   VerificationEmailJobData,
   VerifiedSuccessEmailJobData,
-  PasswordResetEmailJobData,
-  PasswordChangedEmailJobData,
-  CustomEmailJobData,
-  EmailJobOptions,
-  DEFAULT_EMAIL_JOB_OPTIONS
+  WelcomeEmailJobData
 } from '@core/queues/jobs/email-jobs'
+import { QueueName } from '@core/queues/jobs/types'
 
 /**
  * Email Queue Service

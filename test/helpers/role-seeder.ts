@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm'
+
 import { Role } from '@modules/acl/entities/role.entity'
 
 const DEFAULT_ROLES: Array<Pick<Role, 'name' | 'description' | 'priority'>> = [

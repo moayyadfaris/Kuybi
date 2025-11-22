@@ -2,11 +2,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  JoinColumn,
   ManyToOne,
-  JoinColumn
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm'
+
 import { User } from '../../users/entities/user.entity'
 
 @Entity({ name: 'tags' })

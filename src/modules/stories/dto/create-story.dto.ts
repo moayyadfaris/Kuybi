@@ -1,21 +1,21 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsBoolean,
-  IsInt,
-  IsUUID,
-  IsDateString,
-  IsNumber,
+  ArrayMaxSize,
   IsArray,
-  MinLength,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
   MaxLength,
   Min,
-  Max,
-  ArrayMaxSize
+  MinLength
 } from 'class-validator'
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { StoryType, StoryStatus, StoryPriority } from '../entities/story.entity'
+
+import { StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
 
 export class CreateStoryDto {
   @ApiProperty({

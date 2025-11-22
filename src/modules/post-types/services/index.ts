@@ -7,7 +7,7 @@
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */
 
-export { PostTypesService } from './post-types.service'
-export { FieldDefinitionsService } from './field-definitions.service'
 export { ContentService } from './content.service'
+export { FieldDefinitionsService } from './field-definitions.service'
 export { FieldValidationService } from './field-validation.service'
+export { PostTypesService } from './post-types.service'

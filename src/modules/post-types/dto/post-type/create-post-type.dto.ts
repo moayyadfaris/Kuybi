@@ -1,15 +1,15 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  IsString,
-  IsOptional,
   IsBoolean,
   IsInt,
   IsObject,
-  MinLength,
+  IsOptional,
+  IsString,
+  Max,
   MaxLength,
   Min,
-  Max
+  MinLength
 } from 'class-validator'
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 /**
  * DTO for creating a new post type

@@ -1,19 +1,23 @@
-import { Injectable, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common'
-import { JwtService } from '@nestjs/jwt'
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
-import type { StringValue } from 'ms'
+import { JwtService } from '@nestjs/jwt'
+import { EmailService } from '@infrastructure/email/services/email.service'
 import * as bcrypt from 'bcrypt'
-import { SentryService } from '@core/sentry'
-import { UsersService } from '@modules/users/services/users.service'
+import type { StringValue } from 'ms'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
 import { User } from '@modules/users/entities/user.entity'
+import { UsersService } from '@modules/users/services/users.service'
+
+import { SentryService } from '@core/sentry'
+
 import { Session } from '../entities/session.entity'
+import { PasswordHistoryRepository } from '../repositories/password-history.repository'
+
+import { AccountLockoutService } from './account-lockout.service'
+import { PasswordStrengthService } from './password-strength.service'
 import { SessionsService } from './sessions.service'
 import { TokenBlacklistService } from './token-blacklist.service'
-import { AccountLockoutService } from './account-lockout.service'
-import { PasswordHistoryRepository } from '../repositories/password-history.repository'
-import { PasswordStrengthService } from './password-strength.service'
-import { EmailService } from '@infrastructure/email/services/email.service'
 
 interface SessionContext {
   ipAddress?: string

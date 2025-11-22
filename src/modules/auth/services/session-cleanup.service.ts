@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
-import { SessionsService } from './sessions.service'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
 import { SessionRepository } from '@core/database/repositories/session.repository'
+
+import { SessionsService } from './sessions.service'
 
 /**
  * Session Cleanup Service - Supports manual cleanup entrypoints.

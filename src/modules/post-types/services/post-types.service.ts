@@ -1,20 +1,20 @@
 import {
-  Injectable,
+  BadRequestException,
   ConflictException,
-  NotFoundException,
-  BadRequestException
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
-import { PostType } from '../entities/post-type.entity'
-import { PostTypeRepository } from '../repositories/post-type.repository'
+
 import {
+  POST_TYPE_CAPABILITY_TYPE_REGEX,
   POST_TYPE_NAME_REGEX,
   POST_TYPE_REST_BASE_REGEX,
-  POST_TYPE_CAPABILITY_TYPE_REGEX,
   SLUG_REMOVE_SPECIAL_CHARS_REGEX,
   SLUG_REPLACE_SPACES_REGEX,
   SLUG_TRIM_HYPHENS_REGEX
 } from '../constants'
-
+import { PostType } from '../entities/post-type.entity'
+import { PostTypeRepository } from '../repositories/post-type.repository'
 
 /**
  * PostTypesService
@@ -34,7 +34,7 @@ import {
  */
 @Injectable()
 export class PostTypesService {
-  constructor(private readonly postTypeRepository: PostTypeRepository) { }
+  constructor(private readonly postTypeRepository: PostTypeRepository) {}
 
   /**
    * Create a new post type
@@ -248,7 +248,6 @@ export class PostTypesService {
           'Name can only contain letters, numbers, spaces, hyphens, and underscores'
         )
       }
-
     }
 
     // Label validation
@@ -273,7 +272,6 @@ export class PostTypesService {
       }
     }
 
-
     // Capability type validation
     if (config.capabilityType) {
       if (!POST_TYPE_CAPABILITY_TYPE_REGEX.test(config.capabilityType)) {
@@ -282,7 +280,6 @@ export class PostTypesService {
         )
       }
     }
-
   }
 
   /**
@@ -296,6 +293,5 @@ export class PostTypesService {
       .replace(SLUG_REMOVE_SPECIAL_CHARS_REGEX, '') // Remove special characters
       .replace(SLUG_REPLACE_SPACES_REGEX, '-') // Replace spaces, underscores with hyphens
       .replace(SLUG_TRIM_HYPHENS_REGEX, '') // Remove leading/trailing hyphens
-
   }
 }

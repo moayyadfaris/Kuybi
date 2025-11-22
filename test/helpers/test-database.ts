@@ -4,6 +4,7 @@
  */
 
 import { DataSource } from 'typeorm'
+
 import { testConfig } from '../test.config'
 
 export class TestDatabase {

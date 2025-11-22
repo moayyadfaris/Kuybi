@@ -1,34 +1,35 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  UseGuards,
-  Req,
-  ParseIntPipe,
+  Get,
   HttpCode,
   HttpStatus,
-  Query
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards
 } from '@nestjs/common'
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
-  ApiQuery
+  ApiQuery,
+  ApiResponse,
+  ApiTags
 } from '@nestjs/swagger'
 import { Request } from 'express'
-import { TagsService } from '@modules/tags/services/tags.service'
-import { CreateTagDto, UpdateTagDto } from '@modules/tags/dto'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
+
 import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
+import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Subject } from '@modules/acl/types/subjects.enum'
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { CreateTagDto, UpdateTagDto } from '@modules/tags/dto'
+import { TagsService } from '@modules/tags/services/tags.service'
 
 interface AuthenticatedRequest extends Request {
   user?: {

@@ -1,17 +1,20 @@
+import { BullModule } from '@nestjs/bullmq'
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { BullModule } from '@nestjs/bullmq'
+
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+import { QueueName } from '@core/queues/jobs/types'
+
+import { AclModule } from '../acl/acl.module'
+
+import { AttachmentsController } from './controllers/attachments.controller'
 import { Attachment } from './entities/attachment.entity'
 import { AttachmentService } from './services/attachment.service'
-import { AttachmentsController } from './controllers/attachments.controller'
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
-import { FileValidationService } from './services/file-validation.service'
-import { ImageProcessingService } from './services/image-processing.service'
-import { ImageOptimizationService } from './services/image-optimization.service'
 import { ExifProcessorService } from './services/exif-processor.service'
+import { FileValidationService } from './services/file-validation.service'
+import { ImageOptimizationService } from './services/image-optimization.service'
+import { ImageProcessingService } from './services/image-processing.service'
 import { S3Service } from './services/s3.service'
-import { AclModule } from '../acl/acl.module'
-import { QueueName } from '@core/queues/jobs/types'
 
 @Module({
   imports: [

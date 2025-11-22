@@ -1,19 +1,20 @@
-import { Controller, Get, Query, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { Controller, Get, HttpCode, HttpStatus, Param, Query, UseGuards } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
+
 import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
-import { Action, Subject } from '@modules/acl/types'
-import { AuditQueryService } from '../services/audit-query.service'
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+
 import {
-  SearchAuditLogsDto,
-  GetUserActivityDto,
-  GetEntityHistoryDto,
-  GetStatisticsDto,
+  DetectSuspiciousActivityDto,
   GetByActionDto,
   GetByIpAddressDto,
-  DetectSuspiciousActivityDto
+  GetEntityHistoryDto,
+  GetStatisticsDto,
+  GetUserActivityDto,
+  SearchAuditLogsDto
 } from '../dto/audit-query.dto'
 import { AuditAction } from '../entities/audit-log.entity'
+import { AuditQueryService } from '../services/audit-query.service'
 
 @ApiTags('Audit Logs')
 @Controller('audit')

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsInt, Min, IsString, Length, IsBoolean, IsOptional } from 'class-validator'
+import { IsBoolean, IsInt, IsOptional, IsString, Length, Min } from 'class-validator'
 
 /**
  * DTO for rolling back a story to a previous version

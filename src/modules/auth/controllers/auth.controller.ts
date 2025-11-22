@@ -10,30 +10,32 @@ import {
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Throttle } from '@nestjs/throttler'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
 import { Request } from 'express'
-import { AuthService } from '../services'
-import { RegistrationService } from '../services/registration.service'
-import { PasswordResetService } from '../services/password-reset.service'
-import { PasswordStrengthService } from '../services/password-strength.service'
-import { PasswordHistoryRepository } from '../repositories/password-history.repository'
-import { LoginDto } from '../dto/login.dto'
-import { RefreshTokenDto } from '../dto/refresh-token.dto'
-import { LogoutDto } from '../dto/logout.dto'
-import { ListSessionsQueryDto } from '../dto/list-sessions.query.dto'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
+import { AuditService } from '@modules/audit/services/audit.service'
+import { User } from '@modules/users/entities/user.entity'
+import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
+
+import { ChangePasswordDto } from '../dto/change-password.dto'
 import { CheckAvailabilityDto } from '../dto/check-availability.dto'
-import { RegisterUserDto, VerifyEmailDto, ResendVerificationDto } from '../dto/register.dto'
+import { CheckPasswordStrengthDto } from '../dto/check-password-strength.dto'
+import { ListSessionsQueryDto } from '../dto/list-sessions.query.dto'
+import { LoginDto } from '../dto/login.dto'
+import { LogoutDto } from '../dto/logout.dto'
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ValidateResetTokenDto
 } from '../dto/password-reset.dto'
-import { ChangePasswordDto } from '../dto/change-password.dto'
-import { CheckPasswordStrengthDto } from '../dto/check-password-strength.dto'
+import { RefreshTokenDto } from '../dto/refresh-token.dto'
+import { RegisterUserDto, ResendVerificationDto, VerifyEmailDto } from '../dto/register.dto'
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
-import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
-import { AuditService } from '@modules/audit/services/audit.service'
-import { User } from '@modules/users/entities/user.entity'
+import { PasswordHistoryRepository } from '../repositories/password-history.repository'
+import { AuthService } from '../services'
+import { PasswordResetService } from '../services/password-reset.service'
+import { PasswordStrengthService } from '../services/password-strength.service'
+import { RegistrationService } from '../services/registration.service'
 
 interface AuthenticatedRequest extends Request {
   user?: User

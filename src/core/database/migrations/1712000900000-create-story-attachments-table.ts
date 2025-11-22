@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } from 'typeorm'
+import { MigrationInterface, QueryRunner, Table, TableForeignKey, TableIndex } from 'typeorm'
 
 export class CreateStoryAttachmentsTable1712000900000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

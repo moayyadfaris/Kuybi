@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common'
-import { ShutdownService } from './shutdown.service'
 import { BullModule } from '@nestjs/bullmq'
+import { Module } from '@nestjs/common'
+
 import { QueueName } from '@core/queues/jobs/types'
+
+import { ShutdownService } from './shutdown.service'
 
 /**
  * Shutdown Module

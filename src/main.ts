@@ -1,17 +1,19 @@
-import { NestFactory } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
-import { Logger, PinoLogger } from 'nestjs-pino'
 import { ConfigService } from '@nestjs/config'
-import helmet from 'helmet'
-import * as compression from 'compression'
-import { AppModule } from './app.module'
+import { NestFactory } from '@nestjs/core'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
-import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
-import { LoggingContextService } from '@core/logging/logging-context.service'
-import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
-import { SentryService, SentryInterceptor, SentryFilter } from '@core/sentry'
+import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
+import * as compression from 'compression'
+import helmet from 'helmet'
+import { Logger, PinoLogger } from 'nestjs-pino'
+
+import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
+import { LoggingContextService } from '@core/logging/logging-context.service'
+import { SentryFilter, SentryInterceptor, SentryService } from '@core/sentry'
+
+import { AppModule } from './app.module'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true })

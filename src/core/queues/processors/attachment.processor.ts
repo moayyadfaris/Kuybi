@@ -1,21 +1,24 @@
-import { Processor, InjectQueue, WorkerHost } from '@nestjs/bullmq'
+import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { AttachmentJobType, QueueName } from '../jobs/types'
+
+import { ExifProcessorService } from '@modules/attachments/services/exif-processor.service'
 import { ImageOptimizationService } from '@modules/attachments/services/image-optimization.service'
 import {
   ImageProcessingService,
   ThumbnailSize
 } from '@modules/attachments/services/image-processing.service'
-import { ExifProcessorService } from '@modules/attachments/services/exif-processor.service'
 import { S3Service } from '@modules/attachments/services/s3.service'
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import {
+  AttachmentMetadata,
   mapFormatToContentType,
   resolveExtensionFromFormat,
-  ThumbnailMetadata,
-  AttachmentMetadata
+  ThumbnailMetadata
 } from '@modules/attachments/utils/attachment-image.util'
+
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+
+import { AttachmentJobType, QueueName } from '../jobs/types'
 
 interface ProcessImageJobData {
   attachmentId: string

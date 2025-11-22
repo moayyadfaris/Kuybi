@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { IsOptional, IsInt, Min, Max, IsBoolean, IsEnum, IsString, IsIn } from 'class-validator'
-import { Type, Transform } from 'class-transformer'
-import { SessionType, DeviceType } from './create-session.dto'
+import { Transform, Type } from 'class-transformer'
+import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+
+import { DeviceType, SessionType } from './create-session.dto'
 
 export enum SessionSortBy {
   CREATED_AT = 'createdAt',

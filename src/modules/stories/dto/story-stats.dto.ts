@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { StoryType, StoryStatus, StoryPriority } from '../entities/story.entity'
+
+import { StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
 
 export class StoryStatsDto {
   @ApiProperty({ description: 'Total number of stories' })

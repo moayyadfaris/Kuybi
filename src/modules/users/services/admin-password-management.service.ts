@@ -1,22 +1,24 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
+  forwardRef,
   Inject,
-  forwardRef
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import * as bcrypt from 'bcrypt'
-import { User } from '../entities/user.entity'
-import {
-  AdminResetPasswordDto,
-  AdminSetPasswordDto,
-  AdminPasswordResetResponseDto
-} from '../dto/admin-password-management.dto'
-import { SessionsService } from '@modules/auth/services/sessions.service'
 import { EmailQueueService } from '@infrastructure/email'
+import * as bcrypt from 'bcrypt'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { Repository } from 'typeorm'
+
+import { SessionsService } from '@modules/auth/services/sessions.service'
+
+import {
+  AdminPasswordResetResponseDto,
+  AdminResetPasswordDto,
+  AdminSetPasswordDto
+} from '../dto/admin-password-management.dto'
+import { User } from '../entities/user.entity'
 
 /**
  * Admin Password Management Service

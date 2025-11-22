@@ -1,17 +1,19 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   DeleteDateColumn,
-  ManyToOne,
+  Entity,
+  Index,
   JoinColumn,
-  Index
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm'
+
 import { User } from '../../users/entities/user.entity'
-import { PostType } from './post-type.entity'
 import { FieldType } from '../enums/field-type.enum'
+
+import { PostType } from './post-type.entity'
 
 /**
  * FieldDefinition Entity

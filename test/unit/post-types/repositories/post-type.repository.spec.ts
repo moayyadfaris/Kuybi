@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { PostTypeRepository } from '@modules/post-types/repositories/post-type.repository'
+
 import { PostType } from '@modules/post-types/entities/post-type.entity'
+import { PostTypeRepository } from '@modules/post-types/repositories/post-type.repository'
+
 import { CacheService } from '@core/cache/services/cache.service'
 
 describe('PostTypeRepository', () => {

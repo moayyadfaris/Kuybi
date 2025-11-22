@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsString, Length, IsInt, Min, IsOptional } from 'class-validator'
+import { IsInt, IsOptional, IsString, Length, Min } from 'class-validator'
 
 /**
  * DTO for creating a new branch

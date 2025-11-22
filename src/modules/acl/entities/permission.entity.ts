@@ -1,14 +1,16 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn
 } from 'typeorm'
-import { RolePermission } from './role-permission.entity'
+
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
+
+import { RolePermission } from './role-permission.entity'
 
 /**
  * Permission entity for fine-grained access control

@@ -1,6 +1,7 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common'
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
 import { User } from '@modules/users/entities/user.entity'
 
 /**

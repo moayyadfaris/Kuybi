@@ -1,24 +1,25 @@
+import { CanActivate, INestApplication } from '@nestjs/common'
 import { Test, TestingModule } from '@nestjs/testing'
-import { INestApplication, CanActivate } from '@nestjs/common'
-import * as request from 'supertest'
-import { LoggerModule } from 'nestjs-pino'
-import { randomUUID } from 'crypto'
-import { AuditController } from '@modules/audit/controllers/audit.controller'
-import { AuditQueryService } from '@modules/audit/services/audit-query.service'
-import { AuditLogRepository, AuditLogFilters } from '@modules/audit/database/audit-log.repository'
-import {
-  AuditLog,
-  AuditAction,
-  AuditStatus,
-  AuditSeverity
-} from '@modules/audit/entities/audit-log.entity'
-import { PinoLogger } from 'nestjs-pino'
-import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
-import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
+import { randomUUID } from 'crypto'
+import { LoggerModule, PinoLogger } from 'nestjs-pino'
+import * as request from 'supertest'
+
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
+import { AuditController } from '@modules/audit/controllers/audit.controller'
+import { AuditLogFilters, AuditLogRepository } from '@modules/audit/database/audit-log.repository'
+import {
+  AuditAction,
+  AuditLog,
+  AuditSeverity,
+  AuditStatus
+} from '@modules/audit/entities/audit-log.entity'
+import { AuditQueryService } from '@modules/audit/services/audit-query.service'
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+
+import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 
 class AllowGuard implements CanActivate {
   canActivate(): boolean {

@@ -4,6 +4,7 @@
  */
 
 import * as bcrypt from 'bcrypt'
+
 import { User } from '@modules/users/entities/user.entity'
 
 export class UserFactory {

@@ -7,9 +7,9 @@ import {
   Inject,
   Logger
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
 import { PinoLogger } from 'nestjs-pino'
-import { ConfigService } from '@nestjs/config'
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {

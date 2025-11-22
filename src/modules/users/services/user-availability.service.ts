@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { User } from '../entities/user.entity'
+import { Repository } from 'typeorm'
+
 import { CacheService } from '@core/cache/services/cache.service'
+
+import { User } from '../entities/user.entity'
 
 export interface AvailabilityCheckResult {
   available: boolean

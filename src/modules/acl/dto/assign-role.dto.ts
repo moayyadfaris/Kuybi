@@ -1,5 +1,5 @@
-import { IsInt, IsOptional, IsDateString, IsBoolean } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { IsBoolean, IsDateString, IsInt, IsOptional } from 'class-validator'
 
 export class AssignRoleDto {
   @ApiProperty({

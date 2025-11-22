@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsOptional, IsObject } from 'class-validator'
+import { IsEmail, IsObject, IsOptional, IsString } from 'class-validator'
 
 export class SendEmailDto {
   @IsEmail()

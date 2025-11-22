@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
-import { RoleRepository } from '@core/database/repositories/role.repository'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+
 import { PermissionRepository } from '@core/database/repositories/permission.repository'
+import { RoleRepository } from '@core/database/repositories/role.repository'
+
+import { AssignPermissionsDto, RemovePermissionsDto } from '../dto/assign-permissions.dto'
 import { CreateRoleDto } from '../dto/create-role.dto'
 import { UpdateRoleDto } from '../dto/update-role.dto'
-import { AssignPermissionsDto, RemovePermissionsDto } from '../dto/assign-permissions.dto'
 import { Role } from '../entities/role.entity'
 
 @Injectable()

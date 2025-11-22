@@ -1,33 +1,35 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
-  UseGuards,
-  ParseUUIDPipe,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
-  HttpStatus
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards
 } from '@nestjs/common'
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
-  ApiQuery
+  ApiQuery,
+  ApiResponse,
+  ApiTags
 } from '@nestjs/swagger'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
+import { plainToInstance } from 'class-transformer'
+
 import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
+import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Subject } from '@modules/acl/types/subjects.enum'
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+
+import { CreatePostTypeDto, ResponsePostTypeDto, UpdatePostTypeDto } from '../dto'
 import { PostTypesService } from '../services/post-types.service'
-import { CreatePostTypeDto, UpdatePostTypeDto, ResponsePostTypeDto } from '../dto'
-import { plainToInstance } from 'class-transformer'
 
 @ApiTags('Post Types')
 @Controller('v1/post-types')

@@ -1,9 +1,10 @@
-import { ExpressAdapter } from '@bull-board/express'
 import { createBullBoard } from '@bull-board/api'
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter'
+import { ExpressAdapter } from '@bull-board/express'
 import { Queue } from 'bullmq'
 import * as express from 'express'
 import * as basicAuth from 'express-basic-auth'
+
 import { QueueName } from '@core/queues/jobs/types'
 
 /**

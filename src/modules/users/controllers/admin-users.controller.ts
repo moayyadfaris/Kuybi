@@ -1,25 +1,26 @@
 import {
-  Controller,
-  Post,
-  Patch,
   Body,
-  Param,
-  UseGuards,
-  Request,
+  Controller,
   HttpCode,
-  HttpStatus
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards
 } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger'
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
+
 import { SuperAdminGuard } from '../../acl/guards/super-admin.guard'
-import { AdminPasswordManagementService } from '../services/admin-password-management.service'
-import { AdminUserManagementService } from '../services/admin-user-management.service'
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
 import {
+  AdminPasswordResetResponseDto,
   AdminResetPasswordDto,
-  AdminSetPasswordDto,
-  AdminPasswordResetResponseDto
+  AdminSetPasswordDto
 } from '../dto/admin-password-management.dto'
 import { AdminUpdateUserDto, AdminUpdateUserResponseDto } from '../dto/admin-update-user.dto'
+import { AdminPasswordManagementService } from '../services/admin-password-management.service'
+import { AdminUserManagementService } from '../services/admin-user-management.service'
 
 @ApiTags('Admin - Users')
 @ApiBearerAuth()

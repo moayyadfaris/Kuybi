@@ -1,14 +1,16 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  ManyToOne,
+  Entity,
+  Index,
   JoinColumn,
-  Index
+  ManyToOne,
+  PrimaryGeneratedColumn
 } from 'typeorm'
-import { PostContent } from './post-content.entity'
+
 import { Attachment } from '../../attachments/entities/attachment.entity'
+
+import { PostContent } from './post-content.entity'
 
 /**
  * PostContentAttachment Entity

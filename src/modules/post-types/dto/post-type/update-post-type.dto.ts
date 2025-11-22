@@ -1,7 +1,7 @@
-import { PartialType } from '@nestjs/swagger'
-import { CreatePostTypeDto } from './create-post-type.dto'
+import { ApiPropertyOptional, PartialType } from '@nestjs/swagger'
 import { IsBoolean, IsOptional } from 'class-validator'
-import { ApiPropertyOptional } from '@nestjs/swagger'
+
+import { CreatePostTypeDto } from './create-post-type.dto'
 
 /**
  * DTO for updating an existing post type

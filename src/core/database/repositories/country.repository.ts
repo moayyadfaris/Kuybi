@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, Brackets } from 'typeorm'
-import { BaseRepository } from './base.repository'
+import { Brackets, Repository } from 'typeorm'
+
 import { Country } from '@modules/countries/entities/country.entity'
+
 import { CacheService } from '../../cache/services/cache.service'
+
+import { BaseRepository } from './base.repository'
 
 /**
  * Country Repository

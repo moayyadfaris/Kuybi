@@ -1,27 +1,28 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
   Body,
-  Param,
-  UseGuards,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
   ParseIntPipe,
-  Req
+  Post,
+  Req,
+  UseGuards
 } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Request } from 'express'
-import { User } from '../entities/user.entity'
-import { UserRolesService } from '../services/user-roles.service'
-import { AssignRoleDto } from '../../acl/dto/assign-role.dto'
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
-import { AbilityGuard } from '../../acl/abilities/ability.guard'
-import { RoleHierarchyGuard } from '../../acl/guards/role-hierarchy.guard'
+
 import { CheckAbility } from '../../acl/abilities/ability.decorator'
+import { AbilityGuard } from '../../acl/abilities/ability.guard'
+import { AssignRoleDto } from '../../acl/dto/assign-role.dto'
+import { RoleHierarchyGuard } from '../../acl/guards/role-hierarchy.guard'
 import { Action } from '../../acl/types/actions.enum'
 import { Subject } from '../../acl/types/subjects.enum'
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { User } from '../entities/user.entity'
+import { UserRolesService } from '../services/user-roles.service'
 
 @ApiTags('User Roles')
 @ApiBearerAuth()

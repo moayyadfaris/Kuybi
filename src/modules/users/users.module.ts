@@ -1,30 +1,32 @@
-import { Module, forwardRef } from '@nestjs/common'
+import { forwardRef, Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { User } from './entities/user.entity'
-import { EmailVerification } from './entities/email-verification.entity'
-import { Attachment } from '../attachments/entities/attachment.entity'
-import { UsersService } from './services/users.service'
-import { UserRepository } from '@core/database/repositories/user.repository'
-import { RoleRepository } from '@core/database/repositories/role.repository'
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+import { EmailModule } from '@infrastructure/email'
+
 import { CacheService } from '@core/cache/services/cache.service'
-import { UserRolesController } from './controllers/user-roles.controller'
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+import { RoleRepository } from '@core/database/repositories/role.repository'
+import { UserRepository } from '@core/database/repositories/user.repository'
+
+import { AclModule } from '../acl/acl.module'
+import { Role } from '../acl/entities/role.entity'
+import { UserRole } from '../acl/entities/user-role.entity'
+import { AttachmentsModule } from '../attachments/attachments.module'
+import { Attachment } from '../attachments/entities/attachment.entity'
+import { AuditModule } from '../audit/audit.module'
+import { AuthModule } from '../auth/auth.module'
+
 import { AdminUsersController } from './controllers/admin-users.controller'
 import { CurrentUserController } from './controllers/current-user.controller'
+import { UserRolesController } from './controllers/user-roles.controller'
 import { UsersController } from './controllers/users.controller'
-import { UserRolesService } from './services/user-roles.service'
-import { UserAvailabilityService } from './services/user-availability.service'
+import { EmailVerification } from './entities/email-verification.entity'
+import { User } from './entities/user.entity'
+import { UsersSeeder } from './seeders/users.seeder'
 import { AdminPasswordManagementService } from './services/admin-password-management.service'
 import { AdminUserManagementService } from './services/admin-user-management.service'
-import { UserRole } from '../acl/entities/user-role.entity'
-import { Role } from '../acl/entities/role.entity'
-import { AclModule } from '../acl/acl.module'
-import { AuthModule } from '../auth/auth.module'
-import { AttachmentsModule } from '../attachments/attachments.module'
-import { AuditModule } from '../audit/audit.module'
-import { EmailModule } from '@infrastructure/email'
-import { UsersSeeder } from './seeders/users.seeder'
-
+import { UserAvailabilityService } from './services/user-availability.service'
+import { UserRolesService } from './services/user-roles.service'
+import { UsersService } from './services/users.service'
 
 @Module({
   imports: [
@@ -51,4 +53,4 @@ import { UsersSeeder } from './seeders/users.seeder'
 
   exports: [UsersService, UserAvailabilityService, UserRepository]
 })
-export class UsersModule { }
+export class UsersModule {}

@@ -1,21 +1,23 @@
 import {
-  Controller,
-  Get,
-  Put,
-  Delete,
-  UseGuards,
-  Req,
   Body,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
-  HttpStatus
+  HttpStatus,
+  Put,
+  Req,
+  UseGuards
 } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { UsersService } from '../services/users.service'
-import { UserProfileDto } from '../dto/user-profile.dto'
-import { UpdateProfileImageDto } from '../dto/update-profile-image.dto'
-import { User } from '../entities/user.entity'
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Request } from 'express'
+
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+
+import { UpdateProfileImageDto } from '../dto/update-profile-image.dto'
+import { UserProfileDto } from '../dto/user-profile.dto'
+import { User } from '../entities/user.entity'
+import { UsersService } from '../services/users.service'
 
 interface AuthenticatedRequest extends Request {
   user?: User

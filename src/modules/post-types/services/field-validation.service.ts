@@ -1,5 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
 import { FieldDefinition } from '../entities/field-definition.entity'
 import { FieldType } from '../enums/field-type.enum'
 

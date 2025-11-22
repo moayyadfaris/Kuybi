@@ -1,13 +1,15 @@
 import {
-  Injectable,
-  NotFoundException,
+  BadRequestException,
   ConflictException,
-  BadRequestException
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
 import { PinoLogger } from 'nestjs-pino'
-import { Tag } from '@modules/tags/entities/tag.entity'
-import { TagRepository } from '@core/database/repositories/tag.repository'
+
 import { CreateTagDto, UpdateTagDto } from '@modules/tags/dto'
+import { Tag } from '@modules/tags/entities/tag.entity'
+
+import { TagRepository } from '@core/database/repositories/tag.repository'
 
 @Injectable()
 export class TagsService {

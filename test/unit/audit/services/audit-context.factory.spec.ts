@@ -1,4 +1,5 @@
 import type { Request } from 'express'
+
 import { AuditContextFactory } from '@modules/audit/services/audit-context.factory'
 
 describe('AuditContextFactory', () => {

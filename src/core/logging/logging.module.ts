@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common'
-import { LoggingContextService } from './logging-context.service'
+
 import { LogMaintenanceService } from './log-maintenance.service'
+import { LoggingContextService } from './logging-context.service'
 
 @Global()
 @Module({

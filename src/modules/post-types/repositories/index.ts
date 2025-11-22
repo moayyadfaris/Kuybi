@@ -7,6 +7,6 @@
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */
 
-export { PostTypeRepository } from './post-type.repository'
 export { FieldDefinitionRepository } from './field-definition.repository'
 export { PostContentRepository } from './post-content.repository'
+export { PostTypeRepository } from './post-type.repository'

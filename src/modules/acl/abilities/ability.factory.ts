@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { AbilityBuilder, createMongoAbility, MongoAbility } from '@casl/ability'
+
+import { User } from '../../users/entities/user.entity'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
-import { User } from '../../users/entities/user.entity'
 
 /**
  * Type definition for application abilities

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsInt, IsString, IsObject, IsArray, IsOptional, Min } from 'class-validator'
 import { Type } from 'class-transformer'
+import { IsArray, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator'
 
 /**
  * Device statistics breakdown

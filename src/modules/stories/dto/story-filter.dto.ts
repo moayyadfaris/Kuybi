@@ -1,17 +1,18 @@
-import {
-  IsOptional,
-  IsEnum,
-  IsString,
-  IsInt,
-  IsDateString,
-  Min,
-  IsUUID,
-  IsBoolean,
-  IsArray
-} from 'class-validator'
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { Type, Transform } from 'class-transformer'
-import { StoryType, StoryStatus, StoryPriority } from '../entities/story.entity'
+import { Transform, Type } from 'class-transformer'
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min
+} from 'class-validator'
+
+import { StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
 
 export enum StorySortOrder {
   ASC = 'ASC',

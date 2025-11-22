@@ -1,18 +1,20 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
-  ForbiddenException
+  ForbiddenException,
+  Injectable,
+  NotFoundException
 } from '@nestjs/common'
 import * as bcrypt from 'bcrypt'
-import { User } from '@modules/users/entities/user.entity'
-import { UserRepository } from '@core/database/repositories/user.repository'
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
-import { S3Service } from '@modules/attachments/services/s3.service'
-import { CacheService } from '@core/cache/services/cache.service'
-import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
+
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { S3Service } from '@modules/attachments/services/s3.service'
 import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
+import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
+import { User } from '@modules/users/entities/user.entity'
+
+import { CacheService } from '@core/cache/services/cache.service'
+import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
+import { UserRepository } from '@core/database/repositories/user.repository'
 
 @Injectable()
 export class UsersService {

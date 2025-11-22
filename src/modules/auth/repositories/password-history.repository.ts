@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { BaseRepository } from '@core/database/repositories/base.repository'
-import { PasswordHistory } from '../entities/password-history.entity'
-import { CacheService } from '@core/cache/services/cache.service'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { Repository } from 'typeorm'
+
+import { CacheService } from '@core/cache/services/cache.service'
+import { BaseRepository } from '@core/database/repositories/base.repository'
+
+import { PasswordHistory } from '../entities/password-history.entity'
 
 @Injectable()
 export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {

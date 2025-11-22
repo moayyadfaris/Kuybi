@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { Expose, Transform, Type } from 'class-transformer'
+
 import { ContentStatus } from '../../enums/content-status.enum'
 
 /**

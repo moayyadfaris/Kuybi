@@ -1,14 +1,16 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  ManyToOne,
+  Entity,
+  Index,
   JoinColumn,
-  Index
+  ManyToOne,
+  PrimaryGeneratedColumn
 } from 'typeorm'
-import { PostContent } from './post-content.entity'
+
 import { Category } from '../../categories/entities/category.entity'
+
+import { PostContent } from './post-content.entity'
 
 /**
  * PostContentCategory Entity

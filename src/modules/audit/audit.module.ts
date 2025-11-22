@@ -1,15 +1,18 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { AuditLog } from './entities/audit-log.entity'
+
+import { CacheConfigModule } from '@core/cache/cache.module'
+import { SentryModule } from '@core/sentry'
+
+import { AclModule } from '../acl/acl.module'
+
+import { AuditController } from './controllers/audit.controller'
 import { AuditLogRepository } from './database/audit-log.repository'
+import { AuditLog } from './entities/audit-log.entity'
+import { AuditLogInterceptor } from './interceptors/audit-log.interceptor'
 import { AuditService } from './services/audit.service'
 import { AuditContextFactory } from './services/audit-context.factory'
 import { AuditQueryService } from './services/audit-query.service'
-import { AuditController } from './controllers/audit.controller'
-import { AuditLogInterceptor } from './interceptors/audit-log.interceptor'
-import { CacheConfigModule } from '@core/cache/cache.module'
-import { SentryModule } from '@core/sentry'
-import { AclModule } from '../acl/acl.module'
 
 @Module({
   imports: [

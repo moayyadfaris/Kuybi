@@ -1,5 +1,5 @@
-import { Attachment } from '../entities/attachment.entity'
 import { AttachmentResponseDto } from '../dto/attachment-response.dto'
+import { Attachment } from '../entities/attachment.entity'
 
 const stripQuotes = (value?: string | null): string | undefined => {
   if (typeof value !== 'string') return undefined

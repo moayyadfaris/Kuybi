@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsEnum, IsOptional, IsString, Length, IsBoolean } from 'class-validator'
+import { IsBoolean, IsEnum, IsOptional, IsString, Length } from 'class-validator'
+
 import { VersionType } from '../../entities/story-version.entity'
 
 /**

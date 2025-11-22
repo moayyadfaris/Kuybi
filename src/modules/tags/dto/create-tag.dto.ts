@@ -1,14 +1,14 @@
-import {
-  IsString,
-  IsOptional,
-  IsInt,
-  IsBoolean,
-  MinLength,
-  MaxLength,
-  Matches,
-  Min
-} from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+  MinLength
+} from 'class-validator'
 
 export class CreateTagDto {
   @ApiProperty({

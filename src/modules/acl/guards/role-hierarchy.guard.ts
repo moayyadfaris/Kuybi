@@ -1,9 +1,11 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common'
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Repository } from 'typeorm'
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino'
-import { Role } from '../entities/role.entity'
+
 import { User } from '@modules/users/entities/user.entity'
+
+import { Role } from '../entities/role.entity'
 
 /**
  * Guard to enforce role hierarchy rules

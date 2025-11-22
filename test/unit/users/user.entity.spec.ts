@@ -1,6 +1,6 @@
-import { User } from '@modules/users/entities/user.entity'
 import { Role } from '@modules/acl/entities/role.entity'
 import { UserRole } from '@modules/acl/entities/user-role.entity'
+import { User } from '@modules/users/entities/user.entity'
 
 describe('User Entity', () => {
   let superAdminRole: Role

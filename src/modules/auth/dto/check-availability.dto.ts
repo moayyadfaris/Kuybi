@@ -1,5 +1,5 @@
-import { IsEmail, IsOptional, IsPhoneNumber, IsString, ValidateIf } from 'class-validator'
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { IsEmail, IsOptional, IsString, ValidateIf } from 'class-validator'
 
 export class CheckAvailabilityDto {
   @ApiPropertyOptional({
