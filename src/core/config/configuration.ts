@@ -76,12 +76,32 @@ export default () => {
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       name: process.env.DB_NAME || 'kuybi',
-      logging: process.env.TYPEORM_LOGGING === 'true'
+      logging: process.env.TYPEORM_LOGGING === 'true',
+      pool: {
+        enabled: parseBoolean(process.env.DB_POOL_ENABLED, env === 'production'),
+        min: parseNumber(process.env.DB_POOL_MIN, env === 'production' ? 2 : 1),
+        max: parseNumber(process.env.DB_POOL_MAX, env === 'production' ? 10 : 5),
+        acquireTimeoutMillis: parseNumber(process.env.DB_POOL_ACQUIRE_TIMEOUT, 30000),
+        idleTimeoutMillis: parseNumber(process.env.DB_POOL_IDLE_TIMEOUT, 30000)
+      }
     },
     auth: {
       jwtSecret: process.env.JWT_SECRET || 'change-me-kuybi-secret',
       jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '10m',
-      jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+      jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+      passwordChangeCooldownHours: parseNumber(process.env.PASSWORD_CHANGE_COOLDOWN_HOURS, 1),
+      enableBreachDetection: parseBoolean(process.env.ENABLE_BREACH_DETECTION, true)
+    },
+    security: {
+      accountLockout: {
+        enabled: parseBoolean(process.env.ACCOUNT_LOCKOUT_ENABLED, true),
+        maxAttempts: parseNumber(process.env.ACCOUNT_LOCKOUT_MAX_ATTEMPTS, 5),
+        lockDuration: parseNumber(process.env.ACCOUNT_LOCKOUT_DURATION, 30 * 60 * 1000), // 30 minutes
+        resetAttemptsPeriod: parseNumber(process.env.ACCOUNT_LOCKOUT_RESET_PERIOD, 15 * 60 * 1000), // 15 minutes
+        trackByIpAddress: parseBoolean(process.env.ACCOUNT_LOCKOUT_TRACK_IP, true),
+        notifyOnLockout: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_LOCK, true),
+        notifyOnUnlock: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_UNLOCK, true)
+      }
     },
     rateLimit: {
       ttl: parseInt(process.env.THROTTLE_TTL || '60', 10),
@@ -114,6 +134,17 @@ export default () => {
     },
     audit: {
       enabled: parseBoolean(process.env.AUDIT_ENABLED, true)
+    },
+    sentry: {
+      enabled: parseBoolean(process.env.SENTRY_ENABLED, env === 'production'),
+      dsn: process.env.SENTRY_DSN || '',
+      environment: process.env.SENTRY_ENVIRONMENT || env,
+      release: process.env.SENTRY_RELEASE || 'kuybi-nest@0.1.0',
+      tracesSampleRate:
+        parseNumber(process.env.SENTRY_TRACES_SAMPLE_RATE, env === 'production' ? 10 : 0) / 100,
+      profilesSampleRate:
+        parseNumber(process.env.SENTRY_PROFILES_SAMPLE_RATE, env === 'production' ? 10 : 0) / 100,
+      debug: parseBoolean(process.env.SENTRY_DEBUG, false)
     },
     bullBoard: {
       username: process.env.BULL_BOARD_USERNAME || 'admin',
