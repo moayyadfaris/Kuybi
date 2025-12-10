@@ -1,5 +1,5 @@
 import { WorkerHost } from '@nestjs/bullmq'
-import { Job } from 'bullmq'
+import { Job, Queue } from 'bullmq'
 import { PinoLogger } from 'nestjs-pino'
 
 /**
@@ -9,7 +9,10 @@ import { PinoLogger } from 'nestjs-pino'
  * logging, error handling, and lifecycle management.
  */
 export abstract class BaseProcessor extends WorkerHost {
-  protected constructor(protected readonly logger: PinoLogger) {
+  protected constructor(
+    protected readonly logger: PinoLogger,
+    private readonly deadLetterQueue?: Queue
+  ) {
     super()
   }
 
@@ -60,6 +63,36 @@ export abstract class BaseProcessor extends WorkerHost {
       },
       `Job ${job.name} failed`
     )
+
+    const attemptsAllowed = job.opts.attempts ?? 1
+    const attemptsMade = job.attemptsMade + 1
+
+    if (this.deadLetterQueue && attemptsMade >= attemptsAllowed) {
+      try {
+        await this.deadLetterQueue.add('dead-letter', {
+          originalQueue: job.queueName,
+          jobName: job.name,
+          data: job.data,
+          attemptsAllowed,
+          attemptsMade,
+          failedReason: error.message,
+          failedAt: new Date().toISOString()
+        })
+        this.logger.warn(
+          { jobId: job.id, jobName: job.name, attemptsMade, attemptsAllowed },
+          'Job moved to dead-letter queue'
+        )
+      } catch (dlqError) {
+        this.logger.error(
+          {
+            jobId: job.id,
+            jobName: job.name,
+            error: (dlqError as Error).message
+          },
+          'Failed to publish job to dead-letter queue'
+        )
+      }
+    }
   }
 
   /**

@@ -12,7 +12,8 @@ export enum QueueName {
   DATA_EXPORT = 'data-export-queue',
   REPORT_GENERATION = 'report-generation-queue',
   VERSION_CLEANUP = 'version-cleanup-queue',
-  ACCOUNT_SECURITY = 'account-security-queue'
+  ACCOUNT_SECURITY = 'account-security-queue',
+  DEAD_LETTER = 'dead-letter-queue'
 }
 
 /**

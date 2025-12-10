@@ -18,7 +18,8 @@ import { ShutdownService } from './shutdown.service'
       { name: QueueName.SESSION_CLEANUP },
       { name: QueueName.LOG_MAINTENANCE },
       { name: QueueName.ATTACHMENT_PROCESSING },
-      { name: QueueName.ACCOUNT_SECURITY }
+      { name: QueueName.ACCOUNT_SECURITY },
+      { name: QueueName.DEAD_LETTER }
     )
   ],
   providers: [ShutdownService],

@@ -15,6 +15,7 @@ import { createLoggerConfig } from '@core/config/logger.config'
 import { validate } from '@core/config/validation'
 import { DatabaseModule } from '@core/database/database.module'
 import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
+import { ShutdownModule } from '@core/shutdown/shutdown.module'
 
 import { QueueName } from './jobs/types'
 import { AccountSecurityProcessor } from './processors/account-security.processor'
@@ -47,7 +48,8 @@ import { QueuesModule } from './queues.module'
     AttachmentsModule,
     EmailModule,
     TypeOrmModule.forFeature([StoryVersion]),
-    CacheConfigModule
+    CacheConfigModule,
+    ShutdownModule
   ],
   providers: [
     SessionCleanupProcessor,

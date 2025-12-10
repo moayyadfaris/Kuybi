@@ -1,5 +1,5 @@
-import { Processor } from '@nestjs/bullmq'
-import { Job } from 'bullmq'
+import { InjectQueue, Processor } from '@nestjs/bullmq'
+import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { AccountLockoutService } from '@modules/auth/services/account-lockout.service'
@@ -23,9 +23,11 @@ export class AccountSecurityProcessor extends BaseProcessor {
   constructor(
     @InjectPinoLogger(AccountSecurityProcessor.name)
     logger: PinoLogger,
-    private readonly accountLockoutService: AccountLockoutService
+    private readonly accountLockoutService: AccountLockoutService,
+    @InjectQueue(QueueName.DEAD_LETTER)
+    deadLetterQueue: Queue
   ) {
-    super(logger)
+    super(logger, deadLetterQueue)
   }
 
   async process(job: Job): Promise<Record<string, unknown>> {

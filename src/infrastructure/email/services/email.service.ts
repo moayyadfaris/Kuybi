@@ -9,11 +9,14 @@ import { SendEmailDto } from '../dto/send-email.dto'
 import { EmailOptions } from '../interfaces/email-template.interface'
 
 import { EmailTemplateService } from './email-template.service'
+import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 
 @Injectable()
 export class EmailService implements OnModuleInit {
   private transporter: Transporter<SMTPTransport.SentMessageInfo>
   private readonly defaultFrom: string
+  private readonly timeoutMs: number
+  private readonly breaker: CircuitBreaker
 
   constructor(
     private readonly configService: ConfigService,
@@ -22,6 +25,13 @@ export class EmailService implements OnModuleInit {
     private readonly logger: PinoLogger
   ) {
     this.defaultFrom = this.configService.get<string>('email.from', 'noreply@kuybi.dev')
+    this.timeoutMs = this.configService.get<number>('resilience.smtp.timeoutMs', 15000)
+    this.breaker = new CircuitBreaker({
+      name: 'smtp',
+      failureThreshold: this.configService.get<number>('resilience.smtp.failureThreshold', 5),
+      resetTimeoutMs: this.configService.get<number>('resilience.smtp.resetTimeoutMs', 30000),
+      halfOpenSuccesses: 2
+    })
   }
 
   async onModuleInit() {
@@ -77,7 +87,7 @@ export class EmailService implements OnModuleInit {
 
     // Verify connection
     try {
-      await this.transporter.verify()
+      await this.executeWithResilience('verify', () => this.transporter.verify())
       this.logger.info({ host, port }, 'SMTP connection verified successfully')
     } catch (error) {
       this.logger.error(
@@ -111,7 +121,9 @@ export class EmailService implements OnModuleInit {
         html: dto.html
       }
 
-      const result = await this.transporter.sendMail(mailOptions)
+      const result = await this.executeWithResilience('sendMail', () =>
+        this.transporter.sendMail(mailOptions)
+      )
 
       this.logger.info(
         {
@@ -360,5 +372,22 @@ export class EmailService implements OnModuleInit {
       this.logger.error({ error: error.message }, 'SMTP connection test failed')
       return false
     }
+  }
+
+  private async executeWithResilience<T>(
+    operation: string,
+    fn: (signal?: AbortSignal) => Promise<T>
+  ): Promise<T> {
+    return this.breaker.exec(() =>
+      withTimeout(
+        signal => fn(signal),
+        this.timeoutMs,
+        () =>
+          this.logger.warn(
+            { operation, timeoutMs: this.timeoutMs },
+            `SMTP ${operation} timed out after ${this.timeoutMs}ms`
+          )
+      )
+    )
   }
 }

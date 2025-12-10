@@ -1,7 +1,7 @@
-import { Processor } from '@nestjs/bullmq'
+import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Injectable } from '@nestjs/common'
 import { EmailService } from '@infrastructure/email'
-import { Job } from 'bullmq'
+import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import {
@@ -32,9 +32,11 @@ export class EmailProcessor extends BaseProcessor {
   constructor(
     private readonly emailService: EmailService,
     @InjectPinoLogger(EmailProcessor.name)
-    logger: PinoLogger
+    logger: PinoLogger,
+    @InjectQueue(QueueName.DEAD_LETTER)
+    deadLetterQueue: Queue
   ) {
-    super(logger)
+    super(logger, deadLetterQueue)
     this.logger.info('EmailProcessor initialized - ready to process email jobs')
   }
 

@@ -26,9 +26,11 @@ export class SessionCleanupProcessor extends BaseProcessor {
     @InjectPinoLogger(SessionCleanupProcessor.name)
     logger: PinoLogger,
     @InjectQueue(QueueName.SESSION_CLEANUP)
-    private readonly sessionQueue: Queue
+    private readonly sessionQueue: Queue,
+    @InjectQueue(QueueName.DEAD_LETTER)
+    deadLetterQueue: Queue
   ) {
-    super(logger)
+    super(logger, deadLetterQueue)
   }
 
   /**

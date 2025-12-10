@@ -157,6 +157,42 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   AUDIT_ENABLED?: string
+
+  @IsInt()
+  @IsOptional()
+  S3_TIMEOUT_MS?: number
+
+  @IsInt()
+  @IsOptional()
+  S3_CIRCUIT_BREAKER_FAILURES?: number
+
+  @IsInt()
+  @IsOptional()
+  S3_CIRCUIT_BREAKER_RESET_MS?: number
+
+  @IsInt()
+  @IsOptional()
+  SMTP_TIMEOUT_MS?: number
+
+  @IsInt()
+  @IsOptional()
+  SMTP_CIRCUIT_BREAKER_FAILURES?: number
+
+  @IsInt()
+  @IsOptional()
+  SMTP_CIRCUIT_BREAKER_RESET_MS?: number
+
+  @IsInt()
+  @IsOptional()
+  CACHE_TIMEOUT_MS?: number
+
+  @IsInt()
+  @IsOptional()
+  CACHE_CIRCUIT_BREAKER_FAILURES?: number
+
+  @IsInt()
+  @IsOptional()
+  CACHE_CIRCUIT_BREAKER_RESET_MS?: number
 }
 
 export function validate(config: Record<string, unknown>) {

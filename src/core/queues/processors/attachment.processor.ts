@@ -65,9 +65,11 @@ export class AttachmentProcessor extends BaseProcessor {
     @InjectPinoLogger(AttachmentProcessor.name)
     logger: PinoLogger,
     @InjectQueue(QueueName.ATTACHMENT_PROCESSING)
-    private readonly attachmentQueue: Queue
+    private readonly attachmentQueue: Queue,
+    @InjectQueue(QueueName.DEAD_LETTER)
+    deadLetterQueue: Queue
   ) {
-    super(logger)
+    super(logger, deadLetterQueue)
   }
 
   /**

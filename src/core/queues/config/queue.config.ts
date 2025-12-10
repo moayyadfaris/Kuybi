@@ -34,6 +34,15 @@ export const queueConfig = {
 
   // Queue-specific configurations
   queues: {
+    // Dead-letter Queue for failed jobs
+    [QueueName.DEAD_LETTER]: {
+      defaultJobOptions: {
+        attempts: 1,
+        removeOnFail: false,
+        priority: 10
+      }
+    },
+
     // Session Cleanup Queue
     [QueueName.SESSION_CLEANUP]: {
       limiter: {
@@ -95,7 +104,11 @@ export const queueConfig = {
       defaultJobOptions: {
         priority: 4,
         timeout: 300000, // 5 minutes timeout
-        attempts: 2 // Less retries for heavy jobs
+        attempts: 3, // A bit more tolerance for heavy jobs
+        backoff: {
+          type: 'exponential' as const,
+          delay: 5000
+        }
       }
     },
 

@@ -19,6 +19,7 @@ import { CacheService } from './services/cache.service'
 @Global()
 @Module({
   imports: [
+    ConfigModule,
     NestCacheModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService, Logger],

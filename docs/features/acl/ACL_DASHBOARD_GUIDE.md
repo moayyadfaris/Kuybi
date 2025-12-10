@@ -86,41 +86,10 @@ http://localhost:4040/api/v1
 #### 1. Get All Roles
 ```bash
 GET /api/v1/roles
-GET /api/v1/roles?includePermissions=true
 Authorization: Bearer <token>
 ```
 
-**Query Parameters:**
-- `includePermissions` (optional, boolean): Include full permission objects for each role. When `true`, returns roles with their associated permissions in a single request, avoiding N+1 queries.
-
-**Response (without permissions):**
-```json
-{
-  "success": true,
-**Response (without permissions):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "name": "super_admin",
-      "displayName": "Super Admin",
-      "description": "Full system access",
-      "level": 5,
-      "isSystem": true
-    },
-    {
-      "id": 2,
-      "name": "admin",
-      "displayName": "Admin",
-      "level": 4
-    }
-  ]
-}
-```
-
-**Response (with includePermissions=true):**
+**Response:**
 ```json
 {
   "success": true,
@@ -132,15 +101,11 @@ Authorization: Bearer <token>
       "description": "Full system access",
       "level": 5,
       "isSystem": true,
-      "rolePermissions": [
+      "permissions": [
         {
           "id": 1,
-          "permission": {
-            "id": 1,
-            "action": "manage",
-            "subject": "all",
-            "reason": "Full system control"
-          }
+          "action": "manage",
+          "subject": "all"
         }
       ]
     },
@@ -149,26 +114,7 @@ Authorization: Bearer <token>
       "name": "admin",
       "displayName": "Admin",
       "level": 4,
-      "rolePermissions": [
-        {
-          "id": 2,
-          "permission": {
-            "id": 5,
-            "action": "manage",
-            "subject": "User",
-            "reason": "User management"
-          }
-        },
-        {
-          "id": 3,
-          "permission": {
-            "id": 9,
-            "action": "manage",
-            "subject": "Story",
-            "reason": "Content management"
-          }
-        }
-      ]
+      "permissions": [...]
     }
   ]
 }
@@ -538,7 +484,7 @@ export default {
 #### 3. Role Management Interface
 
 ```javascript
-// Fetch all roles for dropdown (basic)
+// Fetch all roles for dropdown
 async function fetchRoles() {
   const response = await fetch('/api/v1/roles', {
     headers: {
@@ -547,17 +493,6 @@ async function fetchRoles() {
   })
   const data = await response.json()
   return data.data
-}
-
-// Fetch roles with permissions (optimized for role management UI)
-async function fetchRolesWithPermissions() {
-  const response = await fetch('/api/v1/roles?includePermissions=true', {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`
-    }
-  })
-  const data = await response.json()
-  return data.data // Returns roles with rolePermissions.permission objects
 }
 
 // Assign role to user

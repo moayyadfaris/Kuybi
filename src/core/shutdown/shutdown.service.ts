@@ -32,7 +32,8 @@ export class ShutdownService implements OnApplicationShutdown {
     @InjectQueue(QueueName.LOG_MAINTENANCE) private readonly logMaintenanceQueue: Queue,
     @InjectQueue(QueueName.ATTACHMENT_PROCESSING)
     private readonly attachmentProcessingQueue: Queue,
-    @InjectQueue(QueueName.ACCOUNT_SECURITY) private readonly accountSecurityQueue: Queue
+    @InjectQueue(QueueName.ACCOUNT_SECURITY) private readonly accountSecurityQueue: Queue,
+    @InjectQueue(QueueName.DEAD_LETTER) private readonly deadLetterQueue: Queue
   ) {}
 
   /**
@@ -71,7 +72,8 @@ export class ShutdownService implements OnApplicationShutdown {
       { name: 'session-cleanup', queue: this.sessionCleanupQueue },
       { name: 'log-maintenance', queue: this.logMaintenanceQueue },
       { name: 'attachment-processing', queue: this.attachmentProcessingQueue },
-      { name: 'account-security', queue: this.accountSecurityQueue }
+      { name: 'account-security', queue: this.accountSecurityQueue },
+      { name: 'dead-letter', queue: this.deadLetterQueue }
     ]
 
     for (const { name, queue } of queues) {

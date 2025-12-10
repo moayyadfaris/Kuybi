@@ -33,9 +33,11 @@ export class VersionCleanupProcessor extends BaseProcessor {
     @InjectPinoLogger(VersionCleanupProcessor.name)
     logger: PinoLogger,
     @InjectQueue(QueueName.VERSION_CLEANUP)
-    private readonly versionQueue: Queue
+    private readonly versionQueue: Queue,
+    @InjectQueue(QueueName.DEAD_LETTER)
+    deadLetterQueue: Queue
   ) {
-    super(logger)
+    super(logger, deadLetterQueue)
   }
 
   /**

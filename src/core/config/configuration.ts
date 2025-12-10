@@ -135,6 +135,23 @@ export default () => {
     audit: {
       enabled: parseBoolean(process.env.AUDIT_ENABLED, true)
     },
+    resilience: {
+      s3: {
+        timeoutMs: parseNumber(process.env.S3_TIMEOUT_MS, 10000),
+        failureThreshold: parseNumber(process.env.S3_CIRCUIT_BREAKER_FAILURES, 5),
+        resetTimeoutMs: parseNumber(process.env.S3_CIRCUIT_BREAKER_RESET_MS, 30000)
+      },
+      smtp: {
+        timeoutMs: parseNumber(process.env.SMTP_TIMEOUT_MS, 15000),
+        failureThreshold: parseNumber(process.env.SMTP_CIRCUIT_BREAKER_FAILURES, 5),
+        resetTimeoutMs: parseNumber(process.env.SMTP_CIRCUIT_BREAKER_RESET_MS, 30000)
+      },
+      cache: {
+        timeoutMs: parseNumber(process.env.CACHE_TIMEOUT_MS, 1500),
+        failureThreshold: parseNumber(process.env.CACHE_CIRCUIT_BREAKER_FAILURES, 10),
+        resetTimeoutMs: parseNumber(process.env.CACHE_CIRCUIT_BREAKER_RESET_MS, 20000)
+      }
+    },
     sentry: {
       enabled: parseBoolean(process.env.SENTRY_ENABLED, env === 'production'),
       dsn: process.env.SENTRY_DSN || '',

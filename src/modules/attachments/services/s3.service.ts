@@ -14,6 +14,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { PinoLogger } from 'nestjs-pino'
 import { posix as pathPosix } from 'path'
 
+import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
+
 export interface S3UploadOptions {
   key: string
   buffer: Buffer
@@ -36,12 +38,21 @@ export class S3Service {
   private bucket: string
   private region: string
   private baseUrl: string
+  private readonly timeoutMs: number
+  private readonly breaker: CircuitBreaker
 
   constructor(
     private readonly configService: ConfigService,
     private readonly logger: PinoLogger
   ) {
     this.logger.setContext(S3Service.name)
+    this.timeoutMs = this.configService.get<number>('resilience.s3.timeoutMs', 10000)
+    this.breaker = new CircuitBreaker({
+      name: 's3',
+      failureThreshold: this.configService.get<number>('resilience.s3.failureThreshold', 5),
+      resetTimeoutMs: this.configService.get<number>('resilience.s3.resetTimeoutMs', 30000),
+      halfOpenSuccesses: 2
+    })
     this.initializeS3Client()
   }
 
@@ -107,7 +118,9 @@ export class S3Service {
         CacheControl: options.cacheControl || 'max-age=31536000' // 1 year default
       })
 
-      const result = await this.s3Client.send(command)
+      const result = await this.executeWithResilience('upload', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
 
       this.logger.info(`File uploaded successfully to S3: ${options.key}`)
 
@@ -148,7 +161,9 @@ export class S3Service {
         Key: key
       })
 
-      const result = await this.s3Client.send(command)
+      const result = await this.executeWithResilience('download', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
 
       // Convert stream to buffer
       const chunks: Buffer[] = []
@@ -174,7 +189,9 @@ export class S3Service {
         Key: key
       })
 
-      await this.s3Client.send(command)
+      await this.executeWithResilience('delete', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
       this.logger.info(`File deleted successfully from S3: ${key}`)
     } catch (error) {
       this.logger.error(`Failed to delete file from S3: ${key}`, error)
@@ -199,7 +216,9 @@ export class S3Service {
         }
       })
 
-      const result = await this.s3Client.send(command)
+      const result = await this.executeWithResilience('delete-multiple', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
       this.logger.info(`${keys.length} files deleted successfully from S3`)
 
       if (result.Errors && result.Errors.length > 0) {
@@ -221,7 +240,9 @@ export class S3Service {
         Key: key
       })
 
-      await this.s3Client.send(command)
+      await this.executeWithResilience('exists', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
       return true
     } catch (error) {
       if ((error as any).name === 'NotFound') {
@@ -242,7 +263,9 @@ export class S3Service {
         Key: destinationKey
       })
 
-      await this.s3Client.send(command)
+      await this.executeWithResilience('copy', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
       this.logger.info(`File copied successfully: ${sourceKey} -> ${destinationKey}`)
     } catch (error) {
       this.logger.error(`Failed to copy file in S3: ${sourceKey} -> ${destinationKey}`, error)
@@ -267,7 +290,10 @@ export class S3Service {
           : undefined
       })
 
-      const url = await getSignedUrl(this.s3Client, command, { expiresIn })
+      // getSignedUrl does not support abort signals in its options, but the wrapper still enforces timeout.
+      const url = await this.executeWithResilience('presign', () =>
+        getSignedUrl(this.s3Client, command, { expiresIn })
+      )
       this.logger.info(`Presigned URL generated for: ${key} (expires in ${expiresIn}s)`)
 
       return url
@@ -288,7 +314,9 @@ export class S3Service {
         ACL: 'public-read'
       })
 
-      await this.s3Client.send(command)
+      await this.executeWithResilience('make-public', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
       this.logger.info(`File ACL updated to public: ${key}`)
     } catch (error) {
       this.logger.error(`Failed to update file ACL to public: ${key}`, error)
@@ -322,7 +350,9 @@ export class S3Service {
         Key: key
       })
 
-      const result = await this.s3Client.send(command)
+      const result = await this.executeWithResilience('metadata', signal =>
+        this.s3Client.send(command, { abortSignal: signal })
+      )
 
       return {
         contentType: result.ContentType,
@@ -378,5 +408,19 @@ export class S3Service {
     }
     const candidate = originalFilename.substring(lastDot)
     return candidate.trim().length > 0 ? candidate : '.bin'
+  }
+
+  private async executeWithResilience<T>(
+    operation: string,
+    fn: (signal: AbortSignal) => Promise<T>
+  ): Promise<T> {
+    return this.breaker.exec(() =>
+      withTimeout(fn, this.timeoutMs, () =>
+        this.logger.warn(
+          { operation, timeoutMs: this.timeoutMs },
+          `S3 ${operation} timed out after ${this.timeoutMs}ms`
+        )
+      )
+    )
   }
 }

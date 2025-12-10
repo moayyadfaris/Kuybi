@@ -43,7 +43,8 @@ import { QueueName } from './jobs/types'
       { name: QueueName.DATA_EXPORT, ...queueConfig.queues[QueueName.DATA_EXPORT] },
       { name: QueueName.REPORT_GENERATION, ...queueConfig.queues[QueueName.REPORT_GENERATION] },
       { name: QueueName.VERSION_CLEANUP, ...queueConfig.queues[QueueName.VERSION_CLEANUP] },
-      { name: QueueName.ACCOUNT_SECURITY, ...queueConfig.queues[QueueName.ACCOUNT_SECURITY] }
+      { name: QueueName.ACCOUNT_SECURITY, ...queueConfig.queues[QueueName.ACCOUNT_SECURITY] },
+      { name: QueueName.DEAD_LETTER, ...queueConfig.queues[QueueName.DEAD_LETTER] }
     )
   ],
   exports: [BullModule]
