@@ -16,6 +16,7 @@ import { PostTypesModule } from '@modules/post-types/post-types.module'
 import { StoriesModule } from '@modules/stories/stories.module'
 import { TagsModule } from '@modules/tags/tags.module'
 import { UsersModule } from '@modules/users/users.module'
+import { WebModule } from '@modules/web/web.module'
 
 import { CacheConfigModule } from '@core/cache/cache.module'
 import configuration from '@core/config/configuration'
@@ -74,6 +75,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     AclModule,
     AuditModule,
     PostTypesModule, // Dynamic Post Types System (Phase 1)
+    WebModule, // Public Web API
     LoggingModule,
     ShutdownModule // Graceful shutdown handling
   ],

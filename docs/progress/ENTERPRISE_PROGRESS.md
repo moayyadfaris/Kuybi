@@ -1749,6 +1749,138 @@ Authorization: Bearer <editor-token>
 
 ---
 
-**Last Updated:** November 19, 2025  
-**Next Review:** After Observability Phase  
-**Status:** ✅ Phase 1 Complete (100%), ✅ Phase 2 Complete (100%), ✅ Phase 3 Complete (100%), ✅ Phase 4 Complete (100%), 🏃 Ready for Observability & DevOps
+---
+
+## 🔒 Phase 5: API Security & Segregation (IN PROGRESS)
+
+### 5.1 Stories API Security ✅ COMPLETE
+**Status:** Production-ready  
+**Completion Date:** February 15, 2025
+
+**What Was Built:**
+- Class-level authentication guards (JwtAuthGuard, AbilityGuard)
+- ACL checks on all 10 GET endpoints (@CheckAbility decorator)
+- Fine-grained permissions (Action.Read, Subject.Story)
+- Proper API documentation (401/403 responses)
+- Swagger bearer auth integration
+
+**Security Enhancements:**
+- **Authentication:** All endpoints now require JWT token
+- **Authorization:** CASL-based ACL checks per endpoint
+- **Consistency:** Aligns with Categories controller security model
+- **Documentation:** Updated @ApiResponse decorators for 401/403
+
+**Endpoints Secured:**
+- GET /v1/stories - List all stories
+- GET /v1/stories/stats - Story statistics
+- GET /v1/stories/user/:userId - User stories
+- GET /v1/stories/status/:status - Stories by status
+- GET /v1/stories/type/:type - Stories by type
+- GET /v1/stories/:id - Single story
+- GET /v1/stories/:id/children - Child stories
+- GET /v1/stories/:id/attachments - Story attachments
+- GET /v1/stories/:id/tags - Story tags
+- GET /v1/stories/:id/categories - Story categories
+
+**Testing Results:**
+✅ Admin authentication successful (super-admin role)
+✅ JWT token generation works
+✅ Protected endpoint access verified (GET /v1/stories with token)
+✅ Response format correct: `{success:true, count:0, total:3}`
+
+**Files Modified:**
+- `src/modules/stories/controllers/stories.controller.ts`
+
+**Documentation:**
+- `docs/planning/API_SEGREGATION_PLAN.md` - Enterprise API segregation strategy
+
+---
+
+### 5.2 Web API Module ✅ COMPLETE
+**Status:** Production-ready  
+**Completion Date:** December 15, 2025
+
+**What Was Built:**
+- Public web API at `/api/web/v1` separate from admin API
+- WebStoriesController - Published stories only
+- WebCategoriesController - Active categories only
+- Response sanitization (removes internal fields)
+- Rate limiting (100 requests per 15 minutes)
+- No authentication required
+
+**Architecture:**
+```
+src/modules/web/
+├── web.module.ts
+├── controllers/
+│   ├── web-stories.controller.ts   
+│   └── web-categories.controller.ts
+├── services/
+│   ├── web-stories.service.ts      # Sanitizes responses
+│   └── web-categories.service.ts   # Sanitizes responses
+└── dto/
+    └── web-query.dto.ts            # Query validation
+```
+
+**Endpoints Created:**
+- GET /api/web/v1/stories - List published stories
+- GET /api/web/v1/stories/:id - Single story
+- GET /api/web/v1/categories - List active categories
+- GET /api/web/v1/categories/tree - Category tree
+- GET /api/web/v1/categories/slug/:slug - Category by slug
+- GET /api/web/v1/categories/:id - Category by ID
+
+**Security Features:**
+- Rate limiting with @nestjs/throttler
+- Response sanitization removes: createdBy, updatedBy, deletedBy, deletedAt, version
+- Only published stories visible
+- Only active categories visible
+- No authentication required (public access)
+
+**Testing Results:**
+✅ Stories endpoint accessible without auth
+✅ Categories endpoint accessible without auth
+✅ Rate limiting configured
+✅ Response sanitization working
+
+**Files Created:**
+- src/modules/web/web.module.ts
+- src/modules/web/controllers/web-stories.controller.ts
+- src/modules/web/controllers/web-categories.controller.ts
+- src/modules/web/services/web-stories.service.ts
+- src/modules/web/services/web-categories.service.ts
+- src/modules/web/dto/web-query.dto.ts
+
+---
+
+### 5.3 Frontend Integration ✅ COMPLETE
+**Status:** Production-ready  
+**Completion Date:** December 15, 2025
+
+**Next.js Frontend (kuybi-web):**
+- ✅ Updated `src/lib/api-client.ts` - Added `/web/v1` to PUBLIC_ENDPOINTS
+- ✅ Updated `src/services/story.service.ts` - Uses `/web/v1/stories` for public stories
+- ✅ Updated `src/services/category.service.ts` - Uses `/web/v1/categories` for public categories
+- ✅ Updated `test-public-access.sh` - Tests new public endpoints
+
+**Vue Dashboard (kuybi-dashboard):**
+- ✅ Created `client/src/services/publicApiService.ts` - Dedicated public API client
+- ✅ Separate axios instance (no authentication required)
+- ✅ Ready for public-facing features if needed
+
+**Verification:**
+```bash
+$ bash test-public-access.sh
+✓ GET /web/v1/stories - HTTP 200, 2 stories found
+✓ GET /web/v1/categories - HTTP 200, 5/6 categories found  
+✓ GET /web/v1/categories/tree - HTTP 200, 3 root categories
+```
+
+**API Architecture Summary:**
+- **Admin API**: `/api/v1/*` - Requires JWT + CASL permissions
+- **Public API**: `/api/web/v1/*` - No auth, rate limited, sanitized responses
+
+---
+
+**Last Updated:** December 15, 2025  
+**Status:** ✅ Phase 1-5 Complete (100%), 🎯 API Segregation Implemented

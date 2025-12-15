@@ -57,10 +57,12 @@ interface AuthenticatedRequest extends Request {
   user?: ControllerUser
 }
 
-@ApiTags('Stories')
+@ApiTags('Stories - Admin')
 @Controller('v1/stories')
+@UseGuards(JwtAuthGuard, AbilityGuard)
+@ApiBearerAuth()
 export class StoriesController {
-  constructor(private readonly storiesService: StoriesService) {}
+  constructor(private readonly storiesService: StoriesService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard, AbilityGuard)
@@ -77,26 +79,35 @@ export class StoriesController {
   }
 
   @Get()
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get all stories with filters and pagination' })
   @ApiResponse({ status: 200, description: 'List of stories with pagination' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findAll(@Query() filterDto: StoryFilterDto) {
     return this.storiesService.findAll(filterDto)
   }
 
   @Get('stats')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get story statistics' })
   @ApiResponse({ status: 200, description: 'Story statistics' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   getStats() {
     return this.storiesService.getStats()
   }
 
   @Get('user/:userId')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get stories by user ID' })
   @ApiParam({ name: 'userId', description: 'User UUID' })
   @ApiQuery({ name: 'includeDeleted', required: false, type: Boolean })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of user stories' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByUser(
     @Param('userId') userId: string,
     @Query('includeDeleted') includeDeleted?: boolean,
@@ -107,11 +118,14 @@ export class StoriesController {
   }
 
   @Get('status/:status')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get stories by status' })
   @ApiParam({ name: 'status', enum: StoryStatus, description: 'Story status' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of stories with specified status' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByStatus(
     @Param('status') status: StoryStatus,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
@@ -121,11 +135,14 @@ export class StoriesController {
   }
 
   @Get('type/:type')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get stories by type' })
   @ApiParam({ name: 'type', enum: StoryType, description: 'Story type' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of stories with specified type' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByType(
     @Param('type') type: StoryType,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
@@ -135,11 +152,14 @@ export class StoriesController {
   }
 
   @Get(':id/children')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get child stories (threaded stories)' })
   @ApiParam({ name: 'id', description: 'Parent story ID' })
   @ApiQuery({ name: 'includeDeleted', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'List of child stories' })
   @ApiResponse({ status: 404, description: 'Parent story not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findChildren(
     @Param('id', ParseIntPipe) id: number,
     @Query('includeDeleted') includeDeleted?: boolean
@@ -148,10 +168,13 @@ export class StoriesController {
   }
 
   @Get(':id')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get story by ID' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Story found' })
   @ApiResponse({ status: 404, description: 'Story not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.userId || req.user?.id
     return this.storiesService.findOne(id, userId)
@@ -284,10 +307,13 @@ export class StoriesController {
   }
 
   @Get(':id/attachments')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get story attachments' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'List of attachments' })
   @ApiResponse({ status: 404, description: 'Story not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   getAttachments(@Param('id', ParseIntPipe) id: number) {
     return this.storiesService.getAttachments(id)
   }
@@ -331,10 +357,13 @@ export class StoriesController {
   }
 
   @Get(':id/tags')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get story tags' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'List of tags' })
   @ApiResponse({ status: 404, description: 'Story not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   getTags(@Param('id', ParseIntPipe) id: number) {
     return this.storiesService.getTags(id)
   }
@@ -378,10 +407,13 @@ export class StoriesController {
   }
 
   @Get(':id/categories')
+  @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get story categories' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'List of categories' })
   @ApiResponse({ status: 404, description: 'Story not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   getCategories(@Param('id', ParseIntPipe) id: number) {
     return this.storiesService.getCategories(id)
   }
