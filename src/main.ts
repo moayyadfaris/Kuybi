@@ -39,6 +39,11 @@ async function bootstrap() {
   app.use(helmet())
 
   app.enableCors({ origin: httpConfig.corsOrigin, credentials: true })
+
+  // Set global prefix 'api' for all routes
+  // API versioning is handled at controller level with 'v1/' prefix
+  // All admin endpoints: /api/v1/*
+  // All public web endpoints: /api/web/v1/*
   app.setGlobalPrefix('api')
 
   // Response compression middleware with optimized settings

@@ -1,0 +1,1502 @@
+
+> kuybi-nest@0.1.0 test:integration
+> jest --config ./test/jest-e2e.json --runInBand
+
+[dotenv@17.2.3] injecting env (22) from .env.test -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+🧪 Global test setup starting...
+📝 Database: susanoo_test as moayyadfaris
+  ↳ Loaded 27 entities
+  ↳ Dropped and recreated public schema
+  ↳ Enabled uuid-ossp extension
+  ↳ Created all tables and relations
+✅ Test database schema setup complete
+PASS test/integration/audit/audit.integration.spec.ts
+  ● Console
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: ⚙️  enable debug logging with { debug: true }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+PASS test/integration/auth/auth.integration.spec.ts (12.774 s)
+  ● Console
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: ⚙️  suppress all logs with { quiet: true }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+FAIL test/integration/auth/account-lockout.integration.spec.ts
+  ● Test suite failed to run
+
+    [96mtest/integration/auth/account-lockout.integration.spec.ts[0m:[93m19[0m:[93m27[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../../src/config/configuration' or its corresponding type declarations.
+
+    [7m19[0m import configuration from '../../../src/config/configuration'
+    [7m  [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+PASS test/integration/auth/session-management.integration.spec.ts
+  ● Console
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: ⚙️  suppress all logs with { quiet: true }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+[31m[Nest] 45386  - [39m11/24/2025, 7:01:46 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (1)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:01:49 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (2)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:01:52 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (3)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:01:55 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (4)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:01:58 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (5)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:01 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (6)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:04 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (7)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:07 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (8)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:10 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (9)...[39m
+error: database "moayyadfaris" does not exist
+    at Parser.parseErrorMessage (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:369:69)
+    at Parser.handlePacket (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:187:21)
+    at Parser.parse (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/parser.ts:102:30)
+    at Socket.<anonymous> (/Users/moayyadfaris/projects/kuybi-project/kuybi/node_modules/pg-protocol/src/index.ts:7:48)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Socket.Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+FAIL test/integration/users/user-profile.integration.spec.ts (24.457 s)
+  ● Console
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: ⚙️  suppress all logs with { quiet: true }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  ● User Profile Integration Tests › GET /api/v1/users/me › should return current user profile when authenticated
+
+    error: database "moayyadfaris" does not exist
+
+      at Parser.parseErrorMessage (node_modules/pg-protocol/src/parser.ts:369:69)
+      at Parser.handlePacket (node_modules/pg-protocol/src/parser.ts:187:21)
+      at Parser.parse (node_modules/pg-protocol/src/parser.ts:102:30)
+      at Socket.<anonymous> (node_modules/pg-protocol/src/index.ts:7:48)
+
+  ● User Profile Integration Tests › GET /api/v1/users/me › should return 401 when not authenticated
+
+    error: database "moayyadfaris" does not exist
+
+      at Parser.parseErrorMessage (node_modules/pg-protocol/src/parser.ts:369:69)
+      at Parser.handlePacket (node_modules/pg-protocol/src/parser.ts:187:21)
+      at Parser.parse (node_modules/pg-protocol/src/parser.ts:102:30)
+      at Socket.<anonymous> (node_modules/pg-protocol/src/index.ts:7:48)
+
+  ● User Profile Integration Tests › GET /api/v1/users/me › should return 401 with invalid token
+
+    error: database "moayyadfaris" does not exist
+
+      at Parser.parseErrorMessage (node_modules/pg-protocol/src/parser.ts:369:69)
+      at Parser.handlePacket (node_modules/pg-protocol/src/parser.ts:187:21)
+      at Parser.parse (node_modules/pg-protocol/src/parser.ts:102:30)
+      at Socket.<anonymous> (node_modules/pg-protocol/src/index.ts:7:48)
+
+  ● User Profile Integration Tests › GET /api/v1/users/me › should cache user profile and serve from cache on second request
+
+    error: database "moayyadfaris" does not exist
+
+      at Parser.parseErrorMessage (node_modules/pg-protocol/src/parser.ts:369:69)
+      at Parser.handlePacket (node_modules/pg-protocol/src/parser.ts:187:21)
+      at Parser.parse (node_modules/pg-protocol/src/parser.ts:102:30)
+      at Socket.<anonymous> (node_modules/pg-protocol/src/index.ts:7:48)
+
+  ● User Profile Integration Tests › GET /api/v1/users/me › should include all safe user fields in response
+
+    error: database "moayyadfaris" does not exist
+
+      at Parser.parseErrorMessage (node_modules/pg-protocol/src/parser.ts:369:69)
+      at Parser.handlePacket (node_modules/pg-protocol/src/parser.ts:187:21)
+      at Parser.parse (node_modules/pg-protocol/src/parser.ts:102:30)
+      at Socket.<anonymous> (node_modules/pg-protocol/src/index.ts:7:48)
+
+  ● User Profile Integration Tests › GET /api/v1/users/me › should return null for emailVerifiedAt if not verified
+
+    error: database "moayyadfaris" does not exist
+
+      at Parser.parseErrorMessage (node_modules/pg-protocol/src/parser.ts:369:69)
+      at Parser.handlePacket (node_modules/pg-protocol/src/parser.ts:187:21)
+      at Parser.parse (node_modules/pg-protocol/src/parser.ts:102:30)
+      at Socket.<anonymous> (node_modules/pg-protocol/src/index.ts:7:48)
+
+FAIL test/integration/stories/stories.integration.spec.ts
+  ● Test suite failed to run
+
+    [96mtest/factories/story.factory.ts[0m:[93m2[0m:[93m29[0m - [91merror[0m[90m TS2307: [0mCannot find module '@modules/stories/enums/story-status.enum' or its corresponding type declarations.
+
+    [7m2[0m import { StoryStatus } from '@modules/stories/enums/story-status.enum'
+    [7m [0m [91m                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96mtest/factories/story.factory.ts[0m:[93m3[0m:[93m27[0m - [91merror[0m[90m TS2307: [0mCannot find module '@modules/stories/enums/story-type.enum' or its corresponding type declarations.
+
+    [7m3[0m import { StoryType } from '@modules/stories/enums/story-type.enum'
+    [7m [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96mtest/factories/story.factory.ts[0m:[93m4[0m:[93m31[0m - [91merror[0m[90m TS2307: [0mCannot find module '@modules/stories/enums/story-priority.enum' or its corresponding type declarations.
+
+    [7m4[0m import { StoryPriority } from '@modules/stories/enums/story-priority.enum'
+    [7m [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96mtest/factories/story.factory.ts[0m:[93m18[0m:[93m7[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'points' does not exist in type 'Partial<Story>'.
+
+    [7m18[0m       points: 1,
+    [7m  [0m [91m      ~~~~~~[0m
+
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:12 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (1)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:15 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (2)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:18 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (3)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:21 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (4)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:24 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (5)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:27 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (6)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:30 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (7)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:33 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (8)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:36 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (9)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+FAIL test/integration/post-types/content.integration.spec.ts (24.483 s)
+  ● Console
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should create content with valid field data
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should fail with regular user token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should validate required fields
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should validate text field min length
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should validate text field max length
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should validate currency field min value
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should validate email format
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should reject unknown fields
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should allow optional fields to be omitted
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug › should generate slug from title if not provided
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › GET /api/content/:postTypeSlug › should list content for post type
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › GET /api/content/:postTypeSlug › should filter by status
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › GET /api/content/:postTypeSlug › should support pagination
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › GET /api/content/:postTypeSlug › should support search
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › GET /api/content/:postTypeSlug/:id › should get content by ID
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › GET /api/content/:postTypeSlug/:id › should return 404 for non-existent ID
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › PATCH /api/content/:postTypeSlug/:id › should update content with valid data
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › PATCH /api/content/:postTypeSlug/:id › should validate updated field data
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › PATCH /api/content/:postTypeSlug/:id › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug/:id/publish › should publish content
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug/:id/publish › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug/:id/schedule › should schedule content for future date
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › POST /api/content/:postTypeSlug/:id/schedule › should fail for past date
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › DELETE /api/content/:postTypeSlug/:id › should soft delete content
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Content Integration Tests › DELETE /api/content/:postTypeSlug/:id › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:37 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (1)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:40 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (2)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:43 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (3)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:46 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (4)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:49 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (5)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:52 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (6)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:55 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (7)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:02:58 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (8)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:01 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (9)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+FAIL test/integration/post-types/field-definitions.integration.spec.ts (24.961 s)
+  ● Console
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields › should create field definition with admin token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields › should fail with regular user token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields › should validate field name format (snake_case)
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields › should validate field type is valid enum
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields › should prevent duplicate field names in same post type
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields › should create field with all 25 field types
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › GET /api/post-types/:postTypeId/fields › should list all fields for post type
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › GET /api/post-types/:postTypeId/fields › should return fields in display order
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › GET /api/post-types/:postTypeId/fields/:id › should get field by ID
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › GET /api/post-types/:postTypeId/fields/:id › should return 404 for field from different post type
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › PATCH /api/post-types/:postTypeId/fields/:id › should update field with admin token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › PATCH /api/post-types/:postTypeId/fields/:id › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › PATCH /api/post-types/:postTypeId/fields/:id › should prevent updating field name
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › PATCH /api/post-types/:postTypeId/fields/:id › should prevent updating field type
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields/reorder › should reorder fields
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › POST /api/post-types/:postTypeId/fields/reorder › should fail with duplicate display orders
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › DELETE /api/post-types/:postTypeId/fields/:id › should soft delete field with admin token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Field Definitions Integration Tests › DELETE /api/post-types/:postTypeId/fields/:id › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:02 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (1)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:05 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (2)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:08 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (3)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:11 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (4)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:14 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (5)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:17 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (6)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:20 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (7)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:23 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (8)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+[31m[Nest] 45386  - [39m11/24/2025, 7:03:26 PM [31m  ERROR[39m [38;5;3m[TypeOrmModule] [39m[31mUnable to connect to the database. Retrying (9)...[39m
+TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.computeInverseProperties (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+    at /Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:160:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataBuilder.build (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+    at ConnectionMetadataBuilder.buildEntityMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/connection/ConnectionMetadataBuilder.ts:106:11)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at DataSource.buildMetadatas (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:733:13)
+    at DataSource.initialize (/Users/moayyadfaris/projects/kuybi-project/kuybi/src/data-source/DataSource.ts:264:13)
+FAIL test/integration/post-types/post-types.integration.spec.ts (24.92 s)
+  ● Console
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+    console.log
+      [dotenv@17.2.3] injecting env (0) from .env.test -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  ● Post Types Integration Tests › POST /api/post-types › should create post type with admin token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › POST /api/post-types › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › POST /api/post-types › should fail with regular user token (insufficient permissions)
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › POST /api/post-types › should validate required fields
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › POST /api/post-types › should validate slug format (snake_case)
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › POST /api/post-types › should prevent duplicate slugs
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › GET /api/post-types › should list all active post types (no auth required)
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › GET /api/post-types › should list all post types including inactive with query param
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › GET /api/post-types/:id › should get post type by ID
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › GET /api/post-types/:id › should return 404 for non-existent ID
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › GET /api/post-types/slug/:slug › should get post type by slug
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › GET /api/post-types/slug/:slug › should return 404 for non-existent slug
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › PATCH /api/post-types/:id › should update post type with admin token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › PATCH /api/post-types/:id › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › PATCH /api/post-types/:id › should prevent updating slug
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › DELETE /api/post-types/:id › should soft delete post type with admin token
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › DELETE /api/post-types/:id › should fail without authentication
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+  ● Post Types Integration Tests › DELETE /api/post-types/:id › should prevent deleting system post types
+
+    TypeORMError: Entity metadata for PostContentCategory#category was not found. Check if you specified a correct entity object and if it's connected in the connection options.
+
+      at src/metadata-builder/EntityMetadataBuilder.ts:1128:23
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.computeInverseProperties (src/metadata-builder/EntityMetadataBuilder.ts:1118:34)
+      at src/metadata-builder/EntityMetadataBuilder.ts:160:18
+          at Array.forEach (<anonymous>)
+      at EntityMetadataBuilder.build (src/metadata-builder/EntityMetadataBuilder.ts:159:25)
+      at ConnectionMetadataBuilder.buildEntityMetadatas (src/connection/ConnectionMetadataBuilder.ts:106:11)
+      at DataSource.buildMetadatas (src/data-source/DataSource.ts:733:13)
+      at DataSource.initialize (src/data-source/DataSource.ts:264:13)
+
+Test Suites: 6 failed, 3 passed, 9 total
+Tests:       69 failed, 43 passed, 112 total
+Snapshots:   0 total
+Time:        117.718 s
+Ran all test suites.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.
