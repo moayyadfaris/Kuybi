@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import * as nodemailer from 'nodemailer'
 import { Transporter } from 'nodemailer'
@@ -9,7 +10,6 @@ import { SendEmailDto } from '../dto/send-email.dto'
 import { EmailOptions } from '../interfaces/email-template.interface'
 
 import { EmailTemplateService } from './email-template.service'
-import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 
 @Injectable()
 export class EmailService implements OnModuleInit {

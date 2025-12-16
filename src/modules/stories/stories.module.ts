@@ -22,6 +22,8 @@ import { StoryTag } from './entities/story-tag.entity'
 import { StoryVersion } from './entities/story-version.entity'
 import { StoriesSeeder } from './seeders/stories.seeder'
 import { StoriesService } from './services/stories.service'
+import { StoryEnrichmentService } from './services/story-enrichment.service'
+import { StoryRelationshipService } from './services/story-relationship.service'
 import { StoryVersionService } from './services/story-version.service'
 
 @Module({
@@ -42,9 +44,18 @@ import { StoryVersionService } from './services/story-version.service'
     StoryVersionService,
     StoryRepository,
     StoryVersionRepository,
-    StoriesSeeder
+    StoriesSeeder,
+    StoryRelationshipService,
+    StoryEnrichmentService
   ],
 
-  exports: [StoriesService, StoryVersionService, StoryRepository, StoryVersionRepository]
+  exports: [
+    StoriesService,
+    StoryVersionService,
+    StoryRepository,
+    StoryVersionRepository,
+    StoryRelationshipService,
+    StoryEnrichmentService
+  ]
 })
 export class StoriesModule {}

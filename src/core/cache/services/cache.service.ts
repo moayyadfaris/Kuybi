@@ -1,10 +1,9 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { Cache } from 'cache-manager'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-
-import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 
 /**
  * Cache Service
@@ -35,12 +34,9 @@ export class CacheService {
    * Get cached value by key
    */
   async get<T>(key: string): Promise<T | undefined> {
-    return this.executeWithResilience(
-      'get',
-      () => this.cacheManager.get<T>(key),
-      undefined,
-      { key }
-    )
+    return this.executeWithResilience('get', () => this.cacheManager.get<T>(key), undefined, {
+      key
+    })
   }
 
   /**
@@ -48,10 +44,15 @@ export class CacheService {
    */
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     const ttlMs = this.normalizeTtl(ttl)
-    await this.executeWithResilience('set', () => this.cacheManager.set(key, value, ttlMs), undefined, {
-      key,
-      ttl
-    })
+    await this.executeWithResilience(
+      'set',
+      () => this.cacheManager.set(key, value, ttlMs),
+      undefined,
+      {
+        key,
+        ttl
+      }
+    )
   }
 
   /**
@@ -66,9 +67,14 @@ export class CacheService {
    * WARNING: This can be expensive on large keyspaces
    */
   async delPattern(pattern: string): Promise<void> {
-    await this.executeWithResilience('delPattern', () => this.deletePatternInternal(pattern), undefined, {
-      pattern
-    })
+    await this.executeWithResilience(
+      'delPattern',
+      () => this.deletePatternInternal(pattern),
+      undefined,
+      {
+        pattern
+      }
+    )
   }
 
   /**
@@ -233,5 +239,94 @@ export class CacheService {
 
     await Promise.all(keysToDelete.map((key: string) => this.del(key)))
     this.logger.info({ pattern, deletedCount: keysToDelete.length }, 'Cache keys deleted')
+  }
+
+  /**
+   * Set cached value with tags for group invalidation
+   * Tags enable invalidating all cache entries belonging to a logical group
+   * Example: setWithTags('story:123', data, ['stories', 'story:user:456'], 3600)
+   */
+  async setWithTags<T>(key: string, value: T, tags: string[], ttl?: number): Promise<void> {
+    // Set the main cache entry
+    await this.set(key, value, ttl)
+
+    // Store tags-to-keys mapping in Redis sets
+    await this.executeWithResilience(
+      'setWithTags',
+      async () => {
+        const cacheStore: any = this.cacheManager
+        const redisClient = cacheStore.store?.client
+
+        if (redisClient?.sadd) {
+          // Add this key to each tag's set
+          for (const tag of tags) {
+            const tagKey = `cache:tag:${tag}`
+            await redisClient.sadd(tagKey, key)
+
+            // Set TTL on tag set (slightly longer than cache TTL to avoid orphaned tags)
+            if (ttl) {
+              await redisClient.expire(tagKey, ttl + 300) // +5 minutes buffer
+            }
+          }
+
+          this.logger.debug({ key, tags }, 'Cache entry tagged successfully')
+        } else {
+          this.logger.warn(
+            { key, tags },
+            'Redis tagging not supported, falling back to regular cache'
+          )
+        }
+      },
+      undefined,
+      { key, tags }
+    )
+  }
+
+  /**
+   * Invalidate all cache entries associated with a tag
+   * Example: invalidateTag('stories') // Clears all story-related caches
+   */
+  async invalidateTag(tag: string): Promise<void> {
+    await this.executeWithResilience(
+      'invalidateTag',
+      async () => {
+        const cacheStore: any = this.cacheManager
+        const redisClient = cacheStore.store?.client
+
+        if (!redisClient?.smembers || !redisClient?.del) {
+          this.logger.warn({ tag }, 'Redis tagging not supported, skipping tag invalidation')
+          return
+        }
+
+        const tagKey = `cache:tag:${tag}`
+
+        // Get all keys associated with this tag
+        const keys = await redisClient.smembers(tagKey)
+
+        if (keys.length === 0) {
+          this.logger.debug({ tag }, 'No cache entries found for tag')
+          return
+        }
+
+        // Delete all cache entries
+        await Promise.all(keys.map((key: string) => this.del(key)))
+
+        // Delete the tag set itself
+        await redisClient.del(tagKey)
+
+        this.logger.info({ tag, keysInvalidated: keys.length }, 'Cache tag invalidated')
+      },
+      undefined,
+      { tag }
+    )
+  }
+
+  /**
+   * Invalidate multiple tags at once
+   * Example: invalidateTags(['stories', 'categories'])
+   */
+  async invalidateTags(tags: string[]): Promise<void> {
+    await Promise.all(tags.map(tag => this.invalidateTag(tag)))
+    this.logger.info({ tags, count: tags.length }, 'Multiple cache tags invalidated')
   }
 }

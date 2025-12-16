@@ -34,9 +34,7 @@ export class CircuitBreaker {
     if (this.state === 'OPEN') {
       if (now < this.nextAttemptTs) {
         throw new Error(
-          `Circuit '${this.options.name || 'circuit'}' is open (until ${
-            this.nextAttemptTs
-          })`
+          `Circuit '${this.options.name || 'circuit'}' is open (until ${this.nextAttemptTs})`
         )
       }
       this.state = 'HALF_OPEN'

@@ -28,7 +28,7 @@ export class WebStoriesService {
 
     // Sanitize response - remove sensitive fields
     return {
-      data: result.results.map((story) => this.sanitizeStory(story)),
+      data: result.results.map(story => this.sanitizeStory(story)),
       total: result.total,
       page: result.pagination.page,
       limit: result.pagination.limit,
@@ -58,15 +58,7 @@ export class WebStoriesService {
    * Removes internal fields and sensitive data
    */
   private sanitizeStory(story: any) {
-    const {
-      createdBy,
-      updatedBy,
-      deletedBy,
-      deletedAt,
-      version,
-      metadata,
-      ...publicData
-    } = story
+    const { createdBy, updatedBy, deletedBy, deletedAt, version, metadata, ...publicData } = story
 
     return {
       ...publicData,

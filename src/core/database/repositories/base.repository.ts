@@ -59,13 +59,18 @@ export abstract class BaseRepository<T> {
     const cacheKey = this.buildCacheKey('id', id)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<T>(
-        cacheKey,
-        async () => {
-          return this.repository.findOne({ where: { id } as any })
-        },
-        options?.ttl ?? this.defaultTTL
-      )
+      // Try to get from cache first
+      const cached = await this.cacheService.get<T>(cacheKey)
+      if (cached) return cached
+
+      // Fetch from DB and cache with tags
+      const entity = await this.repository.findOne({ where: { id } as any })
+
+      if (entity) {
+        await this.setCacheWithTags(cacheKey, entity, id, options?.ttl)
+      }
+
+      return entity
     }
 
     return this.repository.findOne({ where: { id } as any })
@@ -128,8 +133,8 @@ export abstract class BaseRepository<T> {
     const entity = this.repository.create(data)
     const saved = await this.repository.save(entity)
 
-    // Invalidate list caches
-    await this.invalidateListCaches()
+    // Invalidate entity-wide cache tag (affects all lists, searches, etc.)
+    await this.invalidateCacheByTag()
 
     return saved
   }
@@ -140,9 +145,9 @@ export abstract class BaseRepository<T> {
   async update(id: string | number, data: DeepPartial<T>): Promise<T | null> {
     await this.repository.update(id as any, data as any)
 
-    // Invalidate caches
-    await this.invalidateEntityCache(id)
-    await this.invalidateListCaches()
+    // Invalidate both entity-level and instance-level caches
+    await this.invalidateCacheByEntityId(id)
+    await this.invalidateCacheByTag()
 
     return this.findById(id, { bypassCache: true })
   }
@@ -153,9 +158,9 @@ export abstract class BaseRepository<T> {
   async delete(id: string | number): Promise<boolean> {
     const result = await this.repository.delete(id as any)
 
-    // Invalidate caches
-    await this.invalidateEntityCache(id)
-    await this.invalidateListCaches()
+    // Invalidate both entity-level and instance-level caches
+    await this.invalidateCacheByEntityId(id)
+    await this.invalidateCacheByTag()
 
     return (result.affected ?? 0) > 0
   }
@@ -168,9 +173,9 @@ export abstract class BaseRepository<T> {
 
     // Invalidate caches
     if ((saved as any).id) {
-      await this.invalidateEntityCache((saved as any).id)
+      await this.invalidateCacheByEntityId((saved as any).id)
     }
-    await this.invalidateListCaches()
+    await this.invalidateCacheByTag()
 
     return saved
   }
@@ -234,5 +239,52 @@ export abstract class BaseRepository<T> {
     if (!this.cacheService) return
 
     await this.cacheService.delPattern(`${this.entityName}:*`)
+  }
+
+  /**
+   * Get default cache tags for this entity
+   * Override in child repositories to add custom tags
+   */
+  protected getCacheTags(id?: string | number): string[] {
+    const tags = [this.entityName]
+    if (id) {
+      tags.push(`${this.entityName}:${id}`)
+    }
+    return tags
+  }
+
+  /**
+   * Set cached value with entity tags
+   */
+  protected async setCacheWithTags<V>(
+    key: string,
+    value: V,
+    id?: string | number,
+    ttl?: number
+  ): Promise<void> {
+    if (!this.cacheService) return
+
+    const tags = this.getCacheTags(id)
+    await this.cacheService.setWithTags(key, value, tags, ttl ?? this.defaultTTL)
+  }
+
+  /**
+   * Invalidate cache by entity tag
+   * This clears all caches related to this entity type
+   */
+  async invalidateCacheByTag(): Promise<void> {
+    if (!this.cacheService) return
+
+    await this.cacheService.invalidateTag(this.entityName)
+  }
+
+  /**
+   * Invalidate cache by specific entity instance
+   * This clears all caches related to a specific entity ID
+   */
+  async invalidateCacheByEntityId(id: string | number): Promise<void> {
+    if (!this.cacheService) return
+
+    await this.cacheService.invalidateTag(`${this.entityName}:${id}`)
   }
 }

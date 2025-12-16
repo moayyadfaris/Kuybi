@@ -1,12 +1,5 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common'
-import {
-  ApiExcludeEndpoint,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags
-} from '@nestjs/swagger'
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Throttle } from '@nestjs/throttler'
 
 import { WebStoriesQueryDto } from '../dto/web-query.dto'

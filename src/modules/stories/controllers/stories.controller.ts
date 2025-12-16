@@ -43,8 +43,9 @@ import {
   UpdateStoryDto
 } from '@modules/stories/dto'
 import { UpdateStoryMainImageDto } from '@modules/stories/dto/update-story-main-image.dto'
-import { StoryStatus, StoryType } from '@modules/stories/entities/story.entity'
+import { Story, StoryStatus, StoryType } from '@modules/stories/entities/story.entity'
 import { StoriesService } from '@modules/stories/services/stories.service'
+import { StoryRelationshipService } from '@modules/stories/services/story-relationship.service'
 
 interface ControllerUser {
   id?: string
@@ -62,7 +63,10 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAuthGuard, AbilityGuard)
 @ApiBearerAuth()
 export class StoriesController {
-  constructor(private readonly storiesService: StoriesService) { }
+  constructor(
+    private readonly storiesService: StoriesService,
+    private readonly storyRelationshipService: StoryRelationshipService
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, AbilityGuard)
@@ -270,12 +274,8 @@ export class StoriesController {
 
   // Attachment management endpoints
   @Post(':id/attachments')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
-  @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Attach attachments to story' })
-  @ApiParam({ name: 'id', description: 'Story ID' })
-  @ApiResponse({ status: 200, description: 'Attachments attached successfully' })
+  @ApiResponse({ status: 200, description: 'Attachments attached successfully', type: Story })
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 400, description: 'One or more attachments not found' })
   @ApiResponse({ status: 403, description: 'Forbidden - not the story owner' })
@@ -283,27 +283,23 @@ export class StoriesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AttachAttachmentsDto,
     @Req() req: AuthenticatedRequest
-  ) {
+  ): Promise<Story> {
     const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.attachAttachments(id, dto, userId, req.user?.role)
+    return this.storyRelationshipService.attachAttachments(id, dto, userId, req.user?.role)
   }
 
   @Delete(':id/attachments')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
-  @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Detach attachments from story' })
-  @ApiParam({ name: 'id', description: 'Story ID' })
-  @ApiResponse({ status: 200, description: 'Attachments detached successfully' })
+  @ApiResponse({ status: 200, description: 'Attachments detached successfully', type: Story })
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 403, description: 'Forbidden - not the story owner' })
   detachAttachments(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DetachAttachmentsDto,
     @Req() req: AuthenticatedRequest
-  ) {
+  ): Promise<Story> {
     const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.detachAttachments(id, dto, userId, req.user?.role)
+    return this.storyRelationshipService.detachAttachments(id, dto, userId, req.user?.role)
   }
 
   @Get(':id/attachments')
@@ -315,7 +311,7 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   getAttachments(@Param('id', ParseIntPipe) id: number) {
-    return this.storiesService.getAttachments(id)
+    return this.storyRelationshipService.getAttachments(id)
   }
 
   // Tag management endpoints
@@ -335,7 +331,7 @@ export class StoriesController {
     @Req() req: AuthenticatedRequest
   ) {
     const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.attachTags(id, dto, userId, req.user?.role)
+    return this.storyRelationshipService.attachTags(id, dto, userId, req.user?.role)
   }
 
   @Delete(':id/tags')
@@ -353,7 +349,7 @@ export class StoriesController {
     @Req() req: AuthenticatedRequest
   ) {
     const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.detachTags(id, dto, userId, req.user?.role)
+    return this.storyRelationshipService.detachTags(id, dto, userId, req.user?.role)
   }
 
   @Get(':id/tags')
@@ -365,7 +361,7 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   getTags(@Param('id', ParseIntPipe) id: number) {
-    return this.storiesService.getTags(id)
+    return this.storyRelationshipService.getTags(id)
   }
 
   // Category management endpoints
@@ -385,7 +381,7 @@ export class StoriesController {
     @Req() req: AuthenticatedRequest
   ) {
     const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.attachCategories(id, dto, userId, req.user?.role)
+    return this.storyRelationshipService.attachCategories(id, dto, userId, req.user?.role)
   }
 
   @Delete(':id/categories')
@@ -403,7 +399,7 @@ export class StoriesController {
     @Req() req: AuthenticatedRequest
   ) {
     const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.detachCategories(id, dto, userId, req.user?.role)
+    return this.storyRelationshipService.detachCategories(id, dto, userId, req.user?.role)
   }
 
   @Get(':id/categories')
@@ -415,7 +411,7 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   getCategories(@Param('id', ParseIntPipe) id: number) {
-    return this.storiesService.getCategories(id)
+    return this.storyRelationshipService.getCategories(id)
   }
 
   @Put(':id/main-image')
