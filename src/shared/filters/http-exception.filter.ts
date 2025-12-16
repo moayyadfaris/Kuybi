@@ -96,9 +96,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // Add validation errors if present
+    // Add validation errors or Health Check details if present
     if (exceptionResponse && typeof exceptionResponse === 'object') {
-      if ((exceptionResponse as any).message && Array.isArray((exceptionResponse as any).message)) {
+      if ('details' in exceptionResponse || 'error' in exceptionResponse) {
+        // Pass through Health Check details or other structured errors
+        Object.assign(errorResponse.error, exceptionResponse)
+      } else if (
+        (exceptionResponse as any).message &&
+        Array.isArray((exceptionResponse as any).message)
+      ) {
         errorResponse.error.details = (exceptionResponse as any).message
       }
     }

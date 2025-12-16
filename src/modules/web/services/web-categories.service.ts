@@ -28,7 +28,7 @@ export class WebCategoriesService {
 
     // Sanitize response
     return {
-      data: result.results.map((category) => this.sanitizeCategory(category)),
+      data: result.results.map(category => this.sanitizeCategory(category)),
       total: result.total,
       page: result.pagination.page,
       limit: result.pagination.limit,
@@ -41,7 +41,7 @@ export class WebCategoriesService {
    */
   async getCategoryTree() {
     const categories = await this.categoryRepository.findAllActive()
-    return categories.map((category) => this.sanitizeCategory(category))
+    return categories.map(category => this.sanitizeCategory(category))
   }
 
   /**
@@ -74,14 +74,7 @@ export class WebCategoriesService {
    * Sanitize category data for public consumption
    */
   private sanitizeCategory(category: any) {
-    const {
-      createdBy,
-      updatedBy,
-      deletedBy,
-      deletedAt,
-      version,
-      ...publicData
-    } = category
+    const { createdBy, updatedBy, deletedBy, deletedAt, version, ...publicData } = category
 
     return publicData
   }
