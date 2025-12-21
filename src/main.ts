@@ -6,7 +6,6 @@ import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import * as compression from 'compression'
-import helmet from 'helmet'
 import { Logger, PinoLogger } from 'nestjs-pino'
 
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
@@ -36,9 +35,16 @@ async function bootstrap() {
   // Get Sentry service for conditional middleware
   const sentryService = app.get(SentryService)
 
-  app.use(helmet())
+  // Configure CORS
+  const corsOrigin = httpConfig.corsOrigin
+  const origin = corsOrigin.includes(',') ? corsOrigin.split(',').map(o => o.trim()) : corsOrigin
 
-  app.enableCors({ origin: httpConfig.corsOrigin, credentials: true })
+  app.enableCors({
+    origin,
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization'
+  })
 
   // Set global prefix 'api' for all routes
   // API versioning is handled at controller level with 'v1/' prefix

@@ -15,7 +15,6 @@ class EnvironmentVariables {
   APP_PORT?: number
 
   @IsString()
-  @IsOptional()
   CORS_ORIGIN?: string
 
   @IsString()
