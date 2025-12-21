@@ -55,93 +55,77 @@ export class StoryRelationshipService {
   ): Promise<Tag[]> {
     this.logger.debug({ tagIds, tagNames, userId }, 'Resolving and creating tags')
 
-    const resolvedTags: Tag[] = []
+    const resolvedTags: Map<number, Tag> = new Map()
 
-    // Resolve tags by IDs
+    // 1. Resolve tags by IDs (Batch fetch)
     if (tagIds && tagIds.length > 0) {
       this.logger.debug({ tagIds, count: tagIds.length }, 'Resolving tags by IDs')
-      try {
-        const tagsById = await Promise.all(
-          tagIds.map(async id => {
-            const tag = await this.tagRepository.findById(id)
-            return tag
-          })
-        )
+      const tagsById = await this.tagRepository.findMany({
+        where: { id: In(tagIds) }
+      })
 
-        const foundTags = tagsById.filter(Boolean) as Tag[]
-        this.logger.debug(
-          { foundCount: foundTags.length, requestedCount: tagIds.length },
-          'Tags found by ID'
-        )
-
-        if (foundTags.length !== tagIds.length) {
-          const foundIds = foundTags.map(t => t.id)
-          const missingIds = tagIds.filter(id => !foundIds.includes(id))
-          this.logger.warn({ missingIds }, 'Some tag IDs not found')
-          throw new BadRequestException(`Tags not found: ${missingIds.join(', ')}`)
-        }
-
-        resolvedTags.push(...foundTags)
-        this.logger.debug({ tagsAdded: foundTags.length }, 'Tags by ID added to resolved list')
-      } catch (error) {
-        this.logger.error({ error, tagIds }, 'Error resolving tags by ID')
-        throw error
+      if (tagsById.length !== tagIds.length) {
+        const foundIds = tagsById.map(t => t.id)
+        const missingIds = tagIds.filter(id => !foundIds.includes(id))
+        this.logger.warn({ missingIds }, 'Some tag IDs not found')
+        throw new BadRequestException(`Tags not found: ${missingIds.join(', ')}`)
       }
+
+      tagsById.forEach(tag => resolvedTags.set(tag.id, tag))
     }
 
-    // Resolve/create tags by names
+    // 2. Resolve/create tags by names (Batch fetch + specific create)
     if (tagNames && tagNames.length > 0) {
-      this.logger.debug({ tagNames, count: tagNames.length }, 'Processing tag names')
-      for (const tagName of tagNames) {
-        const normalizedName = tagName.trim().toLowerCase()
+      const normalizedNames = [...new Set(tagNames.map(n => n.trim().toLowerCase()))]
 
-        try {
-          // Try to find existing tag
-          let tag = await this.tagRepository.findByName(normalizedName)
+      // Fetch existing tags by name in one go
+      const existingTags = await this.tagRepository.findMany({
+        where: { name: In(normalizedNames) }
+      })
 
-          // Create tag if it doesn't exist
-          if (!tag && userId) {
-            tag = await this.tagRepository.create({
-              name: normalizedName,
-              createdBy: userId,
-              updatedBy: userId
+      existingTags.forEach(tag => resolvedTags.set(tag.id, tag))
+
+      // Identify missing tags
+      const existingNames = existingTags.map(t => t.name)
+      const missingNames = normalizedNames.filter(n => !existingNames.includes(n))
+
+      if (missingNames.length > 0) {
+        if (!userId) {
+          this.logger.warn({ missingNames }, 'Cannot create tags without userId')
+          // If we can't create, we just skip them (or throw, depending on reqs. Existing logic skipped nulls)
+        } else {
+          // Create missing tags individually (names must be unique, potential race condtion if parallel)
+          // Since it's user input, sequential creation is safer or Promise.allSettled
+          // For now, simple loop is better than N+1 reads AND writes. This is N writes only.
+          this.logger.info({ count: missingNames.length }, 'Creating new tags')
+
+          await Promise.all(
+            missingNames.map(async name => {
+              try {
+                const newTag = await this.tagRepository.create({
+                  name,
+                  createdBy: userId,
+                  updatedBy: userId
+                })
+                resolvedTags.set(newTag.id, newTag)
+              } catch (error) {
+                // Handle race condition where tag might be created by another req
+                this.logger.warn(
+                  { name, error: error.message },
+                  'Failed to create tag, trying to fetch'
+                )
+                const existing = await this.tagRepository.findByName(name)
+                if (existing) resolvedTags.set(existing.id, existing)
+              }
             })
-
-            this.logger.info(
-              { action: 'create_tag', tagId: tag.id, name: normalizedName, userId },
-              'Created new tag'
-            )
-          }
-
-          if (tag) {
-            // Avoid duplicates
-            if (!resolvedTags.find(t => t.id === tag.id)) {
-              resolvedTags.push(tag)
-              this.logger.debug({ tagName: tag.name, tagId: tag.id }, 'Tag added to resolved list')
-            } else {
-              this.logger.debug({ tagName: tag.name }, 'Tag already in resolved list, skipping')
-            }
-          } else {
-            this.logger.warn({ tagName: normalizedName }, 'Tag is null after processing')
-          }
-        } catch (tagError) {
-          this.logger.error(
-            { error: tagError, tagName: normalizedName },
-            'Error processing tag name'
           )
-          throw tagError
         }
       }
     }
 
-    this.logger.debug(
-      {
-        totalTags: resolvedTags.length,
-        tags: resolvedTags.map(t => ({ id: t.id, name: t.name }))
-      },
-      'Tags resolution complete'
-    )
-    return resolvedTags
+    const result = Array.from(resolvedTags.values())
+    this.logger.debug({ totalTags: result.length }, 'Tags resolution complete')
+    return result
   }
 
   /**

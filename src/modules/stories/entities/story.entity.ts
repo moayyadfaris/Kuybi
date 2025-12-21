@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   JoinTable,
   ManyToMany,
@@ -53,6 +54,7 @@ export class Story {
   @Column({ type: 'text', nullable: true })
   details?: string
 
+  @Index()
   @Column({
     type: 'enum',
     enum: StoryType,
@@ -60,6 +62,7 @@ export class Story {
   })
   type: StoryType
 
+  @Index()
   @Column({ type: 'uuid', nullable: true })
   userId?: string
 
@@ -67,6 +70,7 @@ export class Story {
   @JoinColumn({ name: 'userId' })
   user?: User
 
+  @Index()
   @Column({
     type: 'enum',
     enum: StoryStatus,
@@ -80,6 +84,7 @@ export class Story {
   @Column({ type: 'timestamptz', nullable: true })
   toTime?: Date
 
+  @Index()
   @Column({
     type: 'enum',
     enum: StoryPriority,
@@ -140,6 +145,7 @@ export class Story {
   @Column({ length: 100, nullable: true })
   region?: string
 
+  @Index()
   @Column({ type: 'integer', nullable: true })
   countryId?: number
 

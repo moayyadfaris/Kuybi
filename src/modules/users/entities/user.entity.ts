@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -30,6 +31,7 @@ export class User {
   @Column({ type: 'text' })
   passwordHash: string
 
+  @Index()
   @Column({ name: 'primary_role_id' })
   primaryRoleId: number
 
