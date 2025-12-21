@@ -171,11 +171,7 @@ export class StoriesService {
           await transactionalEntityManager.save(Story, storyWithRelations)
           requestLogger.debug({ storyId: story.id }, 'Story with relations saved')
 
-          const cacheSvc = (this.storyRepository as any)?.cacheService
-          const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-          if (cacheSvc && buildKey) {
-            await cacheSvc.del(buildKey('id', story.id.toString()))
-          }
+          await this.storyRepository.invalidateStoryCache(story.id, userId)
         }
 
         requestLogger.info(

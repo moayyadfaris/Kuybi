@@ -107,6 +107,30 @@ export class CacheService {
   }
 
   /**
+   * Wrap a function with tag-based caching
+   */
+  async wrapWithTags<T>(
+    key: string,
+    tags: string[],
+    fn: () => Promise<T>,
+    ttl?: number
+  ): Promise<T> {
+    // Try to get from cache first
+    const cached = await this.get<T>(key)
+    if (cached !== undefined && cached !== null) {
+      return cached
+    }
+
+    // Execute function
+    const value = await fn()
+
+    // Set with tags
+    await this.setWithTags(key, value, tags, ttl)
+
+    return value
+  }
+
+  /**
    * Check if cache store is available (health check)
    */
   async isHealthy(): Promise<boolean> {

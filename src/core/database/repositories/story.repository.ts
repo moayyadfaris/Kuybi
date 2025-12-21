@@ -42,8 +42,9 @@ export class StoryRepository extends BaseRepository<Story> {
     const cacheKey = this.buildCacheKey('id', id)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<Story>(
+      return this.cacheService.wrapWithTags<Story>(
         cacheKey,
+        ['stories', `story:${id}`],
         async () => {
           return this.repository.findOne({
             where: { id } as any,
@@ -74,8 +75,9 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey('user', userId, JSON.stringify(options || {}))
 
-    return this.cacheService.wrap<Story[]>(
+    return this.cacheService.wrapWithTags<Story[]>(
       cacheKey,
+      ['stories', `user:${userId}:stories`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -117,8 +119,9 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey('status', status, JSON.stringify(options || {}))
 
-    return this.cacheService.wrap<Story[]>(
+    return this.cacheService.wrapWithTags<Story[]>(
       cacheKey,
+      ['stories', `story:status:${status}`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -157,8 +160,9 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey('type', type, JSON.stringify(options || {}))
 
-    return this.cacheService.wrap<Story[]>(
+    return this.cacheService.wrapWithTags<Story[]>(
       cacheKey,
+      ['stories', `story:type:${type}`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -197,8 +201,9 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey('priority', priority, JSON.stringify(options || {}))
 
-    return this.cacheService.wrap<Story[]>(
+    return this.cacheService.wrapWithTags<Story[]>(
       cacheKey,
+      ['stories', `story:priority:${priority}`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -240,8 +245,9 @@ export class StoryRepository extends BaseRepository<Story> {
       JSON.stringify(options || {})
     )
 
-    return this.cacheService.wrap<Story[]>(
+    return this.cacheService.wrapWithTags<Story[]>(
       cacheKey,
+      ['stories', `story:${parentId}:children`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -399,8 +405,9 @@ export class StoryRepository extends BaseRepository<Story> {
   }> {
     const cacheKey = this.buildCacheKey('stats')
 
-    return this.cacheService.wrap(
+    return this.cacheService.wrapWithTags(
       cacheKey,
+      ['stories', 'stats'],
       async () => {
         const now = new Date()
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -547,20 +554,14 @@ export class StoryRepository extends BaseRepository<Story> {
   async create(data: Partial<Story>): Promise<Story> {
     const story = await super.create(data)
 
-    // Invalidate relevant caches
-    await Promise.all([
-      this.cacheService.del(this.buildCacheKey('all')),
-      this.cacheService.del(this.buildCacheKey('stats')),
-      data.userId
-        ? this.cacheService.delPattern(this.buildCacheKey('user', data.userId, '*'))
-        : Promise.resolve(),
-      data.status
-        ? this.cacheService.delPattern(this.buildCacheKey('status', data.status, '*'))
-        : Promise.resolve(),
-      data.type
-        ? this.cacheService.delPattern(this.buildCacheKey('type', data.type, '*'))
-        : Promise.resolve()
-    ])
+    // Invalidate relevant caches using tags
+    const tagsToInvalidate = ['stories', 'stats']
+    if (data.userId) tagsToInvalidate.push(`user:${data.userId}:stories`)
+    if (data.status) tagsToInvalidate.push(`story:status:${data.status}`)
+    if (data.type) tagsToInvalidate.push(`story:type:${data.type}`)
+    if (data.priority) tagsToInvalidate.push(`story:priority:${data.priority}`)
+
+    await this.cacheService.invalidateTags(tagsToInvalidate)
 
     return story
   }
@@ -571,17 +572,20 @@ export class StoryRepository extends BaseRepository<Story> {
   async update(id: number, data: Partial<Story>): Promise<Story> {
     const story = await super.update(id, data)
 
-    // Invalidate relevant caches
-    await Promise.all([
-      this.cacheService.del(this.buildCacheKey('id', id.toString())),
-      this.cacheService.del(this.buildCacheKey('all')),
-      this.cacheService.del(this.buildCacheKey('stats')),
-      story.userId
-        ? this.cacheService.delPattern(this.buildCacheKey('user', story.userId, '*'))
-        : Promise.resolve(),
-      this.cacheService.delPattern(this.buildCacheKey('status', story.status, '*')),
-      this.cacheService.delPattern(this.buildCacheKey('type', story.type, '*'))
-    ])
+    // Invalidate relevant caches using tags
+    const tagsToInvalidate = ['stories', 'stats', `story:${id}`]
+
+    if (story.userId) tagsToInvalidate.push(`user:${story.userId}:stories`)
+
+    // Invalidate both old and new status/type/priority
+    if (story.status) tagsToInvalidate.push(`story:status:${story.status}`)
+    if (data.status && data.status !== story.status)
+      tagsToInvalidate.push(`story:status:${data.status}`)
+
+    if (story.type) tagsToInvalidate.push(`story:type:${story.type}`)
+    if (data.type && data.type !== story.type) tagsToInvalidate.push(`story:type:${data.type}`)
+
+    await this.cacheService.invalidateTags(tagsToInvalidate)
 
     return story
   }
@@ -595,16 +599,26 @@ export class StoryRepository extends BaseRepository<Story> {
 
     const result = await super.delete(id)
 
-    // Invalidate relevant caches
-    await Promise.all([
-      this.cacheService.del(this.buildCacheKey('id', id.toString())),
-      this.cacheService.del(this.buildCacheKey('all')),
-      this.cacheService.del(this.buildCacheKey('stats')),
-      story.userId
-        ? this.cacheService.delPattern(this.buildCacheKey('user', story.userId, '*'))
-        : Promise.resolve()
-    ])
+    // Invalidate relevant caches using tags
+    const tagsToInvalidate = ['stories', 'stats', `story:${id}`]
+    if (story.userId) tagsToInvalidate.push(`user:${story.userId}:stories`)
+    if (story.status) tagsToInvalidate.push(`story:status:${story.status}`)
+    if (story.type) tagsToInvalidate.push(`story:type:${story.type}`)
+
+    await this.cacheService.invalidateTags(tagsToInvalidate)
 
     return result
+  }
+
+  /**
+   * Manually invalidate cache for a story
+   * Used by other services that modify story relationships directy
+   */
+  async invalidateStoryCache(id: number, userId?: string): Promise<void> {
+    const tagsToInvalidate = ['stories', `story:${id}`]
+    if (userId) {
+      tagsToInvalidate.push(`user:${userId}:stories`)
+    }
+    await this.cacheService.invalidateTags(tagsToInvalidate)
   }
 }

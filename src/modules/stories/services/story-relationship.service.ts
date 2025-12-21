@@ -195,12 +195,7 @@ export class StoryRelationshipService {
 
       await this.storyEntityRepository.save(story)
 
-      // Invalidate cache
-      const cacheSvc = (this.storyRepository as any)?.cacheService
-      const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-      if (cacheSvc && buildKey) {
-        await cacheSvc.del(buildKey('id', storyId.toString()))
-      }
+      await this.storyRepository.invalidateStoryCache(storyId, userId)
 
       this.logger.info(
         { action: 'attach_attachments', storyId, userId, attached: newAttachments.length },
@@ -257,12 +252,7 @@ export class StoryRelationshipService {
       if (story.attachments.length !== originalCount) {
         await this.storyEntityRepository.save(story)
 
-        // Invalidate cache
-        const cacheSvc = (this.storyRepository as any)?.cacheService
-        const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-        if (cacheSvc && buildKey) {
-          await cacheSvc.del(buildKey('id', storyId.toString()))
-        }
+        await this.storyRepository.invalidateStoryCache(storyId, userId)
       }
 
       this.logger.info(
@@ -332,12 +322,7 @@ export class StoryRelationshipService {
 
       await this.storyEntityRepository.save(story)
 
-      // Invalidate cache
-      const cacheSvc = (this.storyRepository as any)?.cacheService
-      const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-      if (cacheSvc && buildKey) {
-        await cacheSvc.del(buildKey('id', storyId.toString()))
-      }
+      await this.storyRepository.invalidateStoryCache(storyId, userId)
 
       this.logger.info(
         { action: 'attach_tags', storyId, userId, attached: newTags.length },
@@ -399,12 +384,7 @@ export class StoryRelationshipService {
 
       await this.storyEntityRepository.save(story)
 
-      // Invalidate cache
-      const cacheSvc = (this.storyRepository as any)?.cacheService
-      const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-      if (cacheSvc && buildKey) {
-        await cacheSvc.del(buildKey('id', storyId.toString()))
-      }
+      await this.storyRepository.invalidateStoryCache(storyId, userId)
 
       this.logger.info(
         { action: 'detach_tags', storyId, userId, detached: detachIds.length },
@@ -468,12 +448,7 @@ export class StoryRelationshipService {
 
       await this.storyEntityRepository.save(story)
 
-      // Invalidate cache
-      const cacheSvc = (this.storyRepository as any)?.cacheService
-      const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-      if (cacheSvc && buildKey) {
-        await cacheSvc.del(buildKey('id', storyId.toString()))
-      }
+      await this.storyRepository.invalidateStoryCache(storyId, userId)
 
       this.logger.info(
         { action: 'attach_categories', storyId, userId, attached: newCategories.length },
@@ -530,12 +505,7 @@ export class StoryRelationshipService {
       if (story.categories.length !== originalCount) {
         await this.storyEntityRepository.save(story)
 
-        // Invalidate cache
-        const cacheSvc = (this.storyRepository as any)?.cacheService
-        const buildKey = (this.storyRepository as any)?.buildCacheKey?.bind(this.storyRepository)
-        if (cacheSvc && buildKey) {
-          await cacheSvc.del(buildKey('id', storyId.toString()))
-        }
+        await this.storyRepository.invalidateStoryCache(storyId, userId)
       }
 
       this.logger.info(
