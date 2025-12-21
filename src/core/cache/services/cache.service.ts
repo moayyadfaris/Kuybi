@@ -197,6 +197,8 @@ export class CacheService {
   private async deletePatternInternal(pattern: string): Promise<void> {
     this.logger.info({ pattern }, 'Attempting to delete cache keys matching pattern')
 
+    const redisClient = this.getRedisClient()
+
     const cacheStore: any = this.cacheManager
     const keyvInstance: any = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
     const keyvStore: any =
@@ -217,13 +219,6 @@ export class CacheService {
 
     const prefix = namespace ? `${namespace}${separator}` : ''
     const namespacedPattern = prefix ? `${prefix}${pattern}` : pattern
-
-    const redisClient: any =
-      keyvStore?.client ??
-      keyvStore?._client ??
-      cacheStore?.store?.client ??
-      cacheStore?.store?._client ??
-      null
 
     const keysToDelete: string[] = []
 
@@ -278,18 +273,34 @@ export class CacheService {
     await this.executeWithResilience(
       'setWithTags',
       async () => {
-        const cacheStore: any = this.cacheManager
-        const redisClient = cacheStore.store?.client
+        const redisClient = this.getRedisClient()
 
-        if (redisClient?.sadd) {
+        if (redisClient) {
           // Add this key to each tag's set
           for (const tag of tags) {
             const tagKey = `cache:tag:${tag}`
-            await redisClient.sadd(tagKey, key)
-
-            // Set TTL on tag set (slightly longer than cache TTL to avoid orphaned tags)
-            if (ttl) {
-              await redisClient.expire(tagKey, ttl + 300) // +5 minutes buffer
+            try {
+              // Try multiple ways to execute redis commands (ioredis vs node-redis vs wrappers)
+              if (typeof redisClient.sadd === 'function') {
+                await redisClient.sadd(tagKey, key)
+                if (ttl) await redisClient.expire(tagKey, ttl + 300)
+              } else if (typeof redisClient.call === 'function') {
+                // ioredis generic call
+                await redisClient.call('sadd', tagKey, key)
+                if (ttl) await redisClient.call('expire', tagKey, ttl + 300)
+              } else if (typeof redisClient.sendCommand === 'function') {
+                // node-redis generic call
+                await redisClient.sendCommand(['SADD', tagKey, key])
+                if (ttl) await redisClient.sendCommand(['EXPIRE', tagKey, (ttl + 300).toString()])
+              } else {
+                this.logger.warn(
+                  { tag, key },
+                  'Redis client found but no compatible command method found'
+                )
+                continue
+              }
+            } catch (err) {
+              this.logger.warn({ tag, key, error: err.message }, 'Failed to add tag to Redis set')
             }
           }
 
@@ -297,7 +308,7 @@ export class CacheService {
         } else {
           this.logger.warn(
             { key, tags },
-            'Redis tagging not supported, falling back to regular cache'
+            'Redis tagging not supported (client not found), falling back to regular cache'
           )
         }
       },
@@ -314,18 +325,34 @@ export class CacheService {
     await this.executeWithResilience(
       'invalidateTag',
       async () => {
-        const cacheStore: any = this.cacheManager
-        const redisClient = cacheStore.store?.client
+        const redisClient = this.getRedisClient()
 
-        if (!redisClient?.smembers || !redisClient?.del) {
+        if (!redisClient) {
           this.logger.warn({ tag }, 'Redis tagging not supported, skipping tag invalidation')
           return
         }
 
         const tagKey = `cache:tag:${tag}`
+        let keys: string[] = []
 
-        // Get all keys associated with this tag
-        const keys = await redisClient.smembers(tagKey)
+        try {
+          if (typeof redisClient.smembers === 'function') {
+            keys = await redisClient.smembers(tagKey)
+          } else if (typeof redisClient.call === 'function') {
+            keys = (await redisClient.call('smembers', tagKey)) as string[]
+          } else if (typeof redisClient.sendCommand === 'function') {
+            keys = (await redisClient.sendCommand(['SMEMBERS', tagKey])) as string[]
+          } else {
+            this.logger.warn(
+              { tag },
+              'Redis client found but no compatible command method found for smembers'
+            )
+            return
+          }
+        } catch (err) {
+          this.logger.error({ tag, error: err.message }, 'Failed to fetch keys for tag')
+          return
+        }
 
         if (keys.length === 0) {
           this.logger.debug({ tag }, 'No cache entries found for tag')
@@ -336,7 +363,17 @@ export class CacheService {
         await Promise.all(keys.map((key: string) => this.del(key)))
 
         // Delete the tag set itself
-        await redisClient.del(tagKey)
+        try {
+          if (typeof redisClient.del === 'function') {
+            await redisClient.del(tagKey)
+          } else if (typeof redisClient.call === 'function') {
+            await redisClient.call('del', tagKey)
+          } else if (typeof redisClient.sendCommand === 'function') {
+            await redisClient.sendCommand(['DEL', tagKey])
+          }
+        } catch (err) {
+          this.logger.warn({ tag, error: err.message }, 'Failed to delete tag key')
+        }
 
         this.logger.info({ tag, keysInvalidated: keys.length }, 'Cache tag invalidated')
       },
@@ -352,5 +389,22 @@ export class CacheService {
   async invalidateTags(tags: string[]): Promise<void> {
     await Promise.all(tags.map(tag => this.invalidateTag(tag)))
     this.logger.info({ tags, count: tags.length }, 'Multiple cache tags invalidated')
+  }
+
+  private getRedisClient(): any {
+    const cacheStore: any = this.cacheManager
+    // Robust discovery logic for cache-manager v5/v6/v7 and Keyv
+    const keyvInstance: any = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
+    const keyvStore: any =
+      keyvInstance?._store ?? keyvInstance?.store ?? keyvInstance?.opts?.store ?? null
+
+    const redisClient: any =
+      keyvStore?.client ??
+      keyvStore?._client ??
+      cacheStore?.store?.client ??
+      cacheStore?.store?._client ??
+      null
+
+    return redisClient
   }
 }
