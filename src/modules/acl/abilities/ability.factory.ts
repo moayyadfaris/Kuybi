@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
-import { AbilityBuilder, createMongoAbility, MongoAbility } from '@casl/ability'
+import { AbilityBuilder, createMongoAbility, InferSubjects, MongoAbility } from '@casl/ability'
 
+import { Story } from '../../stories/entities/story.entity'
 import { User } from '../../users/entities/user.entity'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
@@ -9,7 +10,8 @@ import { Subject } from '../types/subjects.enum'
  * Type definition for application abilities
  * Represents what actions can be performed on which subjects
  */
-export type AppAbility = MongoAbility<[Action, Subject]>
+export type Subjects = InferSubjects<typeof Story | typeof User> | Subject
+export type AppAbility = MongoAbility<[Action, Subjects]>
 
 /**
  * Factory for creating user-specific CASL abilities

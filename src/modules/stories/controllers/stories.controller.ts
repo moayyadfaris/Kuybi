@@ -46,16 +46,10 @@ import { UpdateStoryMainImageDto } from '@modules/stories/dto/update-story-main-
 import { Story, StoryStatus, StoryType } from '@modules/stories/entities/story.entity'
 import { StoriesService } from '@modules/stories/services/stories.service'
 import { StoryRelationshipService } from '@modules/stories/services/story-relationship.service'
-
-interface ControllerUser {
-  id?: string
-  userId?: string
-  email?: string
-  role?: string
-}
+import { User } from '@modules/users/entities/user.entity'
 
 interface AuthenticatedRequest extends Request {
-  user?: ControllerUser
+  user?: User
 }
 
 @ApiTags('Stories - Admin')
@@ -78,8 +72,8 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   create(@Body() createStoryDto: CreateStoryDto, @Req() req: AuthenticatedRequest) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.create(createStoryDto, userId)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.create(createStoryDto, req.user)
   }
 
   @Get()
@@ -180,8 +174,7 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.userId || req.user?.id
-    return this.storiesService.findOne(id, userId)
+    return this.storiesService.findOne(id, req.user?.id)
   }
 
   @Patch(':id')
@@ -199,8 +192,8 @@ export class StoriesController {
     @Body() updateStoryDto: UpdateStoryDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.update(id, updateStoryDto, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.update(id, updateStoryDto, req.user)
   }
 
   @Patch(':id/status')
@@ -218,8 +211,8 @@ export class StoriesController {
     @Body('status') status: StoryStatus,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.updateStatus(id, status, userId)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.updateStatus(id, status, req.user)
   }
 
   @Delete(':id')
@@ -238,8 +231,8 @@ export class StoriesController {
     @Query('reason') reason: string,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.remove(id, userId, reason, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.remove(id, req.user, reason)
   }
 
   @Delete(':id/hard')
@@ -253,8 +246,8 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin only' })
   hardDelete(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.hardDelete(id, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.hardDelete(id, req.user)
   }
 
   @Post(':id/restore')
@@ -268,8 +261,8 @@ export class StoriesController {
   @ApiResponse({ status: 400, description: 'Story is not deleted' })
   @ApiResponse({ status: 403, description: 'Forbidden - not the story owner' })
   restore(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.restore(id, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.restore(id, req.user)
   }
 
   // Attachment management endpoints
@@ -284,8 +277,8 @@ export class StoriesController {
     @Body() dto: AttachAttachmentsDto,
     @Req() req: AuthenticatedRequest
   ): Promise<Story> {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storyRelationshipService.attachAttachments(id, dto, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storyRelationshipService.attachAttachments(id, dto, req.user)
   }
 
   @Delete(':id/attachments')
@@ -298,8 +291,8 @@ export class StoriesController {
     @Body() dto: DetachAttachmentsDto,
     @Req() req: AuthenticatedRequest
   ): Promise<Story> {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storyRelationshipService.detachAttachments(id, dto, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storyRelationshipService.detachAttachments(id, dto, req.user)
   }
 
   @Get(':id/attachments')
@@ -330,8 +323,8 @@ export class StoriesController {
     @Body() dto: AttachTagsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storyRelationshipService.attachTags(id, dto, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storyRelationshipService.attachTags(id, dto, req.user)
   }
 
   @Delete(':id/tags')
@@ -348,8 +341,8 @@ export class StoriesController {
     @Body() dto: DetachTagsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storyRelationshipService.detachTags(id, dto, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storyRelationshipService.detachTags(id, dto, req.user)
   }
 
   @Get(':id/tags')
@@ -380,8 +373,8 @@ export class StoriesController {
     @Body() dto: AttachCategoriesDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storyRelationshipService.attachCategories(id, dto, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storyRelationshipService.attachCategories(id, dto, req.user)
   }
 
   @Delete(':id/categories')
@@ -398,8 +391,8 @@ export class StoriesController {
     @Body() dto: DetachCategoriesDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storyRelationshipService.detachCategories(id, dto, userId, req.user?.role)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storyRelationshipService.detachCategories(id, dto, req.user)
   }
 
   @Get(':id/categories')
@@ -430,8 +423,8 @@ export class StoriesController {
     @Body() dto: UpdateStoryMainImageDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.updateMainImage(id, dto.attachmentId, userId)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.updateMainImage(id, dto.attachmentId, req.user)
   }
 
   @Delete(':id/main-image')
@@ -443,12 +436,12 @@ export class StoriesController {
   @ApiResponse({ status: 200, description: 'Main image removed successfully' })
   @ApiResponse({ status: 404, description: 'Story not found' })
   removeMainImage(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    const userId = this.getAuthenticatedUserId(req)
-    return this.storiesService.removeMainImage(id, userId)
+    if (!req.user) throw new UnauthorizedException()
+    return this.storiesService.removeMainImage(id, req.user)
   }
 
   private getAuthenticatedUserId(req: AuthenticatedRequest): string {
-    const userId = req.user?.userId || req.user?.id
+    const userId = req.user?.id
     if (!userId) {
       throw new UnauthorizedException('User not authenticated')
     }

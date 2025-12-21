@@ -8,11 +8,15 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { PinoLogger } from 'nestjs-pino'
 import { DataSource, In, Repository } from 'typeorm'
 
+import { AbilityFactory } from '@modules/acl/abilities/ability.factory'
+import { Action } from '@modules/acl/types/actions.enum'
+import { Subject } from '@modules/acl/types/subjects.enum'
 import { S3Service } from '@modules/attachments/services/s3.service'
 import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
 import { CreateStoryDto, StoryFilterDto, StoryStatsDto, UpdateStoryDto } from '@modules/stories/dto'
 import { Story, StoryStatus, StoryType } from '@modules/stories/entities/story.entity'
 import { Tag } from '@modules/tags/entities/tag.entity'
+import { User } from '@modules/users/entities/user.entity'
 
 import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import { CategoryRepository } from '@core/database/repositories/category.repository'
@@ -39,7 +43,8 @@ export class StoriesService {
     private readonly logger: PinoLogger,
     private readonly loggingContext: LoggingContextService,
     private readonly versionService: StoryVersionService,
-    private readonly s3Service: S3Service
+    private readonly s3Service: S3Service,
+    private readonly abilityFactory: AbilityFactory
   ) {
     this.logger.setContext(StoriesService.name)
   }
@@ -47,7 +52,8 @@ export class StoriesService {
   /**
    * Create a new story
    */
-  async create(createStoryDto: CreateStoryDto, userId: string, _userRole?: string): Promise<Story> {
+  async create(createStoryDto: CreateStoryDto, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     const requestLogger = this.loggingContext.getLogger({
       context: StoriesService.name,
       action: 'create_story'
@@ -328,12 +334,8 @@ export class StoriesService {
   /**
    * Update story
    */
-  async update(
-    id: number,
-    updateStoryDto: UpdateStoryDto,
-    userId: string,
-    userRole?: string
-  ): Promise<Story> {
+  async update(id: number, updateStoryDto: UpdateStoryDto, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     this.logger.info({ action: 'update_story', storyId: id, userId }, 'Updating story')
 
     // Wrap update operation in a transaction
@@ -341,8 +343,9 @@ export class StoriesService {
       try {
         const story = await this.findOne(id)
 
-        // Check ownership or admin permission (simplified - in production, use proper RBAC)
-        if (story.userId !== userId && !this.isAdmin(userRole)) {
+        // Check permissions using CASL
+        const ability = this.abilityFactory.createForUser(currentUser)
+        if (!ability.can(Action.Update, story)) {
           this.logger.warn(
             {
               action: 'update_story',
@@ -350,7 +353,7 @@ export class StoriesService {
               ownerId: story.userId,
               requesterId: userId
             },
-            'Update denied due to ownership mismatch'
+            'Update denied due to insufficient permissions'
           )
           throw new ForbiddenException('You do not have permission to update this story')
         }
@@ -390,10 +393,10 @@ export class StoriesService {
             await this.storyRelationshipService.detachCategories(
               id,
               { categoryIds: existingStory.categories.map(c => c.id) },
-              userId
+              currentUser
             )
           }
-          await this.storyRelationshipService.attachCategories(id, { categoryIds }, userId)
+          await this.storyRelationshipService.attachCategories(id, { categoryIds }, currentUser)
         }
 
         // Handle tag updates if provided (tags by name)
@@ -403,10 +406,10 @@ export class StoriesService {
             await this.storyRelationshipService.detachTags(
               id,
               { tagIds: existingStory.tags.map(t => t.id) },
-              userId
+              currentUser
             )
           }
-          await this.storyRelationshipService.attachTags(id, { tags }, userId)
+          await this.storyRelationshipService.attachTags(id, { tags }, currentUser)
         }
 
         // Handle tag updates by ID if provided
@@ -416,10 +419,10 @@ export class StoriesService {
             await this.storyRelationshipService.detachTags(
               id,
               { tagIds: existingStory.tags.map(t => t.id) },
-              userId
+              currentUser
             )
           }
-          await this.storyRelationshipService.attachTags(id, { tagIds }, userId)
+          await this.storyRelationshipService.attachTags(id, { tagIds }, currentUser)
         }
 
         this.logger.info(
@@ -464,14 +467,16 @@ export class StoriesService {
   /**
    * Soft delete story
    */
-  async remove(id: number, userId: string, reason?: string, userRole?: string): Promise<void> {
+  async remove(id: number, currentUser: User, reason?: string): Promise<void> {
+    const userId = currentUser.id
     this.logger.info({ action: 'delete_story', storyId: id, userId, reason }, 'Deleting story')
 
     try {
       const story = await this.findOne(id)
 
-      // Check ownership or admin permission
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Delete, story)) {
         this.logger.warn(
           {
             action: 'delete_story',
@@ -479,7 +484,7 @@ export class StoriesService {
             ownerId: story.userId,
             requesterId: userId
           },
-          'Delete denied due to ownership mismatch'
+          'Delete denied due to insufficient permissions'
         )
         throw new ForbiddenException('You do not have permission to delete this story')
       }
@@ -508,14 +513,17 @@ export class StoriesService {
   /**
    * Permanently delete story (admin only)
    */
-  async hardDelete(id: number, userId: string, userRole?: string): Promise<void> {
+  async hardDelete(id: number, currentUser: User): Promise<void> {
+    const userId = currentUser.id
     this.logger.warn(
       { action: 'hard_delete_story', storyId: id, userId },
       'Permanently deleting story'
     )
 
     try {
-      if (!this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Manage, Subject.All)) {
         throw new ForbiddenException('Only admins can permanently delete stories')
       }
 
@@ -541,7 +549,8 @@ export class StoriesService {
   /**
    * Restore soft-deleted story
    */
-  async restore(id: number, userId: string, userRole?: string): Promise<Story> {
+  async restore(id: number, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     this.logger.info({ action: 'restore_story', storyId: id, userId }, 'Restoring story')
 
     try {
@@ -555,8 +564,9 @@ export class StoriesService {
         throw new BadRequestException('Story is not deleted')
       }
 
-      // Check ownership or admin permission
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Restore, story)) {
         throw new ForbiddenException('You do not have permission to restore this story')
       }
 
@@ -587,7 +597,8 @@ export class StoriesService {
   /**
    * Update story status
    */
-  async updateStatus(id: number, status: StoryStatus, userId: string): Promise<Story> {
+  async updateStatus(id: number, status: StoryStatus, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     this.logger.info(
       { action: 'update_status', storyId: id, userId, status },
       'Updating story status'
@@ -664,18 +675,10 @@ export class StoriesService {
   }
 
   /**
-   * Check if user is admin (simplified)
-   * In production, use proper RBAC service
-   */
-  private isAdmin(userRole?: string): boolean {
-    if (!userRole) return false
-    return userRole.toLowerCase().includes('admin')
-  }
-
-  /**
    * Update story main image
    */
-  async updateMainImage(storyId: number, attachmentId: string, userId: string): Promise<Story> {
+  async updateMainImage(storyId: number, attachmentId: string, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     const requestLogger = this.loggingContext.getLogger({
       context: StoriesService.name,
       action: 'update_main_image'
@@ -758,7 +761,8 @@ export class StoriesService {
   /**
    * Remove story main image
    */
-  async removeMainImage(storyId: number, userId: string): Promise<Story> {
+  async removeMainImage(storyId: number, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     const requestLogger = this.loggingContext.getLogger({
       context: StoriesService.name,
       action: 'remove_main_image'

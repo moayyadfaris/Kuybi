@@ -26,6 +26,7 @@ import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Subject } from '@modules/acl/types/subjects.enum'
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { User } from '@modules/users/entities/user.entity'
 
 import { UpdateStoryDto } from '../dto/update-story.dto'
 import { BranchInfoDto, VersionComparisonDto, VersionResponseDto } from '../dto/version'
@@ -37,15 +38,8 @@ import { RollbackVersionDto } from '../dto/version/rollback-version.dto'
 import { StoriesService } from '../services/stories.service'
 import { StoryVersionService } from '../services/story-version.service'
 
-interface ControllerUser {
-  id?: string
-  userId?: string
-  email?: string
-  role?: string
-}
-
 interface AuthenticatedRequest extends Request {
-  user?: ControllerUser
+  user?: User
 }
 
 @ApiTags('Story Versions')
@@ -59,7 +53,7 @@ export class StoryVersionController {
   ) {}
 
   private getUserId(req: AuthenticatedRequest): string {
-    const userId = req.user?.userId || req.user?.id
+    const userId = req.user?.id
     if (!userId) {
       throw new Error('User not authenticated')
     }
@@ -184,6 +178,7 @@ export class StoryVersionController {
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
     const userId = this.getUserId(req)
+    if (!req.user) throw new Error('User not authenticated')
     const commitMessage = dto.commitMessage || `Rollback to version ${dto.versionNumber}`
 
     // Perform rollback and get restored content
@@ -215,7 +210,7 @@ export class StoryVersionController {
       metadata: restoredContent.metadata,
       internalNotes: restoredContent.internalNotes
     }
-    await this.storiesService.update(storyId, updateDto, userId)
+    await this.storiesService.update(storyId, updateDto, req.user)
 
     return this.versionService.toResponseDto(version)
   }

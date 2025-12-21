@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { PinoLogger } from 'nestjs-pino'
 import { In, Repository } from 'typeorm'
 
+import { AbilityFactory } from '@modules/acl/abilities/ability.factory'
+import { Action } from '@modules/acl/types/actions.enum'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
 import { Category } from '@modules/categories/entities/category.entity'
@@ -21,6 +23,7 @@ import {
 } from '@modules/stories/dto'
 import { Story } from '@modules/stories/entities/story.entity'
 import { Tag } from '@modules/tags/entities/tag.entity'
+import { User } from '@modules/users/entities/user.entity'
 
 import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import { CategoryRepository } from '@core/database/repositories/category.repository'
@@ -36,17 +39,10 @@ export class StoryRelationshipService {
     private readonly attachmentRepository: AttachmentRepository,
     @InjectRepository(Story)
     private readonly storyEntityRepository: Repository<Story>,
-    private readonly logger: PinoLogger
+    private readonly logger: PinoLogger,
+    private readonly abilityFactory: AbilityFactory
   ) {
     this.logger.setContext(StoryRelationshipService.name)
-  }
-
-  /**
-   * Helper to check if user is admin
-   */
-  private isAdmin(userRole?: string): boolean {
-    if (!userRole) return false
-    return userRole.toLowerCase().includes('admin')
   }
 
   /**
@@ -154,9 +150,9 @@ export class StoryRelationshipService {
   async attachAttachments(
     storyId: number,
     dto: AttachAttachmentsDto,
-    userId: string,
-    userRole?: string
+    currentUser: User
   ): Promise<Story> {
+    const userId = currentUser.id
     this.logger.info(
       { action: 'attach_attachments', storyId, userId, count: dto.attachmentIds.length },
       'Attaching attachments to story'
@@ -172,8 +168,9 @@ export class StoryRelationshipService {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
       }
 
-      // Check ownership
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Update, story)) {
         throw new ForbiddenException('You do not have permission to modify this story')
       }
 
@@ -218,9 +215,9 @@ export class StoryRelationshipService {
   async detachAttachments(
     storyId: number,
     dto: DetachAttachmentsDto,
-    userId: string,
-    userRole?: string
+    currentUser: User
   ): Promise<Story> {
+    const userId = currentUser.id
     this.logger.info(
       { action: 'detach_attachments', storyId, userId, count: dto.attachmentIds.length },
       'Detaching attachments from story'
@@ -236,8 +233,9 @@ export class StoryRelationshipService {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
       }
 
-      // Check ownership
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Update, story)) {
         throw new ForbiddenException('You do not have permission to modify this story')
       }
 
@@ -278,12 +276,8 @@ export class StoryRelationshipService {
   /**
    * Attach tags to story
    */
-  async attachTags(
-    storyId: number,
-    dto: AttachTagsDto,
-    userId: string,
-    userRole?: string
-  ): Promise<Story> {
+  async attachTags(storyId: number, dto: AttachTagsDto, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     const tagCount = (dto.tagIds?.length || 0) + (dto.tags?.length || 0)
     this.logger.info(
       { action: 'attach_tags', storyId, userId, count: tagCount },
@@ -300,8 +294,9 @@ export class StoryRelationshipService {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
       }
 
-      // Check ownership
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Update, story)) {
         throw new ForbiddenException('You do not have permission to modify this story')
       }
 
@@ -342,12 +337,8 @@ export class StoryRelationshipService {
   /**
    * Detach tags from story
    */
-  async detachTags(
-    storyId: number,
-    dto: DetachTagsDto,
-    userId: string,
-    userRole?: string
-  ): Promise<Story> {
+  async detachTags(storyId: number, dto: DetachTagsDto, currentUser: User): Promise<Story> {
+    const userId = currentUser.id
     const tagCount = (dto.tagIds?.length || 0) + (dto.tags?.length || 0)
     this.logger.info(
       { action: 'detach_tags', storyId, userId, count: tagCount },
@@ -364,8 +355,9 @@ export class StoryRelationshipService {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
       }
 
-      // Check ownership
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Update, story)) {
         throw new ForbiddenException('You do not have permission to modify this story')
       }
 
@@ -407,9 +399,9 @@ export class StoryRelationshipService {
   async attachCategories(
     storyId: number,
     dto: AttachCategoriesDto,
-    userId: string,
-    userRole?: string
+    currentUser: User
   ): Promise<Story> {
+    const userId = currentUser.id
     this.logger.info(
       { action: 'attach_categories', storyId, userId, count: dto.categoryIds.length },
       'Attaching categories to story'
@@ -425,8 +417,9 @@ export class StoryRelationshipService {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
       }
 
-      // Check ownership
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Update, story)) {
         throw new ForbiddenException('You do not have permission to modify this story')
       }
 
@@ -471,9 +464,9 @@ export class StoryRelationshipService {
   async detachCategories(
     storyId: number,
     dto: DetachCategoriesDto,
-    userId: string,
-    userRole?: string
+    currentUser: User
   ): Promise<Story> {
+    const userId = currentUser.id
     this.logger.info(
       { action: 'detach_categories', storyId, userId, count: dto.categoryIds.length },
       'Detaching categories from story'
@@ -489,8 +482,9 @@ export class StoryRelationshipService {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
       }
 
-      // Check ownership
-      if (story.userId !== userId && !this.isAdmin(userRole)) {
+      // Check permissions using CASL
+      const ability = this.abilityFactory.createForUser(currentUser)
+      if (!ability.can(Action.Update, story)) {
         throw new ForbiddenException('You do not have permission to modify this story')
       }
 
