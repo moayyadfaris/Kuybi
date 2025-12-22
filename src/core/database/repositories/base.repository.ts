@@ -1,3 +1,4 @@
+import { SpanStatusCode, trace } from '@opentelemetry/api'
 import { DeepPartial, FindManyOptions, FindOptionsWhere, Repository } from 'typeorm'
 
 import { CacheService } from '../../cache/services/cache.service'
@@ -56,24 +57,49 @@ export abstract class BaseRepository<T> {
     id: string | number,
     options?: { ttl?: number; bypassCache?: boolean }
   ): Promise<T | null> {
-    const cacheKey = this.buildCacheKey('id', id)
+    const tracer = trace.getTracer('kuybi-backend')
+    return tracer.startActiveSpan(`${this.entityName}.findById`, async span => {
+      span.setAttributes({
+        'db.system': 'postgresql',
+        'db.operation': 'findOne',
+        'entity.name': this.entityName,
+        'entity.id': String(id),
+        'cache.enabled': !options?.bypassCache
+      })
 
-    if (!options?.bypassCache && this.cacheService) {
-      // Try to get from cache first
-      const cached = await this.cacheService.get<T>(cacheKey)
-      if (cached) return cached
+      try {
+        const cacheKey = this.buildCacheKey('id', id)
 
-      // Fetch from DB and cache with tags
-      const entity = await this.repository.findOne({ where: { id } as any })
+        if (!options?.bypassCache && this.cacheService) {
+          // Try to get from cache first
+          const cached = await this.cacheService.get<T>(cacheKey)
+          if (cached) {
+            span.setAttribute('cache.hit', true)
+            span.setStatus({ code: SpanStatusCode.OK })
+            return cached
+          }
+          span.setAttribute('cache.hit', false)
+        }
 
-      if (entity) {
-        await this.setCacheWithTags(cacheKey, entity, id, options?.ttl)
+        // Fetch from DB and cache with tags
+        const entity = await this.repository.findOne({ where: { id } as any })
+
+        if (entity) {
+          if (!options?.bypassCache && this.cacheService) {
+            await this.setCacheWithTags(cacheKey, entity, id, options?.ttl)
+          }
+        }
+
+        span.setStatus({ code: SpanStatusCode.OK })
+        return entity
+      } catch (error) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+        span.recordException(error)
+        throw error
+      } finally {
+        span.end()
       }
-
-      return entity
-    }
-
-    return this.repository.findOne({ where: { id } as any })
+    })
   }
 
   /**

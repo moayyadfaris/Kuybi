@@ -22,6 +22,7 @@ import { AttachmentRepository } from '@core/database/repositories/attachment.rep
 import { CategoryRepository } from '@core/database/repositories/category.repository'
 import { StoryRepository } from '@core/database/repositories/story.repository'
 import { LoggingContextService } from '@core/logging/logging-context.service'
+import { MetricsService } from '@core/observability/metrics.service'
 
 import { VersionType } from '../entities/story-version.entity'
 
@@ -44,7 +45,8 @@ export class StoriesService {
     private readonly loggingContext: LoggingContextService,
     private readonly versionService: StoryVersionService,
     private readonly s3Service: S3Service,
-    private readonly abilityFactory: AbilityFactory
+    private readonly abilityFactory: AbilityFactory,
+    private readonly metricsService: MetricsService
   ) {
     this.logger.setContext(StoriesService.name)
   }
@@ -192,6 +194,10 @@ export class StoriesService {
         )
 
         const finalStory = await this.findOne(story.id, userId, { bypassCache: true })
+
+        // Record business metric
+        this.metricsService.incrementStoryCreated(finalStory.type, finalStory.status)
+
         requestLogger.info({ storyId: story.id, userId }, 'Story creation completed successfully')
         return this.storyEnrichmentService.enrichStoryMedia(finalStory) as Story
       } catch (error) {

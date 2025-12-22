@@ -10,9 +10,13 @@ import { Logger, PinoLogger } from 'nestjs-pino'
 
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { LoggingContextService } from '@core/logging/logging-context.service'
+import { initTracing } from '@core/observability/otel-sdk'
 import { SentryFilter, SentryInterceptor, SentryService } from '@core/sentry'
 
 import { AppModule } from './app.module'
+
+// Initialize tracing before anything else
+initTracing()
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true })
@@ -50,7 +54,10 @@ async function bootstrap() {
   // API versioning is handled at controller level with 'v1/' prefix
   // All admin endpoints: /api/v1/*
   // All public web endpoints: /api/web/v1/*
-  app.setGlobalPrefix('api')
+  // Exclude /metrics endpoint for Prometheus scraping
+  app.setGlobalPrefix('api', {
+    exclude: ['/metrics']
+  })
 
   // Response compression middleware with optimized settings
   // IMPORTANT: Must be registered before routes

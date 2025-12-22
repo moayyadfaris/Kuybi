@@ -9,6 +9,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersService } from '@modules/users/services/users.service'
 
+import { MetricsService } from '@core/observability/metrics.service'
 import { SentryService } from '@core/sentry'
 
 import { Session } from '../entities/session.entity'
@@ -51,7 +52,8 @@ export class AuthService {
     private readonly sentryService: SentryService,
     private readonly passwordHistoryRepository: PasswordHistoryRepository,
     private readonly passwordStrengthService: PasswordStrengthService,
-    private readonly emailService: EmailService
+    private readonly emailService: EmailService,
+    private readonly metricsService: MetricsService
   ) {}
 
   async validateUser(email: string, password: string, context?: SessionContext): Promise<User> {
@@ -215,6 +217,9 @@ export class AuthService {
       { sessionId: session.id, userId: user.id, action: 'session_created' },
       'Session created for user'
     )
+
+    // Metric: Log successful login
+    this.metricsService.incrementUserLogin(user.getPrimaryRoleName())
 
     return {
       accessToken,

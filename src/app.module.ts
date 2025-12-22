@@ -26,6 +26,7 @@ import { DatabaseModule } from '@core/database/database.module'
 import { HealthModule } from '@core/health/health.module'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingModule } from '@core/logging/logging.module'
+import { ObservabilityModule } from '@core/observability/observability.module'
 import { QueuesModule } from '@core/queues/queues.module'
 import { SentryModule } from '@core/sentry'
 import { ShutdownModule } from '@core/shutdown/shutdown.module'
@@ -77,6 +78,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     PostTypesModule, // Dynamic Post Types System (Phase 1)
     WebModule, // Public Web API
     LoggingModule,
+    ObservabilityModule,
     ShutdownModule // Graceful shutdown handling
   ],
   providers: [

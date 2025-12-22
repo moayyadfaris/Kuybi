@@ -9,6 +9,7 @@ import { UsersModule } from '@modules/users/users.module'
 import { CacheConfigModule } from '@core/cache/cache.module'
 import { StoryRepository } from '@core/database/repositories/story.repository'
 import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
+import { MetricsModule } from '@core/observability/metrics.module'
 
 import { AclModule } from '../acl/acl.module'
 import { AttachmentsModule } from '../attachments/attachments.module'
@@ -30,6 +31,7 @@ import { StoryVersionService } from './services/story-version.service'
   imports: [
     TypeOrmModule.forFeature([Story, StoryVersion, StoryAttachment, StoryTag, Attachment]),
     CacheConfigModule,
+    MetricsModule,
     AclModule,
     AttachmentsModule,
     UsersModule,

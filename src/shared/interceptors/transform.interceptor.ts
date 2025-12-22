@@ -5,6 +5,11 @@ import { map } from 'rxjs/operators'
 @Injectable()
 export class TransformInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest()
+    if (request.url?.includes('/metrics')) {
+      return next.handle()
+    }
+
     return next.handle().pipe(
       map(data => ({
         success: true,

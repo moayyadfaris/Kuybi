@@ -192,6 +192,18 @@ class EnvironmentVariables {
   @IsInt()
   @IsOptional()
   CACHE_CIRCUIT_BREAKER_RESET_MS?: number
+
+  @IsString()
+  @IsOptional()
+  OBSERVABILITY_TRACING_ENABLED?: string
+
+  @IsString()
+  @IsOptional()
+  OBSERVABILITY_JAEGER_HOST?: string
+
+  @IsString()
+  @IsOptional()
+  OBSERVABILITY_JAEGER_PORT?: string
 }
 
 export function validate(config: Record<string, unknown>) {

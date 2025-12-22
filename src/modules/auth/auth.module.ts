@@ -12,6 +12,7 @@ import { AuditModule } from '@modules/audit/audit.module'
 import { CacheService } from '@core/cache/services/cache.service'
 import { SessionRepository } from '@core/database/repositories/session.repository'
 import { UserRepository } from '@core/database/repositories/user.repository'
+import { MetricsModule } from '@core/observability/metrics.module'
 import { QueueName } from '@core/queues/jobs/types'
 import { SentryModule } from '@core/sentry'
 
@@ -42,6 +43,7 @@ import {
   imports: [
     forwardRef(() => UsersModule),
     EmailModule,
+    MetricsModule,
     SentryModule.forRoot(),
     AuditModule,
     TypeOrmModule.forFeature([Session, PasswordReset, PasswordHistory, User, EmailVerification]),

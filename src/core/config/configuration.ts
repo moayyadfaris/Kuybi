@@ -167,6 +167,13 @@ export default () => {
       username: process.env.BULL_BOARD_USERNAME || 'admin',
       password: process.env.BULL_BOARD_PASSWORD || 'admin123',
       port: parseInt(process.env.BULL_BOARD_PORT || '4050', 10)
+    },
+    observability: {
+      tracing: {
+        enabled: parseBoolean(process.env.OBSERVABILITY_TRACING_ENABLED, true),
+        jaegerHost: process.env.OBSERVABILITY_JAEGER_HOST || 'localhost',
+        jaegerPort: parseInt(process.env.OBSERVABILITY_JAEGER_PORT || '4318', 10)
+      }
     }
   }
 }
