@@ -205,17 +205,14 @@ export class CacheService {
       keyvInstance?._store ?? keyvInstance?.store ?? keyvInstance?.opts?.store ?? null
 
     const namespace: string =
-      keyvInstance?.opts?.namespace ??
       keyvInstance?._namespace ??
+      keyvInstance?.opts?.namespace ??
       keyvStore?.namespace ??
       keyvStore?._namespace ??
       ''
 
-    const separator: string =
-      keyvStore?.keyPrefixSeparator ??
-      keyvStore?._keyPrefixSeparator ??
-      keyvInstance?.opts?.keyPrefixSeparator ??
-      '::'
+    // Keyv always joins namespace and key with ':', regardless of the store's keyPrefixSeparator
+    const separator = ':'
 
     const prefix = namespace ? `${namespace}${separator}` : ''
     const namespacedPattern = prefix ? `${prefix}${pattern}` : pattern

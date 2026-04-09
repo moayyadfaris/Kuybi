@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,11 +11,13 @@ import {
   Req,
   Res,
   StreamableFile,
+  UnauthorizedException,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors
 } from '@nestjs/common'
-import { FileInterceptor } from '@nestjs/platform-express'
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express'
 import {
   ApiBearerAuth,
   ApiBody,
@@ -102,6 +105,71 @@ export class AttachmentsController {
       attachment: result,
       processing: useAsync ? 'async' : 'sync'
     }
+  }
+
+  @Post('bulk')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' }
+        },
+        category: { type: 'string' },
+        description: { type: 'string' },
+        tags: {
+          oneOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string' }]
+        },
+        generateThumbnails: { type: 'boolean' },
+        isPublic: { type: 'boolean' },
+        allowDuplicates: { type: 'boolean' },
+        async: { type: 'boolean', description: 'Process images asynchronously' }
+      },
+      required: ['files']
+    }
+  })
+  @ApiOkResponse({ description: 'Bulk attachments uploaded' })
+  @UseInterceptors(FilesInterceptor('files', 20, { storage: memoryStorage() }))
+  async bulkUpload(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() body: UploadAttachmentDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    const userId = req.user?.id
+    if (!userId) {
+      throw new UnauthorizedException('User context missing')
+    }
+
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided')
+    }
+
+    const useAsync = body.async ?? process.env.ATTACHMENT_ASYNC_PROCESSING === 'true'
+
+    const results = await Promise.allSettled(
+      files.map(file =>
+        useAsync
+          ? this.attachmentService.uploadAttachmentAsync(file, body, userId)
+          : this.attachmentService.uploadAttachment(file, body, userId)
+      )
+    )
+
+    const attachments = results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return { success: true, attachment: result.value, processing: useAsync ? 'async' : 'sync' }
+      }
+      return {
+        success: false,
+        filename: files[index]?.originalname,
+        error: result.reason?.message ?? 'Upload failed'
+      }
+    })
+
+    return { attachments }
   }
 
   @Get()

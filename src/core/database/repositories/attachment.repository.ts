@@ -393,6 +393,15 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }
 
   /**
+   * Override create to invalidate list caches on new uploads
+   */
+  async create(data: Partial<Attachment>): Promise<Attachment> {
+    const attachment = await super.create(data as any)
+    await this.invalidateListCaches()
+    return attachment
+  }
+
+  /**
    * Soft delete an attachment
    */
   async softDelete(id: string): Promise<boolean> {
@@ -530,7 +539,6 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
       return
     }
 
-    // Clear all list and search caches
     const patterns = [
       `${this.entityName}:list:*`,
       `${this.entityName}:user:*`,
@@ -540,7 +548,8 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
       `${this.entityName}:security-status:*`,
       `${this.entityName}:tags:*`,
       `${this.entityName}:stats:*`,
-      `${this.entityName}:checksum:*`
+      `${this.entityName}:checksum:*`,
+      `${this.entityName}:findOne:*`
     ]
 
     for (const pattern of patterns) {
