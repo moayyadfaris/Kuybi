@@ -3,6 +3,7 @@ import { AbilityBuilder, createMongoAbility, InferSubjects, MongoAbility } from 
 
 import { Story } from '../../stories/entities/story.entity'
 import { User } from '../../users/entities/user.entity'
+import { Role } from '../entities/role.entity'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
 
@@ -39,17 +40,24 @@ export class AbilityFactory {
       return build()
     }
 
-    // Get active, non-expired roles
-    const activeRoles =
-      user.userRoles?.filter(
-        ur =>
-          ur.isActive && ur.role.isActive && (!ur.expiresAt || new Date(ur.expiresAt) > new Date())
-      ) || []
+    // The primary role always applies; additional roles apply while active and unexpired
+    const now = new Date()
+    const rolesById = new Map<number, Role>()
+    if (user.primaryRole?.isActive) {
+      rolesById.set(user.primaryRole.id, user.primaryRole)
+    }
+    for (const userRole of user.userRoles ?? []) {
+      const isCurrent =
+        userRole.isActive &&
+        userRole.role?.isActive &&
+        (!userRole.expiresAt || new Date(userRole.expiresAt) > now)
+      if (isCurrent) {
+        rolesById.set(userRole.role.id, userRole.role)
+      }
+    }
 
     // Collect all permissions from all active roles
-    for (const userRole of activeRoles) {
-      const role = userRole.role
-
+    for (const role of rolesById.values()) {
       if (!role.rolePermissions) {
         continue
       }
@@ -57,16 +65,21 @@ export class AbilityFactory {
       for (const rolePermission of role.rolePermissions) {
         const permission = rolePermission.permission
 
-        // Replace ${userId} placeholder in conditions with actual user ID
-        const conditions = this.interpolateConditions(permission.conditions, user.id)
+        // Replace ${userId} placeholder in conditions with actual user ID.
+        // Empty fields/conditions mean "unrestricted"; CASL rejects an empty fields array.
+        const conditions =
+          permission.conditions && Object.keys(permission.conditions).length > 0
+            ? this.interpolateConditions(permission.conditions, user.id)
+            : undefined
+        const fields = permission.fields?.length ? permission.fields : undefined
 
         // Define ability based on permission
         if (permission.inverted) {
           // Cannot permission
-          cannot(permission.action, permission.subject, permission.fields, conditions)
+          cannot(permission.action, permission.subject, fields, conditions)
         } else {
           // Can permission
-          can(permission.action, permission.subject, permission.fields, conditions)
+          can(permission.action, permission.subject, fields, conditions)
         }
       }
     }

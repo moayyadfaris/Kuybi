@@ -164,6 +164,37 @@ export class AclSeeder {
       { action: Action.Update, subject: Subject.Permission, reason: 'Update permissions' },
       { action: Action.Delete, subject: Subject.Permission, reason: 'Delete permissions' },
 
+      // Post type permissions (dynamic content types)
+      { action: Action.Create, subject: Subject.PostType, reason: 'Create post types' },
+      { action: Action.Read, subject: Subject.PostType, reason: 'Read post types' },
+      { action: Action.Update, subject: Subject.PostType, reason: 'Update post types' },
+      { action: Action.Delete, subject: Subject.PostType, reason: 'Delete post types' },
+
+      // Field definition permissions
+      {
+        action: Action.Create,
+        subject: Subject.FieldDefinition,
+        reason: 'Create field definitions'
+      },
+      { action: Action.Read, subject: Subject.FieldDefinition, reason: 'Read field definitions' },
+      {
+        action: Action.Update,
+        subject: Subject.FieldDefinition,
+        reason: 'Update field definitions'
+      },
+      {
+        action: Action.Delete,
+        subject: Subject.FieldDefinition,
+        reason: 'Delete field definitions'
+      },
+
+      // Content permissions (entries of dynamic post types)
+      { action: Action.Create, subject: Subject.Content, reason: 'Create content' },
+      { action: Action.Read, subject: Subject.Content, reason: 'Read content' },
+      { action: Action.Update, subject: Subject.Content, reason: 'Update content' },
+      { action: Action.Delete, subject: Subject.Content, reason: 'Delete content' },
+      { action: Action.Publish, subject: Subject.Content, reason: 'Publish and schedule content' },
+
       // Country permissions
       { action: Action.Read, subject: Subject.Country, reason: 'Read countries' },
       { action: Action.Update, subject: Subject.Country, reason: 'Update countries' },
@@ -314,7 +345,15 @@ export class AclSeeder {
       findPerm(Action.Read, Subject.Category),
       findPerm(Action.Read, Subject.Tag),
       findPerm(Action.Read, Subject.Country),
-      findPerm(Action.Read, Subject.Setting)
+      findPerm(Action.Read, Subject.Setting),
+      // Dynamic content: moderators manage entries but not the type schema
+      findPerm(Action.Read, Subject.PostType),
+      findPerm(Action.Read, Subject.FieldDefinition),
+      findPerm(Action.Create, Subject.Content),
+      findPerm(Action.Read, Subject.Content),
+      findPerm(Action.Update, Subject.Content),
+      findPerm(Action.Delete, Subject.Content),
+      findPerm(Action.Publish, Subject.Content)
     ].filter(Boolean) as Permission[]
     for (const perm of moderatorActions) {
       await this.assignPermission(moderator, perm)

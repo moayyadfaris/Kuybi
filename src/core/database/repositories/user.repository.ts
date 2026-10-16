@@ -13,6 +13,21 @@ import { BaseRepository } from './base.repository'
  *
  * Handles all database operations for User entity with caching.
  */
+/**
+ * Relations loaded with every user lookup. Role permissions are included because
+ * AbilityFactory builds CASL abilities from them for the authenticated user.
+ */
+const USER_RELATIONS = [
+  'profileImage',
+  'primaryRole',
+  'primaryRole.rolePermissions',
+  'primaryRole.rolePermissions.permission',
+  'userRoles',
+  'userRoles.role',
+  'userRoles.role.rolePermissions',
+  'userRoles.role.rolePermissions.permission'
+]
+
 @Injectable()
 export class UserRepository extends BaseRepository<User> {
   protected entityName = 'user'
@@ -38,7 +53,7 @@ export class UserRepository extends BaseRepository<User> {
     if (options?.bypassCache) {
       return this.repository.findOne({
         where: { id },
-        relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
+        relations: USER_RELATIONS
       })
     }
 
@@ -47,7 +62,7 @@ export class UserRepository extends BaseRepository<User> {
       async () => {
         return this.repository.findOne({
           where: { id },
-          relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
+          relations: USER_RELATIONS
         })
       },
       options?.ttl ?? this.defaultTTL
@@ -63,7 +78,7 @@ export class UserRepository extends BaseRepository<User> {
     if (bypassCache) {
       return this.repository.findOne({
         where: { email: email.toLowerCase() },
-        relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
+        relations: USER_RELATIONS
       })
     }
 
@@ -72,7 +87,7 @@ export class UserRepository extends BaseRepository<User> {
       async () => {
         return this.repository.findOne({
           where: { email: email.toLowerCase() },
-          relations: ['profileImage', 'primaryRole', 'userRoles', 'userRoles.role']
+          relations: USER_RELATIONS
         })
       },
       this.defaultTTL
