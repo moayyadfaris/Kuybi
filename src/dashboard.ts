@@ -5,6 +5,7 @@ import { Queue } from 'bullmq'
 import * as express from 'express'
 import * as basicAuth from 'express-basic-auth'
 
+import { assertProductionSecrets } from '@core/config/validation'
 import { QueueName } from '@core/queues/jobs/types'
 
 /**
@@ -32,7 +33,13 @@ async function bootstrap() {
   const redisQueueDb = parseInt(process.env.REDIS_QUEUE_DB || '1', 10)
   const dashboardPort = parseInt(process.env.BULL_BOARD_PORT || '4050', 10)
   const username = process.env.BULL_BOARD_USERNAME || 'admin'
-  const password = process.env.BULL_BOARD_PASSWORD || 'admin123'
+  const password = process.env.BULL_BOARD_PASSWORD
+
+  // The dashboard can retry, promote and delete jobs - never run it with a guessable password
+  if (!password) {
+    throw new Error('BULL_BOARD_PASSWORD must be set to start the Bull Board dashboard')
+  }
+  assertProductionSecrets(process.env, ['BULL_BOARD_PASSWORD'])
 
   // Create Redis connection for queues
   const connection = {

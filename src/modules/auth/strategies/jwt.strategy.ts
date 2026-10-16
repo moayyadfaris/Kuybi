@@ -7,6 +7,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt'
 
 import { UserRepository } from '@core/database/repositories/user.repository'
 
+import { PASSWORD_CHANGE_TOKEN_SCOPE } from '../decorators/allow-password-change-token.decorator'
 import { TokenBlacklistService } from '../services/token-blacklist.service'
 
 @Injectable()
@@ -26,7 +27,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     })
   }
 
-  async validate(req: Request, payload: { sub: string; email: string; role: string }) {
+  async validate(
+    req: Request,
+    payload: { sub: string; email: string; role: string; tempPasswordChange?: boolean }
+  ) {
     // Extract the raw JWT token from the request
     const authHeader = req.headers.authorization
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
@@ -76,6 +80,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         'Inactive user attempted to use token'
       )
       throw new UnauthorizedException('User account is inactive')
+    }
+
+    // Temp tokens issued for forced password change are restricted by JwtAuthGuard
+    if (payload.tempPasswordChange) {
+      ;(req as Request & { tokenScope?: string }).tokenScope = PASSWORD_CHANGE_TOKEN_SCOPE
     }
 
     // Return full User entity instance (with methods like isSuperAdmin())

@@ -17,6 +17,7 @@ import { AuditService } from '@modules/audit/services/audit.service'
 import { User } from '@modules/users/entities/user.entity'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 
+import { AllowPasswordChangeToken } from '../decorators/allow-password-change-token.decorator'
 import { ChangePasswordDto } from '../dto/change-password.dto'
 import { CheckAvailabilityDto } from '../dto/check-availability.dto'
 import { CheckPasswordStrengthDto } from '../dto/check-password-strength.dto'
@@ -456,6 +457,7 @@ export class AuthController {
   @Post('change-password')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @AllowPasswordChangeToken()
   @Throttle({ default: { limit: 5, ttl: 300 } }) // 5 attempts per 5 minutes
   @ApiOperation({
     summary: 'Change password',

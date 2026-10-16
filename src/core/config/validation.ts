@@ -215,5 +215,42 @@ export function validate(config: Record<string, unknown>) {
   if (errors.length > 0) {
     throw new Error(errors.toString())
   }
+
+  assertProductionSecrets(config)
+
   return validatedConfig
+}
+
+const MIN_SECRET_LENGTH = 32
+const PLACEHOLDER_PATTERN = /change-me|changeme|admin123|^secret$|^password$/i
+
+/**
+ * Fails fast when production secrets are missing, short, or left at placeholder values.
+ * Outside production this is a no-op so local development keeps working with .env defaults.
+ */
+export function assertProductionSecrets(
+  config: Record<string, unknown>,
+  required: string[] = ['JWT_SECRET', 'DB_PASSWORD']
+): void {
+  if (config.NODE_ENV !== 'production') {
+    return
+  }
+
+  const problems = required.flatMap(key => {
+    const value = config[key]
+    if (typeof value !== 'string' || value.length === 0) {
+      return [`${key} is required in production`]
+    }
+    if (PLACEHOLDER_PATTERN.test(value)) {
+      return [`${key} uses a placeholder value`]
+    }
+    if (key === 'JWT_SECRET' && value.length < MIN_SECRET_LENGTH) {
+      return [`${key} must be at least ${MIN_SECRET_LENGTH} characters`]
+    }
+    return []
+  })
+
+  if (problems.length > 0) {
+    throw new Error(`Insecure production configuration:\n  - ${problems.join('\n  - ')}`)
+  }
 }

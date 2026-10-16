@@ -6,6 +6,7 @@ import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import * as compression from 'compression'
+import helmet from 'helmet'
 import { Logger, PinoLogger } from 'nestjs-pino'
 
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
@@ -24,7 +25,8 @@ async function bootstrap() {
   const httpConfig = configService.get('http', {
     host: '0.0.0.0',
     port: 4040,
-    corsOrigin: '*'
+    corsOrigin: '*',
+    swaggerEnabled: false
   })
   const compressionConfig = configService.get('compression', {
     enabled: true,
@@ -38,6 +40,9 @@ async function bootstrap() {
 
   // Get Sentry service for conditional middleware
   const sentryService = app.get(SentryService)
+
+  // Security headers
+  app.use(helmet())
 
   // Configure CORS
   const corsOrigin = httpConfig.corsOrigin
@@ -119,23 +124,26 @@ async function bootstrap() {
     app.useGlobalFilters(new SentryFilter(sentryService))
   }
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Kuybi Countries API')
-    .setDescription('Country listing endpoints for the NestJS scaffold')
-    .setVersion('1.0.0')
-    .addServer(`http://${httpConfig.host}:${httpConfig.port}`)
-    .addBearerAuth()
-    .build()
+  // API docs are opt-in for production (SWAGGER_ENABLED=true)
+  if (httpConfig.swaggerEnabled) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Kuybi API')
+      .setDescription('Kuybi admin and public web API')
+      .setVersion('1.0.0')
+      .addServer(`http://${httpConfig.host}:${httpConfig.port}`)
+      .addBearerAuth()
+      .build()
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig)
-  SwaggerModule.setup('api/docs', app, document, {
-    jsonDocumentUrl: 'api/swagger.json'
-  })
+    const document = SwaggerModule.createDocument(app, swaggerConfig)
+    SwaggerModule.setup('api/docs', app, document, {
+      jsonDocumentUrl: 'api/swagger.json'
+    })
 
-  app.use('/api/swagger.json', (_req, res) => {
-    res.setHeader('Content-Type', 'application/json')
-    res.send(document)
-  })
+    app.use('/api/swagger.json', (_req, res) => {
+      res.setHeader('Content-Type', 'application/json')
+      res.send(document)
+    })
+  }
 
   // Enable graceful shutdown hooks
   app.enableShutdownHooks()

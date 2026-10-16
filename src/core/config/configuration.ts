@@ -33,7 +33,8 @@ export default () => {
     http: {
       host: process.env.APP_HOST || '0.0.0.0',
       port: parseInt(process.env.APP_PORT || '4040', 10),
-      corsOrigin: process.env.CORS_ORIGIN || '*'
+      corsOrigin: process.env.CORS_ORIGIN || '*',
+      swaggerEnabled: parseBoolean(process.env.SWAGGER_ENABLED, env !== 'production')
     },
     logging: {
       level: process.env.LOG_LEVEL || (env === 'production' ? 'info' : 'debug'),
@@ -86,7 +87,7 @@ export default () => {
       }
     },
     auth: {
-      jwtSecret: process.env.JWT_SECRET || 'change-me-kuybi-secret',
+      jwtSecret: process.env.JWT_SECRET,
       jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '10m',
       jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
       passwordChangeCooldownHours: parseNumber(process.env.PASSWORD_CHANGE_COOLDOWN_HOURS, 1),
@@ -165,7 +166,7 @@ export default () => {
     },
     bullBoard: {
       username: process.env.BULL_BOARD_USERNAME || 'admin',
-      password: process.env.BULL_BOARD_PASSWORD || 'admin123',
+      password: process.env.BULL_BOARD_PASSWORD,
       port: parseInt(process.env.BULL_BOARD_PORT || '4050', 10)
     },
     observability: {
