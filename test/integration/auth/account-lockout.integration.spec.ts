@@ -96,9 +96,11 @@ describe('Account Lockout Integration Tests', () => {
             db: testConfig.redis.db
           }
         }),
-        BullModule.registerQueue({
-          name: QueueName.ACCOUNT_SECURITY
-        }),
+        BullModule.registerQueue(
+          { name: QueueName.ACCOUNT_SECURITY },
+          // AccountSecurityProcessor routes exhausted jobs to the dead-letter queue
+          { name: QueueName.DEAD_LETTER }
+        ),
         AuthModule,
         UsersModule
       ],
