@@ -227,7 +227,7 @@ export class ImageProcessingService {
       // Apply format-specific optimization
       if (convertToWebP) {
         image = image.webp({ quality, effort: 6 })
-      } else if (metadata.format === 'jpeg' || metadata.format === 'jpg') {
+      } else if (metadata.format === 'jpeg') {
         image = image.jpeg({ quality, progressive: true, mozjpeg: true })
       } else if (metadata.format === 'png') {
         image = image.png({ quality, compressionLevel: 9, adaptiveFiltering: true })
