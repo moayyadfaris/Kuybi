@@ -4,8 +4,10 @@ import { Role } from '@modules/acl/entities/role.entity'
 
 const DEFAULT_ROLES: Array<Pick<Role, 'name' | 'description' | 'priority'>> = [
   { name: 'super-admin', description: 'Super administrator', priority: 100 },
-  { name: 'admin', description: 'Administrator', priority: 80 },
-  { name: 'user', description: 'Standard user', priority: 10 }
+  { name: 'admin', description: 'Administrator', priority: 90 },
+  { name: 'moderator', description: 'Moderator', priority: 70 },
+  { name: 'user', description: 'Standard user', priority: 50 },
+  { name: 'guest', description: 'Guest', priority: 10 }
 ]
 
 export type SeededRoles = Record<string, Role>

@@ -13,66 +13,23 @@ import { DataSource } from 'typeorm'
 
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { AclModule } from '@modules/acl/acl.module'
-import { Permission } from '@modules/acl/entities/permission.entity'
-import { Role } from '@modules/acl/entities/role.entity'
-import { RolePermission } from '@modules/acl/entities/role-permission.entity'
-import { UserRole } from '@modules/acl/entities/user-role.entity'
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 import { AuthModule } from '@modules/auth/auth.module'
-import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
-import { Session } from '@modules/auth/entities/session.entity'
-import { Category } from '@modules/categories/entities/category.entity'
-import { Country } from '@modules/countries/entities/country.entity'
 import { Story } from '@modules/stories/entities/story.entity'
 import { StoriesModule } from '@modules/stories/stories.module'
-import { Tag } from '@modules/tags/entities/tag.entity'
 import { TagsModule } from '@modules/tags/tags.module'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
+import { ENTITIES } from '@core/database/entities'
 import { LoggingModule } from '@core/logging/logging.module'
 
 import { StoryFactory } from '../../factories/story.factory'
 import { UserFactory } from '../../factories/user.factory'
+import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
-
-const createInMemoryCacheService = () => {
-  const store = new Map<string, any>()
-  return {
-    get: async (key: string) => store.get(key),
-    set: async (key: string, value: any) => {
-      store.set(key, value)
-    },
-    del: async (key: string) => {
-      store.delete(key)
-    },
-    delPattern: async (pattern: string) => {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      for (const key of store.keys()) {
-        if (regex.test(key)) {
-          store.delete(key)
-        }
-      }
-    },
-    reset: async () => {
-      store.clear()
-    },
-    wrap: async (key: string, fn: () => Promise<any>) => {
-      if (store.has(key)) {
-        return store.get(key)
-      }
-      const value = await fn()
-      store.set(key, value)
-      return value
-    },
-    isHealthy: async () => true,
-    buildKey: (...parts: (string | number)[]) => parts.join(':')
-  }
-}
 
 const STORY_TABLES_TO_TRUNCATE = [
   'stories',
@@ -92,7 +49,7 @@ describe('Stories Integration Tests', () => {
   let dataSource: DataSource
   let accessToken: string
   let testUser: User
-  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let cacheStub: InMemoryCacheService
   let roles: SeededRoles
 
   beforeAll(async () => {
@@ -118,21 +75,7 @@ describe('Stories Integration Tests', () => {
           username: testConfig.database.username,
           password: testConfig.database.password,
           database: testConfig.database.database,
-          entities: [
-            User,
-            Session,
-            UserRole,
-            Role,
-            Permission,
-            RolePermission,
-            AuditLog,
-            Story,
-            Tag,
-            Category,
-            Attachment,
-            PasswordHistory,
-            Country
-          ],
+          entities: ENTITIES,
           synchronize: true, // Auto-create schema for stories test
           dropSchema: false,
           logging: false
@@ -146,7 +89,7 @@ describe('Stories Integration Tests', () => {
       ]
     })
 
-    cacheStub = createInMemoryCacheService()
+    cacheStub = new InMemoryCacheService()
     const moduleFixture: TestingModule = await moduleBuilder
       .overrideProvider(CacheService)
       .useValue(cacheStub)

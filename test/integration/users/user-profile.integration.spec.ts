@@ -11,55 +11,17 @@ import { LoggerModule } from 'nestjs-pino'
 import * as request from 'supertest'
 import { DataSource } from 'typeorm'
 
+import { ENTITIES } from '@core/database/entities'
+
 import { CacheService } from '../../../src/core/cache/services/cache.service'
-import { Permission } from '../../../src/modules/acl/entities/permission.entity'
-import { Role } from '../../../src/modules/acl/entities/role.entity'
-import { RolePermission } from '../../../src/modules/acl/entities/role-permission.entity'
-import { UserRole } from '../../../src/modules/acl/entities/user-role.entity'
-import { Attachment } from '../../../src/modules/attachments/entities/attachment.entity'
 import { AuthModule } from '../../../src/modules/auth/auth.module'
-import { PasswordHistory } from '../../../src/modules/auth/entities/password-history.entity'
-import { Session } from '../../../src/modules/auth/entities/session.entity'
 import { User } from '../../../src/modules/users/entities/user.entity'
 import { UsersModule } from '../../../src/modules/users/users.module'
 import { UserFactory } from '../../factories/user.factory'
+import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
-
-const createInMemoryCacheService = () => {
-  const store = new Map<string, unknown>()
-  return {
-    get: async (key: string) => store.get(key),
-    set: async (key: string, value: unknown) => {
-      store.set(key, value)
-    },
-    del: async (key: string) => {
-      store.delete(key)
-    },
-    delPattern: async (pattern: string) => {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      for (const key of store.keys()) {
-        if (regex.test(key)) {
-          store.delete(key)
-        }
-      }
-    },
-    reset: async () => {
-      store.clear()
-    },
-    wrap: async (key: string, fn: () => Promise<unknown>) => {
-      if (store.has(key)) {
-        return store.get(key)
-      }
-      const value = await fn()
-      store.set(key, value)
-      return value
-    },
-    isHealthy: async () => true,
-    buildKey: (...parts: (string | number)[]) => parts.join(':')
-  }
-}
 
 const TABLES_TO_TRUNCATE = [
   'sessions',
@@ -76,13 +38,13 @@ describe('User Profile Integration Tests', () => {
   let testUser: User
   let accessToken: string
   const TEST_PASSWORD = 'Password123!'
-  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let cacheStub: InMemoryCacheService
   let roles: SeededRoles
 
   beforeAll(async () => {
     await TestRedis.createConnection()
 
-    cacheStub = createInMemoryCacheService()
+    cacheStub = new InMemoryCacheService()
 
     const moduleBuilder = Test.createTestingModule({
       imports: [
@@ -102,16 +64,7 @@ describe('User Profile Integration Tests', () => {
           username: process.env.TEST_DB_USERNAME,
           password: process.env.TEST_DB_PASSWORD,
           database: process.env.TEST_DB_DATABASE,
-          entities: [
-            User,
-            Session,
-            UserRole,
-            Role,
-            Permission,
-            RolePermission,
-            Attachment,
-            PasswordHistory
-          ],
+          entities: ENTITIES,
           synchronize: false,
           logging: false
         }),

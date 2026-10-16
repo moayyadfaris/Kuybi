@@ -12,61 +12,25 @@ import * as request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { AclModule } from '@modules/acl/acl.module'
-import { Permission } from '@modules/acl/entities/permission.entity'
-import { Role } from '@modules/acl/entities/role.entity'
-import { RolePermission } from '@modules/acl/entities/role-permission.entity'
-import { UserRole } from '@modules/acl/entities/user-role.entity'
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 import { AuthModule } from '@modules/auth/auth.module'
-import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
-import { Session } from '@modules/auth/entities/session.entity'
-import { FieldDefinition } from '@modules/post-types/entities/field-definition.entity'
-import { PostContent } from '@modules/post-types/entities/post-content.entity'
-import { PostContentAttachment } from '@modules/post-types/entities/post-content-attachment.entity'
-import { PostContentCategory } from '@modules/post-types/entities/post-content-category.entity'
-import { PostContentTag } from '@modules/post-types/entities/post-content-tag.entity'
-import { PostType } from '@modules/post-types/entities/post-type.entity'
 import { PostTypesModule } from '@modules/post-types/post-types.module'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
+import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
+import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
-
-const createInMemoryCacheService = () => {
-  const store = new Map<string, any>()
-  return {
-    get: async (key: string) => store.get(key),
-    set: async (key: string, value: any) => store.set(key, value),
-    del: async (key: string) => store.delete(key),
-    delPattern: async (pattern: string) => {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      for (const key of store.keys()) {
-        if (regex.test(key)) store.delete(key)
-      }
-    },
-    reset: async () => store.clear(),
-    wrap: async (key: string, fn: () => Promise<any>) => {
-      if (store.has(key)) return store.get(key)
-      const value = await fn()
-      store.set(key, value)
-      return value
-    },
-    isHealthy: async () => true,
-    buildKey: (...parts: (string | number)[]) => parts.join(':')
-  }
-}
 
 const TABLES_TO_TRUNCATE = [
   'post_content_attachments',
   'post_content_tags',
   'post_content_categories',
-  'post_contents',
+  'post_content',
   'field_definitions',
   'post_types',
   'sessions',
@@ -86,7 +50,7 @@ describe('Content Integration Tests', () => {
   let editorToken: string
   let regularToken: string
   let testCounter = 0
-  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let cacheStub: InMemoryCacheService
   let roles: SeededRoles
   let postTypeId: string
   const postTypeSlug = 'product'
@@ -114,23 +78,7 @@ describe('Content Integration Tests', () => {
           username: process.env.TEST_DB_USERNAME,
           password: process.env.TEST_DB_PASSWORD,
           database: process.env.TEST_DB_NAME,
-          entities: [
-            PostType,
-            FieldDefinition,
-            PostContent,
-            PostContentAttachment,
-            PostContentTag,
-            PostContentCategory,
-            User,
-            Session,
-            UserRole,
-            Role,
-            Permission,
-            RolePermission,
-            AuditLog,
-            Attachment,
-            PasswordHistory
-          ],
+          entities: ENTITIES,
           synchronize: false,
           dropSchema: false,
           logging: false
@@ -142,7 +90,7 @@ describe('Content Integration Tests', () => {
       ]
     })
 
-    cacheStub = createInMemoryCacheService()
+    cacheStub = new InMemoryCacheService()
     const moduleFixture = await moduleBuilder
       .overrideProvider(CacheService)
       .useValue(cacheStub)
@@ -185,7 +133,7 @@ describe('Content Integration Tests', () => {
     const newEditor = await UserFactory.createWithHashedPassword({
       email: `editor${testCounter}@example.com`,
       name: 'Editor User',
-      primaryRoleId: roles['editor'].id,
+      primaryRoleId: roles['moderator'].id,
       password: EDITOR_PASSWORD
     })
     editorUser = await userRepository.save(newEditor as User)
@@ -215,7 +163,7 @@ describe('Content Integration Tests', () => {
 
     // Create post type
     const postTypeResponse = await request(app.getHttpServer())
-      .post('/api/post-types')
+      .post('/api/v1/post-types')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         name: 'Product',
@@ -229,7 +177,7 @@ describe('Content Integration Tests', () => {
 
     // Create field definitions
     await request(app.getHttpServer())
-      .post(`/api/post-types/${postTypeId}/fields`)
+      .post(`/api/v1/post-types/${postTypeId}/fields`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         name: 'product_name',
@@ -241,7 +189,7 @@ describe('Content Integration Tests', () => {
       })
 
     await request(app.getHttpServer())
-      .post(`/api/post-types/${postTypeId}/fields`)
+      .post(`/api/v1/post-types/${postTypeId}/fields`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         name: 'price',
@@ -253,7 +201,7 @@ describe('Content Integration Tests', () => {
       })
 
     await request(app.getHttpServer())
-      .post(`/api/post-types/${postTypeId}/fields`)
+      .post(`/api/v1/post-types/${postTypeId}/fields`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         name: 'description',
@@ -264,7 +212,7 @@ describe('Content Integration Tests', () => {
       })
 
     await request(app.getHttpServer())
-      .post(`/api/post-types/${postTypeId}/fields`)
+      .post(`/api/v1/post-types/${postTypeId}/fields`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         name: 'email',
@@ -293,7 +241,7 @@ describe('Content Integration Tests', () => {
 
     it('should create content with valid field data', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send(validContent)
         .expect(201)
@@ -311,14 +259,14 @@ describe('Content Integration Tests', () => {
 
     it('should fail without authentication', async () => {
       await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .send(validContent)
         .expect(401)
     })
 
     it('should fail with regular user token', async () => {
       await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${regularToken}`)
         .send(validContent)
         .expect(403)
@@ -326,7 +274,7 @@ describe('Content Integration Tests', () => {
 
     it('should validate required fields', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test Product',
@@ -345,7 +293,7 @@ describe('Content Integration Tests', () => {
 
     it('should validate text field min length', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test',
@@ -363,7 +311,7 @@ describe('Content Integration Tests', () => {
 
     it('should validate text field max length', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test',
@@ -380,7 +328,7 @@ describe('Content Integration Tests', () => {
 
     it('should validate currency field min value', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test',
@@ -397,7 +345,7 @@ describe('Content Integration Tests', () => {
 
     it('should validate email format', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test',
@@ -415,7 +363,7 @@ describe('Content Integration Tests', () => {
 
     it('should reject unknown fields', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test',
@@ -433,7 +381,7 @@ describe('Content Integration Tests', () => {
 
     it('should allow optional fields to be omitted', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test',
@@ -453,7 +401,7 @@ describe('Content Integration Tests', () => {
 
     it('should generate slug from title if not provided', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'iPhone 15 Pro Max',
@@ -473,7 +421,7 @@ describe('Content Integration Tests', () => {
     beforeEach(async () => {
       // Create test content
       await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Product 1',
@@ -482,7 +430,7 @@ describe('Content Integration Tests', () => {
         })
 
       await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Product 2',
@@ -493,7 +441,7 @@ describe('Content Integration Tests', () => {
 
     it('should list content for post type', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/content/${postTypeSlug}`)
+        .get(`/api/v1/content/${postTypeSlug}`)
         .expect(200)
 
       expect(response.body.data).toBeDefined()
@@ -503,7 +451,7 @@ describe('Content Integration Tests', () => {
 
     it('should filter by status', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/content/${postTypeSlug}?status=published`)
+        .get(`/api/v1/content/${postTypeSlug}?status=published`)
         .expect(200)
 
       expect(response.body.data.length).toBe(1)
@@ -512,7 +460,7 @@ describe('Content Integration Tests', () => {
 
     it('should support pagination', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/content/${postTypeSlug}?limit=1&offset=0`)
+        .get(`/api/v1/content/${postTypeSlug}?limit=1&offset=0`)
         .expect(200)
 
       expect(response.body.data.length).toBe(1)
@@ -520,7 +468,7 @@ describe('Content Integration Tests', () => {
 
     it('should support search', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/content/${postTypeSlug}?search=Product 1`)
+        .get(`/api/v1/content/${postTypeSlug}?search=Product 1`)
         .expect(200)
 
       expect(response.body.data.length).toBeGreaterThan(0)
@@ -532,7 +480,7 @@ describe('Content Integration Tests', () => {
 
     beforeEach(async () => {
       const createResponse = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test Product',
@@ -543,7 +491,7 @@ describe('Content Integration Tests', () => {
 
     it('should get content by ID', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/content/${postTypeSlug}/${contentId}`)
+        .get(`/api/v1/content/${postTypeSlug}/${contentId}`)
         .expect(200)
 
       expect(response.body.id).toBe(contentId)
@@ -552,7 +500,7 @@ describe('Content Integration Tests', () => {
 
     it('should return 404 for non-existent ID', async () => {
       await request(app.getHttpServer())
-        .get(`/api/content/${postTypeSlug}/00000000-0000-0000-0000-000000000000`)
+        .get(`/api/v1/content/${postTypeSlug}/00000000-0000-0000-0000-000000000000`)
         .expect(404)
     })
   })
@@ -562,7 +510,7 @@ describe('Content Integration Tests', () => {
 
     beforeEach(async () => {
       const createResponse = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test Product',
@@ -577,7 +525,7 @@ describe('Content Integration Tests', () => {
 
     it('should update content with valid data', async () => {
       const response = await request(app.getHttpServer())
-        .patch(`/api/content/${postTypeSlug}/${contentId}`)
+        .patch(`/api/v1/content/${postTypeSlug}/${contentId}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Updated Product',
@@ -595,7 +543,7 @@ describe('Content Integration Tests', () => {
 
     it('should validate updated field data', async () => {
       const response = await request(app.getHttpServer())
-        .patch(`/api/content/${postTypeSlug}/${contentId}`)
+        .patch(`/api/v1/content/${postTypeSlug}/${contentId}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           field_data: {
@@ -610,7 +558,7 @@ describe('Content Integration Tests', () => {
 
     it('should fail without authentication', async () => {
       await request(app.getHttpServer())
-        .patch(`/api/content/${postTypeSlug}/${contentId}`)
+        .patch(`/api/v1/content/${postTypeSlug}/${contentId}`)
         .send({ title: 'Updated' })
         .expect(401)
     })
@@ -621,7 +569,7 @@ describe('Content Integration Tests', () => {
 
     beforeEach(async () => {
       const createResponse = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test Product',
@@ -633,7 +581,7 @@ describe('Content Integration Tests', () => {
 
     it('should publish content', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}/${contentId}/publish`)
+        .post(`/api/v1/content/${postTypeSlug}/${contentId}/publish`)
         .set('Authorization', `Bearer ${editorToken}`)
         .expect(200)
 
@@ -643,7 +591,7 @@ describe('Content Integration Tests', () => {
 
     it('should fail without authentication', async () => {
       await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}/${contentId}/publish`)
+        .post(`/api/v1/content/${postTypeSlug}/${contentId}/publish`)
         .expect(401)
     })
   })
@@ -653,7 +601,7 @@ describe('Content Integration Tests', () => {
 
     beforeEach(async () => {
       const createResponse = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test Product',
@@ -667,7 +615,7 @@ describe('Content Integration Tests', () => {
       futureDate.setDate(futureDate.getDate() + 7)
 
       const response = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}/${contentId}/schedule`)
+        .post(`/api/v1/content/${postTypeSlug}/${contentId}/schedule`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           scheduledFor: futureDate.toISOString()
@@ -683,7 +631,7 @@ describe('Content Integration Tests', () => {
       pastDate.setDate(pastDate.getDate() - 1)
 
       await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}/${contentId}/schedule`)
+        .post(`/api/v1/content/${postTypeSlug}/${contentId}/schedule`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           scheduledFor: pastDate.toISOString()
@@ -697,7 +645,7 @@ describe('Content Integration Tests', () => {
 
     beforeEach(async () => {
       const createResponse = await request(app.getHttpServer())
-        .post(`/api/content/${postTypeSlug}`)
+        .post(`/api/v1/content/${postTypeSlug}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
           title: 'Test Product',
@@ -708,18 +656,18 @@ describe('Content Integration Tests', () => {
 
     it('should soft delete content', async () => {
       await request(app.getHttpServer())
-        .delete(`/api/content/${postTypeSlug}/${contentId}`)
+        .delete(`/api/v1/content/${postTypeSlug}/${contentId}`)
         .set('Authorization', `Bearer ${editorToken}`)
         .expect(204)
 
       await request(app.getHttpServer())
-        .get(`/api/content/${postTypeSlug}/${contentId}`)
+        .get(`/api/v1/content/${postTypeSlug}/${contentId}`)
         .expect(404)
     })
 
     it('should fail without authentication', async () => {
       await request(app.getHttpServer())
-        .delete(`/api/content/${postTypeSlug}/${contentId}`)
+        .delete(`/api/v1/content/${postTypeSlug}/${contentId}`)
         .expect(401)
     })
   })

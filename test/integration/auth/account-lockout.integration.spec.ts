@@ -16,59 +16,20 @@ import { LoggerModule } from 'nestjs-pino'
 import * as request from 'supertest'
 import { DataSource } from 'typeorm'
 
-import configuration from '../../../src/config/configuration'
+import configuration from '@core/config/configuration'
+import { ENTITIES } from '@core/database/entities'
+
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { AccountSecurityJobType, QueueName } from '../../../src/core/queues/jobs/types'
 import { AccountSecurityProcessor } from '../../../src/core/queues/processors/account-security.processor'
-import { Permission } from '../../../src/modules/acl/entities/permission.entity'
-import { Role } from '../../../src/modules/acl/entities/role.entity'
-import { RolePermission } from '../../../src/modules/acl/entities/role-permission.entity'
-import { UserRole } from '../../../src/modules/acl/entities/user-role.entity'
-import { Attachment } from '../../../src/modules/attachments/entities/attachment.entity'
-import { AuditLog } from '../../../src/modules/audit/entities/audit-log.entity'
 import { AuthModule } from '../../../src/modules/auth/auth.module'
-import { PasswordHistory } from '../../../src/modules/auth/entities/password-history.entity'
-import { PasswordReset } from '../../../src/modules/auth/entities/password-reset.entity'
-import { Session } from '../../../src/modules/auth/entities/session.entity'
 import { AccountLockoutService } from '../../../src/modules/auth/services/account-lockout.service'
-import { EmailVerification } from '../../../src/modules/users/entities/email-verification.entity'
 import { User } from '../../../src/modules/users/entities/user.entity'
 import { UsersModule } from '../../../src/modules/users/users.module'
+import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
-
-const createInMemoryCacheService = () => {
-  const store = new Map<string, any>()
-  return {
-    get: async (key: string) => store.get(key),
-    set: async (key: string, value: any) => {
-      store.set(key, value)
-    },
-    del: async (key: string) => {
-      store.delete(key)
-    },
-    delPattern: async (pattern: string) => {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      for (const key of store.keys()) {
-        if (regex.test(key)) {
-          store.delete(key)
-        }
-      }
-    },
-    reset: async () => {
-      store.clear()
-    },
-    wrap: async (key: string, fn: () => Promise<any>) => {
-      if (store.has(key)) {
-        return store.get(key)
-      }
-      const result = await fn()
-      store.set(key, result)
-      return result
-    }
-  }
-}
 
 describe('Account Lockout Integration Tests', () => {
   let app: INestApplication
@@ -124,19 +85,7 @@ describe('Account Lockout Integration Tests', () => {
         TypeOrmModule.forRoot({
           ...testConfig.database,
           type: 'postgres',
-          entities: [
-            User,
-            Session,
-            PasswordReset,
-            EmailVerification,
-            Role,
-            Permission,
-            UserRole,
-            RolePermission,
-            AuditLog,
-            Attachment,
-            PasswordHistory
-          ],
+          entities: ENTITIES,
           synchronize: true,
           dropSchema: true
         }),
@@ -157,7 +106,7 @@ describe('Account Lockout Integration Tests', () => {
         AccountSecurityProcessor,
         {
           provide: CacheService,
-          useValue: createInMemoryCacheService()
+          useValue: new InMemoryCacheService()
         }
       ]
     })

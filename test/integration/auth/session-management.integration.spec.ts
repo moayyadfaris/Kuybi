@@ -12,47 +12,18 @@ import * as request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { AclModule } from '@modules/acl/acl.module'
-import { Permission } from '@modules/acl/entities/permission.entity'
 import { Role } from '@modules/acl/entities/role.entity'
-import { RolePermission } from '@modules/acl/entities/role-permission.entity'
-import { UserRole } from '@modules/acl/entities/user-role.entity'
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 import { AuthModule } from '@modules/auth/auth.module'
-import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
-import { Session } from '@modules/auth/entities/session.entity'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import configuration from '@core/config/configuration'
+import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
+import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { testConfig } from '../../test.config'
-
-const createInMemoryCacheService = () => {
-  const store = new Map<string, any>()
-  return {
-    get: async (key: string) => store.get(key),
-    set: async (key: string, value: any) => store.set(key, value),
-    del: async (key: string) => store.delete(key),
-    delPattern: async (pattern: string) => {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      for (const key of store.keys()) {
-        if (regex.test(key)) store.delete(key)
-      }
-    },
-    reset: async () => store.clear(),
-    wrap: async (key: string, fn: () => Promise<any>) => {
-      if (store.has(key)) return store.get(key)
-      const value = await fn()
-      store.set(key, value)
-      return value
-    },
-    isHealthy: async () => true,
-    buildKey: (...parts: (string | number)[]) => parts.join(':')
-  }
-}
 
 describe('Session Management Integration Tests', () => {
   let app: INestApplication
@@ -63,14 +34,14 @@ describe('Session Management Integration Tests', () => {
   let adminToken: string
   let regularUser: User
   let regularUserToken: string
-  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let cacheStub: InMemoryCacheService
 
   const SUPER_ADMIN_PASSWORD = 'SuperAdmin@123'
   const ADMIN_PASSWORD = 'Admin@123'
   const USER_PASSWORD = 'User@123'
 
   beforeAll(async () => {
-    cacheStub = createInMemoryCacheService()
+    cacheStub = new InMemoryCacheService()
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
@@ -90,17 +61,7 @@ describe('Session Management Integration Tests', () => {
           username: testConfig.database.username,
           password: testConfig.database.password,
           database: testConfig.database.database,
-          entities: [
-            User,
-            Session,
-            Role,
-            UserRole,
-            Permission,
-            RolePermission,
-            AuditLog,
-            Attachment,
-            PasswordHistory
-          ],
+          entities: ENTITIES,
           synchronize: false,
           dropSchema: false,
           logging: false

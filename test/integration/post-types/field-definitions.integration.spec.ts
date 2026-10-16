@@ -12,61 +12,25 @@ import * as request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { AclModule } from '@modules/acl/acl.module'
-import { Permission } from '@modules/acl/entities/permission.entity'
-import { Role } from '@modules/acl/entities/role.entity'
-import { RolePermission } from '@modules/acl/entities/role-permission.entity'
-import { UserRole } from '@modules/acl/entities/user-role.entity'
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { AuditLog } from '@modules/audit/entities/audit-log.entity'
 import { AuthModule } from '@modules/auth/auth.module'
-import { PasswordHistory } from '@modules/auth/entities/password-history.entity'
-import { Session } from '@modules/auth/entities/session.entity'
-import { FieldDefinition } from '@modules/post-types/entities/field-definition.entity'
-import { PostContent } from '@modules/post-types/entities/post-content.entity'
-import { PostContentAttachment } from '@modules/post-types/entities/post-content-attachment.entity'
-import { PostContentCategory } from '@modules/post-types/entities/post-content-category.entity'
-import { PostContentTag } from '@modules/post-types/entities/post-content-tag.entity'
-import { PostType } from '@modules/post-types/entities/post-type.entity'
 import { PostTypesModule } from '@modules/post-types/post-types.module'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
+import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
+import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
-
-const createInMemoryCacheService = () => {
-  const store = new Map<string, any>()
-  return {
-    get: async (key: string) => store.get(key),
-    set: async (key: string, value: any) => store.set(key, value),
-    del: async (key: string) => store.delete(key),
-    delPattern: async (pattern: string) => {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      for (const key of store.keys()) {
-        if (regex.test(key)) store.delete(key)
-      }
-    },
-    reset: async () => store.clear(),
-    wrap: async (key: string, fn: () => Promise<any>) => {
-      if (store.has(key)) return store.get(key)
-      const value = await fn()
-      store.set(key, value)
-      return value
-    },
-    isHealthy: async () => true,
-    buildKey: (...parts: (string | number)[]) => parts.join(':')
-  }
-}
 
 const TABLES_TO_TRUNCATE = [
   'post_content_attachments',
   'post_content_tags',
   'post_content_categories',
-  'post_contents',
+  'post_content',
   'field_definitions',
   'post_types',
   'sessions',
@@ -84,7 +48,7 @@ describe('Field Definitions Integration Tests', () => {
   let adminToken: string
   let regularToken: string
   let testCounter = 0
-  let cacheStub: ReturnType<typeof createInMemoryCacheService>
+  let cacheStub: InMemoryCacheService
   let roles: SeededRoles
   let postTypeId: string
 
@@ -110,23 +74,7 @@ describe('Field Definitions Integration Tests', () => {
           username: process.env.TEST_DB_USERNAME,
           password: process.env.TEST_DB_PASSWORD,
           database: process.env.TEST_DB_NAME,
-          entities: [
-            PostType,
-            FieldDefinition,
-            PostContent,
-            PostContentAttachment,
-            PostContentTag,
-            PostContentCategory,
-            User,
-            Session,
-            UserRole,
-            Role,
-            Permission,
-            RolePermission,
-            AuditLog,
-            Attachment,
-            PasswordHistory
-          ],
+          entities: ENTITIES,
           synchronize: false,
           dropSchema: false,
           logging: false
@@ -138,7 +86,7 @@ describe('Field Definitions Integration Tests', () => {
       ]
     })
 
-    cacheStub = createInMemoryCacheService()
+    cacheStub = new InMemoryCacheService()
     const moduleFixture = await moduleBuilder
       .overrideProvider(CacheService)
       .useValue(cacheStub)
@@ -198,7 +146,7 @@ describe('Field Definitions Integration Tests', () => {
 
     // Create a post type for testing
     const postTypeResponse = await request(app.getHttpServer())
-      .post('/api/post-types')
+      .post('/api/v1/post-types')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         name: 'Product',
@@ -232,7 +180,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should create field definition with admin token', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send(validField)
         .expect(201)
@@ -248,14 +196,14 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should fail without authentication', async () => {
       await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .send(validField)
         .expect(401)
     })
 
     it('should fail with regular user token', async () => {
       await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${regularToken}`)
         .send(validField)
         .expect(403)
@@ -263,7 +211,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should validate field name format (snake_case)', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           ...validField,
@@ -276,7 +224,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should validate field type is valid enum', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           ...validField,
@@ -290,14 +238,14 @@ describe('Field Definitions Integration Tests', () => {
     it('should prevent duplicate field names in same post type', async () => {
       // Create first field
       await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send(validField)
         .expect(201)
 
       // Try duplicate
       const response = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           ...validField,
@@ -342,7 +290,7 @@ describe('Field Definitions Integration Tests', () => {
 
       for (const fieldType of fieldTypes) {
         const response = await request(app.getHttpServer())
-          .post(`/api/post-types/${postTypeId}/fields`)
+          .post(`/api/v1/post-types/${postTypeId}/fields`)
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             name: `field_${fieldType}`,
@@ -361,7 +309,7 @@ describe('Field Definitions Integration Tests', () => {
     beforeEach(async () => {
       // Create multiple fields
       await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'price',
@@ -371,7 +319,7 @@ describe('Field Definitions Integration Tests', () => {
         })
 
       await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'name',
@@ -383,7 +331,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should list all fields for post type', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/post-types/${postTypeId}/fields`)
+        .get(`/api/v1/post-types/${postTypeId}/fields`)
         .expect(200)
 
       expect(Array.isArray(response.body)).toBe(true)
@@ -392,7 +340,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should return fields in display order', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/post-types/${postTypeId}/fields`)
+        .get(`/api/v1/post-types/${postTypeId}/fields`)
         .expect(200)
 
       expect(response.body[0].name).toBe('name')
@@ -405,7 +353,7 @@ describe('Field Definitions Integration Tests', () => {
 
     beforeEach(async () => {
       const fieldResponse = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'price',
@@ -417,7 +365,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should get field by ID', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .get(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .expect(200)
 
       expect(response.body.id).toBe(fieldId)
@@ -427,7 +375,7 @@ describe('Field Definitions Integration Tests', () => {
     it('should return 404 for field from different post type', async () => {
       // Create another post type
       const postType2Response = await request(app.getHttpServer())
-        .post('/api/post-types')
+        .post('/api/v1/post-types')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'Event',
@@ -439,7 +387,7 @@ describe('Field Definitions Integration Tests', () => {
         })
 
       await request(app.getHttpServer())
-        .get(`/api/post-types/${postType2Response.body.id}/fields/${fieldId}`)
+        .get(`/api/v1/post-types/${postType2Response.body.id}/fields/${fieldId}`)
         .expect(404)
     })
   })
@@ -449,7 +397,7 @@ describe('Field Definitions Integration Tests', () => {
 
     beforeEach(async () => {
       const fieldResponse = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'price',
@@ -462,7 +410,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should update field with admin token', async () => {
       const response = await request(app.getHttpServer())
-        .patch(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .patch(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           label: 'Product Price',
@@ -477,14 +425,14 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should fail without authentication', async () => {
       await request(app.getHttpServer())
-        .patch(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .patch(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .send({ label: 'Updated' })
         .expect(401)
     })
 
     it('should prevent updating field name', async () => {
       const response = await request(app.getHttpServer())
-        .patch(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .patch(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ name: 'new_name' })
         .expect(200)
@@ -494,7 +442,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should prevent updating field type', async () => {
       const response = await request(app.getHttpServer())
-        .patch(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .patch(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ fieldType: 'text' })
         .expect(200)
@@ -510,7 +458,7 @@ describe('Field Definitions Integration Tests', () => {
 
     beforeEach(async () => {
       const f1 = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'field1',
@@ -521,7 +469,7 @@ describe('Field Definitions Integration Tests', () => {
       field1Id = f1.body.id
 
       const f2 = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'field2',
@@ -532,7 +480,7 @@ describe('Field Definitions Integration Tests', () => {
       field2Id = f2.body.id
 
       const f3 = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'field3',
@@ -545,7 +493,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should reorder fields', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields/reorder`)
+        .post(`/api/v1/post-types/${postTypeId}/fields/reorder`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           fieldOrders: [
@@ -564,7 +512,7 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should fail with duplicate display orders', async () => {
       await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields/reorder`)
+        .post(`/api/v1/post-types/${postTypeId}/fields/reorder`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           fieldOrders: [
@@ -581,7 +529,7 @@ describe('Field Definitions Integration Tests', () => {
 
     beforeEach(async () => {
       const fieldResponse = await request(app.getHttpServer())
-        .post(`/api/post-types/${postTypeId}/fields`)
+        .post(`/api/v1/post-types/${postTypeId}/fields`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'price',
@@ -593,18 +541,18 @@ describe('Field Definitions Integration Tests', () => {
 
     it('should soft delete field with admin token', async () => {
       await request(app.getHttpServer())
-        .delete(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .delete(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(204)
 
       await request(app.getHttpServer())
-        .get(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .get(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .expect(404)
     })
 
     it('should fail without authentication', async () => {
       await request(app.getHttpServer())
-        .delete(`/api/post-types/${postTypeId}/fields/${fieldId}`)
+        .delete(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .expect(401)
     })
   })
