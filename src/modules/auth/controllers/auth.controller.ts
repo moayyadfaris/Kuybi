@@ -9,7 +9,7 @@ import {
   UseGuards
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { Throttle } from '@nestjs/throttler'
+import { seconds, Throttle } from '@nestjs/throttler'
 import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -58,7 +58,7 @@ export class AuthController {
   ) {}
 
   @Get('check-availability')
-  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @Throttle({ default: { limit: 20, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Check if email or phone is available for registration' })
   @ApiOkResponse({ description: 'Returns availability status with suggestions if unavailable' })
   async checkAvailability(@Query() query: CheckAvailabilityDto) {
@@ -88,7 +88,7 @@ export class AuthController {
   }
 
   @Post('register')
-  @Throttle({ default: { limit: 3, ttl: 3600 } }) // 3 registrations per hour
+  @Throttle({ default: { limit: 3, ttl: seconds(3600) } }) // 3 registrations per hour
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiOkResponse({ description: 'User registered successfully, verification email sent' })
   async register(@Body() registerDto: RegisterUserDto, @Req() req: Request) {
@@ -122,7 +122,7 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Verify user email address' })
   @ApiOkResponse({ description: 'Email verified successfully' })
   async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto, @Req() req: Request) {
@@ -154,7 +154,7 @@ export class AuthController {
   }
 
   @Post('resend-verification')
-  @Throttle({ default: { limit: 3, ttl: 300 } }) // 3 attempts per 5 minutes
+  @Throttle({ default: { limit: 3, ttl: seconds(300) } }) // 3 attempts per 5 minutes
   @ApiOperation({ summary: 'Resend email verification link' })
   @ApiOkResponse({ description: 'Verification email sent' })
   async resendVerification(@Body() resendDto: ResendVerificationDto, @Req() req: Request) {
@@ -181,7 +181,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  @Throttle({ default: { limit: 3, ttl: 900 } }) // 3 attempts per 15 minutes
+  @Throttle({ default: { limit: 3, ttl: seconds(900) } }) // 3 attempts per 15 minutes
   @ApiOperation({ summary: 'Request password reset link' })
   @ApiOkResponse({ description: 'Password reset email sent if account exists' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto, @Req() req: Request) {
@@ -211,7 +211,7 @@ export class AuthController {
   }
 
   @Post('validate-reset-token')
-  @Throttle({ default: { limit: 10, ttl: 60 } }) // 10 attempts per minute
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } }) // 10 attempts per minute
   @ApiOperation({ summary: 'Validate password reset token' })
   @ApiOkResponse({ description: 'Returns token validity status' })
   async validateResetToken(@Body() validateTokenDto: ValidateResetTokenDto, @Req() req: Request) {
@@ -240,7 +240,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
-  @Throttle({ default: { limit: 5, ttl: 300 } }) // 5 attempts per 5 minutes
+  @Throttle({ default: { limit: 5, ttl: seconds(300) } }) // 5 attempts per 5 minutes
   @ApiOperation({ summary: 'Reset password with valid token' })
   @ApiOkResponse({ description: 'Password reset successfully' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto, @Req() req: Request) {
@@ -272,7 +272,7 @@ export class AuthController {
   }
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 60 } })
+  @Throttle({ default: { limit: 5, ttl: seconds(60) } })
   @ApiOkResponse({ description: 'Returns access & refresh tokens with user profile' })
   async login(@Body() body: LoginDto, @Req() req: Request) {
     const ipAddress = this.extractIp(req)
@@ -458,7 +458,7 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @AllowPasswordChangeToken()
-  @Throttle({ default: { limit: 5, ttl: 300 } }) // 5 attempts per 5 minutes
+  @Throttle({ default: { limit: 5, ttl: seconds(300) } }) // 5 attempts per 5 minutes
   @ApiOperation({
     summary: 'Change password',
     description:
@@ -541,7 +541,7 @@ export class AuthController {
   }
 
   @Post('password-strength')
-  @Throttle({ default: { limit: 30, ttl: 60 } }) // 30 requests per minute
+  @Throttle({ default: { limit: 30, ttl: seconds(60) } }) // 30 requests per minute
   @ApiOperation({
     summary: 'Check password strength',
     description:
@@ -612,7 +612,7 @@ export class AuthController {
   @Get('password-history')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @ApiOperation({
     summary: 'Get password change history',
     description:

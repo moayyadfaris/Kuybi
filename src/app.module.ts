@@ -2,7 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { ScheduleModule } from '@nestjs/schedule'
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { seconds, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { EmailModule } from '@infrastructure/email/email.module'
 import { LoggerModule } from 'nestjs-pino'
 
@@ -53,7 +53,8 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
           throttlers: [
             {
               name: 'default',
-              ttl,
+              // THROTTLE_TTL is in seconds; @nestjs/throttler v5+ expects milliseconds
+              ttl: seconds(ttl),
               limit
             }
           ]

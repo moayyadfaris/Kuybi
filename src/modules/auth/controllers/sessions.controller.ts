@@ -23,7 +23,7 @@ import {
   ApiResponse,
   ApiTags
 } from '@nestjs/swagger'
-import { Throttle } from '@nestjs/throttler'
+import { seconds, Throttle } from '@nestjs/throttler'
 import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -61,7 +61,7 @@ export class SessionsController {
   ) {}
 
   @Get('me')
-  @Throttle({ default: { limit: 30, ttl: 60 } })
+  @Throttle({ default: { limit: 30, ttl: seconds(60) } })
   @ApiOperation({ summary: 'List my sessions (current user)' })
   @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
   async getMySessionsExplicit(@Query() filter: SessionFilterDto, @Req() req: AuthenticatedRequest) {
@@ -69,7 +69,7 @@ export class SessionsController {
   }
 
   @Get()
-  @Throttle({ default: { limit: 30, ttl: 60 } })
+  @Throttle({ default: { limit: 30, ttl: seconds(60) } })
   @ApiOperation({ summary: 'List user sessions' })
   @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
   async listSessions(@Query() filter: SessionFilterDto, @Req() req: AuthenticatedRequest) {
@@ -153,7 +153,7 @@ export class SessionsController {
   }
 
   @Get('me/stats')
-  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @Throttle({ default: { limit: 20, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Get my session statistics (current user)' })
   @ApiResponse({ status: 200, description: 'Statistics retrieved', type: SessionStatsDto })
   async getMySessionStats(@Req() req: AuthenticatedRequest) {
@@ -161,7 +161,7 @@ export class SessionsController {
   }
 
   @Get('stats')
-  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @Throttle({ default: { limit: 20, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Get session statistics' })
   @ApiResponse({ status: 200, description: 'Statistics retrieved', type: SessionStatsDto })
   async getSessionStats(@Req() req: AuthenticatedRequest) {
@@ -205,7 +205,7 @@ export class SessionsController {
   }
 
   @Get(':id')
-  @Throttle({ default: { limit: 30, ttl: 60 } })
+  @Throttle({ default: { limit: 30, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Get session by ID' })
   @ApiParam({ name: 'id', description: 'Session ID', type: 'string' })
   @ApiResponse({ status: 200, description: 'Session retrieved' })
@@ -231,7 +231,7 @@ export class SessionsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @Throttle({ default: { limit: 20, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Revoke session' })
   @ApiParam({ name: 'id', type: 'string' })
   @ApiResponse({ status: 200, type: RevokeSessionResponseDto })
@@ -270,7 +270,7 @@ export class SessionsController {
 
   @Delete('all/revoke')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Revoke all sessions' })
   @ApiResponse({ status: 200 })
   async revokeAllSessions(@Body() dto: RevokeSessionDto, @Req() req: AuthenticatedRequest) {
@@ -294,7 +294,7 @@ export class SessionsController {
 
   @Delete('device/:type')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 15, ttl: 60 } })
+  @Throttle({ default: { limit: 15, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Revoke sessions by device' })
   @ApiParam({ name: 'type', enum: DeviceType })
   @ApiResponse({ status: 200, type: RevokeSessionResponseDto })
@@ -342,7 +342,7 @@ export class SessionsController {
 
   @Post(':id/extend')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Extend session expiration' })
   @ApiParam({ name: 'id', type: 'string' })
   @ApiQuery({ name: 'days', required: false, type: Number })
@@ -392,7 +392,7 @@ export class SessionsController {
 
   @Get('users/:userId')
   @UseGuards(SuperAdminGuard)
-  @Throttle({ default: { limit: 30, ttl: 60 } })
+  @Throttle({ default: { limit: 30, ttl: seconds(60) } })
   @ApiOperation({ summary: 'List sessions for any user (super-admin only)' })
   @ApiParam({ name: 'userId', description: 'User ID to list sessions for' })
   @ApiResponse({ status: 200, description: 'User sessions retrieved successfully' })
@@ -476,7 +476,7 @@ export class SessionsController {
   @Delete('users/:userId/sessions/:sessionId')
   @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @Throttle({ default: { limit: 20, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Revoke specific session for any user (super-admin only)' })
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiParam({ name: 'sessionId', description: 'Session ID to revoke' })
@@ -539,7 +539,7 @@ export class SessionsController {
   @Delete('users/:userId/sessions')
   @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Revoke all sessions for any user (super-admin only)' })
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'All user sessions revoked successfully' })
@@ -587,7 +587,7 @@ export class SessionsController {
   @Post('cleanup')
   @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 300 } })
+  @Throttle({ default: { limit: 5, ttl: seconds(300) } })
   @ApiOperation({ summary: 'Manual cleanup (super-admin only)' })
   @ApiQuery({ name: 'olderThanDays', required: false, type: Number })
   @ApiResponse({ status: 200 })
