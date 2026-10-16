@@ -193,7 +193,6 @@ describe('PostTypesService', () => {
       const mockTypeOrmRepo = {
         softDelete: jest.fn()
       }
-      // @ts-expect-error - Mocking TypeORM repository method
       repository.getRepository = jest.fn().mockReturnValue(mockTypeOrmRepo)
 
       await service.remove('test-id')
