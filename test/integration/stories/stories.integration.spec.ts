@@ -189,6 +189,7 @@ describe('Stories Integration Tests', () => {
       const storyId = createResponse.body.id
       const storyResponse = await request(app.getHttpServer())
         .get(`/api/v1/stories/${storyId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
       expect(storyResponse.body.tags).toHaveLength(2)
@@ -226,7 +227,10 @@ describe('Stories Integration Tests', () => {
     })
 
     it('should list all stories', async () => {
-      const response = await request(app.getHttpServer()).get('/api/v1/stories').expect(200)
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
 
       expect(response.body).toHaveProperty('results')
       expect(response.body).toHaveProperty('total')
@@ -237,6 +241,7 @@ describe('Stories Integration Tests', () => {
     it('should filter stories by status', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
         .query({ status: 'DRAFT' })
         .expect(200)
 
@@ -246,6 +251,7 @@ describe('Stories Integration Tests', () => {
     it('should paginate results', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
         .query({ page: 1, limit: 2 })
         .expect(200)
 
@@ -255,7 +261,10 @@ describe('Stories Integration Tests', () => {
     })
 
     it('should include tags and categories in response', async () => {
-      const response = await request(app.getHttpServer()).get('/api/v1/stories').expect(200)
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
 
       const story = response.body.results[0]
       expect(story).toHaveProperty('tags')
@@ -277,6 +286,7 @@ describe('Stories Integration Tests', () => {
     it('should get story by id', async () => {
       const response = await request(app.getHttpServer())
         .get(`/api/v1/stories/${storyId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
       expect(response.body.id).toBe(storyId)
@@ -285,7 +295,10 @@ describe('Stories Integration Tests', () => {
     })
 
     it('should return 404 for non-existent story', async () => {
-      await request(app.getHttpServer()).get('/api/v1/stories/99999').expect(404)
+      await request(app.getHttpServer())
+        .get('/api/v1/stories/99999')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404)
     })
   })
 
@@ -380,11 +393,17 @@ describe('Stories Integration Tests', () => {
   describe('Cache Integration', () => {
     it('should cache story list results', async () => {
       // First request - cache miss
-      const response1 = await request(app.getHttpServer()).get('/api/v1/stories').expect(200)
+      const response1 = await request(app.getHttpServer())
+        .get('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
 
       // Second request - should be from cache (faster)
       const startTime = Date.now()
-      const response2 = await request(app.getHttpServer()).get('/api/v1/stories').expect(200)
+      const response2 = await request(app.getHttpServer())
+        .get('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
       const duration = Date.now() - startTime
 
       // Results should be identical

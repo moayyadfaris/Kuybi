@@ -63,7 +63,7 @@ describe('User Profile Integration Tests', () => {
           port: parseInt(process.env.TEST_DB_PORT || '5432'),
           username: process.env.TEST_DB_USERNAME,
           password: process.env.TEST_DB_PASSWORD,
-          database: process.env.TEST_DB_DATABASE,
+          database: process.env.TEST_DB_NAME,
           entities: ENTITIES,
           synchronize: false,
           logging: false
@@ -79,6 +79,7 @@ describe('User Profile Integration Tests', () => {
       .compile()
 
     app = module.createNestApplication()
+    app.setGlobalPrefix('api')
     app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }))
     await app.init()
 
@@ -111,7 +112,7 @@ describe('User Profile Integration Tests', () => {
         email: 'test@example.com',
         password: TEST_PASSWORD
       })
-      .expect(200)
+      .expect(201)
 
     accessToken = loginResponse.body.accessToken
   })
@@ -138,8 +139,9 @@ describe('User Profile Integration Tests', () => {
         isActive: true,
         isVerified: true
       })
-      // Note: role is now derived from primaryRoleId, not stored directly
-      expect(response.body.primaryRoleId).toBe(roles['user'].id)
+      // Role is exposed by name plus a roleInfo object, not as primaryRoleId
+      expect(response.body.role).toBe('user')
+      expect(response.body.roleInfo?.id).toBe(roles['user'].id)
 
       // Ensure sensitive fields are NOT exposed
       expect(response.body.passwordHash).toBeUndefined()
@@ -225,7 +227,7 @@ describe('User Profile Integration Tests', () => {
           email: 'unverified@example.com',
           password: TEST_PASSWORD
         })
-        .expect(200)
+        .expect(201)
 
       const unverifiedToken = loginResponse.body.accessToken
 
