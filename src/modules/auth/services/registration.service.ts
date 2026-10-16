@@ -8,9 +8,9 @@ import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { EmailQueueService } from '@infrastructure/email'
 import * as bcrypt from 'bcrypt'
+import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Repository } from 'typeorm'
-import { v4 as uuidv4 } from 'uuid'
 
 import { EmailVerification } from '../../users/entities/email-verification.entity'
 import { User } from '../../users/entities/user.entity'
@@ -66,7 +66,7 @@ export class RegistrationService {
     const passwordHash = await bcrypt.hash(password, salt)
 
     // Generate email verification token
-    const emailVerificationToken = uuidv4()
+    const emailVerificationToken = randomUUID()
     const emailVerificationExpiry = new Date(Date.now() + this.verificationTokenExpiry)
 
     // Create user
@@ -223,7 +223,7 @@ export class RegistrationService {
     }
 
     // Generate new verification token
-    const emailVerificationToken = uuidv4()
+    const emailVerificationToken = randomUUID()
     const emailVerificationExpiry = new Date(Date.now() + this.verificationTokenExpiry)
 
     // Invalidate any existing unverified tokens for this user

@@ -11,7 +11,7 @@ import { Logger, PinoLogger } from 'nestjs-pino'
 
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { LoggingContextService } from '@core/logging/logging-context.service'
-import { initTracing } from '@core/observability/otel-sdk'
+import { initTracing, shutdownTracing } from '@core/observability/otel-sdk'
 import { SentryFilter, SentryInterceptor, SentryService } from '@core/sentry'
 
 import { AppModule } from './app.module'
@@ -145,8 +145,11 @@ async function bootstrap() {
     })
   }
 
-  // Enable graceful shutdown hooks
-  app.enableShutdownHooks()
+  // Signal handling is done below (shutdown()), which calls app.close() and so runs all
+
+  // lifecycle hooks. Do NOT add enableShutdownHooks(): Nest would close the app a second
+
+  // time in parallel and re-raise the signal, killing the process mid-shutdown.
 
   await app.listen(httpConfig.port, httpConfig.host)
 
@@ -179,6 +182,9 @@ async function bootstrap() {
       // Close the NestJS application (triggers onModuleDestroy, beforeApplicationShutdown, onApplicationShutdown)
       appLogger.log({ signal }, 'Closing Nest application and connections')
       await app.close()
+
+      // Flush remaining spans once no more requests can produce them
+      await shutdownTracing()
 
       appLogger.log({ signal }, 'All connections closed successfully')
 

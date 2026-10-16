@@ -8,7 +8,8 @@ async function bootstrap() {
   const appContext = await NestFactory.createApplicationContext(QueueWorkerModule, {
     bufferLogs: true
   })
-  appContext.enableShutdownHooks()
+  // Signals are handled by shutdown() below, which calls appContext.close(). Do NOT add
+  // enableShutdownHooks(): Nest would close in parallel and re-raise the signal mid-shutdown.
   const logger = await appContext.resolve(PinoLogger)
   logger.setContext('QueueWorker')
 
