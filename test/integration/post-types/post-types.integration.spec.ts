@@ -26,7 +26,7 @@ import { ENTITIES } from '@core/database/entities'
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 // Helpers
-import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
+import { SeededRoles, seedRolesWithPermissions } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
 
@@ -124,7 +124,7 @@ describe('Post Types Integration Tests', () => {
     await TestRedis.clearCache()
     await cacheStub.reset()
 
-    roles = await seedDefaultRoles(dataSource)
+    roles = await seedRolesWithPermissions(dataSource)
 
     const userRepository = dataSource.getRepository(User)
 

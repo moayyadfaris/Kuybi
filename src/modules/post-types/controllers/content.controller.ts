@@ -200,7 +200,6 @@ export class ContentController {
     // Map field_data to fieldData for service
     const serviceData = {
       title: createContentDto.title,
-      slug: createContentDto.title, // Will be generated if needed
       excerpt: createContentDto.excerpt,
       fieldData: createContentDto.field_data,
       status: createContentDto.status,
@@ -261,6 +260,7 @@ export class ContentController {
   }
 
   @Post(':id/publish')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Publish, subject: Subject.Content })
   @ApiBearerAuth()
@@ -293,6 +293,7 @@ export class ContentController {
   }
 
   @Post(':id/schedule')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Content })
   @ApiBearerAuth()

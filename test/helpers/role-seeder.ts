@@ -1,6 +1,9 @@
 import { DataSource } from 'typeorm'
 
+import { Permission } from '@modules/acl/entities/permission.entity'
 import { Role } from '@modules/acl/entities/role.entity'
+import { RolePermission } from '@modules/acl/entities/role-permission.entity'
+import { AclSeeder } from '@modules/acl/seeders/acl.seeder'
 
 const DEFAULT_ROLES: Array<Pick<Role, 'name' | 'description' | 'priority'>> = [
   { name: 'super-admin', description: 'Super administrator', priority: 100 },
@@ -36,4 +39,20 @@ export async function seedDefaultRoles(dataSource: DataSource): Promise<SeededRo
   }
 
   return roles
+}
+
+/**
+ * Seed roles AND their permissions using the production ACL seeder,
+ * so authorization in tests matches a real deployment.
+ */
+export async function seedRolesWithPermissions(dataSource: DataSource): Promise<SeededRoles> {
+  const seeder = new AclSeeder(
+    dataSource.getRepository(Role),
+    dataSource.getRepository(Permission),
+    dataSource.getRepository(RolePermission)
+  )
+  await seeder.seed()
+
+  const roles = await dataSource.getRepository(Role).find()
+  return Object.fromEntries(roles.map(role => [role.name, role]))
 }

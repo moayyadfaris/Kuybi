@@ -136,6 +136,7 @@ export class FieldDefinitionsController {
   }
 
   @Post('reorder')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.FieldDefinition })
   @ApiBearerAuth()

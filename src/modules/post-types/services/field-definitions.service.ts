@@ -199,8 +199,9 @@ export class FieldDefinitionsService {
     // Use TypeORM's softDelete directly
     await this.fieldDefinitionRepository.getRepository().softDelete(id)
 
-    // Invalidate caches for this post type
-    await this.fieldDefinitionRepository.invalidateCacheForPostType(fieldDefinition.postTypeId)
+    // Invalidate the per-id/per-name caches as well as the post type lists,
+    // otherwise findOne keeps serving the deleted field from cache
+    await this.fieldDefinitionRepository.invalidateCache(fieldDefinition)
   }
 
   /**

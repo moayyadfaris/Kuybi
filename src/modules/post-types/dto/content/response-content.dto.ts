@@ -59,6 +59,8 @@ export class ResponseContentDto {
 
   @ApiPropertyOptional({ description: 'Scheduled for timestamp' })
   @Expose()
+  // Entity stores this as scheduledAt; the API uses scheduledFor in requests and responses
+  @Transform(({ obj }) => obj.scheduledAt ?? null)
   scheduledFor?: Date
 
   @ApiProperty({ description: 'Custom field data' })

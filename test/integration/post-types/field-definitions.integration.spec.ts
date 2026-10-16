@@ -22,7 +22,7 @@ import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
-import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
+import { SeededRoles, seedRolesWithPermissions } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
 
@@ -114,7 +114,7 @@ describe('Field Definitions Integration Tests', () => {
     await TestRedis.clearCache()
     await cacheStub.reset()
 
-    roles = await seedDefaultRoles(dataSource)
+    roles = await seedRolesWithPermissions(dataSource)
 
     const userRepository = dataSource.getRepository(User)
 
@@ -219,7 +219,9 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.message).toContain('snake_case')
+      expect(response.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining('snake_case')])
+      )
     })
 
     it('should validate field type is valid enum', async () => {
@@ -232,7 +234,9 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.message).toContain('fieldType')
+      expect(response.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining('fieldType')])
+      )
     })
 
     it('should prevent duplicate field names in same post type', async () => {
@@ -251,7 +255,7 @@ describe('Field Definitions Integration Tests', () => {
           ...validField,
           label: 'Different Label'
         })
-        .expect(400)
+        .expect(409)
 
       expect(response.body.message).toContain('already exists')
     })

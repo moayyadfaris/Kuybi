@@ -22,7 +22,7 @@ import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
-import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
+import { SeededRoles, seedRolesWithPermissions } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
 
@@ -118,7 +118,7 @@ describe('Content Integration Tests', () => {
     await TestRedis.clearCache()
     await cacheStub.reset()
 
-    roles = await seedDefaultRoles(dataSource)
+    roles = await seedRolesWithPermissions(dataSource)
 
     const userRepository = dataSource.getRepository(User)
 
@@ -251,7 +251,7 @@ describe('Content Integration Tests', () => {
         excerpt: 'Latest iPhone model',
         status: 'draft'
       })
-      expect(response.body.fieldData).toMatchObject({
+      expect(response.body.field_data).toMatchObject({
         product_name: 'iPhone 15 Pro',
         price: 999.99
       })
@@ -393,7 +393,7 @@ describe('Content Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body.fieldData).toMatchObject({
+      expect(response.body.field_data).toMatchObject({
         product_name: 'Test Product',
         price: 100
       })
@@ -537,8 +537,8 @@ describe('Content Integration Tests', () => {
         .expect(200)
 
       expect(response.body.title).toBe('Updated Product')
-      expect(response.body.fieldData.price).toBe(150)
-      expect(response.body.fieldData.description).toBe('Updated description')
+      expect(response.body.field_data.price).toBe(150)
+      expect(response.body.field_data.description).toBe('Updated description')
     })
 
     it('should validate updated field data', async () => {
@@ -623,7 +623,7 @@ describe('Content Integration Tests', () => {
         .expect(200)
 
       expect(response.body.status).toBe('scheduled')
-      expect(response.body.scheduledAt).toBeDefined()
+      expect(response.body.scheduledFor).toBeDefined()
     })
 
     it('should fail for past date', async () => {
