@@ -27,6 +27,7 @@ import { LoggingModule } from '@core/logging/logging.module'
 import { StoryFactory } from '../../factories/story.factory'
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
+import { resetDatabase } from '../../helpers/reset-database'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
@@ -116,9 +117,7 @@ describe('Stories Integration Tests', () => {
     await cacheStub.reset()
 
     // Clear database tables
-    await dataSource.query(
-      `TRUNCATE TABLE ${STORY_TABLES_TO_TRUNCATE.join(', ')} RESTART IDENTITY CASCADE`
-    )
+    await resetDatabase(dataSource, STORY_TABLES_TO_TRUNCATE)
 
     roles = await seedDefaultRoles(dataSource)
 

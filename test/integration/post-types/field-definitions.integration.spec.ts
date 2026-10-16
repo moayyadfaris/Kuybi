@@ -22,6 +22,7 @@ import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
+import { resetDatabase } from '../../helpers/reset-database'
 import { SeededRoles, seedRolesWithPermissions } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
@@ -108,9 +109,7 @@ describe('Field Definitions Integration Tests', () => {
   beforeEach(async () => {
     testCounter++
 
-    await dataSource.query(
-      `TRUNCATE TABLE ${TABLES_TO_TRUNCATE.join(', ')} RESTART IDENTITY CASCADE`
-    )
+    await resetDatabase(dataSource, TABLES_TO_TRUNCATE)
     await TestRedis.clearCache()
     await cacheStub.reset()
 

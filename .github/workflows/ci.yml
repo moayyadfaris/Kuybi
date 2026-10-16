@@ -39,6 +39,52 @@ jobs:
       - name: Build
         run: npm run build
 
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Non-blocking for now: an intermittent stall/ordering flake (~1 in 3-5 runs locally)
+    # is still being investigated. Remove continue-on-error once it is stable.
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kuybi
+          POSTGRES_PASSWORD: kuybi
+          POSTGRES_DB: kuybi_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kuybi" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      TEST_DB_HOST: localhost
+      TEST_DB_PORT: 5432
+      TEST_DB_USERNAME: kuybi
+      TEST_DB_PASSWORD: kuybi
+      TEST_DB_NAME: kuybi_test
+      TEST_REDIS_HOST: localhost
+      TEST_REDIS_PORT: 6379
+      TEST_REDIS_DB: 15
+      JWT_SECRET: ci-only-test-secret-not-used-anywhere-else
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Integration tests
+        run: npm run test:integration -- --forceExit
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

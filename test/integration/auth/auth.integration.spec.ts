@@ -21,6 +21,7 @@ import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
+import { resetDatabase } from '../../helpers/reset-database'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
@@ -102,9 +103,7 @@ describe('Auth Integration Tests', () => {
     testCounter++
 
     // Clear database tables FIRST (foreign key constraints)
-    await dataSource.query(
-      `TRUNCATE TABLE ${TABLES_TO_TRUNCATE.join(', ')} RESTART IDENTITY CASCADE`
-    )
+    await resetDatabase(dataSource, TABLES_TO_TRUNCATE)
 
     // Clear cache before each test (ioredis-mock is a singleton, need to clear all data)
     await TestRedis.clearCache()

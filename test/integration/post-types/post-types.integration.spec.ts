@@ -25,6 +25,7 @@ import { ENTITIES } from '@core/database/entities'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
+import { resetDatabase } from '../../helpers/reset-database'
 // Helpers
 import { SeededRoles, seedRolesWithPermissions } from '../../helpers/role-seeder'
 import { TestRedis } from '../../helpers/test-redis'
@@ -117,9 +118,7 @@ describe('Post Types Integration Tests', () => {
   beforeEach(async () => {
     testCounter++
 
-    await dataSource.query(
-      `TRUNCATE TABLE ${TABLES_TO_TRUNCATE.join(', ')} RESTART IDENTITY CASCADE`
-    )
+    await resetDatabase(dataSource, TABLES_TO_TRUNCATE)
 
     await TestRedis.clearCache()
     await cacheStub.reset()
