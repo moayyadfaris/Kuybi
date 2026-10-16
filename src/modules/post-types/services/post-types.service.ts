@@ -4,14 +4,12 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 import {
   POST_TYPE_CAPABILITY_TYPE_REGEX,
   POST_TYPE_NAME_REGEX,
-  POST_TYPE_REST_BASE_REGEX,
-  SLUG_REMOVE_SPECIAL_CHARS_REGEX,
-  SLUG_REPLACE_SPACES_REGEX,
-  SLUG_TRIM_HYPHENS_REGEX
+  POST_TYPE_REST_BASE_REGEX
 } from '../constants'
 import { PostType } from '../entities/post-type.entity'
 import { PostTypeRepository } from '../repositories/post-type.repository'
@@ -44,7 +42,6 @@ export class PostTypesService {
   async create(
     data: {
       name: string
-      slug?: string
       singularLabel: string
       pluralLabel: string
       description?: string
@@ -62,14 +59,8 @@ export class PostTypesService {
     },
     createdBy?: string
   ): Promise<PostType> {
-    // Generate slug if not provided
-    const slug = data.slug || this.generateSlug(data.name)
-
-    // Validate slug doesn't exist
-    const slugExists = await this.postTypeRepository.slugExists(slug)
-    if (slugExists) {
-      throw new ConflictException(`Post type with slug '${slug}' already exists`)
-    }
+    // Validate configuration
+    this.validatePostTypeConfig(data)
 
     // Validate name doesn't exist
     const nameExists = await this.postTypeRepository.nameExists(data.name)
@@ -77,8 +68,11 @@ export class PostTypesService {
       throw new ConflictException(`Post type with name '${data.name}' already exists`)
     }
 
-    // Validate configuration
-    this.validatePostTypeConfig(data)
+    // Slugs are always system-generated; different names that collapse to the
+    // same slug (e.g. "C#" and "C++") get a numeric suffix instead of a conflict
+    const slug = await uniqueSlug(slugify(data.name, { fallback: 'post-type' }), candidate =>
+      this.postTypeRepository.slugExists(candidate)
+    )
 
     // Create post type
     const postType = await this.postTypeRepository.save({
@@ -145,7 +139,6 @@ export class PostTypesService {
     id: string,
     data: {
       name?: string
-      slug?: string
       singularLabel?: string
       pluralLabel?: string
       description?: string
@@ -170,13 +163,7 @@ export class PostTypesService {
       throw new BadRequestException('Cannot modify system post types')
     }
 
-    // Validate slug if being changed
-    if (data.slug && data.slug !== postType.slug) {
-      const slugExists = await this.postTypeRepository.slugExists(data.slug, id)
-      if (slugExists) {
-        throw new ConflictException(`Post type with slug '${data.slug}' already exists`)
-      }
-    }
+    // The slug is intentionally left unchanged on rename so existing content URLs keep working
 
     // Validate name if being changed
     if (data.name && data.name !== postType.name) {
@@ -245,7 +232,7 @@ export class PostTypesService {
       }
       if (!POST_TYPE_NAME_REGEX.test(config.name)) {
         throw new BadRequestException(
-          'Name can only contain letters, numbers, spaces, hyphens, and underscores'
+          'Name can only contain letters (any language), numbers, spaces, hyphens, and underscores'
         )
       }
     }
@@ -280,18 +267,5 @@ export class PostTypesService {
         )
       }
     }
-  }
-
-  /**
-   * Generate slug from name
-   * @param name - Name to convert to slug
-   */
-  private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(SLUG_REMOVE_SPECIAL_CHARS_REGEX, '') // Remove special characters
-      .replace(SLUG_REPLACE_SPACES_REGEX, '-') // Replace spaces, underscores with hyphens
-      .replace(SLUG_TRIM_HYPHENS_REGEX, '') // Remove leading/trailing hyphens
   }
 }

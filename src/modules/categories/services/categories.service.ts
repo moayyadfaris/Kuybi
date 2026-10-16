@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 import { CreateCategoryDto } from '@modules/categories/dto/create-category.dto'
 import { SearchCategoriesDto } from '@modules/categories/dto/search-categories.dto'
@@ -15,13 +16,19 @@ export class CategoriesService {
    * Create a new category
    */
   async create(createCategoryDto: CreateCategoryDto, createdBy?: string): Promise<Category> {
-    // Generate slug from name if not provided
-    const slug = createCategoryDto.slug || this.generateSlug(createCategoryDto.name)
-
-    // Check if slug already exists
-    const slugExists = await this.categoryRepository.slugExists(slug)
-    if (slugExists) {
-      throw new ConflictException(`Category with slug '${slug}' already exists`)
+    let slug: string
+    if (createCategoryDto.slug) {
+      // An explicitly requested slug must be free
+      slug = createCategoryDto.slug
+      if (await this.categoryRepository.slugExists(slug)) {
+        throw new ConflictException(`Category with slug '${slug}' already exists`)
+      }
+    } else {
+      // Generated slugs get a numeric suffix on collision
+      slug = await uniqueSlug(
+        slugify(createCategoryDto.name, { fallback: 'category' }),
+        candidate => this.categoryRepository.slugExists(candidate)
+      )
     }
 
     return this.categoryRepository.create({
@@ -103,7 +110,7 @@ export class CategoriesService {
 
     // If name is being updated but slug is not, regenerate slug
     if (updateCategoryDto.name && !updateCategoryDto.slug) {
-      const newSlug = this.generateSlug(updateCategoryDto.name)
+      const newSlug = slugify(updateCategoryDto.name, { fallback: 'category' })
       if (newSlug !== existing.slug) {
         const slugExists = await this.categoryRepository.slugExists(newSlug, id)
         if (!slugExists) {
@@ -167,18 +174,5 @@ export class CategoriesService {
    */
   async getStats() {
     return this.categoryRepository.getStats()
-  }
-
-  /**
-   * Generate a slug from a name
-   */
-  private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-      .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
   }
 }

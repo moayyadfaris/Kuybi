@@ -237,10 +237,12 @@ describe('Post Types Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.message).toContain('validation')
+      expect(response.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining('singularLabel')])
+      )
     })
 
-    it('should validate slug format (snake_case)', async () => {
+    it('should ignore a client-supplied slug and generate it from the name', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/post-types')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -248,28 +250,55 @@ describe('Post Types Integration Tests', () => {
           ...validPostType,
           slug: 'Invalid-Slug'
         })
-        .expect(400)
+        .expect(201)
 
-      expect(response.body.message).toContain('snake_case')
+      expect(response.body.slug).toBe('product')
     })
 
-    it('should prevent duplicate slugs', async () => {
-      // Create first post type
+    it('should generate a transliterated slug for an Arabic name', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/post-types')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          ...validPostType,
+          name: 'مقالات',
+          singularLabel: 'مقالة',
+          pluralLabel: 'مقالات'
+        })
+        .expect(201)
+
+      expect(response.body.name).toBe('مقالات')
+      expect(response.body.slug).toBe('mqalat')
+    })
+
+    it('should suffix the slug when different names produce the same slug', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/post-types')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ ...validPostType, name: 'Blog Post' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/post-types')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ ...validPostType, name: 'blog_post' })
+        .expect(201)
+
+      expect(response.body.slug).toBe('blog-post-2')
+    })
+
+    it('should reject a duplicate name with 409', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/post-types')
         .set('Authorization', `Bearer ${adminToken}`)
         .send(validPostType)
         .expect(201)
 
-      // Try to create duplicate
       const response = await request(app.getHttpServer())
         .post('/api/v1/post-types')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          ...validPostType,
-          name: 'Different Name'
-        })
-        .expect(400)
+        .send(validPostType)
+        .expect(409)
 
       expect(response.body.message).toContain('already exists')
     })
@@ -291,18 +320,23 @@ describe('Post Types Integration Tests', () => {
           isActive: true
         })
 
-      await request(app.getHttpServer())
+      const eventResponse = await request(app.getHttpServer())
         .post('/api/v1/post-types')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'Event',
-          slug: 'event',
           description: 'Events',
           icon: 'calendar',
           singularLabel: 'Event',
-          pluralLabel: 'Events',
-          isActive: false
+          pluralLabel: 'Events'
         })
+
+      // isActive is not accepted on create; deactivate via update
+      await request(app.getHttpServer())
+        .patch(`/api/v1/post-types/${eventResponse.body.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ isActive: false })
+        .expect(200)
     })
 
     it('should list all active post types (no auth required)', async () => {

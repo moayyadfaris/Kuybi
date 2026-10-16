@@ -76,7 +76,6 @@ describe('PostTypesService', () => {
   describe('create', () => {
     const createDto = {
       name: 'Test Type',
-      slug: 'test-type',
       singularLabel: 'Test',
       pluralLabel: 'Tests',
       description: 'Test Description',
@@ -101,7 +100,7 @@ describe('PostTypesService', () => {
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           name: createDto.name,
-          slug: createDto.slug,
+          slug: 'test-type',
           createdBy: 'user-id',
           isSystem: false
         })
@@ -109,10 +108,26 @@ describe('PostTypesService', () => {
       expect(repository.invalidateAllCaches).toHaveBeenCalled()
     })
 
-    it('should throw ConflictException if slug exists', async () => {
-      repository.slugExists.mockResolvedValue(true)
+    it('should suffix the generated slug if it is already taken', async () => {
+      repository.nameExists.mockResolvedValue(false)
+      repository.slugExists.mockImplementation(async (slug: string) => slug === 'test-type')
+      repository.save.mockImplementation(async data => data as PostType)
 
-      await expect(service.create(createDto, 'user-id')).rejects.toThrow(ConflictException)
+      await service.create(createDto, 'user-id')
+
+      expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({ slug: 'test-type-2' }))
+    })
+
+    it('should transliterate an Arabic name into the slug', async () => {
+      repository.nameExists.mockResolvedValue(false)
+      repository.slugExists.mockResolvedValue(false)
+      repository.save.mockImplementation(async data => data as PostType)
+
+      await service.create({ ...createDto, name: 'مقالات' }, 'user-id')
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'مقالات', slug: 'mqalat' })
+      )
     })
 
     it('should throw ConflictException if name exists', async () => {

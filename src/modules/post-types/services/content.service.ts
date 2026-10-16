@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 import { PostContent } from '../entities/post-content.entity'
 import { ContentStatus } from '../enums/content-status.enum'
@@ -66,13 +67,20 @@ export class ContentService {
     )
     this.fieldValidationService.throwIfInvalid(validationResult)
 
-    // Generate slug if not provided
-    const slug = data.slug || this.generateSlug(data.title)
-
-    // Check slug uniqueness
-    const slugExists = await this.postContentRepository.slugExists(postTypeId, slug)
-    if (slugExists) {
-      throw new BadRequestException(`Content with slug '${slug}' already exists for this post type`)
+    let slug: string
+    if (data.slug) {
+      // An explicitly requested slug must be free within the post type
+      slug = data.slug
+      if (await this.postContentRepository.slugExists(postTypeId, slug)) {
+        throw new BadRequestException(
+          `Content with slug '${slug}' already exists for this post type`
+        )
+      }
+    } else {
+      // Generated slugs get a numeric suffix on collision
+      slug = await uniqueSlug(slugify(data.title, { fallback: 'content' }), candidate =>
+        this.postContentRepository.slugExists(postTypeId, candidate)
+      )
     }
 
     // Create content
@@ -357,18 +365,5 @@ export class ContentService {
         throw new BadRequestException(`Required field '${field.name}' is missing`)
       }
     }
-  }
-
-  /**
-   * Generate slug from title
-   * @param title - Title to convert to slug
-   */
-  private generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // Remove special characters
-      .replace(/[\s_-]+/g, '-') // Replace spaces, underscores with hyphens
-      .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
   }
 }

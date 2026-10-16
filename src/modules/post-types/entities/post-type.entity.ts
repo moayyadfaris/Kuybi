@@ -157,10 +157,10 @@ export class PostType {
 
   /**
    * Get the full REST API path
-   * Example: "events" → "/api/content/events"
+   * Example: "events" → "/api/v1/content/events"
    */
   get restPath(): string {
-    return `/api/content/${this.restBase || this.slug}`
+    return `/api/v1/content/${this.restBase || this.slug}`
   }
 
   /**
