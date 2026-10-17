@@ -125,6 +125,7 @@ export class FileValidationPipe implements PipeTransform {
     }
 
     // Check for dangerous characters
+    // eslint-disable-next-line no-control-regex -- control characters are exactly what we reject
     const dangerousChars = /[<>:"|?*\x00-\x1f]/g
     if (dangerousChars.test(filename)) {
       throw new BadRequestException('Invalid filename: contains dangerous characters')

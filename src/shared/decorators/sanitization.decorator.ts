@@ -86,7 +86,6 @@ class SanitizeHtmlConstraint implements ValidatorConstraintInterface {
         .replace(/\//g, '&#x2F;')
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config: any = {
       ALLOWED_TAGS: options.allowedTags || DEFAULT_ALLOWED_TAGS,
       ALLOWED_ATTR: options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES

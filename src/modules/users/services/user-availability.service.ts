@@ -148,7 +148,7 @@ export class UserAvailabilityService {
    * Normalize phone number (remove spaces, dashes, etc.)
    */
   private normalizePhone(phone: string): string {
-    return phone.replace(/[\s\-\(\)]/g, '')
+    return phone.replace(/[\s\-()]/g, '')
   }
 
   /**

@@ -22,7 +22,7 @@ export function isValidPhone(phone: string): boolean {
  * Normalize phone number (remove spaces, dashes, parentheses)
  */
 export function normalizePhone(phone: string): string {
-  return phone.replace(/[\s\-\(\)]/g, '')
+  return phone.replace(/[\s\-()]/g, '')
 }
 
 /**

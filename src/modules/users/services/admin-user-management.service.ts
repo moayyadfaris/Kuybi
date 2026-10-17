@@ -72,9 +72,7 @@ export class AdminUserManagementService {
     }
 
     // Store original values for audit trail
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const originalValues: Record<string, any> = {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newValues: Record<string, any> = {}
     const changes: string[] = []
 
