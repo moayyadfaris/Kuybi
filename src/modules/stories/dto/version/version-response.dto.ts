@@ -33,7 +33,7 @@ export class VersionResponseDto {
   versionNumber: number
 
   @ApiPropertyOptional({ description: 'Optional version label' })
-  versionLabel?: string
+  versionLabel?: string | null
 
   @ApiProperty({ enum: VersionType, description: 'Type of version' })
   versionType: VersionType
@@ -45,13 +45,13 @@ export class VersionResponseDto {
   branchName: string
 
   @ApiPropertyOptional({ description: 'Version tag' })
-  tag?: string
+  tag?: string | null
 
   @ApiProperty({ description: 'Number of changes from previous version' })
   changesCount: number
 
   @ApiPropertyOptional({ description: 'Summary of changes' })
-  changeSummary?: string
+  changeSummary?: string | null
 
   @ApiProperty({ type: VersionUserDto, description: 'User who created this version' })
   createdBy: VersionUserDto
@@ -60,11 +60,11 @@ export class VersionResponseDto {
   createdAt: Date
 
   @ApiPropertyOptional({ description: 'Commit message' })
-  commitMessage?: string
+  commitMessage?: string | null
 
   @ApiProperty({ description: 'Whether this version is pinned' })
   isPinned: boolean
 
   @ApiPropertyOptional({ description: 'Expiration timestamp for auto-cleanup' })
-  expiresAt?: Date
+  expiresAt?: Date | null
 }

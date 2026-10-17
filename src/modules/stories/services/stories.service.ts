@@ -391,6 +391,10 @@ export class StoriesService {
           lastModifiedBy: userId,
           version: story.version + 1
         })
+        if (!updated) {
+          // Removed between the existence check above and the update
+          throw new NotFoundException(`Story with ID ${id} not found`)
+        }
 
         // Handle category updates if provided
         if (categoryIds !== undefined && categoryIds.length > 0) {

@@ -32,7 +32,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findByIso(iso: string): Promise<Country | null> {
     const cacheKey = this.buildCacheKey('iso', iso.toUpperCase())
 
-    return this.cacheService.wrap<Country>(
+    return this.cacheService.wrap<Country | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({ where: { iso: iso.toUpperCase() } })
@@ -47,7 +47,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findByIso3(iso3: string): Promise<Country | null> {
     const cacheKey = this.buildCacheKey('iso3', iso3.toUpperCase())
 
-    return this.cacheService.wrap<Country>(
+    return this.cacheService.wrap<Country | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({ where: { iso3: iso3.toUpperCase() } })

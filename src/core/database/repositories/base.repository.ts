@@ -1,6 +1,6 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
 import { errorMessage } from '@shared/utils/error.util'
-import { DeepPartial, FindManyOptions, FindOptionsWhere, Repository } from 'typeorm'
+import { DeepPartial, FindManyOptions, FindOptionsWhere, ObjectLiteral, Repository } from 'typeorm'
 
 import { CacheService } from '../../cache/services/cache.service'
 
@@ -12,13 +12,13 @@ import { CacheService } from '../../cache/services/cache.service'
  *
  * @template T - Entity type
  */
-export abstract class BaseRepository<T> {
+export abstract class BaseRepository<T extends ObjectLiteral> {
   protected abstract entityName: string
   protected defaultTTL = 3600 // 1 hour default cache TTL
 
   constructor(
     protected readonly repository: Repository<T>,
-    protected readonly cacheService?: CacheService
+    protected readonly cacheService: CacheService
   ) {}
 
   /**

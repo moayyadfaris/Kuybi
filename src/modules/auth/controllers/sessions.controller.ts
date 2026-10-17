@@ -41,8 +41,18 @@ import {
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
 import { SessionCleanupService, SessionsService } from '../services'
 
+// The controller is guarded by JwtAuthGuard, so the user is always present
 interface AuthenticatedRequest extends Request {
-  user?: User
+  user: User
+}
+
+/** Sort helper: missing values sort last regardless of direction */
+function compareForSort(a: unknown, b: unknown, order: string): number {
+  if (a === b) return 0
+  if (a === undefined || a === null) return 1
+  if (b === undefined || b === null) return -1
+  const result = (a as number | string | Date) > (b as number | string | Date) ? 1 : -1
+  return order === 'asc' ? result : -result
 }
 
 /**
@@ -108,7 +118,7 @@ export class SessionsController {
     filtered.sort((a, b) => {
       const aVal = a[sortBy as keyof typeof a]
       const bVal = b[sortBy as keyof typeof b]
-      return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1
+      return compareForSort(aVal, bVal, sortOrder)
     })
 
     // Paginate
@@ -446,7 +456,7 @@ export class SessionsController {
     filtered.sort((a, b) => {
       const aVal = a[sortBy as keyof typeof a]
       const bVal = b[sortBy as keyof typeof b]
-      return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1
+      return compareForSort(aVal, bVal, sortOrder)
     })
 
     const duration = Date.now() - startTime

@@ -21,7 +21,7 @@
     "strictBuiltinIteratorReturn": true,
     "noImplicitAny": true,
     "useUnknownInCatchVariables": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "strictPropertyInitialization": false,
     "types": ["*"],
     "paths": {

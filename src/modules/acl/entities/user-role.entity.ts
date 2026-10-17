@@ -39,13 +39,13 @@ export class UserRole {
   role: Role
 
   @Column({ type: 'uuid', nullable: true })
-  assignedBy?: string // User ID who assigned this role
+  assignedBy?: string | null // User ID who assigned this role
 
   @Column({ type: 'timestamptz', nullable: true })
-  assignedAt?: Date
+  assignedAt?: Date | null
 
   @Column({ type: 'timestamptz', nullable: true })
-  expiresAt?: Date // For temporary role assignments
+  expiresAt?: Date | null // For temporary role assignments
 
   @Column({ default: true })
   isActive: boolean

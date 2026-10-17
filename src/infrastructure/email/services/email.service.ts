@@ -43,7 +43,7 @@ export class EmailService implements OnModuleInit {
    * Initialize SMTP transporter
    */
   private async initializeTransporter(): Promise<void> {
-    const host = this.configService.get<string>('email.smtp.host')
+    const host = this.configService.get<string>('email.smtp.host') ?? ''
     const port = this.configService.get<number>('email.smtp.port', 587)
     const secure = this.configService.get<boolean>('email.smtp.secure', false)
     const user = this.configService.get<string>('email.smtp.user')

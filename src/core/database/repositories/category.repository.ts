@@ -32,7 +32,7 @@ export class CategoryRepository extends BaseRepository<Category> {
   async findBySlug(slug: string): Promise<Category | null> {
     const cacheKey = this.buildCacheKey('slug', slug.toLowerCase())
 
-    return this.cacheService.wrap<Category>(
+    return this.cacheService.wrap<Category | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({

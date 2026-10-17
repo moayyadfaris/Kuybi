@@ -134,6 +134,10 @@ export class TagsService {
         version: tag.version + 1
       })
 
+      if (!updated) {
+        throw new NotFoundException(`Tag with ID ${id} not found`)
+      }
+
       this.logger.info({ action: 'update_tag', tagId: id, userId }, 'Tag updated successfully')
 
       return updated

@@ -188,7 +188,9 @@ describe('Account Lockout Integration Tests', () => {
         })
         .expect(401)
 
-      const user1 = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      const user1 = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
       expect(user1).toBeDefined()
       expect(user1!.failedLoginAttempts).toBe(1)
       expect(user1!.isLocked).toBe(false)
@@ -202,7 +204,9 @@ describe('Account Lockout Integration Tests', () => {
         })
         .expect(401)
 
-      const user2 = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      const user2 = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
       expect(user2).toBeDefined()
       expect(user2!.failedLoginAttempts).toBe(2)
       expect(user2!.isLocked).toBe(false)
@@ -226,7 +230,9 @@ describe('Account Lockout Integration Tests', () => {
       expect(response.body).toHaveProperty('accessToken')
       expect(response.body).toHaveProperty('refreshToken')
 
-      const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      const user = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
       expect(user.failedLoginAttempts).toBe(0)
       expect(user.isLocked).toBe(false)
     })
@@ -236,7 +242,9 @@ describe('Account Lockout Integration Tests', () => {
     it('should lock account after 5 failed attempts', async () => {
       await lockAccountDirectly()
 
-      const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      const user = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
       expect(user.failedLoginAttempts).toBe(MAX_FAILED_ATTEMPTS)
       expect(user.lockedAt).toBeTruthy()
@@ -293,7 +301,7 @@ describe('Account Lockout Integration Tests', () => {
       )
 
       expect(unlockJob).toBeDefined()
-      expect(unlockJob.data.reason).toBe('AUTO_UNLOCK')
+      expect(unlockJob!.data.reason).toBe('AUTO_UNLOCK')
     })
 
     it('should schedule reset failed attempts job', async () => {
@@ -315,7 +323,7 @@ describe('Account Lockout Integration Tests', () => {
     it('should automatically unlock account after lockout duration', async () => {
       await lockAccountDirectly()
 
-      let user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      let user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
 
       // Process unlock job directly
@@ -329,7 +337,7 @@ describe('Account Lockout Integration Tests', () => {
       }
 
       // Verify account is unlocked
-      user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(false)
       expect(user.failedLoginAttempts).toBe(0)
       expect(user.lockedAt).toBeNull()
@@ -373,14 +381,14 @@ describe('Account Lockout Integration Tests', () => {
     it('should allow admin to manually unlock account', async () => {
       await lockAccountDirectly()
 
-      let user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      let user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
 
       // Admin unlocks
       const adminId = 'admin-user-id'
       await accountLockoutService.adminUnlockAccount(testUser.id, adminId)
 
-      user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(false)
       expect(user.failedLoginAttempts).toBe(0)
 
@@ -399,7 +407,7 @@ describe('Account Lockout Integration Tests', () => {
     it('should reset failed attempts after reset period if no new failures', async () => {
       await recordFailedAttempts(3)
 
-      let user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      let user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
       expect(user.failedLoginAttempts).toBe(3)
 
       // Process reset job
@@ -413,7 +421,7 @@ describe('Account Lockout Integration Tests', () => {
       if (resetJob) {
         await accountSecurityProcessor.process(resetJob)
 
-        user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+        user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
         expect(user.failedLoginAttempts).toBe(0)
       }
     })
@@ -432,7 +440,9 @@ describe('Account Lockout Integration Tests', () => {
       if (resetJob) {
         await accountSecurityProcessor.process(resetJob)
 
-        const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+        const user = await dataSource
+          .getRepository(User)
+          .findOneOrFail({ where: { id: testUser.id } })
         // Should still be locked and have 5 attempts
         expect(user.isLocked).toBe(true)
         expect(user.failedLoginAttempts).toBe(5)
@@ -475,10 +485,10 @@ describe('Account Lockout Integration Tests', () => {
       await accountLockoutService.unlockExpiredAccounts()
 
       // Check both users are unlocked
-      const unlockedUser2 = await dataSource.getRepository(User).findOne({
+      const unlockedUser2 = await dataSource.getRepository(User).findOneOrFail({
         where: { id: user2.id }
       })
-      const unlockedUser3 = await dataSource.getRepository(User).findOne({
+      const unlockedUser3 = await dataSource.getRepository(User).findOneOrFail({
         where: { id: user3.id }
       })
 
@@ -494,7 +504,7 @@ describe('Account Lockout Integration Tests', () => {
       const lockedAccounts = await accountLockoutService.getLockedAccounts(10, 0)
 
       expect(lockedAccounts.users.length).toBeGreaterThan(0)
-      const lockedUser = lockedAccounts.users.find(u => u.id === testUser.id)
+      const lockedUser = lockedAccounts.users.find(u => u.id === testUser.id)!
       expect(lockedUser).toBeDefined()
       expect(lockedUser.isLocked).toBe(true)
     })
@@ -504,7 +514,9 @@ describe('Account Lockout Integration Tests', () => {
     it('should handle concurrent failed login attempts correctly', async () => {
       await recordFailedAttempts(MAX_FAILED_ATTEMPTS)
 
-      const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      const user = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
       expect(user.failedLoginAttempts).toBeGreaterThanOrEqual(MAX_FAILED_ATTEMPTS)
     })
@@ -527,7 +539,9 @@ describe('Account Lockout Integration Tests', () => {
 
       await recordFailedAttempts(MAX_FAILED_ATTEMPTS)
 
-      const user = await dataSource.getRepository(User).findOne({ where: { id: testUser.id } })
+      const user = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
       // User might be locked, but login should still fail due to inactive status
       expect(user.isActive).toBe(false)
     })

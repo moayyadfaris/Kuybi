@@ -28,7 +28,7 @@ describe('User Entity', () => {
 
     it('should return "user" as default when primaryRole is null', () => {
       const user = new User()
-      user.primaryRole = null
+      user.primaryRole = null as unknown as Role // relation not loaded
 
       expect(user.getPrimaryRoleName()).toBe('user')
     })
@@ -46,7 +46,7 @@ describe('User Entity', () => {
     it('should return primary role when userRoles is undefined', () => {
       const user = new User()
       user.primaryRole = userRole
-      user.userRoles = undefined
+      user.userRoles = undefined as unknown as UserRole[] // relation not loaded
 
       expect(user.getHighestPriorityRole()).toBe(userRole)
     })
@@ -197,7 +197,7 @@ describe('User Entity', () => {
     it('should return false when userRoles is undefined', () => {
       const user = new User()
       user.primaryRole = userRole
-      user.userRoles = undefined
+      user.userRoles = undefined as unknown as UserRole[] // relation not loaded
 
       expect(user.hasRole('admin')).toBe(false)
     })
@@ -272,7 +272,7 @@ describe('User Entity', () => {
 
     it('should return empty array when no primary role and no user roles', () => {
       const user = new User()
-      user.primaryRole = null
+      user.primaryRole = null as unknown as Role // relation not loaded
       user.userRoles = []
 
       expect(user.getRoles()).toEqual([])

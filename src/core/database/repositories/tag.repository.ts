@@ -118,7 +118,7 @@ export class TagRepository extends BaseRepository<Tag> {
   /**
    * Override update to invalidate caches
    */
-  async update(id: number, data: Partial<Tag>): Promise<Tag> {
+  async update(id: number, data: Partial<Tag>): Promise<Tag | null> {
     // Normalize name to lowercase if provided
     if (data.name) {
       data.name = data.name.toLowerCase().trim()
@@ -129,7 +129,7 @@ export class TagRepository extends BaseRepository<Tag> {
     // Invalidate relevant caches
     await Promise.all([
       this.cacheService.del(this.buildCacheKey('id', id.toString())),
-      this.cacheService.del(this.buildCacheKey('name', tag.name)),
+      tag ? this.cacheService.del(this.buildCacheKey('name', tag.name)) : Promise.resolve(),
       this.cacheService.delPattern(this.buildCacheKey('all-active', '*')),
       this.cacheService.del(this.buildCacheKey('system-tags'))
     ])

@@ -93,7 +93,7 @@ export class AuthService {
       throw new HttpException(
         {
           statusCode: HttpStatus.LOCKED,
-          message: `Account has been locked due to too many failed attempts. It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.`,
+          message: `Account has been locked due to too many failed attempts. ${lockInfo.lockedUntil ? `It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.` : 'Contact an administrator to unlock it.'}`,
           error: 'Locked',
           details: {
             lockedAt: lockInfo.lockedAt,
@@ -139,7 +139,7 @@ export class AuthService {
         throw new HttpException(
           {
             statusCode: HttpStatus.LOCKED,
-            message: `Account has been locked due to too many failed attempts. It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.`,
+            message: `Account has been locked due to too many failed attempts. ${lockInfo.lockedUntil ? `It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.` : 'Contact an administrator to unlock it.'}`,
             error: 'Locked',
             details: {
               lockedAt: lockInfo.lockedAt,

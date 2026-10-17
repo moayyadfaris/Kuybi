@@ -39,7 +39,7 @@ export class CreateStoryDto {
   @IsString()
   @MinLength(10)
   @MaxLength(10000)
-  details?: string
+  details?: string | null
 
   @ApiProperty({
     description: 'Story type',
@@ -65,7 +65,7 @@ export class CreateStoryDto {
   })
   @IsOptional()
   @IsDateString()
-  fromTime?: string
+  fromTime?: string | null
 
   @ApiPropertyOptional({
     description: 'Story end time',
@@ -73,7 +73,7 @@ export class CreateStoryDto {
   })
   @IsOptional()
   @IsDateString()
-  toTime?: string
+  toTime?: string | null
 
   @ApiProperty({
     description: 'Story priority',
@@ -106,7 +106,7 @@ export class CreateStoryDto {
   })
   @IsOptional()
   @IsString()
-  internalNotes?: string
+  internalNotes?: string | null
 
   @ApiPropertyOptional({
     description: 'Latitude coordinate',
@@ -118,7 +118,7 @@ export class CreateStoryDto {
   @IsNumber()
   @Min(-90)
   @Max(90)
-  latitude?: number
+  latitude?: number | null
 
   @ApiPropertyOptional({
     description: 'Longitude coordinate',
@@ -130,7 +130,7 @@ export class CreateStoryDto {
   @IsNumber()
   @Min(-180)
   @Max(180)
-  longitude?: number
+  longitude?: number | null
 
   @ApiPropertyOptional({
     description: 'Full address',
@@ -140,7 +140,7 @@ export class CreateStoryDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  address?: string
+  address?: string | null
 
   @ApiPropertyOptional({
     description: 'City name',
@@ -150,7 +150,7 @@ export class CreateStoryDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  city?: string
+  city?: string | null
 
   @ApiPropertyOptional({
     description: 'Region/State name',
@@ -160,7 +160,7 @@ export class CreateStoryDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  region?: string
+  region?: string | null
 
   @ApiPropertyOptional({
     description: 'Country ID',
@@ -169,7 +169,7 @@ export class CreateStoryDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  countryId?: number
+  countryId?: number | null
 
   @ApiPropertyOptional({
     description: 'Array of category IDs to assign to the story',

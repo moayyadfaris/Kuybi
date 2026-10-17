@@ -81,36 +81,36 @@ export class StoryVersionService {
     const version = new StoryVersion()
     version.storyId = story.id
     version.versionNumber = versionNumber
-    version.versionLabel = dto.versionLabel
+    version.versionLabel = dto.versionLabel ?? null
     version.versionType = dto.versionType
     version.status = VersionStatus.ARCHIVED
     version.branchName = dto.branchName || 'main'
-    version.tag = dto.tag
-    version.commitMessage = dto.commitMessage
+    version.tag = dto.tag ?? null
+    version.commitMessage = dto.commitMessage ?? null
     version.isPinned = dto.isPinned || false
 
     // Store complete snapshot
     version.title = story.title
-    version.details = story.details
+    version.details = story.details ?? null
     version.type = story.type
     version.storyStatus = story.status
     version.priority = story.priority
-    version.fromTime = story.fromTime
-    version.toTime = story.toTime
-    version.latitude = story.latitude
-    version.longitude = story.longitude
-    version.address = story.address
-    version.city = story.city
-    version.region = story.region
-    version.countryId = story.countryId
+    version.fromTime = story.fromTime ?? null
+    version.toTime = story.toTime ?? null
+    version.latitude = story.latitude ?? null
+    version.longitude = story.longitude ?? null
+    version.address = story.address ?? null
+    version.city = story.city ?? null
+    version.region = story.region ?? null
+    version.countryId = story.countryId ?? null
     version.metadata = story.metadata as Record<string, unknown>
-    version.internalNotes = story.internalNotes
+    version.internalNotes = story.internalNotes ?? null
 
     // Store relation IDs
     version.tagIds = story.tags?.map(t => t.id) || null
     version.categoryIds = story.categories?.map(c => c.id) || null
     version.attachmentIds = story.attachments?.map(a => a.id) || null
-    version.mainImageId = story.mainImageId
+    version.mainImageId = story.mainImageId ?? null
 
     // Version metadata
     version.parentVersionId = previousVersion?.id || null

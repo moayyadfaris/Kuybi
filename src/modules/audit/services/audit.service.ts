@@ -13,14 +13,14 @@ import { ContextUser } from '../types/context-user.interface'
 import { AuditContextFactory } from './audit-context.factory'
 
 export interface AuditContext {
-  userId?: string
-  username?: string
-  email?: string
-  ipAddress?: string
-  userAgent?: string
-  method?: string
-  endpoint?: string
-  requestId?: string
+  userId?: string | null
+  username?: string | null
+  email?: string | null
+  ipAddress?: string | null
+  userAgent?: string | null
+  method?: string | null
+  endpoint?: string | null
+  requestId?: string | null
   metadata?: Record<string, any>
 }
 
@@ -446,7 +446,7 @@ export class AuditService {
     context: AuditContext,
     filename: string,
     attachmentId: string
-  ): Promise<AuditLog> {
+  ): Promise<AuditLog | null> {
     return this.logAction(context, {
       action: AuditAction.FILE_DOWNLOAD,
       entityType: 'Attachment',
@@ -465,7 +465,7 @@ export class AuditService {
     context: AuditContext,
     resource: string,
     reason: string
-  ): Promise<AuditLog> {
+  ): Promise<AuditLog | null> {
     // Capture unauthorized access to Sentry for security monitoring
     this.sentryService.captureMessage(`Unauthorized access attempt to ${resource}`, 'warning', {
       userId: context.userId,
@@ -494,7 +494,7 @@ export class AuditService {
     context: AuditContext,
     activityType: string,
     details: Record<string, any>
-  ): Promise<AuditLog> {
+  ): Promise<AuditLog | null> {
     // Capture suspicious activity to Sentry with high priority
     this.sentryService.captureMessage(`Suspicious activity detected: ${activityType}`, 'error', {
       userId: context.userId,
@@ -523,7 +523,7 @@ export class AuditService {
     entityType: string,
     count: number,
     entityIds?: string[]
-  ): Promise<AuditLog> {
+  ): Promise<AuditLog | null> {
     const actionMap = {
       create: AuditAction.BULK_CREATE,
       update: AuditAction.BULK_UPDATE,

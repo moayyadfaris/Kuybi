@@ -92,7 +92,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const cacheKey = this.buildCacheKey('version', storyId, versionNumber)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<StoryVersion>(
+      return this.cacheService.wrap<StoryVersion | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
@@ -121,7 +121,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const cacheKey = this.buildCacheKey('latest', storyId, branch)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<StoryVersion>(
+      return this.cacheService.wrap<StoryVersion | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
@@ -274,7 +274,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const cacheKey = this.buildCacheKey('tag', storyId, tag)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<StoryVersion>(
+      return this.cacheService.wrap<StoryVersion | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({

@@ -53,7 +53,7 @@ export class Story {
   title: string
 
   @Column({ type: 'text', nullable: true })
-  details?: string
+  details?: string | null
 
   @Index()
   @Column({
@@ -65,7 +65,7 @@ export class Story {
 
   @Index()
   @Column({ type: 'uuid', nullable: true })
-  userId?: string
+  userId?: string | null
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'userId' })
@@ -80,10 +80,10 @@ export class Story {
   status: StoryStatus
 
   @Column({ type: 'timestamptz', nullable: true })
-  fromTime?: Date
+  fromTime?: Date | null
 
   @Column({ type: 'timestamptz', nullable: true })
-  toTime?: Date
+  toTime?: Date | null
 
   @Index()
   @Column({
@@ -97,7 +97,7 @@ export class Story {
   isInEditMode: boolean
 
   @Column({ type: 'integer', nullable: true })
-  parentId?: number
+  parentId?: number | null
 
   @ManyToOne(() => Story, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'parentId' })
@@ -107,22 +107,22 @@ export class Story {
   metadata: Record<string, any>
 
   @Column({ type: 'text', nullable: true })
-  internalNotes?: string
+  internalNotes?: string | null
 
   @Column({ type: 'uuid', nullable: true })
-  createdBy?: string
+  createdBy?: string | null
 
   @Column({ type: 'uuid', nullable: true })
-  updatedBy?: string
+  updatedBy?: string | null
 
   @Column({ type: 'uuid', nullable: true })
-  deletedBy?: string
+  deletedBy?: string | null
 
   @Column({ type: 'timestamptz', nullable: true })
-  deletedAt?: Date
+  deletedAt?: Date | null
 
   @Column({ type: 'uuid', nullable: true })
-  lastModifiedBy?: string
+  lastModifiedBy?: string | null
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'lastModifiedBy' })
@@ -132,37 +132,37 @@ export class Story {
   version: number
 
   @Column({ type: 'decimal', precision: 10, scale: 8, nullable: true })
-  latitude?: number
+  latitude?: number | null
 
   @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
-  longitude?: number
+  longitude?: number | null
 
-  @Column({ length: 255, nullable: true })
-  address?: string
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  address?: string | null
 
-  @Column({ length: 100, nullable: true })
-  city?: string
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  city?: string | null
 
-  @Column({ length: 100, nullable: true })
-  region?: string
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  region?: string | null
 
   @Index()
   @Column({ type: 'integer', nullable: true })
-  countryId?: number
+  countryId?: number | null
 
   @ManyToOne(() => Country, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'countryId' })
   country?: Country
 
   @Column({ type: 'uuid', nullable: true })
-  mainImageId?: string
+  mainImageId?: string | null
 
   @ManyToOne(() => Attachment, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'mainImageId' })
   mainImage?: Attachment
 
-  @Column({ length: 255, nullable: true })
-  deletionReason?: string
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  deletionReason?: string | null
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date

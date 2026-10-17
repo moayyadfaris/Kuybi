@@ -179,13 +179,13 @@ export class SessionStatsDto {
     description: 'Most recent session creation timestamp',
     example: '2025-10-24T10:30:00Z'
   })
-  mostRecentSession?: Date
+  mostRecentSession?: Date | null
 
   @ApiPropertyOptional({
     description: 'Oldest active session timestamp',
     example: '2025-10-20T08:15:00Z'
   })
-  oldestSession?: Date
+  oldestSession?: Date | null
 
   @ApiPropertyOptional({
     description: 'Additional metadata',

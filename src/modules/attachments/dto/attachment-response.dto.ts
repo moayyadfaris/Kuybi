@@ -69,7 +69,7 @@ export class AttachmentResponseDto {
   updatedAt: Date
 
   @ApiPropertyOptional({ description: 'Soft delete timestamp' })
-  deletedAt?: Date
+  deletedAt?: Date | null
 
   @ApiPropertyOptional({ description: 'Public URL (if isPublic=true)' })
   url?: string

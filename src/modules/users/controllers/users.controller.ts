@@ -96,7 +96,7 @@ export class UsersController {
         total,
         limit,
         offset,
-        hasMore: offset + limit < total
+        hasMore: (offset ?? 0) + (limit ?? 20) < total
       }
     }
   }

@@ -57,7 +57,7 @@ export class UserRepository extends BaseRepository<User> {
       })
     }
 
-    return this.cacheService.wrap<User>(
+    return this.cacheService.wrap<User | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -82,7 +82,7 @@ export class UserRepository extends BaseRepository<User> {
       })
     }
 
-    return this.cacheService.wrap<User>(
+    return this.cacheService.wrap<User | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -100,7 +100,7 @@ export class UserRepository extends BaseRepository<User> {
   async findByMobile(mobileNumber: string): Promise<User | null> {
     const cacheKey = this.buildCacheKey('mobile', mobileNumber)
 
-    return this.cacheService.wrap<User>(
+    return this.cacheService.wrap<User | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({ where: { mobileNumber } })

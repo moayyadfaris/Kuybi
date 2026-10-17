@@ -277,7 +277,7 @@ export class FieldDefinitionsService {
     field: Partial<{
       fieldType: FieldType
       label: string
-      defaultValue: string
+      defaultValue: string | null
       validationRules: Record<string, unknown>
       fieldOptions: Record<string, unknown>
     }>

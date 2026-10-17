@@ -58,7 +58,7 @@ export class S3Service {
 
   private initializeS3Client(): void {
     this.region = this.configService.get<string>('s3.region', 'eu-west-1')
-    this.bucket = this.configService.get<string>('s3.bucket')
+    this.bucket = this.configService.get<string>('s3.bucket') ?? ''
     this.baseUrl = this.configService.get<string>('s3.baseUrl', '')
 
     // WORKAROUND: Use process.env directly as ConfigService is returning empty strings

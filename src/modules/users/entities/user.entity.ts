@@ -77,6 +77,7 @@ export class User {
   lockedUntil: Date | null
 
   @Column({
+    type: 'varchar',
     length: 100,
     nullable: true,
     comment: 'Reason for account lock: FAILED_ATTEMPTS, ADMIN_LOCK, SECURITY_VIOLATION'
@@ -84,7 +85,7 @@ export class User {
   lockReason: string | null
 
   @Column({ type: 'uuid', nullable: true })
-  profileImageId?: string
+  profileImageId?: string | null
 
   @ManyToOne(() => Attachment, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'profileImageId' })

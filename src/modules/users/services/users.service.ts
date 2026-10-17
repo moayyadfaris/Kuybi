@@ -42,7 +42,7 @@ export class UsersService {
 
   async findById(id: string): Promise<User | null> {
     const cacheKey = `user:profile:${id}`
-    return this.cacheService.wrap<User>(
+    return this.cacheService.wrap<User | null>(
       cacheKey,
       async () => this.userRepository.findById(id, { bypassCache: true }),
       900 // 15 min TTL
@@ -54,7 +54,7 @@ export class UsersService {
    */
   async getUserProfile(id: string): Promise<UserProfileDto | null> {
     const cacheKey = `user:profile:safe:${id}`
-    return this.cacheService.wrap<UserProfileDto>(
+    return this.cacheService.wrap<UserProfileDto | null>(
       cacheKey,
       async () => {
         const user = await this.userRepository.findById(id, { bypassCache: true })

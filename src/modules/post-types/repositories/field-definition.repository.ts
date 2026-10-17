@@ -100,7 +100,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     const cacheKey = this.buildCacheKey('name', postTypeId, fieldName)
 
     if (this.cacheService) {
-      return this.cacheService.wrap<FieldDefinition>(
+      return this.cacheService.wrap<FieldDefinition | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({

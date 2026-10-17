@@ -98,5 +98,5 @@ export class Attachment {
   updatedAt: Date
 
   @Column({ type: 'timestamptz', nullable: true })
-  deletedAt?: Date
+  deletedAt?: Date | null
 }

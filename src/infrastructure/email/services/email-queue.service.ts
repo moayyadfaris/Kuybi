@@ -37,7 +37,7 @@ export class EmailQueueService {
     userName: string,
     verificationLink: string,
     options?: EmailJobOptions
-  ): Promise<string> {
+  ): Promise<string | undefined> {
     const jobData: WelcomeEmailJobData = {
       to,
       userName,
@@ -70,7 +70,7 @@ export class EmailQueueService {
     verificationLink: string,
     expiresIn?: string,
     options?: EmailJobOptions
-  ): Promise<string> {
+  ): Promise<string | undefined> {
     const jobData: VerificationEmailJobData = {
       to,
       userName,
@@ -103,7 +103,7 @@ export class EmailQueueService {
     userName: string,
     loginUrl: string,
     options?: EmailJobOptions
-  ): Promise<string> {
+  ): Promise<string | undefined> {
     const jobData: VerifiedSuccessEmailJobData = {
       to,
       userName,
@@ -139,7 +139,7 @@ export class EmailQueueService {
       expiresInMinutes: number
     },
     options?: EmailJobOptions
-  ): Promise<string> {
+  ): Promise<string | undefined> {
     const jobData: PasswordResetEmailJobData = {
       to: data.to,
       userName: data.firstName,
@@ -175,7 +175,7 @@ export class EmailQueueService {
       resetIpAddress: string
     },
     options?: EmailJobOptions
-  ): Promise<string> {
+  ): Promise<string | undefined> {
     const jobData: PasswordChangedEmailJobData = {
       to: data.to,
       userName: data.firstName,
@@ -203,7 +203,10 @@ export class EmailQueueService {
   /**
    * Queue a custom email
    */
-  async queueCustomEmail(data: CustomEmailJobData, options?: EmailJobOptions): Promise<string> {
+  async queueCustomEmail(
+    data: CustomEmailJobData,
+    options?: EmailJobOptions
+  ): Promise<string | undefined> {
     const job = await this.emailQueue.add(EmailJobType.SEND_CUSTOM, data, {
       ...DEFAULT_EMAIL_JOB_OPTIONS,
       ...options

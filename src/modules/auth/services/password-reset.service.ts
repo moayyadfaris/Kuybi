@@ -224,7 +224,7 @@ export class PasswordResetService {
     // Mark reset token as used
     resetRecord.used = true
     resetRecord.usedAt = new Date()
-    resetRecord.resetIpAddress = ipAddress
+    resetRecord.resetIpAddress = ipAddress ?? null
     await this.passwordResetRepository.save(resetRecord)
 
     // Invalidate ALL user sessions (force re-login everywhere)

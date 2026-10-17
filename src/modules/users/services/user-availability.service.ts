@@ -47,7 +47,8 @@ export class UserAvailabilityService {
 
     // Try cache first
     const cached = await this.cacheService.get<boolean>(cacheKey)
-    if (cached !== null) {
+    // CacheService.get resolves undefined on a miss
+    if (cached !== undefined && cached !== null) {
       this.logger.debug(
         { email: normalizedEmail, cached: true },
         'Email availability check (cached)'
@@ -92,7 +93,8 @@ export class UserAvailabilityService {
 
     // Try cache first
     const cached = await this.cacheService.get<boolean>(cacheKey)
-    if (cached !== null) {
+    // CacheService.get resolves undefined on a miss
+    if (cached !== undefined && cached !== null) {
       this.logger.debug(
         { phone: normalizedPhone, cached: true },
         'Phone availability check (cached)'

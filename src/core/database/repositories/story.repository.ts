@@ -48,7 +48,7 @@ export class StoryRepository extends BaseRepository<Story> {
     const cacheKey = this.buildCacheKey('id', id)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrapWithTags<Story>(
+      return this.cacheService.wrapWithTags<Story | null>(
         cacheKey,
         ['stories', `story:${id}`],
         async () => {
@@ -610,11 +610,15 @@ export class StoryRepository extends BaseRepository<Story> {
   /**
    * Override update to invalidate caches
    */
-  async update(id: number, data: Partial<Story>): Promise<Story> {
+  async update(id: number, data: Partial<Story>): Promise<Story | null> {
     const story = await super.update(id, data)
 
     // Invalidate relevant caches using tags
     const tagsToInvalidate = ['stories', 'stats', `story:${id}`]
+    if (!story) {
+      await this.cacheService.invalidateTags(tagsToInvalidate)
+      return null
+    }
 
     if (story.userId) tagsToInvalidate.push(`user:${story.userId}:stories`)
 

@@ -78,15 +78,15 @@ export class FieldDefinition {
   fieldType: FieldType
 
   @Column({ type: 'text', nullable: true })
-  description?: string
+  description?: string | null
 
   // ========== Default Values & Placeholder ==========
 
   @Column({ type: 'text', nullable: true, name: 'defaultValue' })
-  defaultValue?: string
+  defaultValue?: string | null
 
-  @Column({ length: 200, nullable: true })
-  placeholder?: string
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  placeholder?: string | null
 
   // ========== Validation Flags ==========
 
@@ -111,11 +111,11 @@ export class FieldDefinition {
   @Column({ type: 'integer', default: 0, name: 'displayOrder' })
   displayOrder: number
 
-  @Column({ length: 100, nullable: true, name: 'fieldGroup' })
-  fieldGroup?: string
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'fieldGroup' })
+  fieldGroup?: string | null
 
   @Column({ type: 'text', nullable: true, name: 'helpText' })
-  helpText?: string
+  helpText?: string | null
 
   // ========== JSONB Configuration ==========
 
@@ -146,7 +146,7 @@ export class FieldDefinition {
    * Example: { "show_if": { "fieldId": "uuid", "operator": "equals", "value": "yes" } }
    */
   @Column({ type: 'jsonb', nullable: true, name: 'conditionalLogic' })
-  conditionalLogic?: Record<string, any>
+  conditionalLogic?: Record<string, any> | null
 
   /**
    * Additional metadata
@@ -157,14 +157,14 @@ export class FieldDefinition {
   // ========== Audit Trail ==========
 
   @Column({ type: 'uuid', nullable: true, name: 'createdBy' })
-  createdBy?: string
+  createdBy?: string | null
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'createdBy' })
   creator?: User
 
   @Column({ type: 'uuid', nullable: true, name: 'updatedBy' })
-  updatedBy?: string
+  updatedBy?: string | null
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'updatedBy' })

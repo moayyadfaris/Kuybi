@@ -132,7 +132,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
     const cacheKey = this.buildCacheKey('slug', postTypeId, slug)
 
     if (this.cacheService) {
-      return this.cacheService.wrap<PostContent>(
+      return this.cacheService.wrap<PostContent | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
