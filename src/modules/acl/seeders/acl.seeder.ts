@@ -207,10 +207,16 @@ export class AclSeeder {
     const permissions: Permission[] = []
 
     for (const permData of permissionsData) {
-      // Check if permission already exists
-      const existing = await this.permissionRepository.findOne({
-        where: { action: permData.action, subject: permData.subject }
-      })
+      // Match on conditions too: "update own story" and "update any story" are
+      // different permissions that share action and subject
+      const existing = await this.permissionRepository
+        .createQueryBuilder('permission')
+        .where('permission.action = :action', { action: permData.action })
+        .andWhere('permission.subject = :subject', { subject: permData.subject })
+        .andWhere(`COALESCE(permission.conditions, '{}'::jsonb) = CAST(:conditions AS jsonb)`, {
+          conditions: JSON.stringify(permData.conditions || {})
+        })
+        .getOne()
 
       if (!existing) {
         const permission = this.permissionRepository.create({
@@ -296,7 +302,7 @@ export class AclSeeder {
   private async assignPermissions(roles: Role[], permissions: Permission[]): Promise<void> {
     const roleMap = new Map(roles.map(r => [r.name, r]))
     const permMap = new Map(
-      permissions.map(p => [`${p.action}:${p.subject}:${JSON.stringify(p.conditions)}`, p])
+      permissions.map(p => [`${p.action}:${p.subject}:${JSON.stringify(p.conditions ?? {})}`, p])
     )
 
     // Helper to find permission
