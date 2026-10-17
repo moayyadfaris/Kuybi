@@ -86,9 +86,6 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Non-blocking until the remaining high-severity fixes that need major upgrades
-    # (bcrypt, nodemailer, sharp, OpenTelemetry) land. Then remove continue-on-error.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
