@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -136,7 +136,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
         cacheKey,
         async () => {
           return this.repository.findOne({
-            where: { postTypeId, slug, deletedAt: null as never },
+            where: { postTypeId, slug, deletedAt: IsNull() },
             relations: ['author', 'featuredImage']
           })
         },
@@ -145,7 +145,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
     }
 
     return this.repository.findOne({
-      where: { postTypeId, slug, deletedAt: null as never },
+      where: { postTypeId, slug, deletedAt: IsNull() },
       relations: ['author', 'featuredImage']
     })
   }

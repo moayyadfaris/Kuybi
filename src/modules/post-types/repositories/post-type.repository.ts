@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -73,7 +73,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
         cacheKey,
         async () => {
           return this.repository.find({
-            where: { isActive: true, deletedAt: null as any },
+            where: { isActive: true, deletedAt: IsNull() },
             order: { menuPosition: 'ASC', name: 'ASC' }
           })
         },
@@ -82,7 +82,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
     }
 
     return this.repository.find({
-      where: { isActive: true, deletedAt: null as any },
+      where: { isActive: true, deletedAt: IsNull() },
       order: { menuPosition: 'ASC', name: 'ASC' }
     })
   }
@@ -99,7 +99,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
         cacheKey,
         async () => {
           return this.repository.find({
-            where: { isSystem: true, deletedAt: null as any }
+            where: { isSystem: true, deletedAt: IsNull() }
           })
         },
         this.defaultTTL
@@ -107,7 +107,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
     }
 
     return this.repository.find({
-      where: { isSystem: true, deletedAt: null as any }
+      where: { isSystem: true, deletedAt: IsNull() }
     })
   }
 

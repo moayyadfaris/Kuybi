@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -51,7 +51,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
         cacheKey,
         async () => {
           return this.repository.find({
-            where: { postTypeId, deletedAt: null as never },
+            where: { postTypeId, deletedAt: IsNull() },
             order: { displayOrder: 'ASC', name: 'ASC' }
           })
         },
@@ -60,7 +60,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     }
 
     return this.repository.find({
-      where: { postTypeId, deletedAt: null as never },
+      where: { postTypeId, deletedAt: IsNull() },
       order: { displayOrder: 'ASC', name: 'ASC' }
     })
   }
@@ -77,7 +77,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
         cacheKey,
         async () => {
           return this.repository.find({
-            where: { postTypeId, isRequired: true, deletedAt: null as never },
+            where: { postTypeId, isRequired: true, deletedAt: IsNull() },
             order: { displayOrder: 'ASC' }
           })
         },
@@ -86,7 +86,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     }
 
     return this.repository.find({
-      where: { postTypeId, isRequired: true, deletedAt: null as never },
+      where: { postTypeId, isRequired: true, deletedAt: IsNull() },
       order: { displayOrder: 'ASC' }
     })
   }
@@ -104,7 +104,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
         cacheKey,
         async () => {
           return this.repository.findOne({
-            where: { postTypeId, name: fieldName, deletedAt: null as never }
+            where: { postTypeId, name: fieldName, deletedAt: IsNull() }
           })
         },
         this.defaultTTL
@@ -112,7 +112,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     }
 
     return this.repository.findOne({
-      where: { postTypeId, name: fieldName, deletedAt: null as never }
+      where: { postTypeId, name: fieldName, deletedAt: IsNull() }
     })
   }
 
@@ -123,7 +123,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
    */
   async findByFieldType(postTypeId: string, fieldType: FieldType): Promise<FieldDefinition[]> {
     return this.repository.find({
-      where: { postTypeId, fieldType, deletedAt: null as never },
+      where: { postTypeId, fieldType, deletedAt: IsNull() },
       order: { displayOrder: 'ASC' }
     })
   }
@@ -141,7 +141,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
         cacheKey,
         async () => {
           return this.repository.find({
-            where: { postTypeId, isSearchable: true, deletedAt: null as never },
+            where: { postTypeId, isSearchable: true, deletedAt: IsNull() },
             order: { displayOrder: 'ASC' }
           })
         },
@@ -150,7 +150,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     }
 
     return this.repository.find({
-      where: { postTypeId, isSearchable: true, deletedAt: null as never },
+      where: { postTypeId, isSearchable: true, deletedAt: IsNull() },
       order: { displayOrder: 'ASC' }
     })
   }

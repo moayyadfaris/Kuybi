@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
-import { DataSource, In, Repository } from 'typeorm'
+import { DataSource, In, IsNull, Repository } from 'typeorm'
 
 import { AbilityFactory } from '@modules/acl/abilities/ability.factory'
 import { Action } from '@modules/acl/types/actions.enum'
@@ -124,7 +124,7 @@ export class StoriesService {
         if (categoryIds && categoryIds.length > 0) {
           requestLogger.debug({ categoryIds, count: categoryIds.length }, 'Processing categories')
           const categories = await this.categoryRepository.findMany({
-            where: { id: In(categoryIds), deletedAt: null }
+            where: { id: In(categoryIds), deletedAt: IsNull() }
           })
 
           if (categories.length !== categoryIds.length) {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Brackets, Repository } from 'typeorm'
+import { Brackets, IsNull, Repository } from 'typeorm'
 
 import { Category } from '@modules/categories/entities/category.entity'
 
@@ -36,7 +36,7 @@ export class CategoryRepository extends BaseRepository<Category> {
       cacheKey,
       async () => {
         return this.repository.findOne({
-          where: { slug: slug.toLowerCase(), deletedAt: null } as any
+          where: { slug: slug.toLowerCase(), deletedAt: IsNull() }
         })
       },
       this.defaultTTL
@@ -53,7 +53,7 @@ export class CategoryRepository extends BaseRepository<Category> {
       cacheKey,
       async () => {
         return this.repository.find({
-          where: { isActive: true, deletedAt: null } as any,
+          where: { isActive: true, deletedAt: IsNull() },
           order: { name: 'ASC' }
         })
       },
@@ -239,9 +239,9 @@ export class CategoryRepository extends BaseRepository<Category> {
       cacheKey,
       async () => {
         const [total, active, inactive, deleted] = await Promise.all([
-          this.repository.count({ where: { deletedAt: null } as any }),
-          this.repository.count({ where: { isActive: true, deletedAt: null } as any }),
-          this.repository.count({ where: { isActive: false, deletedAt: null } as any }),
+          this.repository.count({ where: { deletedAt: IsNull() } }),
+          this.repository.count({ where: { isActive: true, deletedAt: IsNull() } }),
+          this.repository.count({ where: { isActive: false, deletedAt: IsNull() } }),
           this.repository
             .createQueryBuilder('category')
             .where('category.deletedAt IS NOT NULL')

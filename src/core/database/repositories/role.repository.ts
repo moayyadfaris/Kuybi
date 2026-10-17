@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 
 import { Role } from '@modules/acl/entities/role.entity'
 
@@ -31,7 +31,7 @@ export class RoleRepository extends BaseRepository<Role> {
       cacheKey,
       async () => {
         return this.repository.findOne({
-          where: { name, deletedAt: null },
+          where: { name, deletedAt: IsNull() },
           relations: ['rolePermissions', 'rolePermissions.permission']
         })
       },
@@ -49,7 +49,7 @@ export class RoleRepository extends BaseRepository<Role> {
       cacheKey,
       async () => {
         return this.repository.find({
-          where: { isActive: true, deletedAt: null },
+          where: { isActive: true, deletedAt: IsNull() },
           order: { priority: 'DESC', name: 'ASC' }
         })
       },
@@ -67,7 +67,7 @@ export class RoleRepository extends BaseRepository<Role> {
       cacheKey,
       async () => {
         return this.repository.find({
-          where: { isSystem: true, deletedAt: null },
+          where: { isSystem: true, deletedAt: IsNull() },
           order: { priority: 'DESC' }
         })
       },
@@ -85,7 +85,7 @@ export class RoleRepository extends BaseRepository<Role> {
       cacheKey,
       async () => {
         return this.repository.find({
-          where: { deletedAt: null },
+          where: { deletedAt: IsNull() },
           relations: ['rolePermissions', 'rolePermissions.permission'],
           order: { priority: 'DESC', name: 'ASC' }
         })
@@ -104,7 +104,7 @@ export class RoleRepository extends BaseRepository<Role> {
       cacheKey,
       async () => {
         return this.repository.findOne({
-          where: { id, deletedAt: null },
+          where: { id, deletedAt: IsNull() },
           relations: ['rolePermissions', 'rolePermissions.permission']
         })
       },
