@@ -31,6 +31,11 @@ export class UsersService {
     private readonly roleRepository: Repository<Role>
   ) {}
 
+  /** Password hash for credential checks only; never returned by regular lookups. */
+  getPasswordHash(id: string): Promise<string | null> {
+    return this.userRepository.findPasswordHash(id)
+  }
+
   findByEmail(email: string, bypassCache = false): Promise<User | null> {
     return this.userRepository.findByEmail(email, bypassCache)
   }

@@ -5,6 +5,7 @@ import { StoryStatus } from '@modules/stories/entities/story.entity'
 import { StoryRepository } from '@core/database/repositories/story.repository'
 
 import { WebStoriesQueryDto } from '../dto/web-query.dto'
+import { toPublicStory } from '../web-response.mapper'
 
 @Injectable()
 export class WebStoriesService {
@@ -28,7 +29,7 @@ export class WebStoriesService {
 
     // Sanitize response - remove sensitive fields
     return {
-      data: result.results.map(story => this.sanitizeStory(story)),
+      data: result.results.map(story => toPublicStory(story)),
       total: result.total,
       page: result.pagination.page,
       limit: result.pagination.limit,
@@ -50,25 +51,6 @@ export class WebStoriesService {
       throw new NotFoundException('Story not found')
     }
 
-    return this.sanitizeStory(story)
-  }
-
-  /**
-   * Sanitize story data for public consumption
-   * Removes internal fields and sensitive data
-   */
-  private sanitizeStory(story: any) {
-    const { createdBy, updatedBy, deletedBy, deletedAt, version, metadata, ...publicData } = story
-
-    return {
-      ...publicData,
-      // Only include safe metadata
-      metadata: metadata
-        ? {
-            viewCount: metadata.viewCount || 0,
-            featuredImageUrl: metadata.featuredImageUrl
-          }
-        : undefined
-    }
+    return toPublicStory(story)
   }
 }

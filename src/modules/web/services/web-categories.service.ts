@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { CategoryRepository } from '@core/database/repositories/category.repository'
 
 import { WebQueryDto } from '../dto/web-query.dto'
+import { toPublicCategory } from '../web-response.mapper'
 
 @Injectable()
 export class WebCategoriesService {
@@ -28,7 +29,7 @@ export class WebCategoriesService {
 
     // Sanitize response
     return {
-      data: result.results.map(category => this.sanitizeCategory(category)),
+      data: result.results.map(category => toPublicCategory(category)),
       total: result.total,
       page: result.pagination.page,
       limit: result.pagination.limit,
@@ -41,7 +42,7 @@ export class WebCategoriesService {
    */
   async getCategoryTree() {
     const categories = await this.categoryRepository.findAllActive()
-    return categories.map(category => this.sanitizeCategory(category))
+    return categories.map(category => toPublicCategory(category))
   }
 
   /**
@@ -54,7 +55,7 @@ export class WebCategoriesService {
       throw new NotFoundException('Category not found')
     }
 
-    return this.sanitizeCategory(category)
+    return toPublicCategory(category)
   }
 
   /**
@@ -67,15 +68,6 @@ export class WebCategoriesService {
       throw new NotFoundException('Category not found')
     }
 
-    return this.sanitizeCategory(category)
-  }
-
-  /**
-   * Sanitize category data for public consumption
-   */
-  private sanitizeCategory(category: any) {
-    const { createdBy, updatedBy, deletedBy, deletedAt, version, ...publicData } = category
-
-    return publicData
+    return toPublicCategory(category)
   }
 }

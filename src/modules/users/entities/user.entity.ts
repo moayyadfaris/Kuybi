@@ -28,7 +28,9 @@ export class User {
   @Column({ length: 50, unique: true })
   mobileNumber: string
 
-  @Column({ type: 'text' })
+  // Never selected by default, so the hash cannot leak through relations, query results
+  // or the cache. Load it explicitly via UserRepository.findPasswordHash().
+  @Column({ type: 'text', select: false })
   passwordHash: string
 
   @Index()

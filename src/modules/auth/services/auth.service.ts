@@ -107,7 +107,8 @@ export class AuthService {
       )
     }
 
-    const passwordValid = await bcrypt.compare(password, user.passwordHash)
+    const passwordHash = await this.usersService.getPasswordHash(user.id)
+    const passwordValid = !!passwordHash && (await bcrypt.compare(password, passwordHash))
     if (!passwordValid) {
       // Record failed attempt and potentially lock account
       await this.accountLockoutService.recordFailedAttempt(user.id, context?.ipAddress)
@@ -595,13 +596,14 @@ export class AuthService {
     }
 
     // Verify current password
-    const passwordValid = await bcrypt.compare(currentPassword, user.passwordHash)
+    const currentHash = await this.usersService.getPasswordHash(userId)
+    const passwordValid = !!currentHash && (await bcrypt.compare(currentPassword, currentHash))
     if (!passwordValid) {
       throw new UnauthorizedException('Current password is incorrect')
     }
 
     // Prevent reusing the same password
-    const samePassword = await bcrypt.compare(newPassword, user.passwordHash)
+    const samePassword = await bcrypt.compare(newPassword, currentHash)
     if (samePassword) {
       throw new UnauthorizedException('New password must be different from current password')
     }

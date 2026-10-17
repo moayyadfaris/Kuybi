@@ -235,6 +235,19 @@ export class UserRepository extends BaseRepository<User> {
   /**
    * Update user password hash
    */
+  /**
+   * Load only the password hash for credential checks. Never cached.
+   */
+  async findPasswordHash(id: string): Promise<string | null> {
+    const row = await this.repository
+      .createQueryBuilder('user')
+      .select('user.id')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id })
+      .getOne()
+    return row?.passwordHash ?? null
+  }
+
   async updatePassword(id: string, passwordHash: string): Promise<void> {
     await this.repository.update(id, { passwordHash })
 
