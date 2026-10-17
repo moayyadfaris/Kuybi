@@ -74,6 +74,7 @@ describe('Public web stories API', () => {
   let author: User
   let published: Story
   let draft: Story
+  const cache = new InMemoryCacheService()
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -98,7 +99,7 @@ describe('Public web stories API', () => {
       ]
     })
       .overrideProvider(CacheService)
-      .useValue(new InMemoryCacheService())
+      .useValue(cache)
       .overrideGuard(AbilityGuard)
       .useValue({ canActivate: () => true })
       .compile()
@@ -116,6 +117,8 @@ describe('Public web stories API', () => {
 
   beforeEach(async () => {
     await resetDatabase(dataSource, TABLES)
+    // Story ids restart after TRUNCATE, so cached entries from a previous test would collide
+    await cache.reset()
     const roles = await seedDefaultRoles(dataSource)
 
     author = await dataSource.getRepository(User).save(
@@ -187,7 +190,7 @@ describe('Public web stories API', () => {
   })
 
   describe('authenticated story API', () => {
-    it('does not expose the author password hash', async () => {
+    it('identifies the author without exposing credentials or contact details', async () => {
       const login = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send({ email: author.email, password: PASSWORD })
@@ -198,8 +201,8 @@ describe('Public web stories API', () => {
         .set('Authorization', `Bearer ${login.body.accessToken}`)
         .expect(200)
 
-      expect(res.body.user).toBeDefined()
-      expectNoFields(res.body.user, SECRET_USER_FIELDS)
+      expect(res.body.user).toEqual({ id: author.id, name: 'Story Author' })
+      expectNoFields(res.body.user, [...SECRET_USER_FIELDS, ...PRIVATE_USER_FIELDS])
     })
   })
 })

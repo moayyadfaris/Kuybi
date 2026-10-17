@@ -18,6 +18,12 @@ import { BaseRepository } from './base.repository'
  *
  * Handles all database operations for Story entity with caching.
  */
+/**
+ * Author columns loaded with stories. Story responses only need to identify the author;
+ * contact details and account state stay out of story payloads (and the story cache).
+ */
+const STORY_AUTHOR_COLUMNS = ['user.id', 'user.name']
+
 @Injectable()
 export class StoryRepository extends BaseRepository<Story> {
   protected entityName = 'story'
@@ -46,19 +52,25 @@ export class StoryRepository extends BaseRepository<Story> {
         cacheKey,
         ['stories', `story:${id}`],
         async () => {
-          return this.repository.findOne({
-            where: { id } as any,
-            relations: ['tags', 'categories', 'mainImage', 'user']
-          })
+          return this.findByIdQuery(id)
         },
         options?.ttl ?? this.defaultTTL
       )
     }
 
-    return this.repository.findOne({
-      where: { id } as any,
-      relations: ['tags', 'categories', 'mainImage', 'user']
-    })
+    return this.findByIdQuery(id)
+  }
+
+  private findByIdQuery(id: string | number): Promise<Story | null> {
+    return this.repository
+      .createQueryBuilder('story')
+      .leftJoinAndSelect('story.tags', 'tags')
+      .leftJoinAndSelect('story.categories', 'categories')
+      .leftJoinAndSelect('story.mainImage', 'mainImage')
+      .leftJoin('story.user', 'user')
+      .addSelect(STORY_AUTHOR_COLUMNS)
+      .where('story.id = :id', { id })
+      .getOne()
   }
 
   /**
@@ -84,7 +96,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
           .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoinAndSelect('story.user', 'user')
+          .leftJoin('story.user', 'user')
+          .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.userId = :userId', { userId })
           .orderBy('story.createdAt', 'DESC')
 
@@ -128,7 +141,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
           .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoinAndSelect('story.user', 'user')
+          .leftJoin('story.user', 'user')
+          .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.status = :status', { status })
           .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
@@ -169,7 +183,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
           .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoinAndSelect('story.user', 'user')
+          .leftJoin('story.user', 'user')
+          .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.type = :type', { type })
           .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
@@ -210,7 +225,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
           .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoinAndSelect('story.user', 'user')
+          .leftJoin('story.user', 'user')
+          .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.priority = :priority', { priority })
           .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
@@ -254,7 +270,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .leftJoinAndSelect('story.tags', 'tags')
           .leftJoinAndSelect('story.categories', 'categories')
           .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoinAndSelect('story.user', 'user')
+          .leftJoin('story.user', 'user')
+          .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.parentId = :parentId', { parentId })
           .orderBy('story.createdAt', 'DESC')
 
@@ -302,7 +319,8 @@ export class StoryRepository extends BaseRepository<Story> {
       .leftJoinAndSelect('story.tags', 'tags')
       .leftJoinAndSelect('story.categories', 'categories')
       .leftJoinAndSelect('story.mainImage', 'mainImage')
-      .leftJoinAndSelect('story.user', 'user')
+      .leftJoin('story.user', 'user')
+      .addSelect(STORY_AUTHOR_COLUMNS)
 
     // Exclude soft-deleted by default
     if (!filters.includeDeleted) {
