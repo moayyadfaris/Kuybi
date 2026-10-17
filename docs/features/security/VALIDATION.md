@@ -125,65 +125,42 @@ async uploadData(@Body() data: any) {
 
 ### 5. File Upload Validation
 
-```typescript
-import {
-  FileValidationPipe,
-  ImageValidationPipe,
-  DocumentValidationPipe
-} from '@shared/pipes'
+Uploads are validated by `FileValidationService`
+(`src/modules/attachments/services/file-validation.service.ts`), called from
+`AttachmentService` for single and bulk uploads. It does not trust the client:
 
-@Post('upload/image')
-@UseInterceptors(FileInterceptor('file'))
-async uploadImage(
-  @UploadedFile(new ImageValidationPipe(5 * 1024 * 1024)) // 5MB max
-  file: Express.Multer.File
-) {
-  return this.attachmentsService.uploadImage(file)
-}
+- **Content-verified type** - the real type is detected from the file's magic number
+  (`file-type`) and must match the declared type; the verified type is what gets stored
+  as the S3 `Content-Type`.
+- **Text formats** (`text/plain`, `text/csv`, `application/json`) have no magic number and
+  must be valid UTF-8 without NUL bytes or a binary signature.
+- **Office files** - legacy `.doc/.xls/.ppt` (OLE container) and `.docx/.xlsx/.pptx`
+  (ZIP container) are matched to their declared types.
+- **No active content** - `image/svg+xml` and `application/xml` are not accepted, since
+  both can carry script that runs when the file is opened in a browser.
+- **Size limits** - multer rejects anything over `MAX_UPLOAD_BYTES` (100 MB) while
+  streaming (HTTP 413); per-category limits (images 5 MB, documents 10 MB, archives
+  50 MB, videos 100 MB) are checked afterwards.
+- **Filenames** - path traversal, NUL bytes, over-long names and dangerous extensions
+  (`.exe`, `.sh`, ...) are rejected.
 
-@Post('upload/document')
-@UseInterceptors(FileInterceptor('file'))
-async uploadDocument(
-  @UploadedFile(
-    new DocumentValidationPipe(20 * 1024 * 1024) // 20MB max
-  )
-  file: Express.Multer.File
-) {
-  return this.attachmentsService.uploadDocument(file)
-}
-
-// Custom file validation
-@Post('upload/custom')
-@UseInterceptors(FileInterceptor('file'))
-async uploadCustom(
-  @UploadedFile(
-    new FileValidationPipe({
-      maxSize: 10 * 1024 * 1024,
-      allowedMimeTypes: ['image/png', 'image/jpeg'],
-      allowedExtensions: ['.png', '.jpg'],
-      requireMagicNumberMatch: true // Verify via file content, not just extension
-    })
-  )
-  file: Express.Multer.File
-) {
-  return this.service.process(file)
-}
-```
+New upload endpoints must go through `FileValidationService.validateFile()` and use
+`verifiedMimeType` for storage.
 
 ## Available Sanitization Decorators
 
-| Decorator | Purpose | Example |
-|-----------|---------|---------|
-| `@SanitizeHtml(options?)` | XSS prevention with DOMPurify | `@SanitizeHtml({ allowedTags: ['p'] })` |
-| `@Trim()` | Remove whitespace | `@Trim()` |
-| `@ToLowerCase()` | Convert to lowercase | `@ToLowerCase()` |
-| `@ToUpperCase()` | Convert to uppercase | `@ToUpperCase()` |
-| `@SanitizeSql()` | Basic SQL injection prevention | `@SanitizeSql()` |
-| `@AlphanumericOnly(chars?)` | Allow only alphanumeric + specified chars | `@AlphanumericOnly('-_.')` |
-| `@SanitizeEmail()` | Normalize email (lowercase + trim) | `@SanitizeEmail()` |
-| `@SanitizeUrl(protocols?)` | Validate URL protocols | `@SanitizeUrl(['https'])` |
-| `@RemoveScripts()` | Remove script tags & event handlers | `@RemoveScripts()` |
-| `@SanitizeFilename()` | Prevent directory traversal | `@SanitizeFilename()` |
+| Decorator                   | Purpose                                   | Example                                 |
+| --------------------------- | ----------------------------------------- | --------------------------------------- |
+| `@SanitizeHtml(options?)`   | XSS prevention with DOMPurify             | `@SanitizeHtml({ allowedTags: ['p'] })` |
+| `@Trim()`                   | Remove whitespace                         | `@Trim()`                               |
+| `@ToLowerCase()`            | Convert to lowercase                      | `@ToLowerCase()`                        |
+| `@ToUpperCase()`            | Convert to uppercase                      | `@ToUpperCase()`                        |
+| `@SanitizeSql()`            | Basic SQL injection prevention            | `@SanitizeSql()`                        |
+| `@AlphanumericOnly(chars?)` | Allow only alphanumeric + specified chars | `@AlphanumericOnly('-_.')`              |
+| `@SanitizeEmail()`          | Normalize email (lowercase + trim)        | `@SanitizeEmail()`                      |
+| `@SanitizeUrl(protocols?)`  | Validate URL protocols                    | `@SanitizeUrl(['https'])`               |
+| `@RemoveScripts()`          | Remove script tags & event handlers       | `@RemoveScripts()`                      |
+| `@SanitizeFilename()`       | Prevent directory traversal               | `@SanitizeFilename()`                   |
 
 ## How It Works
 
@@ -200,10 +177,10 @@ The decorators use `class-validator`'s `registerDecorator` API to:
 
 ```typescript
 export class CreateDto {
-  @Trim()              // 1. Trim whitespace
-  @SanitizeHtml()      // 2. Sanitize HTML
-  @IsString()          // 3. Validate it's a string
-  @MaxLength(1000)     // 4. Validate length
+  @Trim() // 1. Trim whitespace
+  @SanitizeHtml() // 2. Sanitize HTML
+  @IsString() // 3. Validate it's a string
+  @MaxLength(1000) // 4. Validate length
   content: string
 }
 ```
@@ -272,6 +249,7 @@ describe('Sanitization Decorators', () => {
 ## Migration from Existing DTOs
 
 ### Before (no sanitization):
+
 ```typescript
 export class CreateStoryDto {
   @IsString()
@@ -281,6 +259,7 @@ export class CreateStoryDto {
 ```
 
 ### After (with sanitization):
+
 ```typescript
 export class CreateStoryDto {
   @Trim()

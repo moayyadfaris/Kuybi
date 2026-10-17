@@ -34,6 +34,7 @@
     "perf:artillery": "artillery run test/performance/artillery-load-test.yml",
     "migration:run": "ts-node -r tsconfig-paths/register src/core/database/scripts/run-migrations.ts",
     "migration:revert": "ts-node -r tsconfig-paths/register src/core/database/scripts/revert-migrations.ts",
+    "security:scan-uploads": "ts-node -r tsconfig-paths/register src/core/database/scripts/scan-risky-uploads.ts",
     "db:seed:countries": "ts-node -r tsconfig-paths/register src/modules/countries/seeders/seed-countries.ts",
     "db:seed:users": "ts-node -r tsconfig-paths/register src/modules/users/seeders/seed-users.ts",
     "db:seed:categories": "ts-node -r tsconfig-paths/register src/modules/categories/seeders/seed-categories.ts",
