@@ -7,6 +7,8 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
+import { Story } from '../../stories/entities/story.entity'
+
 @Entity({ name: 'categories' })
 export class Category {
   @PrimaryGeneratedColumn('uuid')
@@ -49,6 +51,6 @@ export class Category {
   updatedAt: Date
 
   // Many-to-many relationship with stories
-  @ManyToMany('Story', 'categories')
-  stories?: any[]
+  @ManyToMany(() => Story, story => story.categories)
+  stories?: Story[]
 }

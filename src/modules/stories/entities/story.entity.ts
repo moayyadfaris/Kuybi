@@ -12,6 +12,7 @@ import {
 } from 'typeorm'
 
 import { Attachment } from '../../attachments/entities/attachment.entity'
+import { Category } from '../../categories/entities/category.entity'
 import { Country } from '../../countries/entities/country.entity'
 import { Tag } from '../../tags/entities/tag.entity'
 import { User } from '../../users/entities/user.entity'
@@ -188,11 +189,11 @@ export class Story {
   tags?: Tag[]
 
   // Many-to-many relationship with categories through story_categories junction table
-  @ManyToMany('Category', 'stories', { cascade: false })
+  @ManyToMany(() => Category, category => category.stories, { cascade: false })
   @JoinTable({
     name: 'story_categories',
     joinColumn: { name: 'storyId', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'categoryId', referencedColumnName: 'id' }
   })
-  categories?: any[]
+  categories?: Category[]
 }
