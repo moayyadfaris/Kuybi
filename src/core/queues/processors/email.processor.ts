@@ -58,7 +58,7 @@ export class EmailProcessor extends BaseProcessor {
     )
 
     try {
-      let result: any
+      let result: unknown
 
       switch (job.name) {
         case EmailJobType.SEND_WELCOME:

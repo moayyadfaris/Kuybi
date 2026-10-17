@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import type { DataSourceOptions } from 'typeorm'
 
 import { ENTITIES } from './entities'
 
@@ -12,7 +13,7 @@ import { ENTITIES } from './entities'
         const database = configService.get('database')
         const poolConfig = database?.pool || {}
 
-        const config: any = {
+        const config: DataSourceOptions = {
           type: 'postgres',
           host: database.host,
           port: database.port,
@@ -21,17 +22,18 @@ import { ENTITIES } from './entities'
           database: database.name,
           entities: ENTITIES,
           synchronize: false,
-          logging: database.logging
-        }
-
-        // Add connection pooling if enabled
-        if (poolConfig?.enabled) {
-          config.extra = {
-            min: poolConfig.min,
-            max: poolConfig.max,
-            idleTimeoutMillis: poolConfig.idleTimeoutMillis,
-            connectionTimeoutMillis: poolConfig.acquireTimeoutMillis
-          }
+          logging: database.logging,
+          // Add connection pooling if enabled
+          ...(poolConfig?.enabled
+            ? {
+                extra: {
+                  min: poolConfig.min,
+                  max: poolConfig.max,
+                  idleTimeoutMillis: poolConfig.idleTimeoutMillis,
+                  connectionTimeoutMillis: poolConfig.acquireTimeoutMillis
+                }
+              }
+            : {})
         }
 
         return config

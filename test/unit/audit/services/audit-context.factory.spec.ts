@@ -45,8 +45,9 @@ describe('AuditContextFactory', () => {
       },
       method: 'POST',
       originalUrl: '/api/example',
+      // JwtStrategy attaches the User entity, so the id lives in `id`
       user: {
-        userId: 'user-1',
+        id: 'user-1',
         email: 'john.doe@example.com'
       },
       ip: '10.0.0.1'

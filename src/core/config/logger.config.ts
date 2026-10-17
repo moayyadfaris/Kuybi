@@ -151,7 +151,7 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
             remotePort: req.socket?.remotePort
           }
         },
-        res(res: any) {
+        res(res: { statusCode?: number; headers?: Record<string, unknown> }) {
           return {
             statusCode: res.statusCode,
             headers: res.headers || {}

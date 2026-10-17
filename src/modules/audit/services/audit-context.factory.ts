@@ -29,7 +29,7 @@ export class AuditContextFactory {
 
     const seen = new WeakSet<object>()
 
-    const sanitizeValue = (value: any): any => {
+    const sanitizeValue = (value: unknown): unknown => {
       if (Array.isArray(value)) {
         return value.map(item => sanitizeValue(item))
       }
@@ -57,20 +57,20 @@ export class AuditContextFactory {
     return sanitizeValue(metadata) as Record<string, any>
   }
 
-  fromRequest(req: Request & { user?: any }): AuditContext {
+  fromRequest(req: Request): AuditContext {
     const user = req.user
     const metadata = {
       protocol: req.protocol,
       hostname: req.hostname,
       path: req.path,
       query: req.query,
-      userId: user?.id ?? user?.userId ?? null,
+      userId: user?.id ?? null,
       email: user?.email ?? null
     }
 
     return {
-      userId: user?.id ?? user?.userId ?? null,
-      username: user?.email?.split('@')[0] || user?.firstName || 'unknown',
+      userId: user?.id ?? null,
+      username: user?.email?.split('@')[0] || 'unknown',
       email: user?.email ?? null,
       ipAddress: this.extractIpAddress(req),
       userAgent: req.get('user-agent') ?? null,

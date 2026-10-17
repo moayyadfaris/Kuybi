@@ -253,17 +253,17 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
       ])
 
     const byAction: Record<string, number> = {}
-    byActionRaw.forEach((row: any) => {
+    byActionRaw.forEach((row: { action: string; count: string }) => {
       byAction[row.action] = Number(row.count)
     })
 
     const bySeverity: Record<string, number> = {}
-    bySeverityRaw.forEach((row: any) => {
+    bySeverityRaw.forEach((row: { severity: string; count: string }) => {
       bySeverity[row.severity] = Number(row.count)
     })
 
     const byStatus: Record<string, number> = {}
-    byStatusRaw.forEach((row: any) => {
+    byStatusRaw.forEach((row: { status: string; count: string }) => {
       byStatus[row.status] = Number(row.count)
     })
 

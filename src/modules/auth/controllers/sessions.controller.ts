@@ -24,6 +24,7 @@ import {
   ApiTags
 } from '@nestjs/swagger'
 import { seconds, Throttle } from '@nestjs/throttler'
+import { errorMessage } from '@shared/utils/error.util'
 import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -130,13 +131,13 @@ export class SessionsController {
     // Add risk assessment if requested
     const mapped = await Promise.all(
       paginated.map(async session => {
-        const sessionData: any = { ...session }
+        const sessionData: Record<string, unknown> = { ...session }
         if (filter.includeRiskAssessment) {
           try {
             sessionData.riskAssessment = await this.sessionsService.assessSessionRisk(session.id)
-          } catch (error: any) {
+          } catch (error) {
             this.logger.warn(
-              { sessionId: session.id, error: error.message },
+              { sessionId: session.id, error: errorMessage(error) },
               'Risk assessment failed'
             )
           }

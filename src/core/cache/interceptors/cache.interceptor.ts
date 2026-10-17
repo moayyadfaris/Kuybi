@@ -3,6 +3,7 @@ import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } fr
 import { Reflector } from '@nestjs/core'
 import { errorMessage } from '@shared/utils/error.util'
 import { Cache } from 'cache-manager'
+import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Observable, of } from 'rxjs'
 import { tap } from 'rxjs/operators'
@@ -75,7 +76,7 @@ export class HttpCacheInterceptor implements NestInterceptor {
     }
   }
 
-  private buildCacheKey(template: string, request: any): string {
+  private buildCacheKey(template: string, request: Request): string {
     // Replace placeholders in template with actual values
     let key = template
     const params = { ...request.params, ...request.query }
@@ -87,7 +88,7 @@ export class HttpCacheInterceptor implements NestInterceptor {
     return key
   }
 
-  private generateCacheKey(request: any): string {
+  private generateCacheKey(request: Request): string {
     const url = request.url
     const query = JSON.stringify(request.query || {})
     return `cache:${url}:${query}`

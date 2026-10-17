@@ -314,7 +314,7 @@ export class TokenBlacklistService {
   /**
    * Decode JWT payload (no verification, just parsing)
    */
-  private decodeJWT(token: string): any {
+  private decodeJWT(token: string): { sub?: string; exp?: number; iat?: number } {
     const parts = token.split('.')
     if (parts.length !== 3) {
       throw new Error('Invalid JWT format')
@@ -328,7 +328,7 @@ export class TokenBlacklistService {
   /**
    * Check if blacklist entry is expired
    */
-  private isEntryExpired(entry: any): boolean {
+  private isEntryExpired(entry: { expiresAt?: string | Date | null }): boolean {
     if (!entry.expiresAt) return false
     return new Date(entry.expiresAt) < new Date()
   }

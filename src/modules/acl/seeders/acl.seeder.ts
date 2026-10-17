@@ -309,7 +309,7 @@ export class AclSeeder {
     const findPerm = (
       action: Action,
       subject: Subject,
-      conditions: any = {}
+      conditions: Record<string, unknown> = {}
     ): Permission | undefined => {
       return permMap.get(`${action}:${subject}:${JSON.stringify(conditions)}`)
     }

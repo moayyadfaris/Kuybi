@@ -34,7 +34,7 @@ export abstract class BaseProcessor extends WorkerHost {
   /**
    * Handle job completion
    */
-  async onCompleted(job: Job, result: any) {
+  async onCompleted(job: Job, result: unknown) {
     this.logger.info(
       {
         jobId: job.id,
@@ -99,7 +99,7 @@ export abstract class BaseProcessor extends WorkerHost {
    * Helper to safely extract loggable data from job
    * Override this in subclasses if sensitive data needs masking
    */
-  protected getLogData(job: Job): any {
+  protected getLogData(job: Job): Record<string, unknown> {
     return job.data
   }
 }

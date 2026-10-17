@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DeepPartial, Repository } from 'typeorm'
+import { DeepPartial, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 
@@ -473,7 +473,10 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   /**
    * Apply common filters to a query
    */
-  private applyFilters(query: any, options: Partial<AttachmentQueryOptions>): void {
+  private applyFilters(
+    query: SelectQueryBuilder<Attachment>,
+    options: Partial<AttachmentQueryOptions>
+  ): void {
     if (!options.includeDeleted) {
       query.andWhere('attachment.deletedAt IS NULL')
     }

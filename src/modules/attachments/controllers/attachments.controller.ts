@@ -92,7 +92,7 @@ export class AttachmentsController {
     })
   )
   async upload(
-    @UploadedFile() file: any,
+    @UploadedFile() file: Express.Multer.File,
     @Body() body: UploadAttachmentDto,
     @Req() req: AuthenticatedRequest
   ) {

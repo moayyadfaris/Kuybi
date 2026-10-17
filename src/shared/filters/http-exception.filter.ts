@@ -12,6 +12,20 @@ import { errorProperty } from '@shared/utils/error.util'
 import { Request, Response } from 'express'
 import { PinoLogger } from 'nestjs-pino'
 
+interface ErrorResponseBody {
+  success: false
+  statusCode: number
+  path: string
+  timestamp: string
+  requestId: string
+  error: {
+    message: string
+    details?: unknown
+    stack?: string
+    [key: string]: unknown
+  }
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly safeFields: Set<string>
@@ -63,7 +77,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const errorStack = exception instanceof Error ? exception.stack : undefined
 
     // Get request ID for correlation
-    const requestId = request.id || 'unknown'
+    const requestId = request.id ? String(request.id) : 'unknown'
 
     const safeBody = this.sanitizePayload(request.body)
     const safeQuery = this.sanitizePayload(request.query, false)
@@ -86,7 +100,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     )
 
     // Build error response
-    const errorResponse: any = {
+    const errorResponse: ErrorResponseBody = {
       success: false,
       statusCode: status,
       path: request.url,
@@ -118,7 +132,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     response.status(status).json(errorResponse)
   }
 
-  private sanitizePayload(payload: any, enforceAllowList = true) {
+  private sanitizePayload(payload: unknown, enforceAllowList = true) {
     if (!payload || typeof payload !== 'object') {
       return undefined
     }
@@ -146,7 +160,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return Object.keys(sanitized).length > 0 ? sanitized : undefined
   }
 
-  private truncateValue(value: any) {
+  private truncateValue(value: unknown) {
     if (value === null || value === undefined) {
       return value
     }

@@ -302,7 +302,7 @@ export class CountryRepository extends BaseRepository<Country> {
     if (!fields || fields.length === 0) return countries
 
     return countries.map(country => {
-      const selected: any = {}
+      const selected: Record<string, unknown> = {}
       fields.forEach(field => {
         if (field in country) {
           selected[field] = country[field as keyof Country]
