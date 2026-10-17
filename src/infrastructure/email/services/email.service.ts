@@ -14,7 +14,15 @@ import { EmailTemplateService } from './email-template.service'
 
 @Injectable()
 export class EmailService implements OnModuleInit {
-  private transporter: Transporter<SMTPTransport.SentMessageInfo>
+  // Created in onModuleInit(); use the `mailer` getter, which fails clearly if it is missing
+  private transporter?: Transporter<SMTPTransport.SentMessageInfo>
+
+  private get mailer(): Transporter<SMTPTransport.SentMessageInfo> {
+    if (!this.transporter) {
+      throw new Error('Email transport is not initialized (EmailService.onModuleInit has not run)')
+    }
+    return this.transporter
+  }
   private readonly defaultFrom: string
   private readonly timeoutMs: number
   private readonly breaker: CircuitBreaker
@@ -88,7 +96,7 @@ export class EmailService implements OnModuleInit {
 
     // Verify connection
     try {
-      await this.executeWithResilience('verify', () => this.transporter.verify())
+      await this.executeWithResilience('verify', () => this.mailer.verify())
       this.logger.info({ host, port }, 'SMTP connection verified successfully')
     } catch (error) {
       this.logger.error(
@@ -123,7 +131,7 @@ export class EmailService implements OnModuleInit {
       }
 
       const result = await this.executeWithResilience('sendMail', () =>
-        this.transporter.sendMail(mailOptions)
+        this.mailer.sendMail(mailOptions)
       )
 
       this.logger.info(
@@ -367,7 +375,7 @@ export class EmailService implements OnModuleInit {
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.transporter.verify()
+      await this.mailer.verify()
       return true
     } catch (error) {
       this.logger.error({ error: errorMessage(error) }, 'SMTP connection test failed')

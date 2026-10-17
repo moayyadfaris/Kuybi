@@ -11,8 +11,10 @@
     "outDir": "./dist",
     "incremental": true,
     "skipLibCheck": true,
-    // Strict mode is being enabled one flag at a time (Phase 4). "strict" stays false until
-    // every flag below is on; then this block collapses to "strict": true.
+    // Every strict flag is on except strictPropertyInitialization. It is off on purpose:
+    // TypeORM entities and class-validator/class-transformer DTOs are populated by the
+    // framework, so it would demand a `!` on ~520 properties for no real safety. Other
+    // classes must still initialize their fields: `npm run typecheck:fields` (run in CI).
     "strict": false,
     "alwaysStrict": true,
     "noImplicitThis": true,

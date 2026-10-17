@@ -33,6 +33,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Field initialization (outside entities/DTOs)
+        run: npm run typecheck:fields
+
       - name: Unit tests
         run: npm run test:unit
 

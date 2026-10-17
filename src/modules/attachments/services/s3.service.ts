@@ -34,10 +34,11 @@ export interface S3UploadResult {
 
 @Injectable()
 export class S3Service {
-  private s3Client: S3Client
-  private bucket: string
-  private region: string
-  private baseUrl: string
+  // Assigned in the constructor via initializeS3Client()
+  private s3Client!: S3Client
+  private bucket!: string
+  private region!: string
+  private baseUrl!: string
   private readonly timeoutMs: number
   private readonly breaker: CircuitBreaker
 
