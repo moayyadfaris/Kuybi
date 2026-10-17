@@ -43,9 +43,6 @@ jobs:
     name: Integration tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Non-blocking for now: an intermittent stall/ordering flake (~1 in 3-5 runs locally)
-    # is still being investigated. Remove continue-on-error once it is stable.
-    continue-on-error: true
     services:
       postgres:
         image: postgres:16-alpine

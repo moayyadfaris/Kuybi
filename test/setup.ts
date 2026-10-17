@@ -11,6 +11,8 @@ import { DataSource } from 'typeorm'
 // Register path aliases from tsconfig before any entity imports
 import 'tsconfig-paths/register'
 
+import { acquireTestDatabaseLock } from './helpers/run-lock'
+
 export default async function globalSetup() {
   // Load test environment variables
   const envPath = path.resolve(__dirname, '..', '.env.test')
@@ -21,6 +23,15 @@ export default async function globalSetup() {
 
   console.log('🧪 Global test setup starting...')
   console.log(`📝 Database: ${process.env.TEST_DB_NAME} as ${process.env.TEST_DB_USERNAME}`)
+
+  // Refuse to share the database with another concurrent integration run
+  await acquireTestDatabaseLock({
+    host: process.env.TEST_DB_HOST || 'localhost',
+    port: parseInt(process.env.TEST_DB_PORT || '5432', 10),
+    user: process.env.TEST_DB_USERNAME || 'postgres',
+    password: process.env.TEST_DB_PASSWORD || 'postgres',
+    database: process.env.TEST_DB_NAME || 'kuybi_test'
+  })
 
   // Create DataSource to drop and recreate schema with all tables
   // Use glob patterns to auto-load all entities
