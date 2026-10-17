@@ -1,266 +1,286 @@
-# 🦊 Kuybi - Enterprise NestJS Backend
+# 🦊 Kuybi
 
-> *"Within you is the power of the Nine-Tails"* - Inspired by Naruto's Kurama (Kuybi)
+> _"Within you is the power of the Nine-Tails"_: inspired by Naruto's Kurama (Kuybi)
 
-**Kuybi** is an enterprise-grade NestJS backend application featuring advanced authentication, role-based access control (RBAC), audit logging, caching, and content management. Built with Domain-Driven Design principles, it provides a robust foundation for scalable microservices.
+**Kuybi** is an open-source NestJS backend for content-driven products. It provides
+authentication with sessions, role-based access control, user-defined content types,
+stories with versioning, media uploads, audit logging, background jobs and built-in
+observability.
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-11.1-red.svg)](https://nestjs.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
-[![Redis](https://img.shields.io/badge/Redis-7-red.svg)](https://redis.io/)
+🌐 **Project page:** [moayyadfaris.com/open-source/kuybi](https://moayyadfaris.com/open-source/kuybi)
 
----
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Quick Start](#-quick-start)
-- [Documentation](#-documentation)
-- [Testing](#-testing)
-- [Deployment](#-deployment)
+[![CI](https://github.com/moayyadfaris/Kuybi/actions/workflows/ci.yml/badge.svg)](https://github.com/moayyadfaris/Kuybi/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/badge/Node.js-24_LTS-339933.svg)](https://nodejs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-12-E0234E.svg)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6.svg)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D.svg)](https://redis.io/)
 
 ---
 
-## ✨ Features
+## Contents
 
-### 🔐 Authentication & Authorization
-- **JWT-based authentication** with access & refresh token rotation
-- **Multi-session management** with device tracking
-- **Role-Based Access Control (RBAC)** using CASL
-- **Fine-grained permissions** with field-level access control
-- **Time-based role expiration** and activation
-
-### 📊 Audit & Compliance
-- **Comprehensive audit logging** for all operations
-- **Searchable audit logs** with filtering
-- **Retention policies** and archiving
-- **GDPR-compliant** data tracking
-
-### ⚡ Performance & Background Jobs
-- **Redis caching** (25-80x improvements)
-- **Repository pattern** with caching
-- **Bull Queue** for background job processing
-- **Queue Dashboard** (Bull Board) at http://localhost:4050
-- **Dedicated worker process** for queue processing
-- **PM2 cluster mode** support
-
-### 📧 Communication
-- **Email verification** workflow
-- **Password reset** with secure tokens
-- **Handlebars templates** for emails
-- **SMTP integration** ready
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Project structure](#project-structure)
+- [Testing and CI](#testing-and-ci)
+- [Deployment](#deployment)
+- [Observability](#observability)
+- [Security](#security)
+- [Upgrading](#upgrading)
+- [Documentation](#documentation)
+- [Contact](#contact)
 
 ---
 
-## 🏗️ Architecture
+## Features
 
-### Tech Stack
-- **Framework**: NestJS 11.1
-- **Language**: TypeScript 5.3
-- **Database**: PostgreSQL 16
-- **Cache**: Redis 7
-- **Queue**: Bull
-- **Logger**: Pino
-- **API Docs**: Swagger with auto-generation plugin
-
-### Design Patterns
-- Domain-Driven Design (DDD)
-- Repository Pattern
-- Dependency Injection
-- CQRS-ready architecture
-
-### Developer Experience
-- **Auto-generated API docs** via NestJS Swagger Plugin
-- **Type-safe** DTOs with automatic OpenAPI annotations
-- **Minimal boilerplate** - decorators inferred from TypeScript types
-- **JSDoc comments** automatically become API descriptions
-
-> 📘 See [Swagger Plugin Migration Guide](./docs/SWAGGER_PLUGIN_MIGRATION.md) for details
+| Area                | What you get                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**  | JWT access tokens with opaque, hashed refresh tokens; multi-device sessions; logout and token revocation; forced password change; account lockout |
+| **Access control**  | Roles and permissions (CASL), including ownership rules ("update own story") and time-limited role assignments                                    |
+| **Dynamic content** | Define post types and their fields (28 field types, from text and currency to repeaters and relations) and validate content against them          |
+| **Stories**         | Stories with categories, tags, media, publishing workflow and full version history                                                                |
+| **Public web API**  | Unauthenticated, rate-limited read API (`/api/web/v1`) that returns allowlisted fields only                                                       |
+| **Media**           | Uploads to S3 with content-verified file types, EXIF stripping, responsive WebP/AVIF variants and thumbnails                                      |
+| **Audit**           | Searchable audit trail of user and admin actions                                                                                                  |
+| **Background jobs** | BullMQ queues processed by a separate worker, with a dead-letter queue and a Bull Board dashboard                                                 |
+| **Email**           | Verification, password reset and notification emails from Handlebars templates                                                                    |
+| **Observability**   | Structured Pino logs with request IDs, OpenTelemetry tracing, Prometheus metrics, Sentry error tracking, liveness/readiness health checks         |
+| **Operations**      | Graceful shutdown for the API and worker, production Docker image, PM2 config                                                                     |
 
 ---
 
-## 🚀 Quick Start
+## Quick start
 
-### Prerequisites
-- Node.js >= 20.x
-- PostgreSQL >= 14.x
-- Redis >= 6.x
-
-### Installation
+**Prerequisites:** [Node.js 24](https://nodejs.org/) (the repo pins it in `.nvmrc`) and
+[Docker](https://www.docker.com/) for the local PostgreSQL and Redis.
 
 ```bash
-# Clone repository
-git clone https://github.com/moayyadfaris/kuybi.git
-cd kuybi/nest-app
+git clone https://github.com/moayyadfaris/Kuybi.git
+cd Kuybi
 
-# Install dependencies
-npm install
+nvm use                     # Node 24 from .nvmrc
+npm ci
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your credentials
+cp .env.example .env        # defaults work with the local docker compose services
+docker compose up -d        # PostgreSQL 16 + Redis 7
 
-# Setup database
-createdb kuybi
 npm run migration:run
+npm run db:seed:acl         # roles and permissions - must run before users
 npm run db:seed:countries
-npm run db:seed:acl
-npm run db:seed:users
+npm run db:seed:users       # creates the default admin
 
-# Start development server
-npm run start:dev
+npm run start:dev           # API on http://localhost:4040
 ```
 
-5. **Access the API**:
-   - API: http://localhost:4040/api
-   - Swagger Docs: http://localhost:4040/api/docs
-   - Queue Dashboard: http://localhost:4050 (Bull Board)
-   - Default login: `admin@kuybi.dev` / `Admin@123`
-
-> ⚠️ Change these in production!
-
----
-
-## � API Endpoints
-
-**Quick Reference**: Common endpoints for authentication, users, categories, stories, and more.
-
-### Authentication
-- `POST /api/v1/auth/login` - Login with email/password
-- `POST /api/v1/auth/refresh` - Refresh access token
-- `POST /api/v1/auth/logout` - Logout and invalidate session
-
-### Users
-- `GET /api/v1/users/me` - Get current user profile
-- `GET /api/v1/users` - List users (Admin)
-- `POST /api/v1/users` - Create user (Admin)
-
-### Categories
-- `GET /api/v1/categories?includeCounts=true` - List categories with story counts
-- `POST /api/v1/categories` - Create category (Admin)
-
-### Stories
-- `GET /api/v1/stories?status=published` - List stories
-- `POST /api/v1/stories` - Create story
-- `POST /api/v1/stories/:id/publish` - Publish story
-
-### Attachments
-- `POST /api/v1/attachments` - Upload file (multipart/form-data)
-- `GET /api/v1/attachments` - List attachments
-
-### Audit & ACL (Admin)
-- `GET /api/v1/audit` - Search audit logs
-- `GET /api/v1/acl/roles` - List roles
-- `POST /api/v1/acl/users/:userId/roles` - Assign role
-
-### Health
-- `GET /api/health` - System health check
-
-> �� **Complete API Reference**: See [API Endpoints Documentation](./docs/API_ENDPOINTS.md) for detailed request/response examples.
->
-> 🔍 **Interactive Documentation**: Visit [Swagger UI](http://localhost:4040/api/docs) for live API testing.
-
----
-
-## �📚 Documentation
-
-Comprehensive docs in [`docs/`](./docs):
-
-### Getting Started
-- [API Endpoints](./docs/API_ENDPOINTS.md) - Complete endpoint reference with examples
-- [API Reference](./docs/API_REFERENCE.md) - High-level API overview
-- [Super Admin Guide](./docs/SUPER_ADMIN_ACCESS.md)
-
-### Architecture
-- [Architecture Standards](./docs/architecture/ARCHITECTURE_STANDARDIZATION.md)
-- [DDD Guide](./docs/architecture/DOMAIN_DRIVEN_DESIGN.md)
-- [Repository Pattern](./docs/architecture/REPOSITORY_PATTERN.md)
-- [Queue Architecture](./docs/architecture/BULL_QUEUE_ARCHITECTURE.md)
-
-### Features
-- **Auth**: [Authentication Module](./docs/features/auth/)
-- **ACL**: [Access Control](./docs/features/acl/README.md)
-- **Audit**: [Audit Logging](./docs/features/audit/README.md)
-- **Cache**: [Caching Strategy](./docs/features/cache/)
-- **Logging**: [Structured Logging](./docs/features/logging/)
-
-### Testing & Deployment
-- [Integration Tests](./docs/testing/INTEGRATION_TESTING_SETUP.md)
-- [PM2 Deployment](./docs/deployment/PM2_GUIDE.md)
-- [Test Scripts](./test/scripts/README.md)
-
----
-
-## 🧪 Testing
+Optional, in separate terminals:
 
 ```bash
-# Unit tests
-npm run test
-
-# Integration tests
-npm run test:integration
-
-# Coverage
-npm run test:cov
+npm run start:worker:dev     # background job worker (emails, image processing, ...)
+npm run start:dashboard:dev  # Bull Board queue dashboard on http://localhost:4050
 ```
 
-### Manual Testing
-```bash
-# ACL tests
-./test/scripts/test-acl-guards.sh
+Then open:
 
-# Audit tests
-./test/scripts/test-audit-integration.sh
-```
+| URL                              | What                                                       |
+| -------------------------------- | ---------------------------------------------------------- |
+| http://localhost:4040/api/docs   | Swagger UI (disabled in production)                        |
+| http://localhost:4040/api/health | Health check (database, Redis, memory, disk)               |
+| http://localhost:4040/metrics    | Prometheus metrics                                         |
+| http://localhost:4050            | Bull Board (`BULL_BOARD_USERNAME` / `BULL_BOARD_PASSWORD`) |
 
-**Results**: ✅ 42/42 tests passing (~15s)
+Default admin: **`admin@kuybi.dev` / `Admin@123`**. Change it immediately outside local
+development.
+
+> **File uploads** need an S3 bucket (`S3_*` variables). Everything else works without one.
 
 ---
 
-## 🚀 Deployment
+## Configuration
 
-### Build & Deploy
+All configuration comes from environment variables; [`.env.example`](./.env.example)
+documents every option. The important ones:
+
+| Variable                                                                            | Notes                                                 |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`                       | PostgreSQL connection                                 |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`                                        | Cache (`REDIS_DB`) and queues (`REDIS_QUEUE_DB`)      |
+| `JWT_SECRET`                                                                        | **Required.** Generate with `openssl rand -base64 48` |
+| `CORS_ORIGIN`                                                                       | Comma-separated list of allowed origins               |
+| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BASE_URL` | Attachment storage                                    |
+| `SMTP_*`                                                                            | Outgoing email                                        |
+| `BULL_BOARD_PASSWORD`                                                               | **Required** to start the dashboard                   |
+| `SWAGGER_ENABLED`                                                                   | Defaults to on outside production, off in production  |
+| `SENTRY_DSN`, `OBSERVABILITY_*`                                                     | Error tracking and tracing                            |
+
+**In production (`NODE_ENV=production`) the API refuses to start** if `JWT_SECRET` is
+missing, shorter than 32 characters or a placeholder, or if `DB_PASSWORD` is missing.
+
+---
+
+## Project structure
+
+```
+src/
+├── main.ts            API entry point
+├── worker.ts          queue worker entry point
+├── dashboard.ts       Bull Board entry point
+├── core/              cross-cutting infrastructure: config, database, cache, queues,
+│                      health, logging, observability, Sentry, graceful shutdown
+├── infrastructure/    external services (email)
+├── modules/           feature modules: auth, users, acl, stories, post-types,
+│                      attachments, categories, tags, countries, audit, web
+└── shared/            DTOs, filters, interceptors, pipes, utilities
+test/
+├── unit/              unit tests (no database needed)
+├── integration/       integration tests (PostgreSQL + Redis)
+├── factories/         test data factories
+└── helpers/           shared test infrastructure
+```
+
+---
+
+## Testing and CI
+
+| Command                                                                           | What it runs                                             | Needs              |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------ |
+| `npm run test:unit`                                                               | Unit tests                                               | nothing            |
+| `npm run test:integration`                                                        | Integration tests against a real database                | PostgreSQL + Redis |
+| `npm run test:unit:cov`, `npm run test:integration:cov`, `npm run coverage:check` | Coverage for each suite, then the combined coverage gate | PostgreSQL + Redis |
+| `npm run typecheck`                                                               | TypeScript type check                                    | nothing            |
+| `npm run lint:check`                                                              | ESLint                                                   | nothing            |
+
+Integration tests use a separate database configured in `.env.test` (`TEST_DB_*`,
+`TEST_REDIS_*`). They drop and recreate its schema, and hold a lock on it for the whole
+run, so a second concurrent run stops immediately instead of corrupting the first.
+
+**CI** ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) runs on every pull
+request and push to `main`. All jobs must pass:
+
+- lint, typecheck, unit tests and build
+- integration tests with PostgreSQL and Redis services
+- combined unit + integration coverage above the floor in
+  [`scripts/check-coverage.js`](./scripts/check-coverage.js) (raise it as coverage grows)
+- `npm audit` of production dependencies at high severity
+- the production Docker image builds
+
+---
+
+## Deployment
+
+### Docker
+
+The [`Dockerfile`](./Dockerfile) builds a multi-stage production image that runs as a
+non-root user, with `tini` forwarding signals for graceful shutdown and a health check on
+`/api/health/live`.
+
 ```bash
-# Build
-npm run build
+docker build -t kuybi .
 
-# Run migrations
+docker run --env-file .env.production -p 4040:4040 kuybi                    # API
+docker run --env-file .env.production kuybi node dist/worker.js             # worker
+docker run --env-file .env.production -p 4050:4050 kuybi node dist/dashboard.js  # dashboard
+```
+
+Run migrations as a release step before starting the new version:
+
+```bash
 npm run migration:run
-
-# Start with PM2
-pm2 start ecosystem.config.js
+npm run db:seed:acl   # idempotent; adds permissions introduced by new releases
 ```
 
-### PM2 Management
+### PM2
+
+[`ecosystem.config.js`](./ecosystem.config.js) starts the API, worker and dashboard
+(`npm run pm2:start:prod`). See the [PM2 guide](./docs/deployment/PM2_GUIDE.md).
+
+---
+
+## Observability
+
+- **Logs:** structured JSON via Pino, with a request ID (`x-request-id`) on every request
+  and sensitive fields redacted
+- **Tracing:** OpenTelemetry, exported over OTLP (`OBSERVABILITY_*` variables)
+- **Metrics:** Prometheus at `/metrics`
+- **Errors:** Sentry when `SENTRY_DSN` is set
+- **Health:** `/api/health` (full), `/api/health/live` (liveness), `/api/health/ready`
+  (readiness)
+
+A local Jaeger + Prometheus + Grafana stack is available:
+
 ```bash
-./pm2.sh start    # Start all (API + Worker + Dashboard)
-./pm2.sh stop     # Stop all
-./pm2.sh restart  # Restart all
-pm2 logs kuybi-api
-pm2 logs kuybi-worker
-pm2 logs kuybi-dashboard
+docker compose -f docker-compose.observability.yml up -d
 ```
 
-**PM2 Processes:**
-- `kuybi-api` - Main API server (port 4040)
-- `kuybi-worker` - Background job processor
-- `kuybi-dashboard` - Queue monitoring dashboard (port 4050)
+---
+
+## Security
+
+- **Passwords** are bcrypt-hashed and never selected by default, so they cannot leak
+  through queries, relations or the cache.
+- **Uploads** are verified by file content (magic numbers), not the client's declared
+  type. SVG and XML are rejected, and oversized files are refused while streaming.
+- **The public web API** returns explicitly allowlisted fields only.
+- **Rate limits** apply to authentication endpoints and the public API.
+- **Security headers** are set with Helmet, and production refuses to start with weak or
+  missing secrets.
+- `npm run security:scan-uploads` lists stored attachments with executable content types
+  (read-only).
+
+What is and is not applied is documented in
+[docs/features/security/VALIDATION.md](./docs/features/security/VALIDATION.md). User-supplied
+rich text (WYSIWYG fields, story details) is stored as submitted and must be escaped or
+sanitized by the client that renders it.
+
+To report a vulnerability, email **moayyadzf@gmail.com** rather than opening a public
+issue.
 
 ---
 
-## 📞 Support
+## Upgrading
 
-- **Docs**: [./docs](./docs)
-- **Issues**: GitHub Issues
-- **Email**: support@kuybi.dev
+Recent releases moved to **Node.js 24**, **NestJS 12** and **TypeScript 6**. After pulling:
+
+```bash
+nvm install 24 && nvm use
+npm ci
+npm run db:seed:acl   # new content and ownership permissions
+```
+
+Also clear the story cache in Redis once after upgrading, since entries cached by older
+releases contain full author records.
 
 ---
+
+## Documentation
+
+More in [`docs/`](./docs):
+
+- **API:** [Endpoints](./docs/API_ENDPOINTS.md) · [Reference](./docs/API_REFERENCE.md) ·
+  [Super admin access](./docs/SUPER_ADMIN_ACCESS.md)
+- **Architecture:** [Standards](./docs/architecture/ARCHITECTURE_STANDARDIZATION.md) ·
+  [Repository pattern](./docs/architecture/REPOSITORY_PATTERN.md) ·
+  [Queues](./docs/architecture/BULL_QUEUE_ARCHITECTURE.md)
+- **Features:** [Auth](./docs/features/auth/) · [Access control](./docs/features/acl/README.md) ·
+  [Audit](./docs/features/audit/README.md) · [Attachments](./docs/features/attachments/) ·
+  [Post types](./docs/features/post-types/) · [Cache](./docs/features/cache/) ·
+  [Logging](./docs/features/logging/)
+- **Operations:** [Graceful shutdown](./docs/deployment/GRACEFUL_SHUTDOWN.md) ·
+  [PM2](./docs/deployment/PM2_GUIDE.md) ·
+  [Integration testing](./docs/testing/INTEGRATION_TESTING_SETUP.md)
+
+---
+
+## Contact
+
+- **Project page:** [moayyadfaris.com/open-source/kuybi](https://moayyadfaris.com/open-source/kuybi)
+- **Email:** [moayyadzf@gmail.com](mailto:moayyadzf@gmail.com)
+- **Issues:** [GitHub Issues](https://github.com/moayyadfaris/Kuybi/issues)
 
 <div align="center">
 
-**Built with ❤️ using NestJS**
-
-*Harness the power of the Nine-Tails* 🦊
+_Harness the power of the Nine-Tails_ 🦊
 
 </div>
