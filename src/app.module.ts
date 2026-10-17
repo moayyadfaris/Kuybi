@@ -91,6 +91,8 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware).forRoutes('*')
+    // Named wildcard: path-to-regexp v8 (Express 5) no longer accepts a bare '*'.
+    // '{*path}' also matches the prefix root, exactly like the old '*'.
+    consumer.apply(RequestIdMiddleware).forRoutes('{*path}')
   }
 }
