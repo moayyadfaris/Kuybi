@@ -40,11 +40,15 @@ export class AuditLogInterceptor implements NestInterceptor {
     // Extract audit context from request
     const auditContext = this.auditService.createContextFromRequest(request)
 
+    // Express 5 types route params as string | string[] (wildcards); :id is a single segment
+    const paramId = request.params?.id
+    const routeEntityId = Array.isArray(paramId) ? paramId[0] : paramId
+
     // Extract entity ID from response or params
     const getEntityId = (result?: any): string | undefined => {
       // Try to get from params first (for update/delete operations)
-      if (request.params?.id) {
-        return request.params.id
+      if (routeEntityId) {
+        return routeEntityId
       }
 
       // Try to get from response (for create operations)
@@ -112,7 +116,7 @@ export class AuditLogInterceptor implements NestInterceptor {
           .logAction(auditContext, {
             action: auditMetadata.action,
             entityType: auditMetadata.entityType,
-            entityId: request.params?.id,
+            entityId: routeEntityId,
             description: auditMetadata.description || `Failed: ${error.message}`,
             status: AuditStatus.FAILURE,
             statusCode: error.status || 500,
