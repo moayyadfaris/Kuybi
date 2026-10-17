@@ -51,6 +51,16 @@ export interface FieldValidationError {
  *
  * Part of: Phase 2 - Dynamic Post Types System
  */
+/** URL schemes allowed when a url field does not configure `protocol` */
+const DEFAULT_URL_PROTOCOLS = ['http', 'https']
+/** Schemes that run code when rendered as a link; never accepted */
+const EXECUTABLE_URL_PROTOCOLS = ['javascript', 'data', 'vbscript', 'file']
+/** E.164 allows at most 15 digits; 7 covers the shortest national numbers */
+const PHONE_DIGITS_REGEX = /^\+?\d{7,15}$/
+const PHONE_FORMAT_REGEX = /^\+?[\d\s().-]+$/
+/** Tolerance for floating point comparison of step multiples */
+const STEP_EPSILON = 1e-9
+
 @Injectable()
 export class FieldValidationService {
   constructor(
@@ -423,19 +433,23 @@ export class FieldValidationService {
       const url = new URL(value)
       const rules = fieldDef.validationRules || {}
 
-      // Protocol validation
-      if (rules.protocol) {
-        const allowedProtocols = Array.isArray(rules.protocol) ? rules.protocol : [rules.protocol]
-        if (!allowedProtocols.includes(url.protocol.replace(':', ''))) {
-          errors.push({
-            fieldName: fieldDef.name,
-            fieldType: fieldDef.fieldType,
-            errorCode: 'INVALID_PROTOCOL',
-            message: `Field '${fieldDef.label}' must use one of these protocols: ${allowedProtocols.join(', ')}`,
-            value,
-            constraint: rules.protocol
-          })
-        }
+      // Protocol validation. Defaults to http/https; schemes that execute code when the URL
+      // is rendered as a link are rejected even if a field definition allows them.
+      const protocol = url.protocol.replace(':', '').toLowerCase()
+      const allowedProtocols: string[] = rules.protocol
+        ? Array.isArray(rules.protocol)
+          ? rules.protocol
+          : [rules.protocol]
+        : DEFAULT_URL_PROTOCOLS
+      if (EXECUTABLE_URL_PROTOCOLS.includes(protocol) || !allowedProtocols.includes(protocol)) {
+        errors.push({
+          fieldName: fieldDef.name,
+          fieldType: fieldDef.fieldType,
+          errorCode: 'INVALID_PROTOCOL',
+          message: `Field '${fieldDef.label}' must use one of these protocols: ${allowedProtocols.join(', ')}`,
+          value,
+          constraint: allowedProtocols
+        })
       }
     } catch (error) {
       errors.push({
@@ -467,7 +481,6 @@ export class FieldValidationService {
     const rules = fieldDef.validationRules || {}
 
     // Basic phone number validation (digits, spaces, hyphens, parentheses, plus)
-    const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/
     if (rules.pattern) {
       const customRegex = new RegExp(rules.pattern)
       if (!customRegex.test(value)) {
@@ -480,7 +493,10 @@ export class FieldValidationService {
           constraint: rules.pattern
         })
       }
-    } else if (!phoneRegex.test(value)) {
+    } else if (
+      !PHONE_FORMAT_REGEX.test(value) ||
+      !PHONE_DIGITS_REGEX.test(value.replace(/[\s().-]/g, ''))
+    ) {
       errors.push({
         fieldName: fieldDef.name,
         fieldType: fieldDef.fieldType,
@@ -581,7 +597,12 @@ export class FieldValidationService {
     }
 
     // Step validation
-    if (rules.step && numValue % rules.step !== 0) {
+    // Compare with the nearest multiple: 0.3 % 0.1 is 0.0999... in floating point
+    const steps = rules.step ? numValue / rules.step : 0
+    if (
+      rules.step &&
+      Math.abs(steps - Math.round(steps)) > STEP_EPSILON * Math.max(1, Math.abs(steps))
+    ) {
       errors.push({
         fieldName: fieldDef.name,
         fieldType: fieldDef.fieldType,
