@@ -11,6 +11,7 @@ import {
   S3Client
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { errorMessage } from '@shared/utils/error.util'
 import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { PinoLogger } from 'nestjs-pino'
 import { posix as pathPosix } from 'path'
@@ -130,13 +131,20 @@ export class S3Service {
         etag: result.ETag
       }
     } catch (error) {
+      // Shape of AWS SDK v3 service errors (S3ServiceException), read for logging only
+      const awsError = (error ?? {}) as {
+        name?: string
+        Code?: string
+        code?: string
+        $metadata?: { httpStatusCode?: number; requestId?: string }
+      }
       this.logger.error(
         {
-          errorMessage: error?.message || 'Unknown error',
-          errorName: error?.name,
-          errorCode: error?.Code || error?.code,
-          statusCode: error?.$metadata?.httpStatusCode,
-          requestId: error?.$metadata?.requestId,
+          errorMessage: errorMessage(error) || 'Unknown error',
+          errorName: awsError.name,
+          errorCode: awsError.Code || awsError.code,
+          statusCode: awsError.$metadata?.httpStatusCode,
+          requestId: awsError.$metadata?.requestId,
           key: options.key,
           bucket: this.bucket,
           region: this.region,
@@ -145,7 +153,7 @@ export class S3Service {
         `Failed to upload file to S3: ${options.key}`
       )
       throw new InternalServerErrorException(
-        `Failed to upload file to storage: ${error?.message || 'Unknown S3 error'}`
+        `Failed to upload file to storage: ${errorMessage(error) || 'Unknown S3 error'}`
       )
     }
   }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage } from '@shared/utils/error.util'
 import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -151,7 +152,7 @@ export class AuditService {
       this.logger.error(
         {
           action: options.action,
-          error: error.message,
+          error: errorMessage(error),
           context
         },
         'Failed to create audit log'

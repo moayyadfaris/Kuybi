@@ -3,6 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Injectable, OnApplicationShutdown } from '@nestjs/common'
 import { ModuleRef } from '@nestjs/core'
 import { InjectDataSource } from '@nestjs/typeorm'
+import { errorMessage } from '@shared/utils/error.util'
 import { Queue } from 'bullmq'
 import { Cache } from 'cache-manager'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -54,7 +55,7 @@ export class ShutdownService implements OnApplicationShutdown {
       this.logger.info({ signal }, 'ShutdownService: All shutdown tasks completed')
     } catch (error) {
       this.logger.error(
-        { signal, error: error.message },
+        { signal, error: errorMessage(error) },
         'ShutdownService: Error during shutdown tasks'
       )
     }
@@ -108,7 +109,7 @@ export class ShutdownService implements OnApplicationShutdown {
         await queue.close()
         this.logger.debug({ queue: name }, 'Queue closed successfully')
       } catch (error) {
-        this.logger.error({ queue: name, error: error.message }, 'Error closing queue')
+        this.logger.error({ queue: name, error: errorMessage(error) }, 'Error closing queue')
       }
     }
 
@@ -130,7 +131,7 @@ export class ShutdownService implements OnApplicationShutdown {
       }
     } catch (error) {
       this.logger.error(
-        { error: error.message },
+        { error: errorMessage(error) },
         'ShutdownService: Error closing database connections'
       )
     }
@@ -153,7 +154,10 @@ export class ShutdownService implements OnApplicationShutdown {
         this.logger.debug('ShutdownService: No cache manager found')
       }
     } catch (error) {
-      this.logger.warn({ error: error.message }, 'ShutdownService: Could not access cache manager')
+      this.logger.warn(
+        { error: errorMessage(error) },
+        'ShutdownService: Could not access cache manager'
+      )
     }
   }
 

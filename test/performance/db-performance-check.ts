@@ -1,3 +1,4 @@
+import { errorMessage } from '@shared/utils/error.util'
 import { config } from 'dotenv'
 import { DataSource } from 'typeorm'
 
@@ -244,7 +245,7 @@ async function checkDatabasePerformance() {
 
     console.log('\n✅ Database analysis complete!\n')
   } catch (error) {
-    console.error('❌ Error:', error.message)
+    console.error('❌ Error:', errorMessage(error))
     throw error
   } finally {
     await dataSource.destroy()

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { FieldDefinition } from '../entities/field-definition.entity'
@@ -265,12 +266,15 @@ export class FieldValidationService {
           })
       }
     } catch (error) {
-      this.logger.error({ fieldName: fieldDef.name, error: error.message }, 'Validation error')
+      this.logger.error(
+        { fieldName: fieldDef.name, error: errorMessage(error) },
+        'Validation error'
+      )
       errors.push({
         fieldName: fieldDef.name,
         fieldType: fieldDef.fieldType,
         errorCode: 'VALIDATION_ERROR',
-        message: `Validation failed: ${error.message}`,
+        message: `Validation failed: ${errorMessage(error)}`,
         value
       })
     }

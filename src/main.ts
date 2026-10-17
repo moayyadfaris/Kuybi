@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
+import { errorMessage, errorStack } from '@shared/utils/error.util'
 import compression from 'compression'
 import { Request, Response } from 'express'
 import helmet from 'helmet'
@@ -211,7 +212,7 @@ async function bootstrap() {
       process.exit(0)
     } catch (error) {
       appLogger.error(
-        { signal, error: error.message, stack: error.stack },
+        { signal, error: errorMessage(error), stack: errorStack(error) },
         'Error during graceful shutdown'
       )
 

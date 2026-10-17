@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 import { In, Repository } from 'typeorm'
 
@@ -111,7 +112,7 @@ export class StoryRelationshipService {
               } catch (error) {
                 // Handle race condition where tag might be created by another req
                 this.logger.warn(
-                  { name, error: error.message },
+                  { name, error: errorMessage(error) },
                   'Failed to create tag, trying to fetch'
                 )
                 const existing = await this.tagRepository.findByName(name)
@@ -186,7 +187,7 @@ export class StoryRelationshipService {
       return story
     } catch (error) {
       this.logger.error(
-        { action: 'attach_attachments', storyId, userId, error: error.message },
+        { action: 'attach_attachments', storyId, userId, error: errorMessage(error) },
         'Failed to attach attachments'
       )
       throw error
@@ -250,7 +251,7 @@ export class StoryRelationshipService {
       return story
     } catch (error) {
       this.logger.error(
-        { action: 'detach_attachments', storyId, userId, error: error.message },
+        { action: 'detach_attachments', storyId, userId, error: errorMessage(error) },
         'Failed to detach attachments'
       )
       throw error
@@ -311,7 +312,7 @@ export class StoryRelationshipService {
       return story
     } catch (error) {
       this.logger.error(
-        { action: 'attach_tags', storyId, userId, error: error.message },
+        { action: 'attach_tags', storyId, userId, error: errorMessage(error) },
         'Failed to attach tags'
       )
       throw error
@@ -370,7 +371,7 @@ export class StoryRelationshipService {
       return story
     } catch (error) {
       this.logger.error(
-        { action: 'detach_tags', storyId, userId, error: error.message },
+        { action: 'detach_tags', storyId, userId, error: errorMessage(error) },
         'Failed to detach tags'
       )
       throw error
@@ -435,7 +436,7 @@ export class StoryRelationshipService {
       return story
     } catch (error) {
       this.logger.error(
-        { action: 'attach_categories', storyId, userId, error: error.message },
+        { action: 'attach_categories', storyId, userId, error: errorMessage(error) },
         'Failed to attach categories'
       )
       throw error
@@ -499,7 +500,7 @@ export class StoryRelationshipService {
       return story
     } catch (error) {
       this.logger.error(
-        { action: 'detach_categories', storyId, userId, error: error.message },
+        { action: 'detach_categories', storyId, userId, error: errorMessage(error) },
         'Failed to detach categories'
       )
       throw error

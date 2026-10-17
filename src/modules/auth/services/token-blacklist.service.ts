@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage } from '@shared/utils/error.util'
 import * as crypto from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -284,7 +285,7 @@ export class TokenBlacklistService {
       }
     } catch (error) {
       this.logger.warn(
-        { error: error.message, action: 'ttl_calculation_failed' },
+        { error: errorMessage(error), action: 'ttl_calculation_failed' },
         'Failed to calculate TTL from token'
       )
     }
@@ -347,7 +348,7 @@ export class TokenBlacklistService {
       return []
     } catch (error) {
       this.logger.warn(
-        { error: error.message, action: 'scan_keys_failed' },
+        { error: errorMessage(error), action: 'scan_keys_failed' },
         'Failed to scan blacklist keys'
       )
       return []

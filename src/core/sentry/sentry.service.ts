@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import * as Sentry from '@sentry/node'
 import { nodeProfilingIntegration } from '@sentry/profiling-node'
+import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 
 export type SeverityLevel = 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug'
@@ -91,8 +92,8 @@ export class SentryService {
     } catch (error) {
       this.logger.error({
         msg: 'Failed to initialize Sentry',
-        error: error.message,
-        stack: error.stack
+        error: errorMessage(error),
+        stack: errorStack(error)
       })
     }
   }
@@ -153,7 +154,7 @@ export class SentryService {
     } catch (error) {
       this.logger.error({
         msg: 'Failed to set user in Sentry',
-        error: error.message
+        error: errorMessage(error)
       })
     }
   }
@@ -169,7 +170,7 @@ export class SentryService {
     } catch (error) {
       this.logger.error({
         msg: 'Failed to clear user in Sentry',
-        error: error.message
+        error: errorMessage(error)
       })
     }
   }

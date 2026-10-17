@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage } from '@shared/utils/error.util'
 import * as fs from 'fs'
 import * as Handlebars from 'handlebars'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -77,7 +78,7 @@ export class EmailTemplateService {
 
       return compiledTemplate
     } catch (error) {
-      this.logger.error({ template, error: error.message }, 'Failed to load email template')
+      this.logger.error({ template, error: errorMessage(error) }, 'Failed to load email template')
       throw error
     }
   }
@@ -107,7 +108,7 @@ export class EmailTemplateService {
 
       return html
     } catch (error) {
-      this.logger.error({ template, error: error.message }, 'Failed to render email template')
+      this.logger.error({ template, error: errorMessage(error) }, 'Failed to render email template')
       throw error
     }
   }
@@ -130,7 +131,7 @@ export class EmailTemplateService {
       try {
         this.loadTemplate(template)
       } catch (error) {
-        this.logger.warn({ template, error: error.message }, 'Failed to preload template')
+        this.logger.warn({ template, error: errorMessage(error) }, 'Failed to preload template')
       }
     }
 

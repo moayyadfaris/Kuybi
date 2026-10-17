@@ -20,7 +20,7 @@
     "strictFunctionTypes": true,
     "strictBuiltinIteratorReturn": true,
     "noImplicitAny": true,
-    "useUnknownInCatchVariables": false,
+    "useUnknownInCatchVariables": true,
     "strictNullChecks": false,
     "strictPropertyInitialization": false,
     "types": ["*"],

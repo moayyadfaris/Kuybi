@@ -1,6 +1,7 @@
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Injectable } from '@nestjs/common'
 import { EmailService } from '@infrastructure/email'
+import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -110,8 +111,8 @@ export class EmailProcessor extends BaseProcessor {
           jobType: job.name,
           to: job.data.to,
           attempt: job.attemptsMade + 1,
-          error: error.message,
-          stack: error.stack,
+          error: errorMessage(error),
+          stack: errorStack(error),
           duration
         },
         'Email job failed'

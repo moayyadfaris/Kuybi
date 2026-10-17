@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 import { DataSource, In, Repository } from 'typeorm'
 
@@ -202,7 +203,7 @@ export class StoriesService {
         return this.storyEnrichmentService.enrichStoryMedia(finalStory) as Story
       } catch (error) {
         requestLogger.error(
-          { action: 'create_story', userId, error: error.message, stack: error.stack },
+          { action: 'create_story', userId, error: errorMessage(error), stack: errorStack(error) },
           'Failed to create story - transaction rolled back'
         )
         throw error
@@ -462,7 +463,7 @@ export class StoriesService {
         return this.storyEnrichmentService.enrichStoryMedia(updated) as Story
       } catch (error) {
         this.logger.error(
-          { action: 'update_story', storyId: id, userId, error: error.message },
+          { action: 'update_story', storyId: id, userId, error: errorMessage(error) },
           'Failed to update story - transaction rolled back'
         )
         throw error
@@ -509,7 +510,7 @@ export class StoriesService {
       )
     } catch (error) {
       this.logger.error(
-        { action: 'delete_story', storyId: id, userId, error: error.message },
+        { action: 'delete_story', storyId: id, userId, error: errorMessage(error) },
         'Failed to delete story'
       )
       throw error
@@ -545,7 +546,7 @@ export class StoriesService {
       )
     } catch (error) {
       this.logger.error(
-        { action: 'hard_delete_story', storyId: id, userId, error: error.message },
+        { action: 'hard_delete_story', storyId: id, userId, error: errorMessage(error) },
         'Failed to permanently delete story'
       )
       throw error
@@ -593,7 +594,7 @@ export class StoriesService {
       return this.storyEnrichmentService.enrichStoryMedia(restored) as Story
     } catch (error) {
       this.logger.error(
-        { action: 'restore_story', storyId: id, userId, error: error.message },
+        { action: 'restore_story', storyId: id, userId, error: errorMessage(error) },
         'Failed to restore story'
       )
       throw error
@@ -636,7 +637,7 @@ export class StoriesService {
       return this.storyEnrichmentService.enrichStoryMedia(updated) as Story
     } catch (error) {
       this.logger.error(
-        { action: 'update_status', storyId: id, userId, status, error: error.message },
+        { action: 'update_status', storyId: id, userId, status, error: errorMessage(error) },
         'Failed to update story status'
       )
       throw error

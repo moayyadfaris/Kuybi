@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage } from '@shared/utils/error.util'
 import * as crypto from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -272,7 +273,10 @@ export class PasswordStrengthService {
 
       return found
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Error checking password breach - failing open')
+      this.logger.error(
+        { error: errorMessage(error) },
+        'Error checking password breach - failing open'
+      )
       // Fail open - don't block user if there's an error
       return false
     }

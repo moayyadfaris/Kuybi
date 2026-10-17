@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import sharp, { type WriteableMetadata } from 'sharp'
 
@@ -88,7 +89,7 @@ export class ExifProcessorService {
       this.logger.debug({ dimensions: exifData.dimensions }, 'Extracted EXIF data')
       return exifData
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to extract EXIF data')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to extract EXIF data')
       throw new BadRequestException('Failed to process image metadata')
     }
   }
@@ -144,7 +145,7 @@ export class ExifProcessorService {
         orientation: exifData.dimensions?.orientation || 1
       }
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to strip EXIF data')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to strip EXIF data')
       throw new BadRequestException('Failed to process image metadata')
     }
   }
@@ -183,7 +184,7 @@ export class ExifProcessorService {
         .withMetadata({ orientation: 1 }) // Reset orientation flag to 1
         .toBuffer()
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to correct orientation')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to correct orientation')
       throw new BadRequestException('Failed to correct image orientation')
     }
   }
@@ -207,7 +208,7 @@ export class ExifProcessorService {
       )
       return null
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to parse EXIF buffer')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to parse EXIF buffer')
       return null
     }
   }
@@ -255,7 +256,7 @@ export class ExifProcessorService {
         hasLocation: !!(exifData.location?.latitude && exifData.location?.longitude)
       }
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to generate metadata summary')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to generate metadata summary')
       return {}
     }
   }
@@ -294,7 +295,7 @@ export class ExifProcessorService {
         issues
       }
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to validate metadata')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to validate metadata')
       return {
         valid: false,
         issues: ['Failed to read image metadata']

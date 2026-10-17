@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { EmailService } from '@infrastructure/email/services/email.service'
+import { errorMessage } from '@shared/utils/error.util'
 import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { LessThan, Repository } from 'typeorm'
@@ -148,7 +149,7 @@ export class AccountLockoutService {
         this.logger.info({ userId: user.id, email: user.email }, 'Lockout email sent successfully')
       } catch (error) {
         this.logger.error(
-          { userId: user.id, email: user.email, error: error.message },
+          { userId: user.id, email: user.email, error: errorMessage(error) },
           'Failed to send lockout email'
         )
         // Don't throw - email failure shouldn't prevent lockout
@@ -259,7 +260,7 @@ export class AccountLockoutService {
         this.logger.info({ userId, email: user.email }, 'Unlock email sent successfully')
       } catch (error) {
         this.logger.error(
-          { userId, email: user.email, error: error.message },
+          { userId, email: user.email, error: errorMessage(error) },
           'Failed to send unlock email'
         )
         // Don't throw - email failure shouldn't prevent unlock

@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@n
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { EmailService } from '@infrastructure/email/services/email.service'
+import { errorMessage } from '@shared/utils/error.util'
 import * as bcrypt from 'bcrypt'
 import type { StringValue } from 'ms'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -350,7 +351,7 @@ export class AuthService {
           {
             userId,
             sessionId: session.id,
-            error: error.message,
+            error: errorMessage(error),
             action: 'access_token_blacklist_failed'
           },
           'Failed to blacklist access token (non-critical)'
@@ -763,7 +764,7 @@ export class AuthService {
           {
             userId: user.id,
             email: user.email,
-            error: error.message,
+            error: errorMessage(error),
             action: 'password_change_notification_failed'
           },
           'Failed to send password change notification email'

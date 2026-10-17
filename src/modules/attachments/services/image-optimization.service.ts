@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import sharp, { type Metadata, type Sharp } from 'sharp'
 
@@ -185,7 +186,7 @@ export class ImageOptimizationService {
 
       return result
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to optimize image')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to optimize image')
       throw new BadRequestException('Failed to optimize image')
     }
   }
@@ -298,7 +299,7 @@ export class ImageOptimizationService {
 
       return result
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to generate responsive set')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to generate responsive set')
       throw new BadRequestException('Failed to generate responsive image set')
     }
   }
@@ -318,7 +319,7 @@ export class ImageOptimizationService {
         .jpeg({ quality: 20, progressive: false })
         .toBuffer()
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to generate placeholder')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to generate placeholder')
       throw new BadRequestException('Failed to generate placeholder')
     }
   }
@@ -347,7 +348,7 @@ export class ImageOptimizationService {
           throw new BadRequestException(`Unsupported format: ${targetFormat}`)
       }
     } catch (error) {
-      this.logger.error({ error: error.message, targetFormat }, 'Format conversion failed')
+      this.logger.error({ error: errorMessage(error), targetFormat }, 'Format conversion failed')
       throw new BadRequestException(`Failed to convert to ${targetFormat}`)
     }
   }
@@ -422,7 +423,10 @@ export class ImageOptimizationService {
         const result = await this.optimizeImage(image.buffer, options)
         results.push({ name: image.name, result })
       } catch (error) {
-        this.logger.error({ name: image.name, error: error.message }, 'Batch optimization failed')
+        this.logger.error(
+          { name: image.name, error: errorMessage(error) },
+          'Batch optimization failed'
+        )
         // Continue with next image
       }
     }

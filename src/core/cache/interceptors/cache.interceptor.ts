@@ -1,6 +1,7 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+import { errorMessage } from '@shared/utils/error.util'
 import { Cache } from 'cache-manager'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Observable, of } from 'rxjs'
@@ -56,12 +57,20 @@ export class HttpCacheInterceptor implements NestInterceptor {
           try {
             await this.cacheManager.set(cacheKey, response, ttl)
           } catch (error) {
-            this.logger.error({ msg: 'Failed to cache response', cacheKey, error: error.message })
+            this.logger.error({
+              msg: 'Failed to cache response',
+              cacheKey,
+              error: errorMessage(error)
+            })
           }
         })
       )
     } catch (error) {
-      this.logger.error({ msg: 'Cache error, bypassing cache', cacheKey, error: error.message })
+      this.logger.error({
+        msg: 'Cache error, bypassing cache',
+        cacheKey,
+        error: errorMessage(error)
+      })
       return next.handle()
     }
   }

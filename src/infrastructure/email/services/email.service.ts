@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage, errorProperty } from '@shared/utils/error.util'
 import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import * as nodemailer from 'nodemailer'
@@ -92,10 +93,10 @@ export class EmailService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         {
-          error: error.message,
+          error: errorMessage(error),
           host,
           port,
-          code: error.code
+          code: errorProperty<string>(error, 'code')
         },
         'Failed to verify SMTP connection - continuing anyway'
       )
@@ -138,7 +139,7 @@ export class EmailService implements OnModuleInit {
         {
           to: dto.to,
           subject: dto.subject,
-          error: error.message
+          error: errorMessage(error)
         },
         'Failed to send email'
       )
@@ -175,7 +176,7 @@ export class EmailService implements OnModuleInit {
         {
           to: options.to,
           template: options.template,
-          error: error.message
+          error: errorMessage(error)
         },
         'Failed to send templated email'
       )
@@ -369,7 +370,7 @@ export class EmailService implements OnModuleInit {
       await this.transporter.verify()
       return true
     } catch (error) {
-      this.logger.error({ error: error.message }, 'SMTP connection test failed')
+      this.logger.error({ error: errorMessage(error) }, 'SMTP connection test failed')
       return false
     }
   }

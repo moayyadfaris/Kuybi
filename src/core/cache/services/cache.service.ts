@@ -1,6 +1,7 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage } from '@shared/utils/error.util'
 import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { Cache } from 'cache-manager'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -141,7 +142,7 @@ export class CacheService {
       await this.del(testKey)
       return value === true
     } catch (error) {
-      this.logger.error({ msg: 'Cache health check failed', error: error.message })
+      this.logger.error({ msg: 'Cache health check failed', error: errorMessage(error) })
       return false
     }
   }
@@ -297,7 +298,10 @@ export class CacheService {
                 continue
               }
             } catch (err) {
-              this.logger.warn({ tag, key, error: err.message }, 'Failed to add tag to Redis set')
+              this.logger.warn(
+                { tag, key, error: errorMessage(err) },
+                'Failed to add tag to Redis set'
+              )
             }
           }
 
@@ -347,7 +351,7 @@ export class CacheService {
             return
           }
         } catch (err) {
-          this.logger.error({ tag, error: err.message }, 'Failed to fetch keys for tag')
+          this.logger.error({ tag, error: errorMessage(err) }, 'Failed to fetch keys for tag')
           return
         }
 
@@ -369,7 +373,7 @@ export class CacheService {
             await redisClient.sendCommand(['DEL', tagKey])
           }
         } catch (err) {
-          this.logger.warn({ tag, error: err.message }, 'Failed to delete tag key')
+          this.logger.warn({ tag, error: errorMessage(err) }, 'Failed to delete tag key')
         }
 
         this.logger.info({ tag, keysInvalidated: keys.length }, 'Cache tag invalidated')

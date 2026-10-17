@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 
 import { CreateTagDto, UpdateTagDto } from '@modules/tags/dto'
@@ -49,7 +50,7 @@ export class TagsService {
       return tag
     } catch (error) {
       this.logger.error(
-        { action: 'create_tag', userId, error: error.message },
+        { action: 'create_tag', userId, error: errorMessage(error) },
         'Failed to create tag'
       )
       throw error
@@ -138,7 +139,7 @@ export class TagsService {
       return updated
     } catch (error) {
       this.logger.error(
-        { action: 'update_tag', tagId: id, userId, error: error.message },
+        { action: 'update_tag', tagId: id, userId, error: errorMessage(error) },
         'Failed to update tag'
       )
       throw error
@@ -167,7 +168,7 @@ export class TagsService {
       this.logger.info({ action: 'delete_tag', tagId: id, userId }, 'Tag deleted successfully')
     } catch (error) {
       this.logger.error(
-        { action: 'delete_tag', tagId: id, userId, error: error.message },
+        { action: 'delete_tag', tagId: id, userId, error: errorMessage(error) },
         'Failed to delete tag'
       )
       throw error
@@ -201,7 +202,7 @@ export class TagsService {
       this.logger.info({ action: 'hard_delete_tag', tagId: id, userId }, 'Tag permanently deleted')
     } catch (error) {
       this.logger.error(
-        { action: 'hard_delete_tag', tagId: id, userId, error: error.message },
+        { action: 'hard_delete_tag', tagId: id, userId, error: errorMessage(error) },
         'Failed to permanently delete tag'
       )
       throw error

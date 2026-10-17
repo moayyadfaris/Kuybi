@@ -6,6 +6,7 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorMessage } from '@shared/utils/error.util'
 import { Queue } from 'bullmq'
 import * as crypto from 'crypto'
 import { PinoLogger } from 'nestjs-pino'
@@ -153,7 +154,7 @@ export class AttachmentService {
           'Image optimized successfully'
         )
       } catch (error) {
-        this.logger.error({ error: error.message }, 'Image processing failed, using original')
+        this.logger.error({ error: errorMessage(error) }, 'Image processing failed, using original')
         // Continue with original buffer if processing fails
       }
     }

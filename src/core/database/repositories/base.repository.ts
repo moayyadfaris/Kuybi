@@ -1,4 +1,5 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
+import { errorMessage } from '@shared/utils/error.util'
 import { DeepPartial, FindManyOptions, FindOptionsWhere, Repository } from 'typeorm'
 
 import { CacheService } from '../../cache/services/cache.service'
@@ -93,8 +94,8 @@ export abstract class BaseRepository<T> {
         span.setStatus({ code: SpanStatusCode.OK })
         return entity
       } catch (error) {
-        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
-        span.recordException(error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage(error) })
+        span.recordException(error instanceof Error ? error : String(error))
         throw error
       } finally {
         span.end()

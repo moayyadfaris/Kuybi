@@ -1,4 +1,5 @@
 import { InjectQueue, Processor } from '@nestjs/bullmq'
+import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -52,7 +53,7 @@ export class AccountSecurityProcessor extends BaseProcessor {
       }
     } catch (error) {
       this.logger.error(
-        { jobId: id, jobName: name, error: error.message, stack: error.stack },
+        { jobId: id, jobName: name, error: errorMessage(error), stack: errorStack(error) },
         'Account security job failed'
       )
       throw error
@@ -77,7 +78,7 @@ export class AccountSecurityProcessor extends BaseProcessor {
         unlockedAt: new Date()
       }
     } catch (error) {
-      this.logger.error({ userId, reason, error: error.message }, 'Failed to unlock account')
+      this.logger.error({ userId, reason, error: errorMessage(error) }, 'Failed to unlock account')
       throw error
     }
   }
@@ -112,7 +113,7 @@ export class AccountSecurityProcessor extends BaseProcessor {
         reason: 'Account is locked, not resetting attempts'
       }
     } catch (error) {
-      this.logger.error({ userId, error: error.message }, 'Failed to reset failed attempts')
+      this.logger.error({ userId, error: errorMessage(error) }, 'Failed to reset failed attempts')
       throw error
     }
   }
@@ -136,7 +137,7 @@ export class AccountSecurityProcessor extends BaseProcessor {
         checkedAt: new Date()
       }
     } catch (error) {
-      this.logger.error({ error: error.message }, 'Failed to check expired locks')
+      this.logger.error({ error: errorMessage(error) }, 'Failed to check expired locks')
       throw error
     }
   }
