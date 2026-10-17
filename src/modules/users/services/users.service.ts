@@ -4,8 +4,12 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
 import * as bcrypt from 'bcrypt'
+import { Repository } from 'typeorm'
 
+import { findDefaultRoleId } from '@modules/acl/default-role'
+import { Role } from '@modules/acl/entities/role.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { S3Service } from '@modules/attachments/services/s3.service'
 import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
@@ -22,7 +26,9 @@ export class UsersService {
     private readonly userRepository: UserRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly s3Service: S3Service,
-    private readonly cacheService: CacheService
+    private readonly cacheService: CacheService,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>
   ) {}
 
   findByEmail(email: string, bypassCache = false): Promise<User | null> {
@@ -80,14 +86,14 @@ export class UsersService {
   }): Promise<User> {
     const passwordHash = await bcrypt.hash(payload.password, 10)
 
-    // Default to role ID 3 (user role) if not specified
-    // Role IDs: 1=super-admin, 2=admin, 3=user (from ACL seeder)
+    const primaryRoleId = payload.primaryRoleId ?? (await findDefaultRoleId(this.roleRepository))
+
     return this.userRepository.create({
       name: payload.name,
       email: payload.email.toLowerCase(),
       mobileNumber: payload.mobileNumber,
       passwordHash,
-      primaryRoleId: payload.primaryRoleId ?? 4, // Default to 'user' role (ID 4)
+      primaryRoleId,
       isVerified: payload.isVerified ?? false
     })
   }

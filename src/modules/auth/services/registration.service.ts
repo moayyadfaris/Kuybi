@@ -12,6 +12,9 @@ import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Repository } from 'typeorm'
 
+import { findDefaultRoleId } from '@modules/acl/default-role'
+import { Role } from '@modules/acl/entities/role.entity'
+
 import { EmailVerification } from '../../users/entities/email-verification.entity'
 import { User } from '../../users/entities/user.entity'
 import { RegisterUserDto } from '../dto/register.dto'
@@ -31,6 +34,8 @@ export class RegistrationService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(EmailVerification)
     private readonly emailVerificationRepository: Repository<EmailVerification>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly emailQueueService: EmailQueueService,
     private readonly configService: ConfigService,
     @InjectPinoLogger(RegistrationService.name)
@@ -79,7 +84,7 @@ export class RegistrationService {
       isVerified: false,
       isEmailVerified: false,
       emailVerifiedAt: null,
-      primaryRoleId: 4 // Default to 'user' role (ID 4)
+      primaryRoleId: await findDefaultRoleId(this.roleRepository)
       // Store verification token temporarily (we'll need to add these columns)
       // For now, we'll send the email and mark as pending verification
     })

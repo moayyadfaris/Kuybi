@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { EmailModule } from '@infrastructure/email'
 import type { StringValue } from 'ms'
 
+import { Role } from '@modules/acl/entities/role.entity'
 import { AuditModule } from '@modules/audit/audit.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
@@ -46,7 +47,14 @@ import {
     MetricsModule,
     SentryModule.forRoot(),
     AuditModule,
-    TypeOrmModule.forFeature([Session, PasswordReset, PasswordHistory, User, EmailVerification]),
+    TypeOrmModule.forFeature([
+      Session,
+      PasswordReset,
+      PasswordHistory,
+      User,
+      EmailVerification,
+      Role
+    ]),
     BullModule.registerQueue({
       name: QueueName.ACCOUNT_SECURITY
     }),
