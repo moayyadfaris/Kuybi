@@ -84,5 +84,19 @@ export default tseslint.config(
       'prettier/prettier': 'error',
       'no-console': ['warn', { allow: ['warn', 'error'] }]
     }
+  },
+  {
+    // `as any` silences the compiler and has hidden real bugs here (ignored soft-delete
+    // filters, a broken log shipper). Use a precise type or `as unknown as T` instead.
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression > TSAnyKeyword',
+          message: 'Do not cast to `any`; use a precise type or `as unknown as T`.'
+        }
+      ]
+    }
   }
 )
