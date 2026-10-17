@@ -1,5 +1,17 @@
 declare global {
   namespace Express {
+    /** Set by RequestIdMiddleware */
+    interface Request {
+      id?: string
+      requestId?: string
+    }
+
+    /** Authenticated principal attached by JwtStrategy (a User entity) */
+    interface User {
+      id: string
+      email?: string
+    }
+
     interface MulterFile {
       fieldname: string
       originalname: string

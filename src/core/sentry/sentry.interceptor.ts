@@ -5,9 +5,8 @@ import { catchError, tap } from 'rxjs/operators'
 
 import { SentryService } from './sentry.service'
 
-interface AuthenticatedRequest extends Request {
-  user?: { id?: string; email?: string; username?: string }
-}
+// req.user is typed globally (src/shared/types/express.d.ts)
+type AuthenticatedRequest = Request
 
 @Injectable()
 export class SentryInterceptor implements NestInterceptor {
@@ -21,8 +20,7 @@ export class SentryInterceptor implements NestInterceptor {
     if (user?.id) {
       this.sentryService.setUser({
         id: user.id,
-        email: user.email,
-        username: user.username
+        email: user.email
       })
     }
 

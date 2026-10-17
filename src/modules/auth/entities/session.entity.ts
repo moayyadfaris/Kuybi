@@ -22,6 +22,10 @@ import { User } from '@modules/users/entities/user.entity'
  * - Soft delete support with deletedAt
  * - Activity tracking with lastActivityAt
  */
+/** Allowed session types (same values as the SessionType enum used by the API) */
+export type SessionTypeValue =
+  'standard' | 'persistent' | 'mobile' | 'api' | 'admin' | 'suspicious' | 'guest'
+
 @Entity({ name: 'sessions' })
 @Index(['userId', 'isActive'])
 @Index(['expiresAt', 'isActive'])
@@ -69,7 +73,7 @@ export class Session {
     default: 'standard',
     comment: 'Session type: standard, persistent, mobile, api, admin, suspicious, guest'
   })
-  sessionType: string
+  sessionType: SessionTypeValue
 
   // Status & Lifecycle
   @Column({ type: 'boolean', default: true })

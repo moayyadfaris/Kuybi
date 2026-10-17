@@ -527,7 +527,7 @@ export class StoryRepository extends BaseRepository<Story> {
           // Created today
           this.repository.count({
             where: {
-              createdAt: Between(startOfToday, now) as any,
+              createdAt: Between(startOfToday, now),
               deletedAt: IsNull()
             }
           }),
@@ -535,7 +535,7 @@ export class StoryRepository extends BaseRepository<Story> {
           // Created this week
           this.repository.count({
             where: {
-              createdAt: Between(startOfWeek, now) as any,
+              createdAt: Between(startOfWeek, now),
               deletedAt: IsNull()
             }
           }),
@@ -543,7 +543,7 @@ export class StoryRepository extends BaseRepository<Story> {
           // Created this month
           this.repository.count({
             where: {
-              createdAt: Between(startOfMonth, now) as any,
+              createdAt: Between(startOfMonth, now),
               deletedAt: IsNull()
             }
           }),
@@ -567,7 +567,7 @@ export class StoryRepository extends BaseRepository<Story> {
           // Deleted
           this.repository.count({
             where: {
-              deletedAt: Between(new Date(0), now) as any
+              deletedAt: Between(new Date(0), now)
             }
           })
         ])

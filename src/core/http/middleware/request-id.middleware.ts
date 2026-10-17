@@ -12,7 +12,7 @@ export class RequestIdMiddleware implements NestMiddleware {
     const requestId = this.normalizeRequestId(incoming)
 
     req.id = requestId
-    ;(req as any).requestId = requestId
+    req.requestId = requestId
     res.setHeader(HEADER_NAME, requestId)
 
     next()

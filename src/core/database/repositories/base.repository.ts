@@ -1,6 +1,13 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
 import { errorMessage } from '@shared/utils/error.util'
-import { DeepPartial, FindManyOptions, FindOptionsWhere, ObjectLiteral, Repository } from 'typeorm'
+import {
+  DeepPartial,
+  FindManyOptions,
+  FindOptionsWhere,
+  ObjectLiteral,
+  type QueryDeepPartialEntity,
+  Repository
+} from 'typeorm'
 
 import { CacheService } from '../../cache/services/cache.service'
 
@@ -83,7 +90,10 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
         }
 
         // Fetch from DB and cache with tags
-        const entity = await this.repository.findOne({ where: { id } as any })
+        // Every entity has an id column; TypeScript cannot prove that for a generic T
+        const entity = await this.repository.findOne({
+          where: { id } as unknown as FindOptionsWhere<T>
+        })
 
         if (entity) {
           if (!options?.bypassCache && this.cacheService) {
@@ -170,7 +180,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Update an entity by ID
    */
   async update(id: string | number, data: DeepPartial<T>): Promise<T | null> {
-    await this.repository.update(id as any, data as any)
+    await this.repository.update(id, data as QueryDeepPartialEntity<T>)
 
     // Invalidate both entity-level and instance-level caches
     await this.invalidateCacheByEntityId(id)
@@ -183,7 +193,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Delete an entity by ID
    */
   async delete(id: string | number): Promise<boolean> {
-    const result = await this.repository.delete(id as any)
+    const result = await this.repository.delete(id)
 
     // Invalidate both entity-level and instance-level caches
     await this.invalidateCacheByEntityId(id)
@@ -196,11 +206,12 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Save an entity (create or update)
    */
   async save(entity: T | DeepPartial<T>): Promise<T> {
-    const saved = await this.repository.save(entity as any)
+    const saved = await this.repository.save(entity as DeepPartial<T>)
 
     // Invalidate caches
-    if ((saved as any).id) {
-      await this.invalidateCacheByEntityId((saved as any).id)
+    const savedId = (saved as { id?: string | number }).id
+    if (savedId) {
+      await this.invalidateCacheByEntityId(savedId)
     }
     await this.invalidateCacheByTag()
 

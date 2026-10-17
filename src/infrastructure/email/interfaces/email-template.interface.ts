@@ -3,7 +3,9 @@ export enum EmailTemplate {
   EMAIL_VERIFICATION = 'verification',
   EMAIL_VERIFIED_SUCCESS = 'verified-success',
   PASSWORD_RESET = 'password-reset',
-  PASSWORD_CHANGED = 'password-changed'
+  PASSWORD_CHANGED = 'password-changed',
+  ACCOUNT_LOCKED = 'account-locked',
+  ACCOUNT_UNLOCKED = 'account-unlocked'
 }
 
 export interface EmailTemplateContext {

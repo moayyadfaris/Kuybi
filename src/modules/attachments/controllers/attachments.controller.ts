@@ -105,8 +105,8 @@ export class AttachmentsController {
     const useAsync = body.async ?? process.env.ATTACHMENT_ASYNC_PROCESSING === 'true'
 
     const result = useAsync
-      ? await this.attachmentService.uploadAttachmentAsync(file as any, body, userId)
-      : await this.attachmentService.uploadAttachment(file as any, body, userId)
+      ? await this.attachmentService.uploadAttachmentAsync(file, body, userId)
+      : await this.attachmentService.uploadAttachment(file, body, userId)
 
     return {
       attachment: result,

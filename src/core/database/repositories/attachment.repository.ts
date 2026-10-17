@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { DeepPartial, Repository } from 'typeorm'
 
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 
@@ -396,7 +396,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
    * Override create to invalidate list caches on new uploads
    */
   async create(data: Partial<Attachment>): Promise<Attachment> {
-    const attachment = await super.create(data as any)
+    const attachment = await super.create(data as DeepPartial<Attachment>)
     await this.invalidateListCaches()
     return attachment
   }

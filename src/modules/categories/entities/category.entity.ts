@@ -20,8 +20,8 @@ export class Category {
   @Column({ length: 140, unique: true })
   slug: string
 
-  @Column({ length: 500, nullable: true })
-  description?: string
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  description?: string | null
 
   @Column({ default: true })
   isActive: boolean
@@ -29,17 +29,17 @@ export class Category {
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, any>
 
-  @Column({ nullable: true })
-  createdBy?: string
+  @Column({ type: 'varchar', nullable: true })
+  createdBy?: string | null
 
-  @Column({ nullable: true })
-  updatedBy?: string
+  @Column({ type: 'varchar', nullable: true })
+  updatedBy?: string | null
 
-  @Column({ nullable: true })
-  deletedBy?: string
+  @Column({ type: 'varchar', nullable: true })
+  deletedBy?: string | null
 
   @Column({ type: 'timestamptz', nullable: true })
-  deletedAt?: Date
+  deletedAt?: Date | null
 
   @Column({ default: 1 })
   version: number

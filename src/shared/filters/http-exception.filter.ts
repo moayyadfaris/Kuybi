@@ -8,6 +8,7 @@ import {
   Logger
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { errorProperty } from '@shared/utils/error.util'
 import { Request, Response } from 'express'
 import { PinoLogger } from 'nestjs-pino'
 
@@ -54,7 +55,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? typeof exceptionResponse === 'string'
           ? exceptionResponse
-          : (exceptionResponse as any)?.message || exception.message
+          : errorProperty<string>(exceptionResponse, 'message') || exception.message
         : exception instanceof Error
           ? exception.message
           : 'Internal server error'
@@ -62,7 +63,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const errorStack = exception instanceof Error ? exception.stack : undefined
 
     // Get request ID for correlation
-    const requestId = (request as any).id || 'unknown'
+    const requestId = request.id || 'unknown'
 
     const safeBody = this.sanitizePayload(request.body)
     const safeQuery = this.sanitizePayload(request.query, false)
@@ -71,7 +72,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     this.logger.error(
       {
         requestId,
-        userId: (request as any).user?.id,
+        userId: request.user?.id,
         method: request.method,
         url: request.url,
         statusCode: status,
@@ -101,11 +102,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       if ('details' in exceptionResponse || 'error' in exceptionResponse) {
         // Pass through Health Check details or other structured errors
         Object.assign(errorResponse.error, exceptionResponse)
-      } else if (
-        (exceptionResponse as any).message &&
-        Array.isArray((exceptionResponse as any).message)
-      ) {
-        errorResponse.error.details = (exceptionResponse as any).message
+      } else {
+        const message = errorProperty<unknown>(exceptionResponse, 'message')
+        if (Array.isArray(message)) {
+          errorResponse.error.details = message
+        }
       }
     }
 

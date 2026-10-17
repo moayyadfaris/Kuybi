@@ -6,7 +6,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { SessionRepository } from '@core/database/repositories/session.repository'
 
-import { Session } from '../entities/session.entity'
+import { Session, SessionTypeValue } from '../entities/session.entity'
 
 export interface CreateSessionOptions {
   userId: string
@@ -14,7 +14,7 @@ export interface CreateSessionOptions {
   userAgent?: string
   deviceType?: string
   fingerprint?: string
-  sessionType?: 'standard' | 'persistent' | 'mobile' | 'api' | 'admin' | 'suspicious' | 'guest'
+  sessionType?: SessionTypeValue
   expiresInDays?: number
   metadata?: Record<string, any>
 }
@@ -221,7 +221,7 @@ export class SessionsService {
       userAgent: options.userAgent || currentSession.userAgent,
       deviceType: options.deviceType || currentSession.deviceType,
       fingerprint: options.fingerprint || currentSession.fingerprint,
-      sessionType: currentSession.sessionType as any,
+      sessionType: currentSession.sessionType,
       expiresInDays: this.defaultSessionDays,
       metadata: {
         ...currentSession.metadata,

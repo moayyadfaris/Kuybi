@@ -198,7 +198,7 @@ export class CategoryRepository extends BaseRepository<Category> {
       deletedAt: new Date(),
       deletedBy,
       isActive: false
-    } as any)
+    })
 
     // Invalidate caches
     await this.invalidateEntityCache(id)
@@ -215,7 +215,7 @@ export class CategoryRepository extends BaseRepository<Category> {
       deletedAt: null,
       deletedBy: null,
       isActive: true
-    } as any)
+    })
 
     // Invalidate caches
     await this.invalidateEntityCache(id)

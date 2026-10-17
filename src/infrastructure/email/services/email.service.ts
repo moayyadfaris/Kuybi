@@ -8,7 +8,7 @@ import { Transporter } from 'nodemailer'
 import SMTPTransport from 'nodemailer/lib/smtp-transport'
 
 import { SendEmailDto } from '../dto/send-email.dto'
-import { EmailOptions } from '../interfaces/email-template.interface'
+import { EmailOptions, EmailTemplate } from '../interfaces/email-template.interface'
 
 import { EmailTemplateService } from './email-template.service'
 
@@ -92,7 +92,7 @@ export class EmailService implements OnModuleInit {
       'Initializing SMTP transporter'
     )
 
-    this.transporter = nodemailer.createTransport(smtpConfig) as any
+    this.transporter = nodemailer.createTransport(smtpConfig)
 
     // Verify connection
     try {
@@ -199,7 +199,7 @@ export class EmailService implements OnModuleInit {
     return this.sendTemplatedEmail({
       to: email,
       subject: 'Welcome to Kuybi! Verify Your Email',
-      template: 'welcome' as any,
+      template: EmailTemplate.WELCOME,
       context: {
         userName,
         verificationLink,
@@ -220,7 +220,7 @@ export class EmailService implements OnModuleInit {
     return this.sendTemplatedEmail({
       to: email,
       subject: 'Verify Your Email Address',
-      template: 'verification' as any,
+      template: EmailTemplate.EMAIL_VERIFICATION,
       context: {
         userName,
         verificationLink,
@@ -237,7 +237,7 @@ export class EmailService implements OnModuleInit {
     return this.sendTemplatedEmail({
       to: email,
       subject: 'Email Verified Successfully',
-      template: 'verified-success' as any,
+      template: EmailTemplate.EMAIL_VERIFIED_SUCCESS,
       context: {
         userName,
         userEmail: email,
@@ -258,7 +258,7 @@ export class EmailService implements OnModuleInit {
     return this.sendTemplatedEmail({
       to: email,
       subject: 'Reset Your Password - Kuybi',
-      template: 'password-reset' as any,
+      template: EmailTemplate.PASSWORD_RESET,
       context: {
         userName,
         userEmail: email,
@@ -280,7 +280,7 @@ export class EmailService implements OnModuleInit {
     return this.sendTemplatedEmail({
       to: email,
       subject: 'Your Password Was Changed - Kuybi',
-      template: 'password-changed' as any,
+      template: EmailTemplate.PASSWORD_CHANGED,
       context: {
         userName,
         userEmail: email,
@@ -312,7 +312,7 @@ export class EmailService implements OnModuleInit {
     return this.sendTemplatedEmail({
       to: email,
       subject: `Account Locked - ${appName}`,
-      template: 'account-locked' as any,
+      template: EmailTemplate.ACCOUNT_LOCKED,
       context: {
         userName,
         userEmail: email,
@@ -351,7 +351,7 @@ export class EmailService implements OnModuleInit {
     return this.sendTemplatedEmail({
       to: email,
       subject: `Account Unlocked - ${appName}`,
-      template: 'account-unlocked' as any,
+      template: EmailTemplate.ACCOUNT_UNLOCKED,
       context: {
         userName,
         userEmail: email,

@@ -11,7 +11,7 @@ import {
   S3Client
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { errorMessage } from '@shared/utils/error.util'
+import { errorMessage, errorProperty } from '@shared/utils/error.util'
 import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { PinoLogger } from 'nestjs-pino'
 import { posix as pathPosix } from 'path'
@@ -173,14 +173,13 @@ export class S3Service {
         this.s3Client.send(command, { abortSignal: signal })
       )
 
-      // Convert stream to buffer
-      const chunks: Buffer[] = []
-      for await (const chunk of result.Body as any) {
-        chunks.push(chunk)
+      if (!result.Body) {
+        throw new Error(`S3 returned an empty body for ${key}`)
       }
+      const bytes = await result.Body.transformToByteArray()
 
       this.logger.info(`File downloaded successfully from S3: ${key}`)
-      return Buffer.concat(chunks)
+      return Buffer.from(bytes)
     } catch (error) {
       this.logger.error(`Failed to download file from S3: ${key}`, error)
       throw new NotFoundException('File not found in storage')
@@ -253,7 +252,7 @@ export class S3Service {
       )
       return true
     } catch (error) {
-      if ((error as any).name === 'NotFound') {
+      if (errorProperty(error, 'name') === 'NotFound') {
         return false
       }
       throw error
