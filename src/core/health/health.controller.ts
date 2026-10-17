@@ -5,6 +5,7 @@ import {
   DiskHealthIndicator,
   HealthCheck,
   HealthCheckService,
+  HealthIndicatorFunction,
   MemoryHealthIndicator,
   TypeOrmHealthIndicator
 } from '@nestjs/terminus'
@@ -30,7 +31,7 @@ export class HealthController {
   @HealthCheck()
   @ApiOkResponse({ description: 'Comprehensive health check status' })
   async check() {
-    const healthIndicators: Array<() => Promise<any>> = [
+    const healthIndicators: HealthIndicatorFunction[] = [
       // Database connectivity
       () => this.db.pingCheck('database'),
 
@@ -39,7 +40,7 @@ export class HealthController {
         const isHealthy = await this.cacheService.isHealthy()
         return {
           redis: {
-            status: isHealthy ? 'up' : 'down'
+            status: isHealthy ? ('up' as const) : ('down' as const)
           }
         }
       },

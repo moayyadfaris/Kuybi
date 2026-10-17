@@ -13,7 +13,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import * as bcrypt from 'bcrypt'
 import { Queue } from 'bullmq'
 import { LoggerModule } from 'nestjs-pino'
-import * as request from 'supertest'
+import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import configuration from '@core/config/configuration'

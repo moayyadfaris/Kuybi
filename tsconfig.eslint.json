@@ -1,5 +1,10 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Lint-only project: never emits, so root config files may import with a .ts extension
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
   "include": ["src/**/*.ts", "test/**/*.ts", "*.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

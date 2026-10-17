@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import * as sharp from 'sharp'
+import sharp from 'sharp'
 
 export interface ThumbnailSize {
   name: string

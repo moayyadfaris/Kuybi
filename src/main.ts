@@ -5,7 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
-import * as compression from 'compression'
+import compression from 'compression'
 import helmet from 'helmet'
 import { Logger, PinoLogger } from 'nestjs-pino'
 

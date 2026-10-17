@@ -8,7 +8,7 @@ import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { LoggerModule } from 'nestjs-pino'
-import * as request from 'supertest'
+import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { AclModule } from '@modules/acl/acl.module'

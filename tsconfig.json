@@ -9,19 +9,22 @@
     "target": "ES2017",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    // TypeScript 6 changed these defaults. Pin the TS 5 behaviour so the upgrade is
+    // semantics-neutral; enabling strict mode is tracked as a separate migration.
+    "strict": false,
     "strictNullChecks": false,
+    "types": ["*"],
     "paths": {
-      "@app/*": ["src/*"],
-      "@modules/*": ["src/modules/*"],
-      "@core/*": ["src/core/*"],
-      "@shared/*": ["src/shared/*"],
-      "@infrastructure/*": ["src/infrastructure/*"],
+      "@app/*": ["./src/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@core/*": ["./src/core/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@infrastructure/*": ["./src/infrastructure/*"],
       // sharp >= 0.35 points "types" at its ESM typings; with CommonJS + node resolution
       // TypeScript must use the CJS typings that match require('sharp') at runtime
-      "sharp": ["node_modules/sharp/dist/index.d.cts"]
+      "sharp": ["./node_modules/sharp/dist/index.d.cts"]
     }
   },
   "include": ["src/**/*"],

@@ -4,7 +4,7 @@ import { RequestIdInterceptor } from '@shared/interceptors/request-id.intercepto
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import { randomUUID } from 'crypto'
 import { LoggerModule, PinoLogger } from 'nestjs-pino'
-import * as request from 'supertest'
+import request from 'supertest'
 
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import * as sharp from 'sharp'
+import sharp from 'sharp'
 
 export interface ImageFormat {
   format: 'jpeg' | 'png' | 'webp' | 'avif'
