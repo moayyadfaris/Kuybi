@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---------- Build stage ----------
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 # Toolchain for native modules (bcrypt, sharp fallback builds)
 RUN apk add --no-cache python3 make g++
@@ -19,7 +19,7 @@ RUN npm run build
 RUN npm prune --omit=dev && npm cache clean --force
 
 # ---------- Runtime stage ----------
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 
 ENV NODE_ENV=production
 WORKDIR /app

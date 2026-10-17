@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Enterprise-grade NestJS backend inspired by Naruto's Kuybi",
   "private": true,
+  "engines": {
+    "node": ">=24.9"
+  },
   "scripts": {
     "build": "nest build",
     "start": "nest start",
@@ -70,7 +73,6 @@
     "@aws-sdk/s3-request-presigner": "^3.916.0",
     "@bull-board/api": "^6.14.0",
     "@bull-board/express": "^6.14.0",
-    "@bull-board/nestjs": "^6.14.0",
     "@casl/ability": "^7.0.2",
     "@keyv/redis": "^5.1.3",
     "@nestjs/bullmq": "^11.0.4",
@@ -173,5 +175,15 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.71.2"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "@sentry/node-cpu-profiler@2.4.4": true,
+    "msgpackr-extract@3.0.4": true,
+    "protobufjs@7.6.6": true,
+    "@parcel/watcher@2.6.0": true,
+    "unrs-resolver@1.12.2": true,
+    "fsevents@2.3.3": true,
+    "@scarf/scarf": false
   }
 }

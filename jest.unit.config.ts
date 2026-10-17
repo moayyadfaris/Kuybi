@@ -1,6 +1,6 @@
 import type { Config } from 'jest'
 
-import baseConfig from './jest.config'
+import baseConfig from './jest.config.ts'
 
 /**
  * Unit tests only: no database/Redis global setup, so this runs anywhere (including CI)
