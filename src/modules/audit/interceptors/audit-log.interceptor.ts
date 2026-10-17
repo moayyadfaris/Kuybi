@@ -1,5 +1,6 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+import { errorProperty } from '@shared/utils/error.util'
 import { Request } from 'express'
 import { Observable, throwError } from 'rxjs'
 import { catchError, tap } from 'rxjs/operators'
@@ -7,6 +8,8 @@ import { catchError, tap } from 'rxjs/operators'
 import { AUDIT_LOG_KEY, AuditLogMetadata } from '../decorators/audit-log.decorator'
 import { AuditStatus } from '../entities/audit-log.entity'
 import { AuditService } from '../services/audit.service'
+
+import { redactSensitive } from './audit-redaction'
 
 /**
  * Interceptor to automatically create audit logs based on @AuditLog decorator
@@ -34,7 +37,7 @@ export class AuditLogInterceptor implements NestInterceptor {
       return next.handle()
     }
 
-    const request = context.switchToHttp().getRequest<Request & { user?: any }>()
+    const request = context.switchToHttp().getRequest<Request>()
     const response = context.switchToHttp().getResponse()
 
     // Extract audit context from request
@@ -45,26 +48,28 @@ export class AuditLogInterceptor implements NestInterceptor {
     const routeEntityId = Array.isArray(paramId) ? paramId[0] : paramId
 
     // Extract entity ID from response or params
-    const getEntityId = (result?: any): string | undefined => {
+    const getEntityId = (result?: unknown): string | undefined => {
       // Try to get from params first (for update/delete operations)
       if (routeEntityId) {
         return routeEntityId
       }
 
       // Try to get from response (for create operations)
-      if (result?.id) {
-        return result.id
+      const id = errorProperty<unknown>(result, 'id')
+      if (typeof id === 'string' || typeof id === 'number') {
+        return String(id)
       }
 
-      if (result?.data?.id) {
-        return result.data.id
+      const nestedId = errorProperty<unknown>(errorProperty(result, 'data'), 'id')
+      if (typeof nestedId === 'string' || typeof nestedId === 'number') {
+        return String(nestedId)
       }
 
       return undefined
     }
 
     // Build metadata
-    const buildMetadata = (result?: any, error?: any) => {
+    const buildMetadata = (result?: unknown, error?: unknown) => {
       const metadata: Record<string, any> = {}
 
       if (auditMetadata.includeBody && request.body) {
@@ -84,8 +89,8 @@ export class AuditLogInterceptor implements NestInterceptor {
       }
 
       if (error) {
-        metadata.errorName = error.name
-        metadata.errorCode = error.code
+        metadata.errorName = errorProperty(error, 'name')
+        metadata.errorCode = errorProperty(error, 'code')
       }
 
       return metadata
@@ -135,47 +140,22 @@ export class AuditLogInterceptor implements NestInterceptor {
   }
 
   /**
-   * Sanitize request body by removing sensitive fields
+   * Redact credentials and tokens at any depth before a request body is stored
    */
-  private sanitizeBody(body: any): any {
-    if (!body || typeof body !== 'object') {
-      return body
-    }
-
-    const sanitized = { ...body }
-    const sensitiveFields = [
-      'password',
-      'currentPassword',
-      'newPassword',
-      'confirmPassword',
-      'token',
-      'accessToken',
-      'refreshToken',
-      'secret',
-      'apiKey',
-      'creditCard',
-      'cvv'
-    ]
-
-    sensitiveFields.forEach(field => {
-      if (field in sanitized) {
-        sanitized[field] = '[REDACTED]'
-      }
-    })
-
-    return sanitized
+  private sanitizeBody(body: unknown): unknown {
+    return redactSensitive(body)
   }
 
   /**
-   * Sanitize response by limiting size and removing sensitive data
+   * Redact sensitive values and cap the size of a response before it is stored
    */
-  private sanitizeResponse(response: any): any {
+  private sanitizeResponse(response: unknown): unknown {
     if (!response) {
       return response
     }
 
-    // Limit response size to prevent huge audit logs
-    const stringified = JSON.stringify(response)
+    const redacted = redactSensitive(response)
+    const stringified = JSON.stringify(redacted)
     if (stringified.length > 5000) {
       return {
         _truncated: true,
@@ -184,6 +164,6 @@ export class AuditLogInterceptor implements NestInterceptor {
       }
     }
 
-    return response
+    return redacted
   }
 }

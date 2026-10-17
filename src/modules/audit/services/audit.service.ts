@@ -55,11 +55,11 @@ export class AuditService {
   /**
    * Extract audit context from HTTP request
    */
-  extractContextFromRequest(req: Request & { user?: any }): AuditContext {
+  extractContextFromRequest(req: Request): AuditContext {
     return this.contextFactory.fromRequest(req)
   }
 
-  createContextFromRequest(req: Request & { user?: any }, user?: ContextUser): AuditContext {
+  createContextFromRequest(req: Request, user?: ContextUser): AuditContext {
     const base = this.contextFactory.fromRequest(req)
     return user ? this.contextFactory.withUser(base, user) : base
   }
@@ -280,11 +280,7 @@ export class AuditService {
     })
   }
 
-  async logLoginFromRequest(
-    req: Request & { user?: any },
-    user?: ContextUser,
-    metadata?: Record<string, any>
-  ) {
+  async logLoginFromRequest(req: Request, user?: ContextUser, metadata?: Record<string, any>) {
     return this.logLogin(this.createContextFromRequest(req, user), metadata)
   }
 
@@ -301,11 +297,7 @@ export class AuditService {
     })
   }
 
-  async logLogoutFromRequest(
-    req: Request & { user?: any },
-    user?: ContextUser,
-    metadata?: Record<string, any>
-  ) {
+  async logLogoutFromRequest(req: Request, user?: ContextUser, metadata?: Record<string, any>) {
     return this.logLogout(this.createContextFromRequest(req, user), metadata)
   }
 
@@ -322,11 +314,7 @@ export class AuditService {
     })
   }
 
-  async logLogoutAllFromRequest(
-    req: Request & { user?: any },
-    sessionCount: number,
-    user?: ContextUser
-  ) {
+  async logLogoutAllFromRequest(req: Request, sessionCount: number, user?: ContextUser) {
     return this.logLogoutAll(this.createContextFromRequest(req, user), sessionCount)
   }
 
@@ -346,11 +334,7 @@ export class AuditService {
     })
   }
 
-  async logPasswordChangeFromRequest(
-    req: Request & { user?: any },
-    forced: boolean = false,
-    user?: ContextUser
-  ) {
+  async logPasswordChangeFromRequest(req: Request, forced: boolean = false, user?: ContextUser) {
     return this.logPasswordChange(this.createContextFromRequest(req, user), forced)
   }
 
@@ -371,7 +355,7 @@ export class AuditService {
   }
 
   async logPasswordResetFromRequest(
-    req: Request & { user?: any },
+    req: Request,
     resetByAdmin: boolean = false,
     user?: ContextUser
   ) {
