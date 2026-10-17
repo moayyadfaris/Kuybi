@@ -11,10 +11,18 @@
     "outDir": "./dist",
     "incremental": true,
     "skipLibCheck": true,
-    // TypeScript 6 changed these defaults. Pin the TS 5 behaviour so the upgrade is
-    // semantics-neutral; enabling strict mode is tracked as a separate migration.
+    // Strict mode is being enabled one flag at a time (Phase 4). "strict" stays false until
+    // every flag below is on; then this block collapses to "strict": true.
     "strict": false,
+    "alwaysStrict": true,
+    "noImplicitThis": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictBuiltinIteratorReturn": true,
+    "noImplicitAny": false,
+    "useUnknownInCatchVariables": false,
     "strictNullChecks": false,
+    "strictPropertyInitialization": false,
     "types": ["*"],
     "paths": {
       "@app/*": ["./src/*"],
