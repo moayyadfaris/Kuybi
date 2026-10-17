@@ -1,7 +1,9 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { createReadStream, promises as fsPromises } from 'fs'
+import { errorMessage } from '@shared/utils/error.util'
+import { postFile } from '@shared/utils/post-file.util'
+import { promises as fsPromises } from 'fs'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import * as path from 'path'
 
@@ -145,24 +147,9 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      const fetchFn = (globalThis as any).fetch
-      if (typeof fetchFn !== 'function') {
-        this.logger.warn(
-          { endpoint },
-          'Log shipper is enabled but fetch is unavailable in this runtime'
-        )
-        return
-      }
-
-      const stream = createReadStream(filePath)
-      const response = await fetchFn(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'X-Log-Filename': path.basename(filePath),
-          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
-        },
-        body: stream as any
+      const response = await postFile(endpoint, filePath, {
+        'X-Log-Filename': path.basename(filePath),
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
       })
 
       if (!response.ok) {
@@ -172,7 +159,7 @@ export class LogMaintenanceService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.info({ filePath, endpoint }, 'Shipped log archive to remote sink')
     } catch (error) {
-      this.logger.error({ filePath, error: (error as Error).message }, 'Failed to ship log archive')
+      this.logger.error({ filePath, error: errorMessage(error) }, 'Failed to ship log archive')
     }
   }
 
