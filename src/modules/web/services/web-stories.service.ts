@@ -16,11 +16,13 @@ export class WebStoriesService {
    * Only returns published stories with sanitized data
    */
   async getPublishedStories(query: WebStoriesQueryDto) {
-    const { search, page = 1, limit = 20 } = query
+    const { search, categorySlug, tag, page = 1, limit = 20 } = query
 
     const result = await this.storyRepository.search({
       status: StoryStatus.PUBLISHED,
       search,
+      categorySlug,
+      tagName: tag,
       page,
       limit,
       sortBy: 'createdAt',

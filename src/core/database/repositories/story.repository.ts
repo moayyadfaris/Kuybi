@@ -298,6 +298,10 @@ export class StoryRepository extends BaseRepository<Story> {
     countryId?: number
     parentId?: number
     categoryIds?: string[]
+    /** Stories that have this category (by slug); does not trim the returned categories */
+    categorySlug?: string
+    /** Stories that have this tag (by name); does not trim the returned tags */
+    tagName?: string
     fromDate?: string
     toDate?: string
     includeDeleted?: boolean
@@ -365,6 +369,25 @@ export class StoryRepository extends BaseRepository<Story> {
     }
 
     // Filter by category IDs (stories that have ANY of the specified categories)
+    // EXISTS filters keep each story's full tag/category lists in the result
+    if (filters.categorySlug) {
+      builder.andWhere(
+        `EXISTS (SELECT 1 FROM story_categories sc
+                   JOIN categories c ON c.id = sc."categoryId"
+                  WHERE sc."storyId" = story.id AND c.slug = :categorySlug)`,
+        { categorySlug: filters.categorySlug }
+      )
+    }
+
+    if (filters.tagName) {
+      builder.andWhere(
+        `EXISTS (SELECT 1 FROM story_tags st
+                   JOIN tags t ON t.id = st."tagId"
+                  WHERE st."storyId" = story.id AND lower(t.name) = lower(:tagName))`,
+        { tagName: filters.tagName }
+      )
+    }
+
     if (filters.categoryIds && filters.categoryIds.length > 0) {
       builder.andWhere('categories.id IN (:...categoryIds)', { categoryIds: filters.categoryIds })
     }

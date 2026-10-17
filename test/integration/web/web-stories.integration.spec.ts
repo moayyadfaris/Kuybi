@@ -14,8 +14,10 @@ import { DataSource } from 'typeorm'
 import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
 import { AclModule } from '@modules/acl/acl.module'
 import { AuthModule } from '@modules/auth/auth.module'
+import { Category } from '@modules/categories/entities/category.entity'
 import { Story, StoryStatus } from '@modules/stories/entities/story.entity'
 import { StoriesModule } from '@modules/stories/stories.module'
+import { Tag } from '@modules/tags/entities/tag.entity'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 import { WebModule } from '@modules/web/web.module'
@@ -32,6 +34,10 @@ import { seedDefaultRoles } from '../../helpers/role-seeder'
 import { testConfig } from '../../test.config'
 
 const TABLES = [
+  'story_tags',
+  'story_categories',
+  'tags',
+  'categories',
   'stories',
   'attachments',
   'sessions',
@@ -170,6 +176,77 @@ describe('Public web stories API', () => {
       expectNoFields(story, PRIVATE_STORY_FIELDS)
       expectNoFields(story.user, [...SECRET_USER_FIELDS, ...PRIVATE_USER_FIELDS])
       expect(story.user).toEqual({ id: author.id, name: 'Story Author' })
+    })
+  })
+
+  describe('filters', () => {
+    let tagged: Story
+
+    beforeEach(async () => {
+      const category = await dataSource.getRepository(Category).save({
+        name: 'Technology',
+        slug: 'technology',
+        isActive: true,
+        metadata: {}
+      })
+      const other = await dataSource.getRepository(Category).save({
+        name: 'Culture',
+        slug: 'culture',
+        isActive: true,
+        metadata: {}
+      })
+      const tags = dataSource.getRepository(Tag)
+      const nodejs = await tags.save({ name: 'nodejs', createdBy: author.id })
+      const ai = await tags.save({ name: 'ai', createdBy: author.id })
+
+      tagged = await dataSource.getRepository(Story).save({
+        ...(StoryFactory.create({
+          userId: author.id,
+          status: StoryStatus.PUBLISHED,
+          title: 'Tagged story'
+        }) as Story),
+        categories: [category, other],
+        tags: [nodejs, ai]
+      })
+    })
+
+    const titles = (body: { data: Story[] }) => body.data.map(s => s.title).sort()
+
+    it('filters by category slug without trimming the story categories', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/web/v1/stories?categorySlug=technology')
+        .expect(200)
+
+      expect(titles(res.body)).toEqual(['Tagged story'])
+      expect(res.body.data[0].categories.map((c: Category) => c.slug).sort()).toEqual([
+        'culture',
+        'technology'
+      ])
+    })
+
+    it('filters by tag name without trimming the story tags', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/web/v1/stories?tag=nodejs')
+        .expect(200)
+
+      expect(titles(res.body)).toEqual(['Tagged story'])
+      expect(res.body.data[0].tags.map((t: Tag) => t.name).sort()).toEqual(['ai', 'nodejs'])
+    })
+
+    it('returns every published story when no filter is given', async () => {
+      const res = await request(app.getHttpServer()).get('/api/web/v1/stories').expect(200)
+
+      expect(titles(res.body)).toEqual(['Published story', 'Tagged story'])
+      expect(res.body.total).toBe(2)
+    })
+
+    it('returns no stories for an unknown category', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/web/v1/stories?categorySlug=does-not-exist')
+        .expect(200)
+
+      expect(res.body.data).toEqual([])
+      expect(tagged.id).toBeDefined()
     })
   })
 
