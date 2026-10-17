@@ -49,6 +49,10 @@ const DEFAULT_ALLOWED_ATTRIBUTES = {
   img: ['src', 'alt', 'title', 'width', 'height']
 }
 
+function flattenAllowedAttributes(attributes: Record<string, string[]> | string[]): string[] {
+  return Array.isArray(attributes) ? attributes : [...new Set(Object.values(attributes).flat())]
+}
+
 /**
  * Sanitize HTML content to prevent XSS attacks
  * Uses DOMPurify to clean HTML while preserving allowed tags
@@ -73,7 +77,8 @@ class SanitizeHtmlConstraint implements ValidatorConstraintInterface {
 
   private sanitize(value: string, options: SanitizeHtmlOptions = {}): string {
     if (options.stripTags) {
-      return value.replace(/<[^>]*>/g, '')
+      // A regex like /<[^>]*>/ leaves unclosed tags ("<img src=x onerror=...") behind
+      return String(DOMPurify.sanitize(value, { ALLOWED_TAGS: [], KEEP_CONTENT: true }))
     }
 
     if (options.escapeHtml) {
@@ -86,9 +91,13 @@ class SanitizeHtmlConstraint implements ValidatorConstraintInterface {
         .replace(/\//g, '&#x2F;')
     }
 
-    const config: any = {
+    const config: NonNullable<Parameters<typeof DOMPurify.sanitize>[1]> = {
       ALLOWED_TAGS: options.allowedTags || DEFAULT_ALLOWED_TAGS,
-      ALLOWED_ATTR: options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES
+      // DOMPurify takes a flat list of attribute names; a per-tag map is silently
+      // ignored and its broad defaults (style, class, ...) apply instead
+      ALLOWED_ATTR: flattenAllowedAttributes(
+        options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES
+      )
     }
 
     if (options.allowedSchemes) {
