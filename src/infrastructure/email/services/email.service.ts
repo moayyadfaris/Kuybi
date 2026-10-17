@@ -57,7 +57,7 @@ export class EmailService implements OnModuleInit {
     const user = this.configService.get<string>('email.smtp.user')
     const pass = this.configService.get<string>('email.smtp.password')
 
-    const smtpConfig: any = {
+    const smtpConfig: SMTPTransport.Options = {
       host,
       port,
       secure,
@@ -66,7 +66,8 @@ export class EmailService implements OnModuleInit {
         pass
       },
       // Advanced connection settings to fix IPv6 issues
-      family: 4, // Force IPv4
+      // nodemailer chooses IPv4/IPv6 itself; it has no `family` option (the old
+      // `family: 4` was silently ignored)
       dnsTimeout: 30000,
       connectionTimeout: 30000,
       greetingTimeout: 30000,

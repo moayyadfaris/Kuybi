@@ -107,13 +107,13 @@ export class ResponseContentDto {
 
   @ApiPropertyOptional({ description: 'Attachments' })
   @Expose()
-  attachments?: any[]
+  attachments?: unknown[]
 
   @ApiPropertyOptional({ description: 'Tags' })
   @Expose()
-  tags?: any[]
+  tags?: unknown[]
 
   @ApiPropertyOptional({ description: 'Categories' })
   @Expose()
-  categories?: any[]
+  categories?: unknown[]
 }

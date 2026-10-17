@@ -245,7 +245,7 @@ export class ContentController {
     }
 
     // Map field_data to fieldData for service
-    const serviceData: any = {}
+    const serviceData: Parameters<ContentService['update']>[1] = {}
     if (updateContentDto.title) serviceData.title = updateContentDto.title
     if (updateContentDto.excerpt) serviceData.excerpt = updateContentDto.excerpt
     if (updateContentDto.field_data) serviceData.fieldData = updateContentDto.field_data

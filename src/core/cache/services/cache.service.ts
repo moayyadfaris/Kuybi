@@ -12,6 +12,41 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
  * Provides helper methods for cache operations
  * Abstracts cache-manager for easier testing and maintenance
  */
+/**
+ * Structural view of the cache-manager / Keyv / Redis objects this service probes.
+ * Store internals differ across cache-manager v5-v7, Keyv and the Redis client in use
+ * (node-redis or ioredis), so every member is optional and checked before use.
+ */
+interface RedisClientLike {
+  scanIterator?: (options: { MATCH: string }) => AsyncIterable<string | Buffer>
+  keys?: (pattern: string) => Promise<string[]>
+  sadd?: (key: string, member: string) => Promise<unknown>
+  smembers?: (key: string) => Promise<string[]>
+  expire?: (key: string, seconds: number) => Promise<unknown>
+  del?: (key: string) => Promise<unknown>
+  call?: (command: string, ...args: (string | number)[]) => Promise<unknown>
+  sendCommand?: (args: string[]) => Promise<unknown>
+}
+
+interface KeyvStoreLike {
+  client?: RedisClientLike
+  _client?: RedisClientLike
+  namespace?: string
+  _namespace?: string
+}
+
+interface KeyvLike {
+  _store?: KeyvStoreLike
+  store?: KeyvStoreLike & { reset?: () => Promise<void> }
+  opts?: { store?: KeyvStoreLike; namespace?: string }
+  _namespace?: string
+  iterator?: (namespace?: string) => AsyncIterable<[string, unknown]>
+}
+
+interface CacheStoreLike extends KeyvLike {
+  stores?: KeyvLike[]
+}
+
 @Injectable()
 export class CacheService {
   private readonly timeoutMs: number
@@ -84,7 +119,7 @@ export class CacheService {
    */
   async reset(): Promise<void> {
     await this.executeWithResilience('reset', async () => {
-      const cacheStore: any = this.cacheManager
+      const cacheStore = this.cacheManager as unknown as CacheStoreLike
       if (cacheStore.store?.reset) {
         await cacheStore.store.reset()
       } else {
@@ -200,9 +235,9 @@ export class CacheService {
 
     const redisClient = this.getRedisClient()
 
-    const cacheStore: any = this.cacheManager
-    const keyvInstance: any = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
-    const keyvStore: any =
+    const cacheStore = this.cacheManager as unknown as CacheStoreLike
+    const keyvInstance: KeyvLike = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
+    const keyvStore: KeyvStoreLike | null =
       keyvInstance?._store ?? keyvInstance?.store ?? keyvInstance?.opts?.store ?? null
 
     const namespace: string =
@@ -281,7 +316,7 @@ export class CacheService {
               // Try multiple ways to execute redis commands (ioredis vs node-redis vs wrappers)
               if (typeof redisClient.sadd === 'function') {
                 await redisClient.sadd(tagKey, key)
-                if (ttl) await redisClient.expire(tagKey, ttl + 300)
+                if (ttl) await redisClient.expire?.(tagKey, ttl + 300)
               } else if (typeof redisClient.call === 'function') {
                 // ioredis generic call
                 await redisClient.call('sadd', tagKey, key)
@@ -392,14 +427,14 @@ export class CacheService {
     this.logger.info({ tags, count: tags.length }, 'Multiple cache tags invalidated')
   }
 
-  private getRedisClient(): any {
-    const cacheStore: any = this.cacheManager
+  private getRedisClient(): RedisClientLike | null {
+    const cacheStore = this.cacheManager as unknown as CacheStoreLike
     // Robust discovery logic for cache-manager v5/v6/v7 and Keyv
-    const keyvInstance: any = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
-    const keyvStore: any =
+    const keyvInstance: KeyvLike = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
+    const keyvStore: KeyvStoreLike | null =
       keyvInstance?._store ?? keyvInstance?.store ?? keyvInstance?.opts?.store ?? null
 
-    const redisClient: any =
+    const redisClient: RedisClientLike | null =
       keyvStore?.client ??
       keyvStore?._client ??
       cacheStore?.store?.client ??

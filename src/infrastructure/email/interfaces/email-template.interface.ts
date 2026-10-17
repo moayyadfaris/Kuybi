@@ -30,7 +30,7 @@ export interface EmailTemplateContext {
   ipAddress?: string
 
   // Additional context
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface EmailOptions {
