@@ -21,10 +21,7 @@
       "@modules/*": ["./src/modules/*"],
       "@core/*": ["./src/core/*"],
       "@shared/*": ["./src/shared/*"],
-      "@infrastructure/*": ["./src/infrastructure/*"],
-      // sharp >= 0.35 points "types" at its ESM typings; with CommonJS + node resolution
-      // TypeScript must use the CJS typings that match require('sharp') at runtime
-      "sharp": ["./node_modules/sharp/dist/index.d.cts"]
+      "@infrastructure/*": ["./src/infrastructure/*"]
     }
   },
   "include": ["src/**/*"],

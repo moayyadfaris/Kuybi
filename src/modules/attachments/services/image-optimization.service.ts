@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import sharp from 'sharp'
+import sharp, { type Metadata, type Sharp } from 'sharp'
 
 export interface ImageFormat {
   format: 'jpeg' | 'png' | 'webp' | 'avif'
@@ -24,7 +24,7 @@ export interface ResponsiveImageSet {
     }
   }
   placeholder: Buffer // Tiny blurred image for lazy loading
-  metadata: sharp.Metadata
+  metadata: Metadata
 }
 
 export interface OptimizationOptions {
@@ -356,7 +356,7 @@ export class ImageOptimizationService {
    * Apply smart compression based on image format and content
    */
   private async applySmartCompression(
-    image: sharp.Sharp,
+    image: Sharp,
     format: string | undefined,
     quality: number
   ): Promise<Buffer> {

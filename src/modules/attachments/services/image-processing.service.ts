@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import sharp from 'sharp'
+import sharp, { type FitEnum, type Metadata } from 'sharp'
 
 export interface ThumbnailSize {
   name: string
   width: number
   height?: number
-  fit?: keyof sharp.FitEnum
+  fit?: keyof FitEnum
   format?: 'jpeg' | 'png' | 'webp'
 }
 
@@ -46,7 +46,7 @@ export class ImageProcessingService {
   /**
    * Get image metadata
    */
-  async getMetadata(buffer: Buffer): Promise<sharp.Metadata> {
+  async getMetadata(buffer: Buffer): Promise<Metadata> {
     try {
       return await sharp(buffer).metadata()
     } catch (error) {
@@ -62,7 +62,7 @@ export class ImageProcessingService {
     width: number,
     height?: number,
     options: {
-      fit?: keyof sharp.FitEnum
+      fit?: keyof FitEnum
       withoutEnlargement?: boolean
       quality?: number
       format?: 'jpeg' | 'png' | 'webp'

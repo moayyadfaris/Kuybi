@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import sharp from 'sharp'
+import sharp, { type WriteableMetadata } from 'sharp'
 
 export interface ExifData {
   camera?: {
@@ -115,7 +115,7 @@ export class ExifProcessorService {
       }
 
       // Prepare metadata options
-      const metadataOptions: sharp.WriteableMetadata = {
+      const metadataOptions: WriteableMetadata = {
         orientation: 1 // Reset to standard orientation after rotation
       }
 
