@@ -21,8 +21,8 @@ export interface FieldValidationError {
   fieldType: FieldType
   errorCode: string
   message: string
-  value?: any
-  constraint?: any
+  value?: unknown
+  constraint?: unknown
 }
 
 /**
@@ -61,6 +61,15 @@ const PHONE_DIGITS_REGEX = /^\+?\d{7,15}$/
 const PHONE_FORMAT_REGEX = /^\+?[\d\s().-]+$/
 /** Tolerance for floating point comparison of step multiples */
 const STEP_EPSILON = 1e-9
+
+/** Client-supplied metadata for file, image, gallery and video fields */
+interface FileFieldValue {
+  url?: unknown
+  mimeType?: string
+  size?: number
+  width?: number
+  height?: number
+}
 
 @Injectable()
 export class FieldValidationService {
@@ -131,7 +140,7 @@ export class FieldValidationService {
    */
   private async validateFieldByType(
     fieldDef: FieldDefinition,
-    value: any
+    value: unknown
   ): Promise<FieldValidationError[]> {
     const errors: FieldValidationError[] = []
 
@@ -284,7 +293,7 @@ export class FieldValidationService {
 
   // ========== Text Field Validators ==========
 
-  private validateText(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateText(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -342,12 +351,12 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateTextarea(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateTextarea(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     // Same as text, but typically allows longer content
     return this.validateText(fieldDef, value)
   }
 
-  private validateWysiwyg(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateWysiwyg(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -390,7 +399,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateEmail(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateEmail(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -419,7 +428,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateUrl(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateUrl(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -468,7 +477,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateTel(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateTel(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -513,7 +522,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateCode(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateCode(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -546,7 +555,7 @@ export class FieldValidationService {
 
   // ========== Number Field Validators ==========
 
-  private validateNumber(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateNumber(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     const numValue = typeof value === 'string' ? parseFloat(value) : value
@@ -620,7 +629,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateCurrency(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateCurrency(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     const numValue = typeof value === 'string' ? parseFloat(value) : value
@@ -681,7 +690,7 @@ export class FieldValidationService {
 
   // ========== Date/Time Field Validators ==========
 
-  private validateDate(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateDate(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     let date: Date
@@ -754,12 +763,12 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateDateTime(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateDateTime(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     // Similar to date but includes time
     return this.validateDate(fieldDef, value)
   }
 
-  private validateTime(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateTime(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -790,7 +799,7 @@ export class FieldValidationService {
 
   // ========== Selection Field Validators ==========
 
-  private validateCheckbox(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateCheckbox(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'boolean') {
@@ -806,7 +815,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateRadio(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateRadio(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     const options = fieldDef.fieldOptions || {}
@@ -837,12 +846,12 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateSelect(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateSelect(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     // Same as radio
     return this.validateRadio(fieldDef, value)
   }
 
-  private validateMultiselect(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateMultiselect(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (!Array.isArray(value)) {
@@ -901,18 +910,18 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateToggle(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateToggle(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     // Same as checkbox
     return this.validateCheckbox(fieldDef, value)
   }
 
   // ========== Media Field Validators ==========
 
-  private validateFile(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateFile(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     // Expect either a URL string or file metadata object
-    if (typeof value !== 'string' && typeof value !== 'object') {
+    if (value === null || (typeof value !== 'string' && typeof value !== 'object')) {
       errors.push({
         fieldName: fieldDef.name,
         fieldType: fieldDef.fieldType,
@@ -927,7 +936,8 @@ export class FieldValidationService {
 
     // If it's an object, validate file metadata
     if (typeof value === 'object') {
-      if (!value.url) {
+      const file = value as FileFieldValue
+      if (!file.url) {
         errors.push({
           fieldName: fieldDef.name,
           fieldType: fieldDef.fieldType,
@@ -938,30 +948,30 @@ export class FieldValidationService {
       }
 
       // Validate file type
-      if (options.allowedTypes && value.mimeType) {
+      if (options.allowedTypes && file.mimeType) {
         const allowedTypes = Array.isArray(options.allowedTypes)
           ? options.allowedTypes
           : [options.allowedTypes]
-        if (!allowedTypes.includes(value.mimeType)) {
+        if (!allowedTypes.includes(file.mimeType)) {
           errors.push({
             fieldName: fieldDef.name,
             fieldType: fieldDef.fieldType,
             errorCode: 'INVALID_FILE_TYPE',
             message: `Field '${fieldDef.label}' only accepts: ${allowedTypes.join(', ')}`,
-            value: value.mimeType,
+            value: file.mimeType,
             constraint: allowedTypes
           })
         }
       }
 
       // Validate file size
-      if (options.maxSize && value.size > options.maxSize) {
+      if (options.maxSize && typeof file.size === 'number' && file.size > options.maxSize) {
         errors.push({
           fieldName: fieldDef.name,
           fieldType: fieldDef.fieldType,
           errorCode: 'FILE_TOO_LARGE',
           message: `Field '${fieldDef.label}' file exceeds maximum size of ${options.maxSize} bytes`,
-          value: value.size,
+          value: file.size,
           constraint: options.maxSize
         })
       }
@@ -970,55 +980,56 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateImage(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateImage(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors = this.validateFile(fieldDef, value)
 
     // Additional image-specific validation
-    if (typeof value === 'object' && value.width && value.height) {
+    const image = typeof value === 'object' && value !== null ? (value as FileFieldValue) : null
+    if (image && image.width && image.height) {
       const options = fieldDef.fieldOptions || {}
 
       // Min dimensions
-      if (options.minWidth && value.width < options.minWidth) {
+      if (options.minWidth && image.width < options.minWidth) {
         errors.push({
           fieldName: fieldDef.name,
           fieldType: fieldDef.fieldType,
           errorCode: 'IMAGE_TOO_SMALL',
           message: `Field '${fieldDef.label}' image width must be at least ${options.minWidth}px`,
-          value: value.width,
+          value: image.width,
           constraint: options.minWidth
         })
       }
 
-      if (options.minHeight && value.height < options.minHeight) {
+      if (options.minHeight && image.height < options.minHeight) {
         errors.push({
           fieldName: fieldDef.name,
           fieldType: fieldDef.fieldType,
           errorCode: 'IMAGE_TOO_SMALL',
           message: `Field '${fieldDef.label}' image height must be at least ${options.minHeight}px`,
-          value: value.height,
+          value: image.height,
           constraint: options.minHeight
         })
       }
 
       // Max dimensions
-      if (options.maxWidth && value.width > options.maxWidth) {
+      if (options.maxWidth && image.width > options.maxWidth) {
         errors.push({
           fieldName: fieldDef.name,
           fieldType: fieldDef.fieldType,
           errorCode: 'IMAGE_TOO_LARGE',
           message: `Field '${fieldDef.label}' image width must be at most ${options.maxWidth}px`,
-          value: value.width,
+          value: image.width,
           constraint: options.maxWidth
         })
       }
 
-      if (options.maxHeight && value.height > options.maxHeight) {
+      if (options.maxHeight && image.height > options.maxHeight) {
         errors.push({
           fieldName: fieldDef.name,
           fieldType: fieldDef.fieldType,
           errorCode: 'IMAGE_TOO_LARGE',
           message: `Field '${fieldDef.label}' image height must be at most ${options.maxHeight}px`,
-          value: value.height,
+          value: image.height,
           constraint: options.maxHeight
         })
       }
@@ -1027,7 +1038,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateGallery(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateGallery(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (!Array.isArray(value)) {
@@ -1082,14 +1093,14 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateVideo(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateVideo(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     // Similar to file validation
     return this.validateFile(fieldDef, value)
   }
 
   // ========== Relationship Field Validators ==========
 
-  private validateRelation(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateRelation(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     const options = fieldDef.fieldOptions || {}
@@ -1147,19 +1158,19 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateUser(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateUser(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     // Same as relation - validates UUIDs
     return this.validateRelation(fieldDef, value)
   }
 
-  private validateTaxonomy(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateTaxonomy(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     // Same as relation - validates UUIDs
     return this.validateRelation(fieldDef, value)
   }
 
   // ========== Advanced Field Validators ==========
 
-  private validateColor(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateColor(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'string') {
@@ -1203,7 +1214,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateJson(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateJson(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     // JSON fields accept objects or arrays
@@ -1238,7 +1249,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateRepeater(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateRepeater(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (!Array.isArray(value)) {
@@ -1294,7 +1305,7 @@ export class FieldValidationService {
     return errors
   }
 
-  private validateGroup(fieldDef: FieldDefinition, value: any): FieldValidationError[] {
+  private validateGroup(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
     const errors: FieldValidationError[] = []
 
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -1315,7 +1326,7 @@ export class FieldValidationService {
   /**
    * Calculate the depth of a nested object
    */
-  private getObjectDepth(obj: any, currentDepth = 1): number {
+  private getObjectDepth(obj: unknown, currentDepth = 1): number {
     if (typeof obj !== 'object' || obj === null) {
       return currentDepth
     }

@@ -235,6 +235,21 @@ describe('FieldValidationService validators', () => {
       ).toEqual(['FILE_TOO_LARGE'])
     })
 
+    it('rejects a null file value with INVALID_TYPE instead of crashing', async () => {
+      expect(await codesFor(FieldType.FILE, null)).toEqual([])
+      const required = {
+        name: 'f',
+        label: 'F',
+        fieldType: FieldType.FILE,
+        isRequired: true,
+        validationRules: {},
+        fieldOptions: {}
+      } as unknown as FieldDefinition
+      const result = await service.validateFieldData([required], { f: null })
+      expect(result.errors.map(e => e.errorCode)).not.toContain('VALIDATION_ERROR')
+      expect(result.isValid).toBe(false)
+    })
+
     it('image enforces dimension options', async () => {
       const image = { url: 'https://cdn.example.com/a.png', width: 100, height: 50 }
       expect(await codesFor(FieldType.IMAGE, image, {}, { minWidth: 200 })).toEqual([
