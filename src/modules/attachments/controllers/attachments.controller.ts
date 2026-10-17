@@ -43,6 +43,7 @@ import {
   UploadAttachmentDto
 } from '../dto'
 import { AttachmentService } from '../services/attachment.service'
+import { MAX_UPLOAD_BYTES } from '../services/file-validation.service'
 
 interface AuthenticatedRequest extends Request {
   user?: User
@@ -83,7 +84,13 @@ export class AttachmentsController {
     }
   })
   @ApiOkResponse({ description: 'Attachment uploaded successfully' })
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      // Reject oversized uploads while streaming instead of buffering them first
+      limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 }
+    })
+  )
   async upload(
     @UploadedFile() file: any,
     @Body() body: UploadAttachmentDto,
@@ -133,7 +140,12 @@ export class AttachmentsController {
     }
   })
   @ApiOkResponse({ description: 'Bulk attachments uploaded' })
-  @UseInterceptors(FilesInterceptor('files', 20, { storage: memoryStorage() }))
+  @UseInterceptors(
+    FilesInterceptor('files', 20, {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_UPLOAD_BYTES, files: 20 }
+    })
+  )
   async bulkUpload(
     @UploadedFiles() files: Express.Multer.File[],
     @Body() body: UploadAttachmentDto,

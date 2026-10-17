@@ -69,6 +69,8 @@ export class AttachmentService {
     if (!validationResult.isValid) {
       throw new BadRequestException('File validation failed: ' + validationResult.errors.join(', '))
     }
+    // From here on use the content-verified type, never the client-declared one
+    file.mimetype = validationResult.verifiedMimeType ?? file.mimetype
 
     const isPublic = shouldForcePublic(dto.category) || dto.isPublic
     const isImage = file.mimetype.startsWith('image/')
@@ -252,6 +254,8 @@ export class AttachmentService {
     if (!validationResult.isValid) {
       throw new BadRequestException('File validation failed: ' + validationResult.errors.join(', '))
     }
+    // From here on use the content-verified type, never the client-declared one
+    file.mimetype = validationResult.verifiedMimeType ?? file.mimetype
 
     const isPublic = shouldForcePublic(dto.category) || dto.isPublic
     const isImage = file.mimetype.startsWith('image/')

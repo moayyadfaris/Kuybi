@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { isUtf8 } from 'buffer'
+import { fileTypeFromBuffer } from 'file-type'
 import * as mime from 'mime-types'
 import * as path from 'path'
 
@@ -16,7 +18,10 @@ export interface FileValidationResult {
   isValid: boolean
   errors: string[]
   warnings: string[]
+  /** Type detected from the file's content (magic number) */
   detectedMimeType?: string
+  /** Content-verified type that is safe to store and serve the file with */
+  verifiedMimeType?: string
 }
 
 export interface FileValidationOptions {
@@ -26,6 +31,12 @@ export interface FileValidationOptions {
   checkSecurity?: boolean
   maxSize?: number
 }
+
+/**
+ * Hard ceiling for a single uploaded file, enforced by multer while streaming (before the
+ * file is buffered in memory). Must be >= the largest per-category limit below (video).
+ */
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
 @Injectable()
 export class FileValidationService {
@@ -38,7 +49,6 @@ export class FileValidationService {
       'image/gif',
       'image/webp',
       'image/bmp',
-      'image/svg+xml',
       'image/tiff'
     ],
     videos: [
@@ -59,8 +69,7 @@ export class FileValidationService {
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'text/plain',
       'text/csv',
-      'application/json',
-      'application/xml'
+      'application/json'
     ],
     archives: [
       'application/zip',
@@ -69,6 +78,32 @@ export class FileValidationService {
       'application/x-tar',
       'application/gzip'
     ]
+  }
+
+  // SVG and XML are deliberately not allowed: both can carry script that runs when the
+  // file is opened in a browser (stored XSS from a public bucket or CDN).
+
+  // Formats without a magic number; verified as UTF-8 text instead
+  private readonly textMimeTypes = ['text/plain', 'text/csv', 'application/json']
+
+  // Legacy Office formats are OLE compound files; content detection reports the container
+  private readonly legacyOfficeMimeTypes = [
+    'application/msword',
+    'application/vnd.ms-excel',
+    'application/vnd.ms-powerpoint'
+  ]
+
+  // Office Open XML formats are ZIP containers; detection may report plain ZIP
+  private readonly openXmlMimeTypes = [
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  ]
+
+  // Declared aliases -> the name content detection uses
+  private readonly mimeAliases: Record<string, string> = {
+    'image/jpg': 'image/jpeg',
+    'video/x-msvideo': 'video/vnd.avi'
   }
 
   // Dangerous file extensions that should never be allowed
@@ -95,7 +130,7 @@ export class FileValidationService {
   // Max file sizes by type (in bytes)
   private readonly maxSizes = {
     image: 5 * 1024 * 1024, // 5MB
-    video: 100 * 1024 * 1024, // 100MB
+    video: MAX_UPLOAD_BYTES, // 100MB
     document: 10 * 1024 * 1024, // 10MB
     archive: 50 * 1024 * 1024, // 50MB
     default: 10 * 1024 * 1024 // 10MB
@@ -137,9 +172,12 @@ export class FileValidationService {
       this.performSecurityChecks(file, result)
     }
 
-    // MIME type validation
+    // MIME type validation: declared type must be allowed and match the actual content
     if (opts.checkMimeType) {
       this.validateMimeType(file, result)
+      if (result.isValid) {
+        await this.verifyContentMatchesDeclaredType(file, result)
+      }
     }
 
     // Extension validation
@@ -198,12 +236,52 @@ export class FileValidationService {
       result.errors.push(`File extension '${ext}' is not allowed for security reasons`)
       result.isValid = false
     }
+  }
 
-    // Check if extension matches allowed MIME types
-    const expectedMimeType = mime.lookup(file.originalname)
-    if (expectedMimeType) {
-      result.detectedMimeType = expectedMimeType
+  /**
+   * Compare the declared MIME type with the file's actual content.
+   * The declared type comes from the client and must never be trusted on its own.
+   */
+  private async verifyContentMatchesDeclaredType(
+    file: MulterFile,
+    result: FileValidationResult
+  ): Promise<void> {
+    const declared = this.mimeAliases[file.mimetype] ?? file.mimetype
+    const detected = file.buffer?.length ? await fileTypeFromBuffer(file.buffer) : undefined
+    result.detectedMimeType = detected?.mime
+
+    const reject = (message: string) => {
+      result.errors.push(message)
+      result.isValid = false
     }
+
+    if (this.textMimeTypes.includes(declared)) {
+      if (detected) {
+        return reject(`File declared as '${file.mimetype}' but its content is '${detected.mime}'`)
+      }
+      if (!isUtf8(file.buffer) || file.buffer.includes(0)) {
+        return reject(`File declared as '${file.mimetype}' but its content is not plain text`)
+      }
+      result.verifiedMimeType = declared
+      return
+    }
+
+    if (!detected) {
+      return reject('Unable to determine the file type from its content')
+    }
+
+    const matches =
+      detected.mime === declared ||
+      (detected.mime === 'application/x-cfb' && this.legacyOfficeMimeTypes.includes(declared)) ||
+      (detected.mime === 'application/zip' && this.openXmlMimeTypes.includes(declared))
+
+    if (!matches) {
+      return reject(`File declared as '${file.mimetype}' but its content is '${detected.mime}'`)
+    }
+
+    // Office containers keep the more specific declared type; everything else uses
+    // the detected one
+    result.verifiedMimeType = detected.mime === declared ? detected.mime : declared
   }
 
   /**
@@ -265,17 +343,15 @@ export class FileValidationService {
    * Check consistency between MIME type and extension
    */
   private checkMimeTypeExtensionConsistency(file: MulterFile, result: FileValidationResult): void {
-    if (!result.detectedMimeType) {
+    const extensionMimeType = mime.lookup(file.originalname)
+    if (!extensionMimeType) {
       return
     }
 
-    // Allow some flexibility for common cases
-    const mimeTypeCategory = this.getFileCategory(file.mimetype)
-    const detectedCategory = this.getFileCategory(result.detectedMimeType)
-
-    if (mimeTypeCategory !== detectedCategory) {
+    // The extension is informational only; content verification is what matters
+    if (this.getFileCategory(file.mimetype) !== this.getFileCategory(extensionMimeType)) {
       result.warnings.push(
-        `Declared MIME type '${file.mimetype}' doesn't match detected type '${result.detectedMimeType}'`
+        `Declared MIME type '${file.mimetype}' doesn't match the file extension ('${extensionMimeType}')`
       )
     }
   }
