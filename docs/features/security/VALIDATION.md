@@ -2,6 +2,18 @@
 
 Comprehensive input sanitization and validation following NestJS best practices.
 
+> **Current status (verified October 2026)**
+>
+> - **Applied globally:** only `ValidationPipe` (`whitelist: true`, `transform: true`) in
+>   `src/main.ts`. Unknown properties are stripped and DTO types are enforced.
+> - **Applied to uploads:** `FileValidationService` content verification and size limits
+>   (see [File Upload Validation](#5-file-upload-validation)).
+> - **Available but not applied anywhere:** `SanitizationPipe`, `HtmlSanitizationPipe`,
+>   `PayloadSizePipe` and the `@Sanitize*` / `@Trim` / `@RemoveScripts` decorators. They are
+>   used only by `src/shared/dto/example-secure.dto.ts`. The sections below describe how to
+>   adopt them; until then, user-supplied HTML (for example story `details`) is stored as
+>   submitted and must be escaped or sanitized by the client that renders it.
+
 ## Architecture
 
 ```
@@ -9,17 +21,20 @@ src/shared/
 ├── decorators/
 │   └── sanitization.decorator.ts  # Custom class-validator decorators
 └── pipes/
-    ├── sanitization.pipe.ts        # Global sanitization pipes
-    └── file-validation.pipe.ts     # File upload validation
+    └── sanitization.pipe.ts        # Sanitization pipes (opt-in, not applied)
+src/modules/attachments/services/
+└── file-validation.service.ts      # Upload validation (applied)
 ```
 
 ## Features
 
+Items marked _opt-in_ are implemented but not applied to any route (see status above).
+
 - ✅ **No class-transformer dependency** for sanitization (using class-validator only)
-- ✅ **XSS Prevention** with DOMPurify integration
-- ✅ **SQL Injection Protection** (basic layer)
-- ✅ **File Upload Validation** with magic number verification
-- ✅ **Payload Size Limits**
+- ✅ **XSS Prevention** with DOMPurify integration (_opt-in_)
+- ✅ **SQL Injection Protection** (basic layer, _opt-in_; queries are parameterized)
+- ✅ **File Upload Validation** with magic number verification (applied)
+- ✅ **Payload Size Limits** (_opt-in_ pipe; uploads limited by multer)
 - ✅ **Custom Validators** using class-validator's `registerDecorator`
 
 ## Usage Examples
