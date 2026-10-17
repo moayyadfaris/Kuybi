@@ -67,7 +67,7 @@ describe('RoleHierarchyGuard', () => {
 
     it('should throw ForbiddenException when no user in request', async () => {
       const mockRequest = {
-        user: null,
+        user: null as unknown,
         body: {},
         params: {},
         url: '/api/v1/user-roles'

@@ -19,6 +19,7 @@ import {
   AdminSetPasswordDto
 } from '../dto/admin-password-management.dto'
 import { AdminUpdateUserDto, AdminUpdateUserResponseDto } from '../dto/admin-update-user.dto'
+import { User } from '../entities/user.entity'
 import { AdminPasswordManagementService } from '../services/admin-password-management.service'
 import { AdminUserManagementService } from '../services/admin-user-management.service'
 
@@ -52,7 +53,7 @@ export class AdminUsersController {
   async updateUser(
     @Param('userId') userId: string,
     @Body() dto: AdminUpdateUserDto,
-    @Request() req
+    @Request() req: { user: User }
   ): Promise<AdminUpdateUserResponseDto> {
     return this.adminUserService.updateUser(userId, dto, req.user.id, req.user.email)
   }
@@ -77,7 +78,7 @@ export class AdminUsersController {
   })
   async resetPassword(
     @Body() dto: AdminResetPasswordDto,
-    @Request() req
+    @Request() req: { user: User }
   ): Promise<AdminPasswordResetResponseDto> {
     return this.adminPasswordService.resetPassword(dto, req.user.id, req.user.email)
   }
@@ -103,7 +104,7 @@ export class AdminUsersController {
   })
   async setPassword(
     @Body() dto: AdminSetPasswordDto,
-    @Request() req
+    @Request() req: { user: User }
   ): Promise<AdminPasswordResetResponseDto> {
     return this.adminPasswordService.setPassword(dto, req.user.id, req.user.email)
   }

@@ -6,6 +6,7 @@ import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import compression from 'compression'
+import { Request, Response } from 'express'
 import helmet from 'helmet'
 import { Logger, PinoLogger } from 'nestjs-pino'
 
@@ -19,16 +20,29 @@ import { AppModule } from './app.module'
 // Initialize tracing before anything else
 initTracing()
 
+interface HttpConfig {
+  host: string
+  port: number
+  corsOrigin: string
+  swaggerEnabled: boolean
+}
+
+interface CompressionConfig {
+  enabled: boolean
+  threshold: number
+  level: number
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true })
   const configService = app.get(ConfigService)
-  const httpConfig = configService.get('http', {
+  const httpConfig = configService.get<HttpConfig>('http', {
     host: '0.0.0.0',
     port: 4040,
     corsOrigin: '*',
     swaggerEnabled: false
   })
-  const compressionConfig = configService.get('compression', {
+  const compressionConfig = configService.get<CompressionConfig>('compression', {
     enabled: true,
     threshold: 1024,
     level: 6
@@ -139,7 +153,7 @@ async function bootstrap() {
       jsonDocumentUrl: 'api/swagger.json'
     })
 
-    app.use('/api/swagger.json', (_req, res) => {
+    app.use('/api/swagger.json', (_req: Request, res: Response) => {
       res.setHeader('Content-Type', 'application/json')
       res.send(document)
     })

@@ -60,7 +60,7 @@ async function checkDatabasePerformance() {
       ORDER BY idx_scan DESC
     `)
 
-    indexes.forEach(idx => {
+    indexes.forEach((idx: Record<string, unknown>) => {
       console.log(`\n  Index: ${idx.indexname}`)
       console.log(`  Scans: ${idx.index_scans}`)
       console.log(`  Tuples read: ${idx.tuples_read}`)
@@ -156,7 +156,7 @@ async function checkDatabasePerformance() {
       )
 
       console.log('\nQuery: Get version history')
-      explain.forEach(line => {
+      explain.forEach((line: Record<string, string>) => {
         console.log(`  ${line['QUERY PLAN']}`)
       })
     }
@@ -174,27 +174,27 @@ async function checkDatabasePerformance() {
       WHERE tablename = 'story_versions'
     `)
 
-    const indexNames = indexCheck.map(i => i.indexname)
+    const indexNames = indexCheck.map((i: { indexname: string }) => i.indexname)
 
-    if (!indexNames.some(name => name.includes('story_id'))) {
+    if (!indexNames.some((name: string) => name.includes('story_id'))) {
       suggestions.push(
         '⚠️  Missing index on story_id - Add: CREATE INDEX idx_story_versions_story_id ON story_versions(story_id)'
       )
     }
 
-    if (!indexNames.some(name => name.includes('branch_name'))) {
+    if (!indexNames.some((name: string) => name.includes('branch_name'))) {
       suggestions.push(
         '⚠️  Missing index on branch_name - Add: CREATE INDEX idx_story_versions_branch ON story_versions(branch_name)'
       )
     }
 
-    if (!indexNames.some(name => name.includes('created_by'))) {
+    if (!indexNames.some((name: string) => name.includes('created_by'))) {
       suggestions.push(
         '⚠️  Missing index on created_by - Add: CREATE INDEX idx_story_versions_created_by ON story_versions(created_by)'
       )
     }
 
-    if (!indexNames.some(name => name.includes('version_number'))) {
+    if (!indexNames.some((name: string) => name.includes('version_number'))) {
       suggestions.push(
         '⚠️  Missing composite index - Add: CREATE INDEX idx_story_versions_story_version ON story_versions(story_id, version_number)'
       )

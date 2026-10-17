@@ -192,7 +192,7 @@ describe('Stories Integration Tests', () => {
         .expect(200)
 
       expect(storyResponse.body.tags).toHaveLength(2)
-      const tagNames = storyResponse.body.tags.map(tag => tag.name).sort()
+      const tagNames = storyResponse.body.tags.map((tag: { name: string }) => tag.name).sort()
       expect(tagNames).toEqual(['economy', 'politics'])
     })
 

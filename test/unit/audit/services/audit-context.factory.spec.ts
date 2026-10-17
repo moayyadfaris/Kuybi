@@ -16,7 +16,7 @@ describe('AuditContextFactory', () => {
       {}
     )
 
-    const request = {
+    const request: Record<string, unknown> = {
       headers,
       protocol: 'http',
       hostname: 'localhost',

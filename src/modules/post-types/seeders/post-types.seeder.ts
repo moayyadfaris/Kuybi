@@ -122,7 +122,7 @@ export class PostTypesSeeder {
    * Create Story field definitions
    */
   private async createStoryFields(postTypeId: string, adminId: string): Promise<void> {
-    const fields = [
+    const fields: Partial<FieldDefinition>[] = [
       // Content field (WYSIWYG editor)
       {
         postTypeId,
@@ -279,7 +279,7 @@ export class PostTypesSeeder {
    * Create Event field definitions
    */
   private async createEventFields(postTypeId: string, adminId: string): Promise<void> {
-    const fields = [
+    const fields: Partial<FieldDefinition>[] = [
       // Event date
       {
         postTypeId,

@@ -20,7 +20,7 @@ export async function resetDatabase(dataSource: DataSource, tables: string[]): P
     await queryRunner.query(`TRUNCATE TABLE ${tables.join(', ')} RESTART IDENTITY CASCADE`)
     await queryRunner.commitTransaction()
   } catch (error) {
-    await queryRunner.rollbackTransaction().catch(() => undefined)
+    await queryRunner.rollbackTransaction().catch((): void => undefined)
 
     if ((error as { code?: string }).code === LOCK_NOT_AVAILABLE) {
       const blockers: Array<{ pid: number; state: string; xact_seconds: number; query: string }> =

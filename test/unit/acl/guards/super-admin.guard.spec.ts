@@ -115,7 +115,7 @@ describe('SuperAdminGuard', () => {
 
     it('should throw ForbiddenException when no user in request', () => {
       const mockRequest = {
-        user: null,
+        user: null as unknown,
         url: '/api/v1/admin/users',
         method: 'GET'
       }
@@ -130,7 +130,7 @@ describe('SuperAdminGuard', () => {
 
     it('should throw ForbiddenException when user is undefined', () => {
       const mockRequest = {
-        user: undefined,
+        user: undefined as unknown,
         url: '/api/v1/admin/users',
         method: 'GET'
       }

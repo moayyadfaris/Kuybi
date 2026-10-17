@@ -25,7 +25,7 @@ import { User } from '@modules/users/entities/user.entity'
  * ```
  */
 export const GetUser = createParamDecorator(
-  (data: string | undefined, ctx: ExecutionContext): User | string => {
+  (data: keyof User | undefined, ctx: ExecutionContext): User | User[keyof User] => {
     const request = ctx.switchToHttp().getRequest()
     const user = request.user as User
 

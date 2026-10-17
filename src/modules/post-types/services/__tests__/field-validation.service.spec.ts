@@ -570,7 +570,7 @@ describe('FieldValidationService', () => {
     it('should not throw if validation passes', () => {
       const result = {
         isValid: true,
-        errors: []
+        errors: [] as never[]
       }
 
       expect(() => service.throwIfInvalid(result)).not.toThrow()

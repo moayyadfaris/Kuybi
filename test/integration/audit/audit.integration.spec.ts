@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import { randomUUID } from 'crypto'
+import { NextFunction, Request, Response } from 'express'
 import { LoggerModule, PinoLogger } from 'nestjs-pino'
 import request from 'supertest'
 
@@ -135,7 +136,9 @@ describe('Audit Integration (controller)', () => {
     app = moduleFixture.createNestApplication()
     app.setGlobalPrefix('api')
     const requestIdMiddleware = new RequestIdMiddleware()
-    app.use((req, res, next) => requestIdMiddleware.use(req as any, res, next))
+    app.use((req: Request, res: Response, next: NextFunction) =>
+      requestIdMiddleware.use(req as any, res, next)
+    )
     app.useGlobalInterceptors(new RequestIdInterceptor(), new TransformInterceptor())
     await app.init()
   })

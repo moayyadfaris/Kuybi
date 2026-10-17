@@ -1,3 +1,5 @@
+import type { RedisOptions } from 'ioredis'
+
 import { QueueName } from '../jobs/types'
 
 /**
@@ -11,9 +13,9 @@ export const queueConfig = {
     port: parseInt(process.env.REDIS_PORT || '6379'),
     password: process.env.REDIS_PASSWORD || undefined,
     db: parseInt(process.env.REDIS_QUEUE_DB || '1'), // Separate DB for queues
-    maxRetriesPerRequest: null,
+    maxRetriesPerRequest: null as number | null, // required by BullMQ for blocking commands
     enableReadyCheck: false
-  },
+  } satisfies RedisOptions,
 
   // Default job options applied to all queues
   defaultJobOptions: {
