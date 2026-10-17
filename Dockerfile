@@ -30,6 +30,8 @@ RUN apk add --no-cache tini
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
+# Apache-2.0 requires the license and notice to ship with redistributions
+COPY --chown=node:node LICENSE NOTICE ./
 
 # The app writes rotating log files under ./logs
 RUN mkdir -p /app/logs && chown node:node /app/logs

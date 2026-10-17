@@ -2,6 +2,16 @@
   "name": "kuybi-nest",
   "version": "0.1.0",
   "description": "Enterprise-grade NestJS backend inspired by Naruto's Kuybi",
+  "license": "Apache-2.0",
+  "author": "Moayyad Faris <moayyadzf@gmail.com>",
+  "homepage": "https://moayyadfaris.com/open-source/kuybi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moayyadfaris/Kuybi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/moayyadfaris/Kuybi/issues"
+  },
   "private": true,
   "engines": {
     "node": ">=24.9"

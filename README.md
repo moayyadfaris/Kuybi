@@ -15,6 +15,7 @@ observability.
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6.svg)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D.svg)](https://redis.io/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
 ---
 
@@ -30,6 +31,7 @@ observability.
 - [Security](#security)
 - [Upgrading](#upgrading)
 - [Documentation](#documentation)
+- [License](#license)
 - [Contact](#contact)
 
 ---
@@ -270,6 +272,13 @@ More in [`docs/`](./docs):
 - **Operations:** [Graceful shutdown](./docs/deployment/GRACEFUL_SHUTDOWN.md) ·
   [PM2](./docs/deployment/PM2_GUIDE.md) ·
   [Integration testing](./docs/testing/INTEGRATION_TESTING_SETUP.md)
+
+---
+
+## License
+
+Kuybi is licensed under the [Apache License 2.0](./LICENSE). See [NOTICE](./NOTICE) for
+attribution.
 
 ---
 
