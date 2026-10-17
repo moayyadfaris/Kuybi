@@ -40,7 +40,7 @@ jobs:
         run: npm run build
 
   integration:
-    name: Integration tests
+    name: Integration tests and coverage
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -79,8 +79,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Integration tests
-        run: npm run test:integration -- --forceExit
+      - name: Unit tests with coverage
+        run: npm run test:unit:cov
+
+      - name: Integration tests with coverage
+        run: npm run test:integration:cov -- --forceExit
+
+      # Combined unit + integration coverage must not drop below the floor
+      - name: Coverage gate
+        run: npm run coverage:check
 
   audit:
     name: Dependency audit

@@ -19,8 +19,7 @@ const config: Config = {
   ],
   globalSetup: undefined,
   globalTeardown: undefined,
-  testSequencer: undefined,
-  coverageThreshold: undefined
+  testSequencer: undefined
 }
 
 export default config

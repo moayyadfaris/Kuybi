@@ -9,14 +9,6 @@ const config: Config = {
   },
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: './coverage',
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
-    }
-  },
   testEnvironment: 'node',
   globalSetup: '<rootDir>/test/setup.ts',
   globalTeardown: '<rootDir>/test/teardown.ts',

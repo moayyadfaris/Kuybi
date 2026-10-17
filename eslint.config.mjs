@@ -15,6 +15,18 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettierRecommended,
   {
+    // Plain Node.js (CommonJS) tooling scripts
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { ...globals.node }
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-console': 'off'
+    }
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
