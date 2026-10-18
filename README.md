@@ -38,20 +38,20 @@ observability.
 
 ## Features
 
-| Area                | What you get                                                                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Authentication**  | JWT access tokens with opaque, hashed refresh tokens; multi-device sessions; logout and token revocation; forced password change; account lockout                      |
-| **Access control**  | Roles and permissions (CASL), including ownership rules ("update own story") and time-limited role assignments                                                         |
-| **Dynamic content** | Define post types and their fields (28 field types, from text and currency to repeaters and relations) and validate content against them                               |
-| **Stories**         | Stories with categories, tags, media, publishing workflow and full version history                                                                                     |
-| **Public web API**  | Unauthenticated, rate-limited read API (`/api/web/v1`) that returns allowlisted fields only                                                                            |
-| **Media**           | Uploads to S3 with content-verified file types, EXIF stripping, responsive WebP/AVIF variants and thumbnails                                                           |
-| **Audit**           | Searchable audit trail of user and admin actions                                                                                                                       |
-| **Background jobs** | BullMQ queues processed by a separate worker, fed by a transactional outbox (jobs commit with the data that causes them); dead-letter queue and Bull Board dashboard   |
-| **Safe retries**    | Create endpoints (stories, uploads, content) accept an `Idempotency-Key` header: a retry with the same key returns the original result instead of creating a duplicate |
-| **Email**           | Verification, password reset and notification emails from Handlebars templates                                                                                         |
-| **Observability**   | Structured Pino logs with request IDs, OpenTelemetry tracing, Prometheus metrics, Sentry error tracking, liveness/readiness health checks                              |
-| **Operations**      | Graceful shutdown for the API and worker, production Docker image, PM2 config                                                                                          |
+| Area                | What you get                                                                                                                                                                                                          |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**  | JWT access tokens with opaque, hashed refresh tokens; multi-device sessions; logout and token revocation; forced password change; account lockout                                                                     |
+| **Access control**  | Roles and permissions (CASL), including ownership rules ("update own story") and time-limited role assignments                                                                                                        |
+| **Dynamic content** | Define post types and their fields (28 field types, from text and currency to repeaters and relations) and validate content against them                                                                              |
+| **Stories**         | Stories with categories, tags, media, publishing workflow and full version history                                                                                                                                    |
+| **Public web API**  | Unauthenticated, rate-limited read API (`/api/web/v1`) that returns allowlisted fields only                                                                                                                           |
+| **Media**           | Direct-to-S3 uploads (presigned POST, verified on completion; bytes never pass through the API) or uploads through the API; content-verified file types, EXIF stripping, responsive WebP/AVIF variants and thumbnails |
+| **Audit**           | Searchable audit trail of user and admin actions                                                                                                                                                                      |
+| **Background jobs** | BullMQ queues processed by a separate worker, fed by a transactional outbox (jobs commit with the data that causes them); dead-letter queue and Bull Board dashboard                                                  |
+| **Safe retries**    | Create endpoints (stories, uploads, content) accept an `Idempotency-Key` header: a retry with the same key returns the original result instead of creating a duplicate                                                |
+| **Email**           | Verification, password reset and notification emails from Handlebars templates                                                                                                                                        |
+| **Observability**   | Structured Pino logs with request IDs, OpenTelemetry tracing, Prometheus metrics, Sentry error tracking, liveness/readiness health checks                                                                             |
+| **Operations**      | Graceful shutdown for the API and worker, production Docker image, PM2 config                                                                                                                                         |
 
 ---
 

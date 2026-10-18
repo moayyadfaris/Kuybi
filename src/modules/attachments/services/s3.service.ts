@@ -10,6 +10,7 @@ import {
   PutObjectCommand,
   S3Client
 } from '@aws-sdk/client-s3'
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { errorMessage, errorProperty } from '@shared/utils/error.util'
 import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
@@ -162,6 +163,44 @@ export class S3Service {
   /**
    * Download a file from S3
    */
+  /**
+   * Presigned POST for a browser/client to upload one object directly to S3.
+   *
+   * The signed policy pins the key, the exact byte size and the Content-Type, so S3
+   * itself rejects anything else; the object is always private (no ACL field).
+   */
+  async createPresignedUpload(options: {
+    key: string
+    contentType: string
+    size: number
+    expiresInSeconds: number
+  }): Promise<{ url: string; fields: Record<string, string> }> {
+    return createPresignedPost(this.s3Client, {
+      Bucket: this.bucket,
+      Key: options.key,
+      Fields: { 'Content-Type': options.contentType },
+      Conditions: [
+        ['content-length-range', options.size, options.size],
+        ['eq', '$Content-Type', options.contentType]
+      ],
+      Expires: options.expiresInSeconds
+    })
+  }
+
+  /** The first `bytes` bytes of an object (for content-type verification) */
+  async readHead(key: string, bytes: number): Promise<Buffer> {
+    const result = await this.executeWithResilience('readHead', signal =>
+      this.s3Client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=0-${bytes - 1}` }),
+        { abortSignal: signal }
+      )
+    )
+    if (!result.Body) {
+      throw new Error(`S3 returned an empty body for ${key}`)
+    }
+    return Buffer.from(await result.Body.transformToByteArray())
+  }
+
   async download(key: string): Promise<Buffer> {
     try {
       const command = new GetObjectCommand({

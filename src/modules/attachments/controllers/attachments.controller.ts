@@ -4,7 +4,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -22,7 +25,9 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiCreatedResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiQuery,
   ApiTags
@@ -38,11 +43,15 @@ import { Idempotent } from '@core/idempotency'
 
 import {
   AttachmentQueryDto,
+  AttachmentResponseDto,
+  InitiateUploadDto,
+  InitiateUploadResponseDto,
   PresignedUrlDto,
   UpdateAttachmentDto,
   UploadAttachmentDto
 } from '../dto'
 import { AttachmentService } from '../services/attachment.service'
+import { DirectUploadService } from '../services/direct-upload.service'
 import { MAX_UPLOAD_BYTES } from '../services/file-validation.service'
 
 interface AuthenticatedRequest extends Request {
@@ -53,7 +62,10 @@ interface AuthenticatedRequest extends Request {
 @ApiBearerAuth()
 @Controller('v1/attachments')
 export class AttachmentsController {
-  constructor(private readonly attachmentService: AttachmentService) {}
+  constructor(
+    private readonly attachmentService: AttachmentService,
+    private readonly directUploadService: DirectUploadService
+  ) {}
 
   @Post()
   @Idempotent()
@@ -184,6 +196,37 @@ export class AttachmentsController {
     })
 
     return { attachments }
+  }
+
+  @Post('uploads')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
+  @Idempotent()
+  @ApiOperation({
+    summary: 'Start a direct upload',
+    description:
+      'Returns a presigned POST: upload the file straight to storage with it, then call /uploads/:id/complete. File bytes never pass through the API.'
+  })
+  @ApiCreatedResponse({ type: InitiateUploadResponseDto })
+  async initiateUpload(@Body() dto: InitiateUploadDto, @Req() req: AuthenticatedRequest) {
+    return this.directUploadService.initiate(dto, this.requireUser(req))
+  }
+
+  @Post('uploads/:id/complete')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
+  @ApiOperation({
+    summary: 'Finish a direct upload',
+    description:
+      'Verifies the stored file (size and content type) and queues processing. 409 if the file is not uploaded yet or the upload was already completed; 422 if the file is rejected.'
+  })
+  @ApiOkResponse({ type: AttachmentResponseDto })
+  async completeUpload(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.directUploadService.complete(id, this.requireUser(req))
   }
 
   @Get()

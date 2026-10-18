@@ -1,6 +1,7 @@
 export { AttachmentQueryDto } from './attachment-query.dto'
 export { AttachmentResponseDto } from './attachment-response.dto'
 export { AttachmentStatsDto } from './attachment-stats.dto'
+export { InitiateUploadDto, InitiateUploadResponseDto } from './direct-upload.dto'
 export { PresignedUrlDto, PresignedUrlResponseDto } from './presigned-url.dto'
 export { UpdateAttachmentDto } from './update-attachment.dto'
 export { UploadAttachmentDto } from './upload-attachment.dto'
