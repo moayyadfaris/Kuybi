@@ -46,7 +46,7 @@ export class UpdateSessionDto {
   @IsOptional()
   @IsObject()
   @Type(() => Object)
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 
   @ApiPropertyOptional({
     description: 'Updated device information',
@@ -61,5 +61,5 @@ export class UpdateSessionDto {
   @IsOptional()
   @IsObject()
   @Type(() => Object)
-  deviceInfo?: Record<string, any>
+  deviceInfo?: Record<string, unknown>
 }

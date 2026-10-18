@@ -22,7 +22,7 @@ export enum EmailJobType {
 export interface BaseEmailJobData {
   to: string
   userName?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 /**
@@ -84,7 +84,7 @@ export interface CustomEmailJobData extends BaseEmailJobData {
   html?: string
   text?: string
   template?: string
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 }
 
 /**

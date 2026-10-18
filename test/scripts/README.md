@@ -7,26 +7,31 @@ This directory contains manual integration test scripts for testing specific fea
 ### ACL (Access Control List) Tests
 
 #### Quick ACL Test
+
 **Script:** `quick-acl-test.sh`
 
 Fast validation of core ACL functionality.
 
 **Usage:**
+
 ```bash
 ./test/scripts/quick-acl-test.sh
 ```
 
 #### Full ACL Guard Tests
+
 **Script:** `test-acl-guards.sh`
 
 Comprehensive ACL guard validation with edge cases.
 
 **Usage:**
+
 ```bash
 ./test/scripts/test-acl-guards.sh
 ```
 
 **Additional ACL Scripts:**
+
 - `quick-test-acl.sh` - Alternative quick ACL test
 - `run-acl-tests.sh` - ACL test runner
 - `test-acl.sh` - General ACL testing
@@ -36,21 +41,25 @@ Comprehensive ACL guard validation with edge cases.
 ### Audit Logging Tests
 
 #### Audit API Test
+
 **Script:** `test-audit-api.sh`
 
 Tests audit logging API endpoints.
 
 **Usage:**
+
 ```bash
 ./test/scripts/test-audit-api.sh
 ```
 
 #### Audit Integration Test
+
 **Script:** `test-audit-integration.sh`
 
 Tests audit logging integration with Auth module.
 
 **Usage:**
+
 ```bash
 ./test/scripts/test-audit-integration.sh
 ```
@@ -58,11 +67,13 @@ Tests audit logging integration with Auth module.
 ---
 
 ### Story Creation Test
+
 **Script:** `test-story-creation.sh`
 
 Tests story creation with tags and categories.
 
 **Usage:**
+
 ```bash
 ./test/scripts/test-story-creation.sh
 ```
@@ -70,9 +81,11 @@ Tests story creation with tags and categories.
 ---
 
 ### Admin Password Management
+
 **Script:** `test-admin-password.sh`
 
 Tests admin password management functionality including:
+
 - System-generated password reset
 - Admin-defined password set
 - Session invalidation
@@ -80,6 +93,7 @@ Tests admin password management functionality including:
 - Password validation
 
 **Usage:**
+
 ```bash
 # Ensure server is running on localhost:4000
 npm run start:dev
@@ -89,6 +103,7 @@ npm run start:dev
 ```
 
 **Expected Output:**
+
 - ✅ Admin password reset (system-generated)
 - ✅ Admin password set (admin-defined)
 - ✅ Session invalidation
@@ -97,9 +112,11 @@ npm run start:dev
 ---
 
 ### Force Password Change
+
 **Script:** `test-force-password-change.sh`
 
 Tests the complete force password change flow:
+
 1. Admin resets user password
 2. User login blocked with `requiresPasswordChange`
 3. Temporary access token provided
@@ -107,15 +124,17 @@ Tests the complete force password change flow:
 5. User can login normally
 
 **Usage:**
+
 ```bash
 # Ensure server is running on localhost:4000
 npm run start:dev
 
-# Run the test  
+# Run the test
 ./test/scripts/test-force-password-change.sh
 ```
 
 **Test Coverage:**
+
 - ✅ Admin password reset
 - ✅ Login blocked with requiresPasswordChange
 - ✅ Temporary access token (15 min)
@@ -134,7 +153,9 @@ npm run start:dev
 ## Prerequisites
 
 ### Server Running
+
 All scripts require the NestJS server to be running:
+
 ```bash
 npm run start:dev
 ```
@@ -142,24 +163,31 @@ npm run start:dev
 Server should be accessible at `http://localhost:4000`
 
 ### Admin User
+
 Scripts use the default admin account:
+
 - **Email:** admin@susano.dev
 - **Password:** Admin@123
 
 This account must exist in the database. Run database seeds if needed:
+
 ```bash
 npm run db:seed:users
 npm run db:seed:acl
 ```
 
 ### Dependencies
+
 Scripts require:
+
 - `curl` - HTTP requests
 - `jq` - JSON parsing
 - `bash` - Shell script execution
 
 ### Environment Variables
+
 Scripts use:
+
 - `BASE_URL`: Default `http://localhost:4000`
 - `API_BASE`: Default `${BASE_URL}/v1`
 
@@ -173,6 +201,7 @@ Scripts use:
 ## Test Output
 
 Scripts use colored output:
+
 - 🟢 **GREEN** - Successful test
 - 🔴 **RED** - Failed test
 - 🟡 **YELLOW** - Test step/section
@@ -181,25 +210,33 @@ Scripts use colored output:
 ## Troubleshooting
 
 ### Connection Refused
+
 ```
 curl: (7) Failed to connect to localhost port 4000
 ```
+
 **Solution:** Ensure server is running on port 4000
 
 ### 401 Unauthorized
+
 ```
 { "statusCode": 401, "message": "Unauthorized" }
 ```
-**Solution:** 
+
+**Solution:**
+
 - Check admin credentials are correct
 - Ensure admin user exists in database
 - Verify admin has Super Admin role
 
 ### jq: command not found
+
 ```
 -bash: jq: command not found
 ```
+
 **Solution:** Install jq
+
 ```bash
 # macOS
 brew install jq

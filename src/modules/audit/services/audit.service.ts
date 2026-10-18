@@ -21,15 +21,15 @@ export interface AuditContext {
   method?: string | null
   endpoint?: string | null
   requestId?: string | null
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface LogActionOptions {
   action: AuditAction
   entityType?: string
   entityId?: string
-  previousValues?: Record<string, any>
-  newValues?: Record<string, any>
+  previousValues?: Record<string, unknown>
+  newValues?: Record<string, unknown>
   status?: AuditStatus
   statusCode?: number
   errorMessage?: string
@@ -38,7 +38,7 @@ export interface LogActionOptions {
   tags?: string[]
   description?: string
   retentionDays?: number
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 @Injectable()
@@ -168,7 +168,7 @@ export class AuditService {
     context: AuditContext,
     entityType: string,
     entityId: string,
-    newValues: Record<string, any>,
+    newValues: Record<string, unknown>,
     options?: Partial<LogActionOptions>
   ): Promise<AuditLog | null> {
     return this.logAction(context, {
@@ -189,8 +189,8 @@ export class AuditService {
     context: AuditContext,
     entityType: string,
     entityId: string,
-    previousValues: Record<string, any>,
-    newValues: Record<string, any>,
+    previousValues: Record<string, unknown>,
+    newValues: Record<string, unknown>,
     options?: Partial<LogActionOptions>
   ): Promise<AuditLog | null> {
     return this.logAction(context, {
@@ -212,7 +212,7 @@ export class AuditService {
     context: AuditContext,
     entityType: string,
     entityId: string,
-    previousValues?: Record<string, any>,
+    previousValues?: Record<string, unknown>,
     options?: Partial<LogActionOptions>
   ): Promise<AuditLog | null> {
     return this.logAction(context, {
@@ -252,7 +252,7 @@ export class AuditService {
     context: AuditContext,
     entityType: string,
     entityId: string,
-    previousValues?: Record<string, any>,
+    previousValues?: Record<string, unknown>,
     options?: Partial<LogActionOptions>
   ): Promise<AuditLog | null> {
     return this.logAction(context, {
@@ -270,7 +270,10 @@ export class AuditService {
   /**
    * Log successful login
    */
-  async logLogin(context: AuditContext, metadata?: Record<string, any>): Promise<AuditLog | null> {
+  async logLogin(
+    context: AuditContext,
+    metadata?: Record<string, unknown>
+  ): Promise<AuditLog | null> {
     return this.logAction(context, {
       action: AuditAction.LOGIN,
       description: `User logged in`,
@@ -280,14 +283,17 @@ export class AuditService {
     })
   }
 
-  async logLoginFromRequest(req: Request, user?: ContextUser, metadata?: Record<string, any>) {
+  async logLoginFromRequest(req: Request, user?: ContextUser, metadata?: Record<string, unknown>) {
     return this.logLogin(this.createContextFromRequest(req, user), metadata)
   }
 
   /**
    * Log logout
    */
-  async logLogout(context: AuditContext, metadata?: Record<string, any>): Promise<AuditLog | null> {
+  async logLogout(
+    context: AuditContext,
+    metadata?: Record<string, unknown>
+  ): Promise<AuditLog | null> {
     return this.logAction(context, {
       action: AuditAction.LOGOUT,
       description: `User logged out`,
@@ -297,7 +303,7 @@ export class AuditService {
     })
   }
 
-  async logLogoutFromRequest(req: Request, user?: ContextUser, metadata?: Record<string, any>) {
+  async logLogoutFromRequest(req: Request, user?: ContextUser, metadata?: Record<string, unknown>) {
     return this.logLogout(this.createContextFromRequest(req, user), metadata)
   }
 
@@ -477,7 +483,7 @@ export class AuditService {
   async logSuspiciousActivity(
     context: AuditContext,
     activityType: string,
-    details: Record<string, any>
+    details: Record<string, unknown>
   ): Promise<AuditLog | null> {
     // Capture suspicious activity to Sentry with high priority
     this.sentryService.captureMessage(`Suspicious activity detected: ${activityType}`, 'error', {
@@ -528,14 +534,14 @@ export class AuditService {
    * Calculate changes between previous and new values
    */
   private calculateChanges(
-    previousValues?: Record<string, any>,
-    newValues?: Record<string, any>
-  ): Record<string, any> | null {
+    previousValues?: Record<string, unknown>,
+    newValues?: Record<string, unknown>
+  ): Record<string, unknown> | null {
     if (!previousValues || !newValues) {
       return null
     }
 
-    const changes: Record<string, any> = {}
+    const changes: Record<string, unknown> = {}
     const allKeys = new Set([...Object.keys(previousValues), ...Object.keys(newValues)])
 
     allKeys.forEach(key => {

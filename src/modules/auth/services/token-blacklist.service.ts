@@ -23,6 +23,16 @@ import { CacheService } from '@core/cache/services/cache.service'
  * Redis Key Pattern: token:blacklist:{tokenHash}
  * TTL: Matches JWT expiration time (auto-cleanup)
  */
+/** What is stored in the cache for a revoked access token */
+interface BlacklistEntry {
+  tokenHash: string
+  userId?: string
+  sessionId?: string
+  reason?: string
+  blacklistedAt: string
+  expiresAt?: string | null
+}
+
 @Injectable()
 export class TokenBlacklistService {
   private readonly BLACKLIST_PREFIX = 'token:blacklist'
@@ -75,7 +85,7 @@ export class TokenBlacklistService {
     }
 
     // Store blacklist entry in Redis
-    const blacklistData = {
+    const blacklistData: BlacklistEntry = {
       tokenHash,
       userId,
       sessionId,
@@ -156,8 +166,8 @@ export class TokenBlacklistService {
     const tokenHash = this.hashToken(token)
     const cacheKey = this.generateBlacklistKey(tokenHash)
 
-    const blacklistEntry = await this.cacheService.get<any>(cacheKey)
-    const isBlacklisted = blacklistEntry && blacklistEntry !== null
+    const blacklistEntry = await this.cacheService.get<BlacklistEntry>(cacheKey)
+    const isBlacklisted = !!blacklistEntry
 
     if (isBlacklisted) {
       this.logger.debug(
@@ -209,7 +219,6 @@ export class TokenBlacklistService {
   }> {
     // Note: Redis doesn't provide efficient counting for key patterns
     // This is an estimate based on SCAN
-    const pattern = `${this.BLACKLIST_PREFIX}:*`
     const keys = await this.scanBlacklistKeys()
 
     return {
@@ -230,7 +239,7 @@ export class TokenBlacklistService {
     let cleaned = 0
 
     for (const key of keys) {
-      const entry = await this.cacheService.get<any>(key)
+      const entry = await this.cacheService.get<BlacklistEntry>(key)
       if (!entry || this.isEntryExpired(entry)) {
         await this.cacheService.del(key)
         cleaned++
@@ -339,7 +348,7 @@ export class TokenBlacklistService {
   private async scanBlacklistKeys(): Promise<string[]> {
     // This is a simplified implementation
     // In production, you'd want to use SCAN with cursor for large datasets
-    const pattern = `${this.BLACKLIST_PREFIX}:*`
+    // (pattern `${this.BLACKLIST_PREFIX}:*`)
 
     try {
       // CacheService should expose a method to scan keys

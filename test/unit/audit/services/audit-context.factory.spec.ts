@@ -92,8 +92,12 @@ describe('AuditContextFactory', () => {
 
     const context = factory.fromRequest(req)
 
-    expect(context.metadata?.query?.token).toBe('[REDACTED]')
-    expect(context.metadata?.query?.nested?.password).toBe('[REDACTED]')
-    expect(context.metadata?.query?.nested?.keep).toBe('visible')
+    const query = context.metadata?.query as {
+      token?: string
+      nested?: { password?: string; keep?: string }
+    }
+    expect(query?.token).toBe('[REDACTED]')
+    expect(query?.nested?.password).toBe('[REDACTED]')
+    expect(query?.nested?.keep).toBe('visible')
   })
 })

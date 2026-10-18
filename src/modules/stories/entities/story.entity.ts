@@ -104,7 +104,7 @@ export class Story {
   parent?: Story
 
   @Column({ type: 'jsonb', default: {} })
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
 
   @Column({ type: 'text', nullable: true })
   internalNotes?: string | null

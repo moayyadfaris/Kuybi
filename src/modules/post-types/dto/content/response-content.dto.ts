@@ -66,11 +66,11 @@ export class ResponseContentDto {
   @ApiProperty({ description: 'Custom field data' })
   @Expose()
   @Transform(({ obj }) => obj.fieldData || {})
-  field_data: Record<string, any>
+  field_data: Record<string, unknown>
 
   @ApiPropertyOptional({ description: 'Metadata' })
   @Expose()
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 
   @ApiProperty({ description: 'View count', default: 0 })
   @Expose()

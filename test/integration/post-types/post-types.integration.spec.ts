@@ -52,10 +52,8 @@ describe('Post Types Integration Tests', () => {
   let app: INestApplication
   let dataSource: DataSource
   let adminUser: User
-  let editorUser: User
   let regularUser: User
   let adminToken: string
-  let editorToken: string
   let regularToken: string
   let testCounter = 0
   let cacheStub: InMemoryCacheService
@@ -147,7 +145,7 @@ describe('Post Types Integration Tests', () => {
       primaryRoleId: roles['moderator'].id,
       password: EDITOR_PASSWORD
     })
-    editorUser = await userRepository.save(newEditor as User)
+    await userRepository.save(newEditor as User)
 
     // Create regular user
     const newUser = await UserFactory.createWithHashedPassword({
@@ -163,11 +161,6 @@ describe('Post Types Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({ email: adminUser.email, password: ADMIN_PASSWORD })
     adminToken = adminLogin.body.accessToken
-
-    const editorLogin = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({ email: editorUser.email, password: EDITOR_PASSWORD })
-    editorToken = editorLogin.body.accessToken
 
     const userLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')

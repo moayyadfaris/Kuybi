@@ -90,10 +90,10 @@ export class Session {
 
   // Rich Metadata
   @Column({ type: 'jsonb', default: {} })
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
 
   @Column({ type: 'jsonb', nullable: true })
-  deviceInfo?: Record<string, any>
+  deviceInfo?: Record<string, unknown>
 
   // Audit Fields
   @Column({ type: 'uuid', nullable: true })

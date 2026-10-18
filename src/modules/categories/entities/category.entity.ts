@@ -27,7 +27,7 @@ export class Category {
   isActive: boolean
 
   @Column({ type: 'jsonb', default: {} })
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
 
   @Column({ type: 'varchar', nullable: true })
   createdBy?: string | null

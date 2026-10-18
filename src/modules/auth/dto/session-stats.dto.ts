@@ -193,5 +193,5 @@ export class SessionStatsDto {
   })
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }

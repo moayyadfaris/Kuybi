@@ -117,13 +117,13 @@ export class AuditLog {
 
   // Changes Tracking (for updates)
   @Column({ type: 'jsonb', nullable: true })
-  previousValues: Record<string, any> | null
+  previousValues: Record<string, unknown> | null
 
   @Column({ type: 'jsonb', nullable: true })
-  newValues: Record<string, any> | null
+  newValues: Record<string, unknown> | null
 
   @Column({ type: 'jsonb', nullable: true })
-  changes: Record<string, any> | null
+  changes: Record<string, unknown> | null
 
   // Request Context
   @Column({ type: 'varchar', length: 45, nullable: true })
@@ -171,7 +171,7 @@ export class AuditLog {
 
   // Additional Metadata
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, any> | null
+  metadata: Record<string, unknown> | null
 
   @Column({ type: 'text', nullable: true })
   description: string | null

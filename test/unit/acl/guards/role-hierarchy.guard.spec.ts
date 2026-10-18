@@ -15,7 +15,6 @@ describe('RoleHierarchyGuard', () => {
   const adminRole: Role = { id: 2, name: 'admin', priority: 80 } as Role
   const moderatorRole: Role = { id: 3, name: 'moderator', priority: 60 } as Role
   const userRole: Role = { id: 4, name: 'user', priority: 40 } as Role
-  const guestRole: Role = { id: 5, name: 'guest', priority: 20 } as Role
 
   beforeEach(() => {
     mockLogger = {

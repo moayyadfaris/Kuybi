@@ -10,9 +10,6 @@ import * as validator from 'validator'
  * Validate phone number format (international format)
  */
 export function isValidPhone(phone: string): boolean {
-  // Remove all non-digit characters
-  const cleaned = phone.replace(/\D/g, '')
-
   // Check if it's a valid mobile phone
   // Supports international format with country code
   return validator.isMobilePhone(phone, 'any', { strictMode: false })

@@ -77,7 +77,7 @@ export class ResponsePostTypeDto {
 
   @ApiPropertyOptional({ description: 'Additional settings' })
   @Expose()
-  settings?: Record<string, any>
+  settings?: Record<string, unknown>
 
   @ApiProperty({ description: 'Created at timestamp' })
   @Expose()

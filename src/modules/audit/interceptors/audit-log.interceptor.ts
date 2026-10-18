@@ -28,7 +28,7 @@ export class AuditLogInterceptor implements NestInterceptor {
     private readonly auditService: AuditService
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     // Get audit log metadata from decorator
     const auditMetadata = this.reflector.get<AuditLogMetadata>(AUDIT_LOG_KEY, context.getHandler())
 
@@ -70,7 +70,7 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     // Build metadata
     const buildMetadata = (result?: unknown, error?: unknown) => {
-      const metadata: Record<string, any> = {}
+      const metadata: Record<string, unknown> = {}
 
       if (auditMetadata.includeBody && request.body) {
         metadata.requestBody = this.sanitizeBody(request.body)

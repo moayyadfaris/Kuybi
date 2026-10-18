@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { Expose } from 'class-transformer'
 
 import { FieldType } from '../../enums/field-type.enum'
+import type { FieldOptions, FieldValidationRules } from '../../types/field-validation-rules'
 
 /**
  * DTO for field definition responses
@@ -73,15 +74,15 @@ export class ResponseFieldDefinitionDto {
 
   @ApiPropertyOptional({ description: 'Validation rules' })
   @Expose()
-  validationRules?: Record<string, any>
+  validationRules?: FieldValidationRules
 
   @ApiPropertyOptional({ description: 'Field options' })
   @Expose()
-  fieldOptions?: Record<string, any>
+  fieldOptions?: FieldOptions
 
   @ApiPropertyOptional({ description: 'Conditional logic' })
   @Expose()
-  conditionalLogic?: Record<string, any>
+  conditionalLogic?: Record<string, unknown>
 
   @ApiProperty({ description: 'Created at timestamp' })
   @Expose()

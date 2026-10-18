@@ -196,7 +196,7 @@ describe('Auth Integration Tests', () => {
     })
 
     it('should create a session after successful login', async () => {
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send({
           email: testUser.email,

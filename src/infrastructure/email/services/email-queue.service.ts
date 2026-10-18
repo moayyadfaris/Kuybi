@@ -20,6 +20,26 @@ import {
 } from '@core/queues/jobs/email-jobs'
 import { QueueName } from '@core/queues/jobs/types'
 
+export interface EmailJobStatus {
+  id?: string
+  name: string
+  data: unknown
+  state: string
+  attemptsMade: number
+  processedOn?: number
+  finishedOn?: number
+  failedReason?: string
+}
+
+export interface EmailQueueStats {
+  waiting: number
+  active: number
+  completed: number
+  failed: number
+  delayed: number
+  total: number
+}
+
 /** Job options, plus the transaction the email belongs to */
 export type EmailEnqueueOptions = EmailJobOptions & {
   /**
@@ -281,7 +301,7 @@ export class EmailQueueService {
   /**
    * Get job status by ID
    */
-  async getJobStatus(jobId: string): Promise<any> {
+  async getJobStatus(jobId: string): Promise<EmailJobStatus | null> {
     const job = await this.emailQueue.getJob(jobId)
 
     if (!job) {
@@ -305,7 +325,7 @@ export class EmailQueueService {
   /**
    * Get queue statistics
    */
-  async getQueueStats(): Promise<any> {
+  async getQueueStats(): Promise<EmailQueueStats> {
     const [waiting, active, completed, failed, delayed] = await Promise.all([
       this.emailQueue.getWaitingCount(),
       this.emailQueue.getActiveCount(),

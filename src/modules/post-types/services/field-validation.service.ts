@@ -87,7 +87,7 @@ export class FieldValidationService {
    */
   async validateFieldData(
     fieldDefinitions: FieldDefinition[],
-    fieldData: Record<string, any>
+    fieldData: Record<string, unknown>
   ): Promise<FieldValidationResult> {
     const errors: FieldValidationError[] = []
 
@@ -464,7 +464,7 @@ export class FieldValidationService {
           constraint: allowedProtocols
         })
       }
-    } catch (error) {
+    } catch {
       errors.push({
         fieldName: fieldDef.name,
         fieldType: fieldDef.fieldType,

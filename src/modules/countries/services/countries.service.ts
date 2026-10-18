@@ -18,7 +18,7 @@ export class CountriesService {
     const cacheKey = this.buildCacheKey(query)
 
     // Try to get from cache first
-    const cached = await this.cacheService.get<any>(cacheKey)
+    const cached = await this.cacheService.get<Record<string, unknown>>(cacheKey)
     if (cached) {
       return { ...cached, cached: true }
     }
