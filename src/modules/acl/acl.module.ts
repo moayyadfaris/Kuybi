@@ -3,9 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 // Cache module
 import { CacheConfigModule } from '@core/cache/cache.module'
-import { PermissionRepository } from '@core/database/repositories/permission.repository'
-// Repositories
-import { RoleRepository } from '@core/database/repositories/role.repository'
 
 // Abilities
 import { AbilityFactory } from './abilities/ability.factory'
@@ -22,6 +19,9 @@ import { AdminOrOwnerGuard } from './guards/admin-or-owner.guard'
 import { RoleHierarchyGuard } from './guards/role-hierarchy.guard'
 // Guards
 import { SuperAdminGuard } from './guards/super-admin.guard'
+import { PermissionRepository } from './repositories/permission.repository'
+// Repositories
+import { RoleRepository } from './repositories/role.repository'
 // Seeders
 import { AclSeeder } from './seeders/acl.seeder'
 import { PermissionsService } from './services/permissions.service'
@@ -54,6 +54,8 @@ import { RolesService } from './services/roles.service'
     AdminOrOwnerGuard,
     RolesService,
     PermissionsService,
+    RoleRepository,
+    PermissionRepository,
     TypeOrmModule
   ]
 })

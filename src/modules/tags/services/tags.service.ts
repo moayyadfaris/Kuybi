@@ -10,7 +10,7 @@ import { PinoLogger } from 'nestjs-pino'
 import { CreateTagDto, UpdateTagDto } from '@modules/tags/dto'
 import { Tag } from '@modules/tags/entities/tag.entity'
 
-import { TagRepository } from '@core/database/repositories/tag.repository'
+import { TagRepository } from '../repositories/tag.repository'
 
 @Injectable()
 export class TagsService {

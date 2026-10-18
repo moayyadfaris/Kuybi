@@ -6,11 +6,9 @@ import {
 } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
+import { RoleRepository } from '@modules/acl/repositories/role.repository'
 import { AuditAction, AuditSeverity } from '@modules/audit/entities/audit-log.entity'
 import { AuditService } from '@modules/audit/services/audit.service'
-
-import { RoleRepository } from '@core/database/repositories/role.repository'
-import { UserRepository } from '@core/database/repositories/user.repository'
 
 import {
   AdminUpdateUserDto,
@@ -18,6 +16,7 @@ import {
   UpdatedUserDataDto
 } from '../dto/admin-update-user.dto'
 import { User } from '../entities/user.entity'
+import { UserRepository } from '../repositories/user.repository'
 
 /**
  * Admin User Management Service

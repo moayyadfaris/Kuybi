@@ -11,7 +11,6 @@ import { Queue } from 'bullmq'
 import * as crypto from 'crypto'
 import { PinoLogger } from 'nestjs-pino'
 
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import { AttachmentJobType, QueueName } from '@core/queues/jobs/types'
 
 import {
@@ -24,6 +23,7 @@ import {
   UploadAttachmentDto
 } from '../dto'
 import { Attachment } from '../entities/attachment.entity'
+import { AttachmentRepository } from '../repositories/attachment.repository'
 import {
   AttachmentMetadata,
   extractFormatFromMime,

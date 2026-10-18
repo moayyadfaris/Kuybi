@@ -2,9 +2,8 @@ import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
+import { SessionRepository } from '@modules/auth/repositories/session.repository'
 import { SessionsService } from '@modules/auth/services/sessions.service'
-
-import { SessionRepository } from '@core/database/repositories/session.repository'
 
 import { QueueName, SessionCleanupJobType } from '../jobs/types'
 

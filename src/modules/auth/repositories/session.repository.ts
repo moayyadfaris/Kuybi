@@ -3,11 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Between, IsNull, MoreThan, Repository } from 'typeorm'
 
-import { Session } from '@modules/auth/entities/session.entity'
+import { CacheService } from '@core/cache/services/cache.service'
+import { BaseRepository } from '@core/database/repositories/base.repository'
 
-import { CacheService } from '../../cache/services/cache.service'
-
-import { BaseRepository } from './base.repository'
+import { Session } from '../entities/session.entity'
 
 /**
  * Session Repository - Enterprise Session Data Access Layer

@@ -2,11 +2,10 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, IsNull, Repository } from 'typeorm'
 
-import { Category } from '@modules/categories/entities/category.entity'
+import { CacheService } from '@core/cache/services/cache.service'
+import { BaseRepository } from '@core/database/repositories/base.repository'
 
-import { CacheService } from '../../cache/services/cache.service'
-
-import { BaseRepository } from './base.repository'
+import { Category } from '../entities/category.entity'
 
 /**
  * Category Repository

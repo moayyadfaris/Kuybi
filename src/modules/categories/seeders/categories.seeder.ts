@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 
-import { CategoryRepository } from '@core/database/repositories/category.repository'
+import { CategoryRepository } from '../repositories/category.repository'
 
 @Injectable()
 export class CategoriesSeeder {

@@ -11,14 +11,15 @@ import { Repository } from 'typeorm'
 import { findDefaultRoleId } from '@modules/acl/default-role'
 import { Role } from '@modules/acl/entities/role.entity'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
 import { S3Service } from '@modules/attachments/services/s3.service'
 import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
 import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
 import { User } from '@modules/users/entities/user.entity'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
-import { UserRepository } from '@core/database/repositories/user.repository'
+
+import { UserRepository } from '../repositories/user.repository'
 
 @Injectable()
 export class UsersService {

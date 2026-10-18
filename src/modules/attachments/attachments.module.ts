@@ -2,13 +2,13 @@ import { BullModule } from '@nestjs/bullmq'
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
 import { QueueName } from '@core/queues/jobs/types'
 
 import { AclModule } from '../acl/acl.module'
 
 import { AttachmentsController } from './controllers/attachments.controller'
 import { Attachment } from './entities/attachment.entity'
+import { AttachmentRepository } from './repositories/attachment.repository'
 import { AttachmentService } from './services/attachment.service'
 import { ExifProcessorService } from './services/exif-processor.service'
 import { FileValidationService } from './services/file-validation.service'

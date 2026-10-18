@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { SessionRepository } from '@core/database/repositories/session.repository'
+import { SessionRepository } from '../repositories/session.repository'
 
 import { SessionsService } from './sessions.service'
 

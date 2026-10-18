@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as bcrypt from 'bcrypt'
 
-import { UserRepository } from '@core/database/repositories/user.repository'
+import { UserRepository } from '../repositories/user.repository'
 
 @Injectable()
 export class UsersSeeder {

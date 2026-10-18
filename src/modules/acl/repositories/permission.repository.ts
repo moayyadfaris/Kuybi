@@ -2,13 +2,12 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 
-import { Permission } from '@modules/acl/entities/permission.entity'
-import { Action } from '@modules/acl/types/actions.enum'
-import { Subject } from '@modules/acl/types/subjects.enum'
+import { CacheService } from '@core/cache/services/cache.service'
+import { BaseRepository } from '@core/database/repositories/base.repository'
 
-import { CacheService } from '../../cache/services/cache.service'
-
-import { BaseRepository } from './base.repository'
+import { Permission } from '../entities/permission.entity'
+import { Action } from '../types/actions.enum'
+import { Subject } from '../types/subjects.enum'
 
 @Injectable()
 export class PermissionRepository extends BaseRepository<Permission> {

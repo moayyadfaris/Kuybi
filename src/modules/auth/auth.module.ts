@@ -10,9 +10,6 @@ import type { StringValue } from 'ms'
 import { Role } from '@modules/acl/entities/role.entity'
 import { AuditModule } from '@modules/audit/audit.module'
 
-import { CacheService } from '@core/cache/services/cache.service'
-import { SessionRepository } from '@core/database/repositories/session.repository'
-import { UserRepository } from '@core/database/repositories/user.repository'
 import { MetricsModule } from '@core/observability/metrics.module'
 import { QueueName } from '@core/queues/jobs/types'
 import { SentryModule } from '@core/sentry'
@@ -28,6 +25,7 @@ import { PasswordHistory } from './entities/password-history.entity'
 import { PasswordReset } from './entities/password-reset.entity'
 import { Session } from './entities/session.entity'
 import { PasswordHistoryRepository } from './repositories/password-history.repository'
+import { SessionRepository } from './repositories/session.repository'
 import { PasswordResetService } from './services/password-reset.service'
 import { PasswordStrengthService } from './services/password-strength.service'
 import { RegistrationService } from './services/registration.service'
@@ -81,9 +79,7 @@ import {
     PasswordResetService,
     PasswordStrengthService,
     JwtStrategy,
-    CacheService,
     SessionRepository,
-    UserRepository,
     PasswordHistoryRepository
   ],
   exports: [

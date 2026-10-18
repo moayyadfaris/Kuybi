@@ -2,11 +2,10 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DeepPartial, Repository, SelectQueryBuilder } from 'typeorm'
 
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { CacheService } from '@core/cache/services/cache.service'
+import { BaseRepository } from '@core/database/repositories/base.repository'
 
-import { CacheService } from '../../cache/services/cache.service'
-
-import { BaseRepository } from './base.repository'
+import { Attachment } from '../entities/attachment.entity'
 
 export interface AttachmentQueryOptions {
   userId?: string

@@ -12,8 +12,10 @@ import { In, Repository } from 'typeorm'
 import { AbilityFactory } from '@modules/acl/abilities/ability.factory'
 import { Action } from '@modules/acl/types/actions.enum'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
 import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
 import { Category } from '@modules/categories/entities/category.entity'
+import { CategoryRepository } from '@modules/categories/repositories/category.repository'
 import {
   AttachAttachmentsDto,
   AttachCategoriesDto,
@@ -24,12 +26,10 @@ import {
 } from '@modules/stories/dto'
 import { Story } from '@modules/stories/entities/story.entity'
 import { Tag } from '@modules/tags/entities/tag.entity'
+import { TagRepository } from '@modules/tags/repositories/tag.repository'
 import { User } from '@modules/users/entities/user.entity'
 
-import { AttachmentRepository } from '@core/database/repositories/attachment.repository'
-import { CategoryRepository } from '@core/database/repositories/category.repository'
-import { StoryRepository } from '@core/database/repositories/story.repository'
-import { TagRepository } from '@core/database/repositories/tag.repository'
+import { StoryRepository } from '../repositories/story.repository'
 
 @Injectable()
 export class StoryRelationshipService {

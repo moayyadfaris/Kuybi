@@ -4,7 +4,8 @@ import { ListCountriesQueryDto } from '@modules/countries/dto/list-countries.que
 import { Country } from '@modules/countries/entities/country.entity'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { CountryRepository } from '@core/database/repositories/country.repository'
+
+import { CountryRepository } from '../repositories/country.repository'
 
 @Injectable()
 export class CountriesService {

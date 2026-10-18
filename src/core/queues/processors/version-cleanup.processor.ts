@@ -5,8 +5,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { IsNull, LessThan, Repository } from 'typeorm'
 
 import { StoryVersion, VersionStatus } from '@modules/stories/entities/story-version.entity'
-
-import { StoryVersionRepository } from '@core/database/repositories/story-version.repository'
+import { StoryVersionRepository } from '@modules/stories/repositories/story-version.repository'
 
 import { QueueName, VersionCleanupJobType } from '../jobs/types'
 

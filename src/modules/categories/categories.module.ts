@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { CategoryRepository } from '@core/database/repositories/category.repository'
 
 import { AclModule } from '../acl/acl.module'
 
 import { CategoriesController } from './controllers/categories.controller'
 import { Category } from './entities/category.entity'
+import { CategoryRepository } from './repositories/category.repository'
 import { CategoriesSeeder } from './seeders/categories.seeder'
 import { CategoriesService } from './services/categories.service'
 

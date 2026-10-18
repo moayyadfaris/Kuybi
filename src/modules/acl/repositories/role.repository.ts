@@ -2,11 +2,10 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { IsNull, Repository } from 'typeorm'
 
-import { Role } from '@modules/acl/entities/role.entity'
+import { CacheService } from '@core/cache/services/cache.service'
+import { BaseRepository } from '@core/database/repositories/base.repository'
 
-import { CacheService } from '../../cache/services/cache.service'
-
-import { BaseRepository } from './base.repository'
+import { Role } from '../entities/role.entity'
 
 @Injectable()
 export class RoleRepository extends BaseRepository<Role> {

@@ -4,12 +4,12 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheConfigModule } from '@core/cache/cache.module'
-import { TagRepository } from '@core/database/repositories/tag.repository'
 
 import { AclModule } from '../acl/acl.module'
 
 import { TagsController } from './controllers/tags.controller'
 import { Tag } from './entities/tag.entity'
+import { TagRepository } from './repositories/tag.repository'
 import { TagsSeeder } from './seeders/tags.seeder'
 import { TagsService } from './services/tags.service'
 

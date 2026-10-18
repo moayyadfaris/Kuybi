@@ -5,7 +5,7 @@ import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 
-import { UserRepository } from '@core/database/repositories/user.repository'
+import { UserRepository } from '@modules/users/repositories/user.repository'
 
 import { PASSWORD_CHANGE_TOKEN_SCOPE } from '../decorators/allow-password-change-token.decorator'
 import { TokenBlacklistService } from '../services/token-blacklist.service'

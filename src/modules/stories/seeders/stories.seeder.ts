@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common'
 
-import { CategoryRepository } from '@core/database/repositories/category.repository'
-import { CountryRepository } from '@core/database/repositories/country.repository'
-import { StoryRepository } from '@core/database/repositories/story.repository'
-import { TagRepository } from '@core/database/repositories/tag.repository'
-import { UserRepository } from '@core/database/repositories/user.repository'
+import { CategoryRepository } from '@modules/categories/repositories/category.repository'
+import { CountryRepository } from '@modules/countries/repositories/country.repository'
+import { TagRepository } from '@modules/tags/repositories/tag.repository'
+import { UserRepository } from '@modules/users/repositories/user.repository'
 
 import { StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
+import { StoryRepository } from '../repositories/story.repository'
 
 @Injectable()
 export class StoriesSeeder {

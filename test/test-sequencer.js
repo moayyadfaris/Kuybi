@@ -1,7 +1,7 @@
 /**
  * Custom Jest Test Sequencer
  * Ensures integration tests run in a specific order to prevent interference
- * 
+ *
  * Order:
  * 1. Unit tests (fast, isolated)
  * 2. audit.integration.spec.ts (simple, sets up basic tables)
@@ -26,7 +26,7 @@ class CustomSequencer extends Sequencer {
       const pathB = testB.path
 
       // Define priority order (lower number = runs first)
-      const getPriority = (path) => {
+      const getPriority = path => {
         // Unit tests run first (fastest) - keep them together
         if (path.includes('/unit/')) {
           // Alphabetical within unit tests

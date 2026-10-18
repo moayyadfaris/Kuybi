@@ -6,7 +6,7 @@ import { SearchCategoriesDto } from '@modules/categories/dto/search-categories.d
 import { UpdateCategoryDto } from '@modules/categories/dto/update-category.dto'
 import { Category } from '@modules/categories/entities/category.entity'
 
-import { CategoryRepository } from '@core/database/repositories/category.repository'
+import { CategoryRepository } from '../repositories/category.repository'
 
 @Injectable()
 export class CategoriesService {
