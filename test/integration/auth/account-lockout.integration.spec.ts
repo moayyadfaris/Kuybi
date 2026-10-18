@@ -10,6 +10,7 @@ import { APP_GUARD } from '@nestjs/core'
 import { Test, TestingModule } from '@nestjs/testing'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { ENTITIES } from '@app/database/entities'
 import * as bcrypt from 'bcrypt'
 import { Queue } from 'bullmq'
 import { LoggerModule } from 'nestjs-pino'
@@ -17,12 +18,13 @@ import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import configuration from '@core/config/configuration'
-import { ENTITIES } from '@core/database/entities'
+import { EventsModule } from '@core/events'
+import { SentryModule } from '@core/sentry'
 
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { AccountSecurityJobType, QueueName } from '../../../src/core/queues/jobs/types'
-import { AccountSecurityProcessor } from '../../../src/core/queues/processors/account-security.processor'
 import { AuthModule } from '../../../src/modules/auth/auth.module'
+import { AccountSecurityProcessor } from '../../../src/modules/auth/jobs/account-security.processor'
 import { AccountLockoutService } from '../../../src/modules/auth/services/account-lockout.service'
 import { User } from '../../../src/modules/users/entities/user.entity'
 import { UsersModule } from '../../../src/modules/users/users.module'
@@ -58,6 +60,8 @@ describe('Account Lockout Integration Tests', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
+        EventsModule,
+        SentryModule.forRoot(),
         ConfigModule.forRoot({
           isGlobal: true,
           load: [

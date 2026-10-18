@@ -126,21 +126,37 @@ missing, shorter than 32 characters or a placeholder, or if `DB_PASSWORD` is mis
 
 ```
 src/
-├── main.ts            API entry point
-├── worker.ts          queue worker entry point
-├── dashboard.ts       Bull Board entry point
-├── core/              cross-cutting infrastructure: config, database, cache, queues,
-│                      health, logging, observability, Sentry, graceful shutdown
-├── infrastructure/    external services (email)
-├── modules/           feature modules: auth, users, acl, stories, post-types,
-│                      attachments, categories, tags, countries, audit, web
-└── shared/            DTOs, filters, interceptors, pipes, utilities
+├── main.ts, app.module.ts         API entry point and root module
+├── worker.ts, worker.module.ts    queue worker entry point and root module
+├── dashboard.ts                   Bull Board entry point
+├── database/                      the app's schema: entity list, DataSource, migrations,
+│                                  seed and migration scripts
+├── modules/<name>/                feature modules: auth, users, acl, stories, post-types,
+│   ├── index.ts                   attachments, categories, tags, countries, audit, web
+│   ├── entities/index.ts          (each with a public API, see below)
+│   └── jobs/                      queue processors, loaded only by the worker
+├── core/                          cross-cutting framework code: config, cache, events,
+│                                  auth guards, queues, health, logging, observability
+├── infrastructure/                external services (email)
+└── shared/                        framework-free DTOs, filters, pipes, utilities
 test/
-├── unit/              unit tests (no database needed)
-├── integration/       integration tests (PostgreSQL + Redis)
-├── factories/         test data factories
-└── helpers/           shared test infrastructure
+├── unit/                          unit tests (no database needed)
+├── integration/                   integration tests (PostgreSQL + Redis)
+├── factories/                     test data factories
+└── helpers/                       shared test infrastructure
 ```
+
+**Dependency rules** (enforced in CI by `npm run lint:check` and `npm run check:module-graph`):
+
+- `shared/` depends on nothing above it; `core/` and `infrastructure/` never import
+  feature modules or `database/`.
+- A module imports another module only through its public API: `@modules/<name>`
+  (`index.ts`) or `@modules/<name>/entities`. Everything else in a module is internal.
+  Add a symbol to `index.ts` deliberately when another module needs it.
+- When a lower layer or another module must react to something, publish a domain
+  event (`core/events`) instead of importing the reacting module. Modules must not
+  depend on each other in a cycle (`npm run check:module-graph`, also in CI).
+- Tests may import internals.
 
 ---
 
@@ -163,7 +179,7 @@ corrupting the first. Setup fails if the migrations and the entities disagree.
 and commit both:
 
 ```bash
-npm run migration:generate src/core/database/migrations/AddStoryPinnedFlag
+npm run migration:generate src/database/migrations/AddStoryPinnedFlag
 npm run migration:run
 ```
 

@@ -5,15 +5,15 @@
  * on it explicitly. A plain `deletedAt: null` in TypeORM find options is silently
  * dropped (no IS NULL is generated), which made soft-deleted rows visible.
  */
+import { ENTITIES } from '@app/database/entities'
 import { DataSource } from 'typeorm'
 
 import { Role } from '@modules/acl/entities/role.entity'
+import { RoleRepository } from '@modules/acl/repositories/role.repository'
 import { Category } from '@modules/categories/entities/category.entity'
+import { CategoryRepository } from '@modules/categories/repositories/category.repository'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { ENTITIES } from '@core/database/entities'
-import { CategoryRepository } from '@core/database/repositories/category.repository'
-import { RoleRepository } from '@core/database/repositories/role.repository'
 
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { resetDatabase } from '../../helpers/reset-database'

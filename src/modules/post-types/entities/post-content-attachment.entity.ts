@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn
 } from 'typeorm'
 
-import { Attachment } from '../../attachments/entities/attachment.entity'
+import { Attachment } from '@modules/attachments/entities'
 
 import { PostContent } from './post-content.entity'
 

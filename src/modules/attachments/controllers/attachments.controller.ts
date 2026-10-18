@@ -30,12 +30,11 @@ import {
 import { Request, Response } from 'express'
 import { memoryStorage } from 'multer'
 
-import { CheckAbility } from '../../acl/abilities/ability.decorator'
-import { AbilityGuard } from '../../acl/abilities/ability.guard'
-import { Action } from '../../acl/types/actions.enum'
-import { Subject } from '../../acl/types/subjects.enum'
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
-import { User } from '../../users/entities/user.entity'
+import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { User } from '@modules/users/entities'
+
+import { JwtAuthGuard } from '@core/auth'
+
 import {
   AttachmentQueryDto,
   PresignedUrlDto,

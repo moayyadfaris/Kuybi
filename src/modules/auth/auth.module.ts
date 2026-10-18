@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq'
-import { forwardRef, Module } from '@nestjs/common'
+import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
@@ -7,19 +7,13 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { EmailModule } from '@infrastructure/email'
 import type { StringValue } from 'ms'
 
-import { Role } from '@modules/acl/entities/role.entity'
-import { AuditModule } from '@modules/audit/audit.module'
+import { Role } from '@modules/acl/entities'
+import { AuditModule } from '@modules/audit'
+import { UsersModule } from '@modules/users'
+import { EmailVerification, User } from '@modules/users/entities'
 
-import { CacheService } from '@core/cache/services/cache.service'
-import { SessionRepository } from '@core/database/repositories/session.repository'
-import { UserRepository } from '@core/database/repositories/user.repository'
 import { MetricsModule } from '@core/observability/metrics.module'
 import { QueueName } from '@core/queues/jobs/types'
-import { SentryModule } from '@core/sentry'
-
-import { EmailVerification } from '../users/entities/email-verification.entity'
-import { User } from '../users/entities/user.entity'
-import { UsersModule } from '../users/users.module'
 
 import { AuthController } from './controllers/auth.controller'
 import { CleanupStatsController } from './controllers/cleanup-stats.controller'
@@ -27,7 +21,9 @@ import { SessionsController } from './controllers/sessions.controller'
 import { PasswordHistory } from './entities/password-history.entity'
 import { PasswordReset } from './entities/password-reset.entity'
 import { Session } from './entities/session.entity'
+import { UserCredentialsResetListener } from './listeners/user-credentials-reset.listener'
 import { PasswordHistoryRepository } from './repositories/password-history.repository'
+import { SessionRepository } from './repositories/session.repository'
 import { PasswordResetService } from './services/password-reset.service'
 import { PasswordStrengthService } from './services/password-strength.service'
 import { RegistrationService } from './services/registration.service'
@@ -42,10 +38,9 @@ import {
 
 @Module({
   imports: [
-    forwardRef(() => UsersModule),
+    UsersModule,
     EmailModule,
     MetricsModule,
-    SentryModule.forRoot(),
     AuditModule,
     TypeOrmModule.forFeature([
       Session,
@@ -81,9 +76,8 @@ import {
     PasswordResetService,
     PasswordStrengthService,
     JwtStrategy,
-    CacheService,
+    UserCredentialsResetListener,
     SessionRepository,
-    UserRepository,
     PasswordHistoryRepository
   ],
   exports: [

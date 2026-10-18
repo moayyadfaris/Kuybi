@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 
-import { TagRepository } from '@core/database/repositories/tag.repository'
-import { UserRepository } from '@core/database/repositories/user.repository'
+import { UserRepository } from '@modules/users'
+
+import { TagRepository } from '../repositories/tag.repository'
 
 @Injectable()
 export class TagsSeeder {

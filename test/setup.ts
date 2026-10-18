@@ -72,7 +72,7 @@ export default async function globalSetup() {
       password: process.env.TEST_DB_PASSWORD || 'postgres',
       database: process.env.TEST_DB_NAME || 'kuybi_test',
       entities: ['src/modules/**/*.entity.ts'],
-      migrations: [path.resolve(__dirname, '..', 'src/core/database/migrations/*.ts')],
+      migrations: [path.resolve(__dirname, '..', 'src/database/migrations/*.ts')],
       migrationsTableName: 'migrations',
       synchronize: false,
       logging: ['error', 'warn']
@@ -91,7 +91,7 @@ export default async function globalSetup() {
       await freshDataSource.destroy()
       throw new Error(
         `Migrations are out of sync with the entities (${pending.upQueries.length} pending ` +
-          `change(s)). Run \`npm run migration:generate src/core/database/migrations/<Name>\`.\n${sample}`
+          `change(s)). Run \`npm run migration:generate src/database/migrations/<Name>\`.\n${sample}`
       )
     }
 

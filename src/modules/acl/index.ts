@@ -1,34 +1,16 @@
 /**
- * ACL (Access Control List) Module
- *
- * Provides enterprise-grade role-based access control using CASL.
- *
- * Features:
- * - Fine-grained permissions with action-subject pairs
- * - Dynamic permission conditions (e.g., ownership checks)
- * - Field-level access control
- * - Role-based permissions with priority
- * - Time-based role assignments
- * - System roles protection
- * - Caching for performance
- *
- * Usage:
- * ```typescript
- * // Protect a controller endpoint
- * @UseGuards(JwtAuthGuard, AbilityGuard)
- * @CheckAbility({ action: Action.Create, subject: Subject.Story })
- * async createStory() { ... }
- *
- * // Check permissions in code
- * const ability = await this.abilityFactory.createForUser(user)
- * if (ability.can(Action.Update, story)) { ... }
- * ```
+ * Public API of the acl module. Other modules import only from here
+ * (or from @modules/acl/entities); everything else is internal.
  */
-
-export * from './abilities'
-export * from './acl.module'
-export * from './controllers'
-export * from './dto'
-export * from './entities'
-export * from './services'
-export * from './types'
+export { CheckAbility } from './abilities/ability.decorator'
+export { AbilityFactory } from './abilities/ability.factory'
+export { AbilityGuard } from './abilities/ability.guard'
+export { AclModule } from './acl.module'
+export { findDefaultRoleId } from './default-role'
+export { AssignRoleDto } from './dto/assign-role.dto'
+export { RoleHierarchyGuard } from './guards/role-hierarchy.guard'
+export { SuperAdminGuard } from './guards/super-admin.guard'
+export { RoleRepository } from './repositories/role.repository'
+export { AclSeeder } from './seeders/acl.seeder'
+export { Action } from './types/actions.enum'
+export { Subject } from './types/subjects.enum'

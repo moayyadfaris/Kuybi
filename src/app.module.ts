@@ -3,26 +3,27 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { ScheduleModule } from '@nestjs/schedule'
 import { seconds, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { DatabaseModule } from '@app/database/database.module'
 import { EmailModule } from '@infrastructure/email/email.module'
 import { LoggerModule } from 'nestjs-pino'
 
-import { AclModule } from '@modules/acl/acl.module'
-import { AttachmentsModule } from '@modules/attachments/attachments.module'
-import { AuditModule } from '@modules/audit/audit.module'
-import { AuthModule } from '@modules/auth/auth.module'
-import { CategoriesModule } from '@modules/categories/categories.module'
-import { CountriesModule } from '@modules/countries/countries.module'
-import { PostTypesModule } from '@modules/post-types/post-types.module'
-import { StoriesModule } from '@modules/stories/stories.module'
-import { TagsModule } from '@modules/tags/tags.module'
-import { UsersModule } from '@modules/users/users.module'
-import { WebModule } from '@modules/web/web.module'
+import { AclModule } from '@modules/acl'
+import { AttachmentsModule } from '@modules/attachments'
+import { AuditModule } from '@modules/audit'
+import { AuthModule } from '@modules/auth'
+import { CategoriesModule } from '@modules/categories'
+import { CountriesModule } from '@modules/countries'
+import { PostTypesModule } from '@modules/post-types'
+import { StoriesModule } from '@modules/stories'
+import { TagsModule } from '@modules/tags'
+import { UsersModule } from '@modules/users'
+import { WebModule } from '@modules/web'
 
 import { CacheConfigModule } from '@core/cache/cache.module'
 import configuration from '@core/config/configuration'
 import { createLoggerConfig } from '@core/config/logger.config'
 import { validate } from '@core/config/validation'
-import { DatabaseModule } from '@core/database/database.module'
+import { EventsModule } from '@core/events'
 import { HealthModule } from '@core/health/health.module'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingModule } from '@core/logging/logging.module'
@@ -79,6 +80,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     PostTypesModule, // Dynamic Post Types System (Phase 1)
     WebModule, // Public Web API
     LoggingModule,
+    EventsModule,
     ObservabilityModule,
     ShutdownModule // Graceful shutdown handling
   ],

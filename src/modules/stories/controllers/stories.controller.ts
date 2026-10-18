@@ -26,11 +26,11 @@ import {
 } from '@nestjs/swagger'
 import { Request } from 'express'
 
-import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
-import { Action } from '@modules/acl/types/actions.enum'
-import { Subject } from '@modules/acl/types/subjects.enum'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { User } from '@modules/users/entities'
+
+import { JwtAuthGuard } from '@core/auth'
+
 import {
   AttachAttachmentsDto,
   AttachCategoriesDto,
@@ -41,12 +41,11 @@ import {
   DetachTagsDto,
   StoryFilterDto,
   UpdateStoryDto
-} from '@modules/stories/dto'
-import { UpdateStoryMainImageDto } from '@modules/stories/dto/update-story-main-image.dto'
-import { Story, StoryStatus, StoryType } from '@modules/stories/entities/story.entity'
-import { StoriesService } from '@modules/stories/services/stories.service'
-import { StoryRelationshipService } from '@modules/stories/services/story-relationship.service'
-import { User } from '@modules/users/entities/user.entity'
+} from '../dto'
+import { UpdateStoryMainImageDto } from '../dto/update-story-main-image.dto'
+import { Story, StoryStatus, StoryType } from '../entities/story.entity'
+import { StoriesService } from '../services/stories.service'
+import { StoryRelationshipService } from '../services/story-relationship.service'
 
 interface AuthenticatedRequest extends Request {
   user?: User

@@ -11,8 +11,9 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { Attachment } from '../../attachments/entities/attachment.entity'
-import { User } from '../../users/entities/user.entity'
+import { Attachment } from '@modules/attachments/entities'
+import { User } from '@modules/users/entities'
+
 import { ContentStatus } from '../enums/content-status.enum'
 
 import { PostContentAttachment } from './post-content-attachment.entity'

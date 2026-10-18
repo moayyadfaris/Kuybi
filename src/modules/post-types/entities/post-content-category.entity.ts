@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn
 } from 'typeorm'
 
-import { Category } from '../../categories/entities/category.entity'
+import { Category } from '@modules/categories/entities'
 
 import { PostContent } from './post-content.entity'
 

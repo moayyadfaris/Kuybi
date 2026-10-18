@@ -13,15 +13,14 @@ import {
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 
-import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
-import { Action } from '@modules/acl/types/actions.enum'
-import { Subject } from '@modules/acl/types/subjects.enum'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { CreateCategoryDto } from '@modules/categories/dto/create-category.dto'
-import { SearchCategoriesDto } from '@modules/categories/dto/search-categories.dto'
-import { UpdateCategoryDto } from '@modules/categories/dto/update-category.dto'
-import { CategoriesService } from '@modules/categories/services/categories.service'
+import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+
+import { JwtAuthGuard } from '@core/auth'
+
+import { CreateCategoryDto } from '../dto/create-category.dto'
+import { SearchCategoriesDto } from '../dto/search-categories.dto'
+import { UpdateCategoryDto } from '../dto/update-category.dto'
+import { CategoriesService } from '../services/categories.service'
 
 @ApiTags('categories')
 @Controller('v1/categories')

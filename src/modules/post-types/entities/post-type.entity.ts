@@ -11,7 +11,7 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { User } from '../../users/entities/user.entity'
+import { User } from '@modules/users/entities'
 
 import { FieldDefinition } from './field-definition.entity'
 

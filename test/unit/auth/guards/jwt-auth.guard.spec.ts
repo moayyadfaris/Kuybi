@@ -5,8 +5,8 @@ import {
   ALLOW_PASSWORD_CHANGE_TOKEN_KEY,
   AllowPasswordChangeToken,
   PASSWORD_CHANGE_TOKEN_SCOPE
-} from '@modules/auth/decorators/allow-password-change-token.decorator'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+} from '@core/auth/allow-password-change-token.decorator'
+import { JwtAuthGuard } from '@core/auth/jwt-auth.guard'
 
 describe('JwtAuthGuard', () => {
   const user = { id: 'user-1' }

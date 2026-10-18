@@ -8,11 +8,11 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Repository } from 'typeorm'
 
-import { AssignRoleDto } from '../../acl/dto/assign-role.dto'
-import { Role } from '../../acl/entities/role.entity'
-import { UserRole } from '../../acl/entities/user-role.entity'
-import { AuditAction, AuditSeverity } from '../../audit/entities/audit-log.entity'
-import { AuditService } from '../../audit/services/audit.service'
+import { AssignRoleDto } from '@modules/acl'
+import { Role, UserRole } from '@modules/acl/entities'
+import { AuditService } from '@modules/audit'
+import { AuditAction, AuditSeverity } from '@modules/audit/entities'
+
 import { User } from '../entities/user.entity'
 
 @Injectable()

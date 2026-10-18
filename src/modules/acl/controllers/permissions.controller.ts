@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
 
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'
+import { JwtAuthGuard } from '@core/auth'
+
 import { CheckAbility } from '../abilities/ability.decorator'
 import { CreatePermissionDto } from '../dto/create-permission.dto'
 import { UpdatePermissionDto } from '../dto/update-permission.dto'

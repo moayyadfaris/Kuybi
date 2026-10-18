@@ -9,7 +9,7 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { User } from '@modules/users/entities/user.entity'
+import { User } from '@modules/users/entities'
 
 /**
  * Session Entity - Enterprise Session Management

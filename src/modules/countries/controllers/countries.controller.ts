@@ -1,8 +1,8 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger'
 
-import { ListCountriesQueryDto } from '@modules/countries/dto/list-countries.query.dto'
-import { CountriesService } from '@modules/countries/services/countries.service'
+import { ListCountriesQueryDto } from '../dto/list-countries.query.dto'
+import { CountriesService } from '../services/countries.service'
 
 @ApiTags('countries')
 @Controller('v1/countries')

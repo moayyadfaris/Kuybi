@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 
-import { CountryRepository } from '@core/database/repositories/country.repository'
-
 import { enhancedCountries } from '../data/enhanced-countries'
+import { CountryRepository } from '../repositories/country.repository'
 
 @Injectable()
 export class CountriesSeeder {

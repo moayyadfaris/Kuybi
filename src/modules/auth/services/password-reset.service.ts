@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { LessThan, Repository } from 'typeorm'
 
-import { User } from '@modules/users/entities/user.entity'
+import { User } from '@modules/users/entities'
 
 import {
   ForgotPasswordDto,

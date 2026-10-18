@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 
-import { StoryStatus } from '@modules/stories/entities/story.entity'
-
-import { StoryRepository } from '@core/database/repositories/story.repository'
+import { StoryRepository } from '@modules/stories'
+import { StoryStatus } from '@modules/stories/entities'
 
 import { WebStoriesQueryDto } from '../dto/web-query.dto'
 import { toPublicStory } from '../web-response.mapper'

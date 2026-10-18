@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
 
-import { ListCountriesQueryDto } from '@modules/countries/dto/list-countries.query.dto'
-import { Country } from '@modules/countries/entities/country.entity'
-
 import { CacheService } from '@core/cache/services/cache.service'
-import { CountryRepository } from '@core/database/repositories/country.repository'
+
+import { ListCountriesQueryDto } from '../dto/list-countries.query.dto'
+import { Country } from '../entities/country.entity'
+import { CountryRepository } from '../repositories/country.repository'
 
 @Injectable()
 export class CountriesService {

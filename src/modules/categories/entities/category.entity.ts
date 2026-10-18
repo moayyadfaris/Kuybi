@@ -7,7 +7,7 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { Story } from '../../stories/entities/story.entity'
+import { Story } from '@modules/stories/entities'
 
 @Entity({ name: 'categories' })
 export class Category {

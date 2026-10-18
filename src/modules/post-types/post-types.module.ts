@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
-import { AclModule } from '@modules/acl/acl.module'
-import { UsersModule } from '@modules/users/users.module'
+import { AclModule } from '@modules/acl'
+import { UsersModule } from '@modules/users'
 
 // Controllers
 import { ContentController, FieldDefinitionsController, PostTypesController } from './controllers'

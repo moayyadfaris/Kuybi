@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 
-import { UserRepository } from '@core/database/repositories/user.repository'
+import { UserRepository } from '@modules/users'
 
 import { FieldDefinition } from '../entities/field-definition.entity'
 import { PostType } from '../entities/post-type.entity'

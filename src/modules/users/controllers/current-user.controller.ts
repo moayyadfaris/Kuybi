@@ -12,7 +12,7 @@ import {
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Request } from 'express'
 
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { JwtAuthGuard } from '@core/auth'
 
 import { UpdateProfileImageDto } from '../dto/update-profile-image.dto'
 import { UserProfileDto } from '../dto/user-profile.dto'

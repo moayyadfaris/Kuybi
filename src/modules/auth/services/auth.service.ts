@@ -7,8 +7,8 @@ import * as bcrypt from 'bcrypt'
 import type { StringValue } from 'ms'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { User } from '@modules/users/entities/user.entity'
-import { UsersService } from '@modules/users/services/users.service'
+import { UsersService } from '@modules/users'
+import { User } from '@modules/users/entities'
 
 import { MetricsService } from '@core/observability/metrics.service'
 import { SentryService } from '@core/sentry'

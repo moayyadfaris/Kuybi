@@ -4,6 +4,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { SentryService } from './sentry.service'
 import { SentryTestController } from './sentry-test.controller'
 
+/**
+ * Global: register once per process root (app.module, worker.module) with forRoot().
+ */
 @Global()
 @Module({})
 export class SentryModule {
@@ -11,7 +14,9 @@ export class SentryModule {
     return {
       module: SentryModule,
       imports: [ConfigModule],
-      controllers: [SentryTestController], // Only in development for testing
+      // Unauthenticated endpoints that emit test events: never expose them outside local
+      // development (they would let anyone spend the Sentry quota)
+      controllers: process.env.NODE_ENV === 'development' ? [SentryTestController] : [],
       providers: [
         {
           provide: 'SENTRY_OPTIONS',

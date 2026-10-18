@@ -18,8 +18,8 @@ import {
   AuditStatus
 } from '@modules/audit/entities/audit-log.entity'
 import { AuditQueryService } from '@modules/audit/services/audit-query.service'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
 
+import { JwtAuthGuard } from '@core/auth/jwt-auth.guard'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 
 class AllowGuard implements CanActivate {

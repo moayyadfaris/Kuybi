@@ -4,11 +4,10 @@
  * Runs the production ACL seeder against the test database and checks the
  * permissions each role ends up with, including conditional (ownership) rules.
  */
+import { ENTITIES } from '@app/database/entities'
 import { DataSource } from 'typeorm'
 
 import { Role } from '@modules/acl/entities/role.entity'
-
-import { ENTITIES } from '@core/database/entities'
 
 import { resetDatabase } from '../../helpers/reset-database'
 import { seedRolesWithPermissions } from '../../helpers/role-seeder'

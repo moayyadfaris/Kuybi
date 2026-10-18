@@ -4,9 +4,8 @@ import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { SessionRepository } from '@core/database/repositories/session.repository'
-
 import { Session, SessionTypeValue } from '../entities/session.entity'
+import { SessionRepository } from '../repositories/session.repository'
 
 export interface CreateSessionOptions {
   userId: string

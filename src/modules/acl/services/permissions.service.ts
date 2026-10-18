@@ -1,10 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 
-import { PermissionRepository } from '@core/database/repositories/permission.repository'
-
 import { CreatePermissionDto } from '../dto/create-permission.dto'
 import { UpdatePermissionDto } from '../dto/update-permission.dto'
 import { Permission } from '../entities/permission.entity'
+import { PermissionRepository } from '../repositories/permission.repository'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
 

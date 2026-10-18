@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 
-import { CategoryRepository } from '@core/database/repositories/category.repository'
+import { CategoryRepository } from '@modules/categories'
 
 import { WebQueryDto } from '../dto/web-query.dto'
 import { toPublicCategory } from '../web-response.mapper'

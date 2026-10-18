@@ -5,11 +5,11 @@
  * Do not spread entities into responses - entities carry credentials (author password
  * hash), contact details, staff notes, precise locations and attachment encryption keys.
  */
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { Category } from '@modules/categories/entities/category.entity'
-import { Story } from '@modules/stories/entities/story.entity'
-import { Tag } from '@modules/tags/entities/tag.entity'
-import { User } from '@modules/users/entities/user.entity'
+import { Attachment } from '@modules/attachments/entities'
+import { Category } from '@modules/categories/entities'
+import { Story } from '@modules/stories/entities'
+import { Tag } from '@modules/tags/entities'
+import { User } from '@modules/users/entities'
 
 export const toPublicAuthor = (user?: User | null) =>
   user ? { id: user.id, name: user.name } : null

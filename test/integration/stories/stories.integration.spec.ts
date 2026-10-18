@@ -7,6 +7,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
 import { DataSource } from 'typeorm'
@@ -21,8 +22,9 @@ import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { ENTITIES } from '@core/database/entities'
+import { EventsModule } from '@core/events'
 import { LoggingModule } from '@core/logging/logging.module'
+import { SentryModule } from '@core/sentry'
 
 import { StoryFactory } from '../../factories/story.factory'
 import { UserFactory } from '../../factories/user.factory'
@@ -60,6 +62,8 @@ describe('Stories Integration Tests', () => {
     // Create test module
     const moduleBuilder = Test.createTestingModule({
       imports: [
+        EventsModule,
+        SentryModule.forRoot(),
         ConfigModule.forRoot({
           isGlobal: true,
           load: [() => testConfig]

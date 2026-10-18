@@ -7,6 +7,7 @@ Phase 1 of the Bull Queue implementation is complete! This establishes the found
 ## What's Been Implemented
 
 ### ✅ Dependencies Installed
+
 - `@nestjs/bullmq` - NestJS integration for BullMQ
 - `bullmq` - Modern Bull queue library with TypeScript support
 - `@bull-board/api` - Bull Board core
@@ -17,20 +18,29 @@ Phase 1 of the Bull Queue implementation is complete! This establishes the found
 ### ✅ Directory Structure Created
 
 ```
-src/queues/
+src/core/queues/                 # shared queue infrastructure (no feature code)
 ├── config/
-│   ├── queue.config.ts      # Queue configurations (rates, retries, etc.)
-│   └── worker.config.ts     # Worker concurrency settings
+│   ├── queue.config.ts          # Queue configurations (rates, retries, etc.)
+│   └── worker.config.ts         # Worker concurrency settings
 ├── jobs/
-│   └── types.ts             # Queue names, job types, interfaces
+│   └── types.ts                 # Queue names, job types, interfaces
 ├── processors/
-│   └── session-cleanup.processor.ts
-├── services/
-│   └── session-cleanup.scheduler.ts
-├── worker.module.ts         # Worker-only Nest module
-├── queues.module.ts         # Shared infrastructure module
-└── worker.ts                # Worker bootstrap entry
+│   ├── base.processor.ts        # Retry / dead-letter handling shared by all processors
+│   └── email.processor.ts
+└── queues.module.ts             # BullMQ connection + queue registration
+
+src/modules/<module>/jobs/       # a feature module's processors and schedulers
+├── *.processor.ts
+├── *.scheduler.ts
+└── <module>-jobs.module.ts      # imported only by the worker
+
+src/worker.module.ts             # worker root module: composes the jobs modules
+src/worker.ts                    # worker bootstrap entry
 ```
+
+Processors start consuming as soon as they are instantiated, so they live in a
+separate `<module>-jobs.module.ts` that only `src/worker.module.ts` imports, never in
+the feature module itself (which the API also loads).
 
 ### ✅ Queues Registered
 
@@ -51,6 +61,7 @@ src/queues/
 Real-time monitoring UI accessible at: `http://localhost:3001/admin/queues`
 
 **Features:**
+
 - Monitor all queue jobs in real-time
 - Retry failed jobs
 - Remove stuck jobs
@@ -59,12 +70,14 @@ Real-time monitoring UI accessible at: `http://localhost:3001/admin/queues`
 - Basic auth protection
 
 **Default Credentials:**
+
 - Username: `admin`
 - Password: `admin123`
 
 ### ✅ Configuration
 
 Added to `src/config/configuration.ts`:
+
 ```typescript
 redis: {
   queueDb: 1  // Separate Redis DB for queues
@@ -77,6 +90,7 @@ bullBoard: {
 ```
 
 **Environment Variables:**
+
 - `REDIS_QUEUE_DB` - Redis database for queues (default: 1)
 - `BULL_BOARD_USERNAME` - Dashboard username (default: admin)
 - `BULL_BOARD_PASSWORD` - Dashboard password (default: admin123)
@@ -85,7 +99,9 @@ bullBoard: {
 ## Queue Configuration Highlights
 
 ### Rate Limiting
+
 Each queue has rate limits to prevent overwhelming resources:
+
 - Email: 500/minute
 - SMS: 100/minute
 - Session Cleanup: 100/minute
@@ -93,17 +109,21 @@ Each queue has rate limits to prevent overwhelming resources:
 - Security Scan: 10/minute (very CPU intensive)
 
 ### Retry Strategy
+
 All jobs use exponential backoff:
+
 - Initial delay: 2 seconds
 - Multiplier: 2x per retry
 - Default attempts: 3
 - Email attempts: 5 (more critical)
 
 ### Job Retention
+
 - Completed jobs: 24 hours (last 1000)
 - Failed jobs: 7 days (last 5000)
 
 ### Timeouts
+
 - Standard jobs: No timeout
 - Attachment processing: 5 minutes
 - Security scans: 10 minutes
@@ -154,6 +174,7 @@ The worker boots `QueueWorkerModule`, registers processors, and keeps the repeat
 ## Queue Configuration Examples
 
 ### Session Cleanup Queue
+
 ```typescript
 {
   limiter: { max: 100, duration: 60000 },  // 100 jobs/min
@@ -163,6 +184,7 @@ The worker boots `QueueWorkerModule`, registers processors, and keeps the repeat
 ```
 
 ### Email Queue
+
 ```typescript
 {
   limiter: { max: 500, duration: 60000 },  // 500 emails/min
@@ -173,6 +195,7 @@ The worker boots `QueueWorkerModule`, registers processors, and keeps the repeat
 ```
 
 ### Attachment Processing Queue
+
 ```typescript
 {
   limiter: { max: 20, duration: 60000 },   // 20 jobs/min (CPU bound)
@@ -225,11 +248,13 @@ Once producers are in place we can delete the cron jobs and rely entirely on the
 ## Manual Testing
 
 ### 1. Start Dashboard
+
 ```bash
 npm run start:dashboard:dev
 ```
 
 Expected output:
+
 ```
 📊 Initializing Bull Board Dashboard...
    Redis: localhost:6379 (DB 1)
@@ -240,17 +265,20 @@ Expected output:
 ```
 
 ### 2. Access Dashboard
+
 1. Open browser: http://localhost:3001/admin/queues
 2. Enter credentials: admin / admin123
 3. Verify all 9 queues are visible
 4. Each queue should show: 0 waiting, 0 active, 0 completed, 0 failed
 
 ### 3. Health Check
+
 ```bash
 curl http://localhost:3001/health
 ```
 
 Expected:
+
 ```json
 {
   "status": "healthy",
@@ -262,9 +290,11 @@ Expected:
 ## Common Issues
 
 ### Redis Connection Failed
+
 **Error:** `ECONNREFUSED localhost:6379`
 
 **Solution:** Start Redis
+
 ```bash
 # macOS
 brew services start redis
@@ -274,16 +304,20 @@ docker run -d -p 6379:6379 redis:alpine
 ```
 
 ### Port Already in Use
+
 **Error:** `EADDRINUSE: address already in use :::3001`
 
 **Solution:** Change dashboard port
+
 ```bash
 export BULL_BOARD_PORT=3002
 npm run start:dashboard:dev
 ```
 
 ### Build Errors
+
 If you see TypeScript errors, ensure all dependencies are installed:
+
 ```bash
 rm -rf node_modules package-lock.json
 npm install
@@ -301,6 +335,7 @@ BULL_BOARD_PASSWORD=your-secure-password
 ```
 
 Consider:
+
 - Using stronger passwords (20+ characters)
 - Implementing IP whitelisting
 - Running dashboard behind VPN
@@ -309,24 +344,29 @@ Consider:
 ## Performance Notes
 
 ### Redis Database Separation
+
 - DB 0: Cache (existing)
 - DB 1: Queues (new)
 
 This prevents cache eviction from affecting queues and vice versa.
 
 ### Memory Considerations
+
 Each queue stores:
+
 - Job payloads
 - Job metadata
 - Retry history
 - Completion/failure data
 
 Monitor Redis memory usage:
+
 ```bash
 redis-cli INFO memory
 ```
 
 ### Recommended Redis Configuration
+
 ```
 # redis.conf
 maxmemory 2gb
@@ -336,12 +376,14 @@ maxmemory-policy allkeys-lru  # For cache DB
 ## Monitoring
 
 ### Queue Health Indicators
+
 - **Waiting jobs piling up** → Add more workers
 - **High failure rate** → Check job logic/dependencies
 - **Jobs timing out** → Increase timeout or optimize
 - **Redis memory high** → Adjust retention policies
 
 ### Metrics to Watch
+
 1. Queue lengths (waiting, active)
 2. Job processing rate (jobs/min)
 3. Failure rate (failures/total)

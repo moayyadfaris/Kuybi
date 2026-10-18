@@ -8,7 +8,7 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { User } from '../../users/entities/user.entity'
+import { User } from '@modules/users/entities'
 
 @Entity({ name: 'attachments' })
 export class Attachment {

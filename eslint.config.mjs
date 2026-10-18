@@ -7,6 +7,13 @@ import unusedImports from 'eslint-plugin-unused-imports'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
+import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+const MODULES = readdirSync(join(import.meta.dirname, 'src/modules'), { withFileTypes: true })
+  .filter(entry => entry.isDirectory())
+  .map(entry => entry.name)
+
 export default tseslint.config(
   {
     ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.mjs']
@@ -95,6 +102,48 @@ export default tseslint.config(
         {
           selector: 'TSAsExpression > TSAnyKeyword',
           message: 'Do not cast to `any`; use a precise type or `as unknown as T`.'
+        }
+      ]
+    }
+  },
+  {
+    // Architecture boundaries (application code only; tests may reach into internals).
+    //   shared         -> nothing above it
+    //   core, infra    -> shared (and each other), never feature modules or src/database
+    //   modules/<m>    -> another module only via its public entry points:
+    //                     @modules/<other> (index.ts) and @modules/<other>/entities
+    // src/app.module.ts, src/worker.module.ts and src/database are the composition roots.
+    files: ['src/**/*.ts'],
+    settings: {
+      'import/resolver': { typescript: { project: 'tsconfig.json' } }
+    },
+    rules: {
+      'import/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: './src/shared',
+              from: ['./src/core', './src/infrastructure', './src/modules', './src/database'],
+              message: 'shared/ holds framework-free utilities and must not depend on other layers.'
+            },
+            {
+              target: ['./src/core', './src/infrastructure'],
+              from: ['./src/modules', './src/database'],
+              message:
+                'core/ and infrastructure/ must not depend on feature modules; invert the dependency (e.g. a domain event).'
+            },
+            ...MODULES.map(name => ({
+              target: `./src/modules/${name}`,
+              from: './src/modules',
+              except: [
+                `./${name}`,
+                ...MODULES.flatMap(other => [`./${other}/index.ts`, `./${other}/entities/index.ts`])
+              ],
+              message:
+                'Import other modules only through their public API: @modules/<name> or @modules/<name>/entities.'
+            }))
+          ]
         }
       ]
     }
