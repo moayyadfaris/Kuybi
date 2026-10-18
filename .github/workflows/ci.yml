@@ -75,6 +75,10 @@ jobs:
       TEST_REDIS_PORT: 6379
       TEST_REDIS_DB: 15
       JWT_SECRET: ci-only-test-secret-not-used-anywhere-else
+      # Specs that load the real configuration build S3Service, which needs credentials;
+      # nothing calls S3 in tests. (.env.test is not committed, so CI sets everything here.)
+      S3_ACCESS: ci-dummy
+      S3_SECRET: ci-dummy
     steps:
       - uses: actions/checkout@v4
 
