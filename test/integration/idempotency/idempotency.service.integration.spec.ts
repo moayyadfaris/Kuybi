@@ -42,7 +42,7 @@ describe('IdempotencyService (PostgreSQL)', () => {
   it('replays a completed outcome and detects a different request', async () => {
     const first = await service.begin('u1:POST /x', 'k', 'hash-a')
     if (first.kind !== 'started') throw new Error('expected started')
-    await service.complete(first.record.id, 201, { id: 1 })
+    await service.complete(first.record.id, first.record.lockId, 201, { id: 1 })
 
     const replay = await service.begin('u1:POST /x', 'k', 'hash-a')
     expect(replay).toMatchObject({
@@ -82,6 +82,19 @@ describe('IdempotencyService (PostgreSQL)', () => {
       expect((await service.begin('u1:POST /x', 'crashed', 'hash')).kind).toBe('started')
     })
 
+    // A real crash leaves the lock as written by Postgres (microsecond precision, set in
+    // SQL), not by JavaScript (milliseconds), so age it in SQL too
+    it('takes over a key whose lock was set by the database clock', async () => {
+      const first = await service.begin('u1:POST /x', 'crashed-db-clock', 'hash')
+      if (first.kind !== 'started') throw new Error('expected started')
+      await dataSource.query(
+        `UPDATE idempotency_keys SET "lockedAt" = now() - interval '10 minutes' WHERE id = $1`,
+        [first.record.id]
+      )
+
+      expect((await service.begin('u1:POST /x', 'crashed-db-clock', 'hash')).kind).toBe('started')
+    })
+
     it('hands an abandoned key to exactly one of many concurrent retries', async () => {
       await startAndAge('crashed-many', IDEMPOTENCY_LEASE_MS + 1000)
 
@@ -90,6 +103,29 @@ describe('IdempotencyService (PostgreSQL)', () => {
       )
 
       expect(results.filter(r => r.kind === 'started')).toHaveLength(1)
+    })
+
+    it('ignores a superseded attempt that finishes after the takeover', async () => {
+      const original = await service.begin('u1:POST /x', 'slow', 'hash')
+      if (original.kind !== 'started') throw new Error('expected started')
+      await dataSource.query(
+        `UPDATE idempotency_keys SET "lockedAt" = now() - interval '10 minutes' WHERE id = $1`,
+        [original.record.id]
+      )
+      const retry = await service.begin('u1:POST /x', 'slow', 'hash')
+      if (retry.kind !== 'started') throw new Error('expected takeover')
+
+      // The slow original finally answers: it no longer holds the key
+      expect(
+        await service.complete(original.record.id, original.record.lockId, 201, { from: 'old' })
+      ).toBe(false)
+      await service.release(original.record.id, original.record.lockId)
+
+      expect(
+        await service.complete(retry.record.id, retry.record.lockId, 201, { from: 'retry' })
+      ).toBe(true)
+      const replay = await service.begin('u1:POST /x', 'slow', 'hash')
+      expect(replay).toMatchObject({ kind: 'replay', record: { responseBody: { from: 'retry' } } })
     })
 
     it('still rejects a different request on an abandoned key', async () => {

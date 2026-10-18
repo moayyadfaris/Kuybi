@@ -33,9 +33,16 @@ export class IdempotencyKey {
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 
-  /** When the attempt now holding the key started; an old lock means it died */
+  /** When the attempt now holding the key started (database clock); old means it died */
   @Column({ type: 'timestamptz', default: () => 'now()' })
   lockedAt: Date
+
+  /**
+   * Fencing token of the attempt holding the key. A takeover issues a new one, so a
+   * superseded attempt that finishes late cannot complete or release the key.
+   */
+  @Column({ type: 'uuid', default: () => 'uuid_generate_v4()' })
+  lockId: string
 
   @Column({ type: 'timestamptz' })
   expiresAt: Date

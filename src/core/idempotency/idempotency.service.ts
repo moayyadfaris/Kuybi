@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
+import { randomUUID } from 'crypto'
 import { LessThan, QueryFailedError, Repository } from 'typeorm'
 
 import { IdempotencyKey } from './idempotency-key.entity'
@@ -42,6 +43,7 @@ export class IdempotencyService {
             key,
             requestHash,
             status: 'in_progress',
+            lockId: randomUUID(),
             expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_MS)
           })
         )
@@ -58,7 +60,7 @@ export class IdempotencyService {
       }
       if (existing.requestHash !== requestHash) return { kind: 'mismatch' }
       if (existing.status === 'in_progress') {
-        const takenOver = await this.takeOverAbandoned(existing)
+        const takenOver = await this.takeOverAbandoned(existing.id)
         return takenOver ? { kind: 'started', record: takenOver } : { kind: 'in_progress' }
       }
       return { kind: 'replay', record: existing }
@@ -67,31 +69,53 @@ export class IdempotencyService {
   }
 
   /**
-   * Claims a key whose holder stopped without completing or releasing it. The update is
-   * conditional on the old lock, so of several retries exactly one takes it over.
+   * Claims a key whose holder stopped without completing or releasing it (the process
+   * died). Age is judged in SQL on the database clock, which also wrote lockedAt: no
+   * timestamp round-trips through JavaScript (millisecond) precision and no app/DB clock
+   * skew. Postgres re-checks the WHERE clause after a concurrent update, so of several
+   * retries exactly one gets the row; it receives a new lockId.
    */
-  private async takeOverAbandoned(existing: IdempotencyKey): Promise<IdempotencyKey | null> {
-    if (existing.lockedAt.getTime() > Date.now() - IDEMPOTENCY_LEASE_MS) return null
-    const lockedAt = new Date()
+  private async takeOverAbandoned(id: string): Promise<IdempotencyKey | null> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(IdempotencyKey)
+      .set({ lockedAt: () => 'now()', lockId: randomUUID() })
+      .where('id = :id', { id })
+      .andWhere('status = :status', { status: 'in_progress' })
+      .andWhere(`"lockedAt" < now() - make_interval(secs => :leaseSeconds)`, {
+        leaseSeconds: IDEMPOTENCY_LEASE_MS / 1000
+      })
+      .returning('*')
+      .execute()
+    const rows = result.raw as IdempotencyKey[]
+    return rows.length > 0 ? this.repository.create(rows[0]) : null
+  }
+
+  /**
+   * Stores the outcome. Returns false if the attempt no longer holds the key (it was
+   * taken over after its lease ran out); the newer attempt's outcome then stands.
+   */
+  async complete(
+    id: string,
+    lockId: string,
+    responseStatus: number,
+    responseBody: unknown
+  ): Promise<boolean> {
     const result = await this.repository.update(
-      { id: existing.id, status: 'in_progress', lockedAt: existing.lockedAt },
-      { lockedAt }
+      { id, lockId, status: 'in_progress' },
+      {
+        status: 'completed',
+        responseStatus,
+        // jsonb column: undefined (a void handler) is stored as null
+        responseBody: (responseBody ?? null) as object
+      }
     )
-    return result.affected ? { ...existing, lockedAt } : null
+    return !!result.affected
   }
 
-  async complete(id: string, responseStatus: number, responseBody: unknown): Promise<void> {
-    await this.repository.update(id, {
-      status: 'completed',
-      responseStatus,
-      // jsonb column: undefined (a void handler) is stored as null
-      responseBody: (responseBody ?? null) as object
-    })
-  }
-
-  /** Forgets the key so the client may retry (the request failed in a retryable way) */
-  async release(id: string): Promise<void> {
-    await this.repository.delete({ id })
+  /** Forgets the key so the client may retry, if this attempt still holds it */
+  async release(id: string, lockId: string): Promise<void> {
+    await this.repository.delete({ id, lockId, status: 'in_progress' })
   }
 
   @Cron(CronExpression.EVERY_HOUR)
