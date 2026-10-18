@@ -24,6 +24,22 @@ import { Session } from '../entities/session.entity'
  * - Cached stats: ~1ms (vs ~50ms DB query)
  * - Expected cache hit rate: 85-90% for active sessions
  */
+/**
+ * Records the revocation reason in metadata. The reason is bound as a parameter
+ * (`:revocationReason`), never interpolated: it can contain user-controlled text
+ * such as an administrator's email address.
+ */
+const REVOCATION_REASON_SQL = `jsonb_set(COALESCE(metadata, '{}'::jsonb), '{revocationReason}', to_jsonb(CAST(:revocationReason AS text)))`
+
+/** Upper bound on serving a cached access status if an invalidation is missed (seconds) */
+const ACCESS_STATUS_TTL = 30
+
+interface AccessStatus {
+  active: boolean
+  /** epoch milliseconds */
+  expiresAt: number
+}
+
 @Injectable()
 export class SessionRepository extends BaseRepository<Session> {
   protected entityName = 'session'
@@ -179,6 +195,7 @@ export class SessionRepository extends BaseRepository<Session> {
     await this.repository.save(session)
     await this.invalidateEntityCache(sessionId)
     await this.invalidateListCaches()
+    await this.invalidateAccessStatus(session.userId)
 
     this.logger.debug(
       { sessionId, reason, userId: session.userId, action: 'session_revoked' },
@@ -205,14 +222,9 @@ export class SessionRepository extends BaseRepository<Session> {
       .set({
         isActive: false,
         deletedAt: new Date(),
-        metadata: () => `
-          jsonb_set(
-            COALESCE(metadata, '{}'::jsonb),
-            '{revocationReason}',
-            '"${reason || 'user_logout_all'}"'::jsonb
-          )
-        `
+        metadata: () => REVOCATION_REASON_SQL
       })
+      .setParameter('revocationReason', reason || 'user_logout_all')
       .where('userId = :userId', { userId })
       .andWhere('isActive = :isActive', { isActive: true })
       .andWhere('deletedAt IS NULL')
@@ -229,10 +241,9 @@ export class SessionRepository extends BaseRepository<Session> {
       'Revoked all user sessions in repository'
     )
 
-    // Invalidate all user session caches
-    await this.cacheService.del(this.buildCacheKey('user', userId, 'active'))
-    await this.cacheService.del(this.buildCacheKey('user', userId, 'all'))
+    await this.invalidateUserSessionCache(userId)
     await this.invalidateListCaches()
+    await this.invalidateAccessStatus(userId)
 
     return count
   }
@@ -250,14 +261,9 @@ export class SessionRepository extends BaseRepository<Session> {
       .set({
         isActive: false,
         deletedAt: new Date(),
-        metadata: () => `
-          jsonb_set(
-            COALESCE(metadata, '{}'::jsonb),
-            '{revocationReason}',
-            '"device_type_revocation"'::jsonb
-          )
-        `
+        metadata: () => REVOCATION_REASON_SQL
       })
+      .setParameter('revocationReason', 'device_type_revocation')
       .where('userId = :userId', { userId })
       .andWhere('deviceType = :deviceType', { deviceType })
       .andWhere('isActive = :isActive', { isActive: true })
@@ -270,8 +276,9 @@ export class SessionRepository extends BaseRepository<Session> {
       'Revoked sessions by device type in repository'
     )
 
-    await this.invalidateEntityCache(userId)
+    await this.invalidateUserSessionCache(userId)
     await this.invalidateListCaches()
+    await this.invalidateAccessStatus(userId)
 
     return count
   }
@@ -525,6 +532,37 @@ export class SessionRepository extends BaseRepository<Session> {
       },
       900 // 15 minutes
     )
+  }
+
+  /**
+   * Whether an access token bound to this session may still be used.
+   *
+   * Called on every authenticated request. The sessions table is the source of truth;
+   * the answer is cached for ACCESS_STATUS_TTL seconds and every revocation path above
+   * clears it, so a revoked session stops working immediately. If Redis is unavailable
+   * the lookup falls back to the database (never fails open).
+   */
+  async isUsableForAccess(sessionId: string, userId: string): Promise<boolean> {
+    const key = this.buildCacheKey('access', userId, sessionId)
+    let status = await this.cacheService.get<AccessStatus>(key)
+
+    if (!status) {
+      const session = await this.repository.findOne({
+        where: { id: sessionId },
+        select: ['id', 'userId', 'isActive', 'deletedAt', 'expiresAt']
+      })
+      status = {
+        active: !!session && session.userId === userId && session.isActive && !session.deletedAt,
+        expiresAt: session?.expiresAt.getTime() ?? 0
+      }
+      await this.cacheService.set(key, status, ACCESS_STATUS_TTL)
+    }
+
+    return status.active && status.expiresAt > Date.now()
+  }
+
+  private async invalidateAccessStatus(userId: string): Promise<void> {
+    await this.cacheService.delPattern(this.buildCacheKey('access', userId, '*'))
   }
 
   /**

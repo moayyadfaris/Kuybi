@@ -9,7 +9,9 @@ import { UserRepository } from '@modules/users'
 
 import { PASSWORD_CHANGE_TOKEN_SCOPE } from '@core/auth'
 
+import { SessionRepository } from '../repositories/session.repository'
 import { TokenBlacklistService } from '../services/token-blacklist.service'
+import type { AccessTokenPayload } from '../types/jwt-payload'
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -18,7 +20,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly logger: PinoLogger,
     private readonly configService: ConfigService,
     private readonly tokenBlacklistService: TokenBlacklistService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly sessionRepository: SessionRepository
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -28,10 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     })
   }
 
-  async validate(
-    req: Request,
-    payload: { sub: string; email: string; role: string; tempPasswordChange?: boolean }
-  ) {
+  async validate(req: Request, payload: AccessTokenPayload) {
     // Extract the raw JWT token from the request
     const authHeader = req.headers.authorization
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
@@ -52,6 +52,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         'Attempted use of blacklisted token'
       )
       throw new UnauthorizedException('Token has been revoked')
+    }
+
+    // The token dies with its session (logout, logout-all, admin password reset, refresh).
+    // Only the temporary password-change token has no session; JwtAuthGuard limits its scope.
+    if (payload.sid) {
+      const usable = await this.sessionRepository.isUsableForAccess(payload.sid, payload.sub)
+      if (!usable) {
+        this.logger.warn(
+          { userId: payload.sub, sessionId: payload.sid, action: 'revoked_session_token_attempt' },
+          'Access token used after its session ended'
+        )
+        throw new UnauthorizedException('Session has ended')
+      }
+    } else if (!payload.tempPasswordChange) {
+      throw new UnauthorizedException('Access token is not bound to a session')
     }
 
     // Load full user entity (includes primaryRole, userRoles relations)

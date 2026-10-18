@@ -415,6 +415,9 @@ describe('Session Management Integration Tests', () => {
   // users publishes UserCredentialsResetEvent; the auth listener revokes the sessions
   describe('Admin password reset (users -> auth domain event)', () => {
     const RESET_USER_PASSWORD = 'Reset@User123'
+    // Apostrophes and quotes are valid in email local parts; the revocation reason embeds it
+    const HOSTILE_ADMIN_EMAIL = `o'brien"); DROP TABLE sessions; --@test-session.com`
+    const resetUserTokens: string[] = []
     let resetUser: User
 
     beforeAll(async () => {
@@ -426,10 +429,19 @@ describe('Session Management Integration Tests', () => {
       resetUser = await dataSource.getRepository(User).save(data as User)
 
       for (let i = 0; i < 2; i++) {
-        await request(app.getHttpServer())
+        const login = await request(app.getHttpServer())
           .post('/api/v1/auth/login')
           .send({ email: resetUser.email, password: RESET_USER_PASSWORD })
           .expect(201)
+        resetUserTokens.push(login.body.accessToken)
+      }
+
+      // Both tokens work (and their "session usable" answers are now cached)
+      for (const token of resetUserTokens) {
+        await request(app.getHttpServer())
+          .get('/api/v1/sessions/me')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200)
       }
     })
 
@@ -441,10 +453,33 @@ describe('Session Management Integration Tests', () => {
 
       const result = await app
         .get(AdminPasswordManagementService)
-        .resetPassword({ userId: resetUser.id }, superAdminUser.id, superAdminUser.email)
+        .resetPassword({ userId: resetUser.id }, superAdminUser.id, HOSTILE_ADMIN_EMAIL)
 
       expect(result.temporaryPassword).toBeTruthy()
       expect(await activeSessions()).toBe(0)
+    })
+
+    it('stores the revocation reason literally (bound as a SQL parameter)', async () => {
+      const sessions = await dataSource
+        .getRepository(Session)
+        .find({ where: { userId: resetUser.id } })
+
+      expect(sessions).toHaveLength(2)
+      for (const session of sessions) {
+        expect(session.metadata?.revocationReason).toBe(
+          `Password reset by admin: ${HOSTILE_ADMIN_EMAIL}`
+        )
+      }
+    })
+
+    it('rejects access tokens of the revoked sessions immediately, not at expiry', async () => {
+      for (const token of resetUserTokens) {
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/sessions/me')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(401)
+        expect(response.body.message).toBe('Session has ended')
+      }
     })
 
     it("does not touch other users' sessions", async () => {

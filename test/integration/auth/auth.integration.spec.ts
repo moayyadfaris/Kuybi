@@ -232,6 +232,27 @@ describe('Auth Integration Tests', () => {
       expect(response.body).toHaveProperty('refreshToken')
     })
 
+    it('ends the old session: its access token stops working, the new one works', async () => {
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: testUser.email, password: TEST_PASSWORD })
+        .expect(201)
+      const me = (token: string) =>
+        request(app.getHttpServer())
+          .get('/api/v1/sessions/me')
+          .set('Authorization', `Bearer ${token}`)
+
+      await me(login.body.accessToken).expect(200)
+
+      const refreshed = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: login.body.refreshToken })
+        .expect(201)
+
+      await me(login.body.accessToken).expect(401)
+      await me(refreshed.body.accessToken).expect(200)
+    })
+
     it('should fail with invalid refresh token', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')

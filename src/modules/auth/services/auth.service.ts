@@ -15,6 +15,7 @@ import { SentryService } from '@core/sentry'
 
 import { Session } from '../entities/session.entity'
 import { PasswordHistoryRepository } from '../repositories/password-history.repository'
+import type { AccessTokenPayload } from '../types/jwt-payload'
 
 import { AccountLockoutService } from './account-lockout.service'
 import { PasswordStrengthService } from './password-strength.service'
@@ -213,7 +214,7 @@ export class AuthService {
     })
 
     // Generate access token
-    const accessToken = await this.generateAccessToken(user)
+    const accessToken = await this.generateAccessToken(user, session.id)
 
     this.logger.info(
       { sessionId: session.id, userId: user.id, action: 'session_created' },
@@ -273,7 +274,7 @@ export class AuthService {
       })
 
     // Generate new access token
-    const accessToken = await this.generateAccessToken(user)
+    const accessToken = await this.generateAccessToken(user, newSession.id)
 
     this.logger.info(
       {
@@ -539,8 +540,17 @@ export class AuthService {
     return `${segments[0]}.${segments[1]}.***.***`
   }
 
-  private async generateAccessToken(user: User) {
-    const payload = { sub: user.id, email: user.email, role: user.getPrimaryRoleName() }
+  /**
+   * Access tokens carry the session id (`sid`): JwtStrategy rejects them as soon as
+   * that session is revoked, instead of when the token expires.
+   */
+  private async generateAccessToken(user: User, sessionId: string) {
+    const payload: AccessTokenPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.getPrimaryRoleName(),
+      sid: sessionId
+    }
     return this.jwtService.signAsync(payload, {
       expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') as StringValue
     })
@@ -551,7 +561,7 @@ export class AuthService {
    * This token is valid for 15 minutes and can only be used to change password
    */
   private async generateTempAccessToken(user: User) {
-    const payload = {
+    const payload: AccessTokenPayload = {
       sub: user.id,
       email: user.email,
       role: user.getPrimaryRoleName(),
