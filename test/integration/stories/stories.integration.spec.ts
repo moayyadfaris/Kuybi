@@ -3,10 +3,11 @@
  * Tests story CRUD operations with database and cache
  */
 
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -104,13 +105,7 @@ describe('Stories Integration Tests', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true
-      })
-    )
+    configureApp(app)
 
     dataSource = app.get(DataSource)
     await app.init()
@@ -143,9 +138,11 @@ describe('Stories Integration Tests', () => {
       })
       .expect(201)
 
-    accessToken = loginResponse.body.accessToken
+    accessToken = loginResponse.body.data.accessToken
     if (!accessToken) {
-      throw new Error(`Login failed in stories integration: ${JSON.stringify(loginResponse.body)}`)
+      throw new Error(
+        `Login failed in stories integration: ${JSON.stringify(loginResponse.body.data)}`
+      )
     }
   })
 
@@ -169,10 +166,10 @@ describe('Stories Integration Tests', () => {
         .send(storyData)
         .expect(201)
 
-      expect(response.body).toHaveProperty('id')
-      expect(response.body.title).toBe(storyData.title)
-      expect(response.body.details).toBe(storyData.details)
-      expect(response.body.userId).toBe(testUser.id)
+      expect(response.body.data).toHaveProperty('id')
+      expect(response.body.data.title).toBe(storyData.title)
+      expect(response.body.data.details).toBe(storyData.details)
+      expect(response.body.data.userId).toBe(testUser.id)
     })
 
     it('should create story with tags by name', async () => {
@@ -189,14 +186,14 @@ describe('Stories Integration Tests', () => {
         })
         .expect(201)
 
-      const storyId = createResponse.body.id
+      const storyId = createResponse.body.data.id
       const storyResponse = await request(app.getHttpServer())
         .get(`/api/v1/stories/${storyId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      expect(storyResponse.body.tags).toHaveLength(2)
-      const tagNames = storyResponse.body.tags.map((tag: { name: string }) => tag.name).sort()
+      expect(storyResponse.body.data.tags).toHaveLength(2)
+      const tagNames = storyResponse.body.data.tags.map((tag: { name: string }) => tag.name).sort()
       expect(tagNames).toEqual(['economy', 'politics'])
     })
 
@@ -235,10 +232,10 @@ describe('Stories Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      expect(response.body).toHaveProperty('results')
-      expect(response.body).toHaveProperty('total')
-      expect(response.body).toHaveProperty('pagination')
-      expect(response.body.results.length).toBe(5)
+      expect(response.body.data).toHaveProperty('results')
+      expect(response.body.data).toHaveProperty('total')
+      expect(response.body.data).toHaveProperty('pagination')
+      expect(response.body.data.results.length).toBe(5)
     })
 
     it('should filter stories by status', async () => {
@@ -248,7 +245,7 @@ describe('Stories Integration Tests', () => {
         .query({ status: 'DRAFT' })
         .expect(200)
 
-      expect(response.body.results.every((s: any) => s.status === 'DRAFT')).toBe(true)
+      expect(response.body.data.results.every((s: any) => s.status === 'DRAFT')).toBe(true)
     })
 
     it('should paginate results', async () => {
@@ -258,9 +255,9 @@ describe('Stories Integration Tests', () => {
         .query({ page: 1, limit: 2 })
         .expect(200)
 
-      expect(response.body.results.length).toBe(2)
-      expect(response.body.pagination.page).toBe(1)
-      expect(response.body.pagination.limit).toBe(2)
+      expect(response.body.data.results.length).toBe(2)
+      expect(response.body.data.pagination.page).toBe(1)
+      expect(response.body.data.pagination.limit).toBe(2)
     })
 
     it('should include tags and categories in response', async () => {
@@ -269,7 +266,7 @@ describe('Stories Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      const story = response.body.results[0]
+      const story = response.body.data.results[0]
       expect(story).toHaveProperty('tags')
       expect(story).toHaveProperty('categories')
     })
@@ -291,7 +288,7 @@ describe('Stories Integration Tests', () => {
       const retry = await post('retry-key-1', body).expect(201)
 
       expect(retry.headers['idempotent-replayed']).toBe('true')
-      expect(retry.body.id).toBe(first.body.id)
+      expect(retry.body.data.id).toBe(first.body.data.id)
       expect(await dataSource.getRepository(Story).countBy({ title: 'Retried once' })).toBe(1)
     })
 
@@ -349,14 +346,16 @@ describe('Stories Integration Tests', () => {
         .expect(201)
 
       await request(app.getHttpServer())
-        .patch(`/api/v1/stories/${created.body.id}`)
+        .patch(`/api/v1/stories/${created.body.data.id}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ title: 'Half-applied title', categoryIds: [UNKNOWN_CATEGORY] })
         .expect(400)
 
-      const stored = await dataSource.getRepository(Story).findOneByOrFail({ id: created.body.id })
+      const stored = await dataSource
+        .getRepository(Story)
+        .findOneByOrFail({ id: created.body.data.id })
       expect(stored.title).toBe('Original title')
-      expect(stored.version).toBe(created.body.version)
+      expect(stored.version).toBe(created.body.data.version)
     })
   })
 
@@ -400,9 +399,9 @@ describe('Stories Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      expect(response.body.id).toBe(storyId)
-      expect(response.body).toHaveProperty('tags')
-      expect(response.body).toHaveProperty('categories')
+      expect(response.body.data.id).toBe(storyId)
+      expect(response.body.data).toHaveProperty('tags')
+      expect(response.body.data).toHaveProperty('categories')
     })
 
     it('should return 404 for non-existent story', async () => {
@@ -429,11 +428,11 @@ describe('Stories Integration Tests', () => {
 
       if (response.status !== 201) {
         throw new Error(
-          `Failed to create story for delete tests: ${response.status} ${JSON.stringify(response.body)}`
+          `Failed to create story for delete tests: ${response.status} ${JSON.stringify(response.body.data)}`
         )
       }
 
-      storyId = response.body.id
+      storyId = response.body.data.id
     })
 
     it('should update story', async () => {
@@ -448,8 +447,8 @@ describe('Stories Integration Tests', () => {
         .send(updatedData)
 
       expect(response.status).toBe(200)
-      expect(response.body.title).toBe(updatedData.title)
-      expect(response.body.details).toBe(updatedData.details)
+      expect(response.body.data.title).toBe(updatedData.title)
+      expect(response.body.data.details).toBe(updatedData.details)
     })
 
     it('should fail without authentication', async () => {
@@ -476,11 +475,11 @@ describe('Stories Integration Tests', () => {
 
       if (response.status !== 201) {
         throw new Error(
-          `Failed to create story for delete tests: ${response.status} ${JSON.stringify(response.body)}`
+          `Failed to create story for delete tests: ${response.status} ${JSON.stringify(response.body.data)}`
         )
       }
 
-      storyId = response.body.id
+      storyId = response.body.data.id
     })
 
     it('should soft delete story', async () => {
@@ -518,7 +517,7 @@ describe('Stories Integration Tests', () => {
       const duration = Date.now() - startTime
 
       // Results should be identical
-      expect(response1.body).toEqual(response2.body)
+      expect(response1.body.data).toEqual(response2.body.data)
 
       // Second request should be fast (< 50ms from cache)
       expect(duration).toBeLessThan(50)

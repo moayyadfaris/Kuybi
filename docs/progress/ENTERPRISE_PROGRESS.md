@@ -7,10 +7,12 @@ This document tracks the implementation of enterprise-level features and pattern
 ## ✅ Phase 1: Foundation & Performance (COMPLETE)
 
 ### 1.1 Redis Caching ✅ COMPLETE
+
 **Status:** Production-ready  
 **Completion Date:** October 24, 2025
 
 **What Was Built:**
+
 - Global cache module with Redis integration
 - CacheService with 8 core operations
 - Custom decorators (@CacheKey, @CacheTTL)
@@ -20,6 +22,7 @@ This document tracks the implementation of enterprise-level features and pattern
 - Auth module prepared for session caching
 
 **Performance Gains:**
+
 - 25-30x faster for cached responses
 - Database load reduced by 85-95%
 - Sub-millisecond response times for cached data
@@ -31,10 +34,12 @@ This document tracks the implementation of enterprise-level features and pattern
 ---
 
 ### 1.2 Repository Pattern ✅ COMPLETE
+
 **Status:** Production-ready  
 **Completion Date:** October 24, 2025
 
 **What Was Built:**
+
 - BaseRepository abstract class with 15 core methods
 - UserRepository with 13 specialized methods
 - CountryRepository with 11 specialized methods
@@ -44,6 +49,7 @@ This document tracks the implementation of enterprise-level features and pattern
 - Type-safe data access layer
 
 **Code Quality Improvements:**
+
 - 60% code reduction in services
 - Full TypeScript type safety
 - Separation of concerns achieved
@@ -51,6 +57,7 @@ This document tracks the implementation of enterprise-level features and pattern
 - Easy mocking for unit tests
 
 **Performance Gains:**
+
 - 30-150x faster with repository caching
 - Smart cache invalidation on writes
 - Reduced database load
@@ -62,10 +69,12 @@ This document tracks the implementation of enterprise-level features and pattern
 ---
 
 ### 1.3 Categories Module ✅ COMPLETE
+
 **Status:** Production-ready  
 **Completion Date:** October 24, 2025
 
 **What Was Built:**
+
 - Category entity with TypeORM mapping
 - CategoryRepository with 11 specialized methods
 - CategoriesService with full business logic
@@ -77,6 +86,7 @@ This document tracks the implementation of enterprise-level features and pattern
 - Statistics endpoint with caching
 
 **Features:**
+
 - Full CRUD operations
 - Automatic slug generation (kebab-case)
 - Duplicate slug prevention
@@ -90,12 +100,14 @@ This document tracks the implementation of enterprise-level features and pattern
 - Version tracking for optimistic locking
 
 **Performance:**
+
 - 24-80x faster with caching
 - 1-hour cache for category data
 - 5-minute cache for statistics
 - 85%+ cache hit rate expected
 
 **API Endpoints:**
+
 - 5 public endpoints (GET operations)
 - 5 protected endpoints (write operations)
 - Full Swagger documentation
@@ -108,10 +120,12 @@ This document tracks the implementation of enterprise-level features and pattern
 ## 🔄 Phase 2: Testing & Quality (IN PROGRESS)
 
 ### 2.1 Unit Tests ⏳ NOT STARTED
+
 **Priority:** High  
 **Effort:** 2-3 days
 
 **Scope:**
+
 - [ ] Unit tests for all services (Auth, Users, Countries)
 - [ ] Unit tests for repositories
 - [ ] Unit tests for cache service
@@ -123,12 +137,14 @@ This document tracks the implementation of enterprise-level features and pattern
 ---
 
 ### 2.2 Integration Tests ✅ COMPLETE
+
 **Priority:** High  
 **Effort:** 2-3 days (COMPLETE)  
 **Status:** Production-ready  
 **Completion Date:** October 26, 2025
 
 **Completed:**
+
 - [x] Auth integration tests (12 test cases)
 - [x] Stories integration tests (15 test cases)
 - [x] JWT authentication flow testing
@@ -141,6 +157,7 @@ This document tracks the implementation of enterprise-level features and pattern
 - [x] Test isolation (beforeEach/afterEach)
 
 **Test Coverage:**
+
 ```
 Test Suites: 2 passed, 2 total
 Tests:       27 passed, 27 total
@@ -148,6 +165,7 @@ Time:        ~7-8 seconds
 ```
 
 **Auth Integration Tests (12 tests):**
+
 1. ✅ POST /auth/login - Valid credentials
 2. ✅ POST /auth/login - Invalid credentials
 3. ✅ POST /auth/login - Non-existent user
@@ -162,6 +180,7 @@ Time:        ~7-8 seconds
 12. ✅ Session cleanup on logout
 
 **Stories Integration Tests (15 tests):**
+
 1. ✅ POST /stories - Create story (authenticated)
 2. ✅ POST /stories - Unauthorized without token
 3. ✅ POST /stories - With tags (auto-creation)
@@ -179,6 +198,7 @@ Time:        ~7-8 seconds
 15. ✅ GET /stories/stats - Statistics
 
 **Test Infrastructure:**
+
 - Global setup script (`test/setup.ts`)
 - Database seeding (admin user, categories, stories)
 - TypeORM test configuration
@@ -188,17 +208,20 @@ Time:        ~7-8 seconds
 - Cleanup after each test suite
 
 **Code Metrics:**
+
 - `test/integration/auth/auth.integration.spec.ts`: ~350 lines
 - `test/integration/stories/stories.integration.spec.ts`: ~400 lines
 - `test/setup.ts`: Global test setup
 - `test/jest-e2e.json`: Test configuration
 
 **Performance:**
+
 - Average test execution: ~7-8 seconds
 - Parallel test execution: Disabled (--runInBand for database consistency)
 - Test isolation: 100% (no test interdependencies)
 
 **Documentation:**
+
 - Test setup documented in test files
 - Global setup script with inline documentation
 - Database seeding strategy documented
@@ -207,11 +230,13 @@ Time:        ~7-8 seconds
 
 ---
 
-### 2.3 Structured Logging (Pino) ✅ COMPLETE  
+### 2.3 Structured Logging (Pino) ✅ COMPLETE
+
 **Status:** Production-ready - Fully expanded to all auth/session modules  
 **Completion Date:** October 24, 2025
 
 **What Was Built:**
+
 - Pino configuration with environment-based settings
 - LoggerModule integrated in AppModule
 - **Complete logging coverage** for all auth/session modules
@@ -222,6 +247,7 @@ Time:        ~7-8 seconds
 - **24 structured logging points** across 6 modules
 
 **Features:**
+
 - ✅ Environment-based log levels (debug/info/silent)
 - ✅ Pretty-print in development (colorized, readable)
 - ✅ Structured JSON in production (log aggregation ready)
@@ -233,12 +259,14 @@ Time:        ~7-8 seconds
 - ✅ Performance tracking (duration metrics)
 
 **Performance:**
+
 - 5-10x faster than Winston (30,000+ logs/sec)
 - 2.6x less memory usage (~15 MB vs ~40 MB)
 - 3x less CPU usage (async I/O)
 - 50x faster startup (< 1ms vs ~50ms)
 
 **Redacted Fields (Security):**
+
 - Authorization headers, cookies
 - Passwords (all variants)
 - Tokens (access, refresh, OTP)
@@ -246,22 +274,25 @@ Time:        ~7-8 seconds
 - Set-cookie headers
 
 **Logging Examples:**
+
 ```typescript
 // Structured context logging
-this.logger.info({ userId, filter, action: 'list_sessions' }, 'Listing sessions');
+this.logger.info({ userId, filter, action: 'list_sessions' }, 'Listing sessions')
 
 // Security logging
-this.logger.warn({ userId, sessionId, ownerId }, 'Unauthorized access attempt');
+this.logger.warn({ userId, sessionId, ownerId }, 'Unauthorized access attempt')
 
 // Performance logging
-this.logger.info({ userId, count, duration }, 'Sessions listed');
+this.logger.info({ userId, count, duration }, 'Sessions listed')
 ```
 
 **Files Created:**
+
 - logger.config.ts (200 lines) - Complete configuration
 - PINO_LOGGING_COMPLETE.md - Full documentation
 
 **Files Modified:**
+
 - app.module.ts - LoggerModule integration
 - main.ts - Pino as application logger
 - sessions.controller.ts - Recreated with structured logging (360 lines)
@@ -270,6 +301,7 @@ this.logger.info({ userId, count, duration }, 'Sessions listed');
 - session.repository.ts - Critical operations logging (4 methods) ✅
 
 #### 🔁 2025-10-25 Logging Enhancements (In Progress Modules)
+
 - Centralized logging configuration (`configuration.ts`) with env-driven toggles for levels, console mirroring, rotation thresholds, retention windows, payload whitelists, and remote shipping.
 - Request-scoped logging pipeline:
   - `LoggingContextInterceptor` captures `requestId`, `userId`, path, method.
@@ -285,6 +317,7 @@ this.logger.info({ userId, count, duration }, 'Sessions listed');
 - auth.controller.ts - API endpoint logging (4 endpoints) ✅
 
 **Logging Expansion Complete (24 structured logging points):**
+
 - [x] SessionsService (6 methods)
 - [x] SessionCleanupService (5 methods - cron jobs)
 - [x] SessionRepository (4 critical operations)
@@ -292,6 +325,7 @@ this.logger.info({ userId, count, duration }, 'Sessions listed');
 - [x] AuthController (4 endpoints, removed console.log)
 
 **Logging Coverage Metrics:**
+
 ```
 Module Coverage:
 ├── SessionsController ✅ 100% (8/8 endpoints)
@@ -316,13 +350,15 @@ Context Fields Tracked:
 ```
 
 **Production Benefits:**
+
 - 🎯 **Observability:** Full auth flow visibility
 - 🔒 **Security:** Complete audit trail
 - ⚡ **Performance:** 5-10x faster than Winston
 - 🐛 **Debugging:** Rich context for troubleshooting
 - 📜 **Compliance:** GDPR-compliant with redaction
 
-**Documentation:** 
+**Documentation:**
+
 - PINO_LOGGING_COMPLETE.md - Core Pino setup guide
 - PINO_LOGGING_EXPANSION.md - Expansion implementation (13K, detailed) ✨
 - PINO_LOGGING_SUMMARY.md - Executive summary (11K) ✨
@@ -334,20 +370,23 @@ Context Fields Tracked:
 ---
 
 ### 2.4 Sentry Error Monitoring ✅ COMPLETE
+
 **Status:** Production-ready  
 **Completion Date:** October 27, 2025
 
 **What Was Built:**
+
 - Sentry SDK integration (@sentry/node v10.22.0)
 - Global SentryModule with dynamic configuration
 - SentryService with comprehensive error tracking API
 - SentryInterceptor for automatic HTTP request tracking
-- SentryFilter for server error capture (500+ only)
+- Server errors (5xx) captured once by HttpExceptionFilter
 - Environment-based enable/disable
 - Integration with Audit and Auth services
 - Development test endpoints
 
 **Features:**
+
 - ✅ Automatic error capture (500+ HTTP errors)
 - ✅ Performance monitoring (10% sampling in production)
 - ✅ User context tracking from JWT tokens
@@ -358,12 +397,14 @@ Context Fields Tracked:
 - ✅ Integration with existing services
 
 **Performance:**
+
 - 10% traces sample rate in production
 - 10% profiles sample rate in production
 - 0% sampling in development (disabled by default)
 - Minimal overhead on request processing
 
 **Security:**
+
 - Automatic filtering of passwords and tokens
 - Authorization headers redacted
 - Cookie values sanitized
@@ -371,11 +412,13 @@ Context Fields Tracked:
 - Configurable beforeSend hook
 
 **Integration Points:**
+
 - **AuditService**: Captures audit log failures, unauthorized access, suspicious activity
 - **AuthService**: Captures failed logins, invalid passwords, inactive user attempts
 - **HTTP Layer**: Automatic request/response tracking with error context
 
 **API Endpoints (Development):**
+
 - `GET /api/sentry-test/status` - Check Sentry status
 - `POST /api/sentry-test/error` - Trigger test error
 - `POST /api/sentry-test/message` - Send test message
@@ -383,6 +426,7 @@ Context Fields Tracked:
 - `POST /api/sentry-test/breadcrumb` - Test breadcrumb
 
 **Configuration:**
+
 ```typescript
 SENTRY_ENABLED=true              # Auto-enabled in production
 SENTRY_DSN=https://...           # Your Sentry DSN
@@ -394,6 +438,7 @@ SENTRY_DEBUG=false               # Debug mode
 ```
 
 **Files Created:**
+
 - `src/core/sentry/sentry.module.ts` - Global module
 - `src/core/sentry/sentry.service.ts` - Core service
 - `src/core/sentry/sentry.interceptor.ts` - HTTP tracking
@@ -402,6 +447,7 @@ SENTRY_DEBUG=false               # Debug mode
 - `src/core/sentry/index.ts` - Barrel exports
 
 **Files Modified:**
+
 - `src/config/configuration.ts` - Added Sentry config
 - `.env.example` - Documented Sentry variables
 - `src/main.ts` - Registered interceptor and filter
@@ -414,11 +460,13 @@ SENTRY_DEBUG=false               # Debug mode
 - `src/modules/auth/auth.module.ts` - Added SentryModule import
 
 **Bug Fixes:**
+
 - ✅ Fixed configuration dependencies (database/cache modules)
 - ✅ Resolved circular import in test controller
 - ✅ Fixed worker dependency injection (explicit module imports)
 
 **Production Readiness:**
+
 - ✅ All code complete and tested
 - ✅ Configuration documented
 - ✅ Environment variables defined
@@ -427,6 +475,7 @@ SENTRY_DEBUG=false               # Debug mode
 - ✅ Safe defaults (disabled in development)
 
 **Documentation:**
+
 - `docs/features/monitoring/SENTRY_INTEGRATION.md` - Complete implementation guide (400+ lines)
 
 **Build Status:** ✅ Production-ready (0 errors, 0 warnings, all processes running)
@@ -438,12 +487,14 @@ SENTRY_DEBUG=false               # Debug mode
 ## 🏗️ Phase 3: Feature Parity (PENDING)
 
 ### 3.1 Stories Module ✅ COMPLETE + Enhanced Tag Assignment + Auto Relations ✨
+
 **Priority:** High  
 **Effort:** 3-4 days (COMPLETE)  
 **Status:** Production-ready (all features implemented + tag assignment + automatic relations)  
 **Completion Date:** October 26, 2025
 
 **Completed:**
+
 - [x] Create Story entity (matching Express schema)
 - [x] Create StoryRepository with caching (10-min TTL)
 - [x] Create StoriesService with business logic
@@ -462,6 +513,7 @@ SENTRY_DEBUG=false               # Debug mode
 - [x] **Automatic Tags & Categories Relations** ✨ (October 26, 2025)
 
 **NEW: Enhanced Tag Assignment Features ✨**
+
 - **Tag assignment during story creation**:
   - Support for `tagIds` (array of tag IDs)
   - Support for `tags` (array of tag names - auto-creates if don't exist)
@@ -479,6 +531,7 @@ SENTRY_DEBUG=false               # Debug mode
   - Structured logging for tag operations
 
 **NEW: Automatic Tags & Categories Relations ✨** (October 26, 2025)
+
 - **All story retrieval endpoints automatically include tags and categories**:
   - `GET /stories` - List stories with tags/categories
   - `GET /stories/:id` - Single story with relations
@@ -500,6 +553,7 @@ SENTRY_DEBUG=false               # Debug mode
 **Enhanced API Examples:**
 
 **Create Story with Tags (3 ways):**
+
 ```json
 // Option A: Using tag IDs
 {
@@ -509,7 +563,7 @@ SENTRY_DEBUG=false               # Debug mode
 
 // Option B: Using tag names (auto-creates)
 {
-  "title": "Breaking News", 
+  "title": "Breaking News",
   "tags": ["sports", "economy", "breaking-news"]
 }
 
@@ -522,6 +576,7 @@ SENTRY_DEBUG=false               # Debug mode
 ```
 
 **Attach Tags to Story (flexible):**
+
 ```json
 // Using tag names (user-friendly)
 POST /api/v1/stories/123/tags
@@ -544,6 +599,7 @@ POST /api/v1/stories/123/tags
 ```
 
 **Enhanced Features:**
+
 - Full CRUD operations for stories
 - Advanced search with 10+ filters
 - Pagination and sorting
@@ -557,6 +613,7 @@ POST /api/v1/stories/123/tags
 - Optimistic locking (version field)
 
 **API Endpoints (Stories):**
+
 - `POST /stories` - Create story
 - `GET /stories` - List with filters
 - `GET /stories/stats` - Statistics
@@ -578,6 +635,7 @@ POST /api/v1/stories/123/tags
 - `GET /stories/:id/tags` - List tags
 
 **API Endpoints (Tags):**
+
 - `POST /tags` - Create tag
 - `GET /tags` - List all tags
 - `GET /tags/system` - System tags
@@ -587,12 +645,14 @@ POST /api/v1/stories/123/tags
 - `DELETE /tags/:id/hard` - Hard delete
 
 **Performance:**
+
 - Stories: 10-minute cache TTL
 - Tags: 30-minute cache TTL
 - Statistics: 5-minute cache TTL
 - Auto cache invalidation on writes
 
 **Code Metrics (Updated):**
+
 - Story Entity: ~180 lines
 - StoryRepository: ~595 lines (16+ methods + enhanced relations) ✨
 - StoriesService: ~880 lines (15+ methods + enhanced tag support) ✨
@@ -606,17 +666,20 @@ POST /api/v1/stories/123/tags
 - Migrations: 4 files (~600 lines total)
 
 **Enhanced DTOs ✨:**
+
 - `CreateStoryDto`: Added `tagIds` and `tags` fields
 - `AttachTagsDto`: Enhanced to support both tag IDs and names
 - `DetachTagsDto`: Enhanced to support both tag IDs and names
 - Full validation and documentation for all tag fields
 
 **Express Parity:**
+
 - Express has: StoryModel, StoryDAO, StoryHandler
 - NestJS has: Complete implementation with enhanced features
 - **Status:** EXCEEDED EXPRESS CAPABILITIES ✅
 
 **Documentation:**
+
 - `docs/features/stories/story-relationships.md` - Complete implementation guide
 - `docs/features/stories/TAGS_CATEGORIES_RELATIONS.md` - Auto relations implementation ✨
 
@@ -625,12 +688,14 @@ POST /api/v1/stories/123/tags
 ---
 
 ### 3.2 Attachments Module ✅ COMPLETE + Queue Integration ✨
+
 **Priority:** High  
 **Effort:** 2-3 days (COMPLETE) + 2 days (Queue Enhancement) ✨
 **Status:** Production-ready  
 **Completion Date:** October 24, 2025 (Initial) + November 3, 2025 (Queue Integration) ✨
 
 **What Was Built:**
+
 - Attachment entity with 29 columns (TypeORM, UUID primary key)
 - AttachmentRepository with 15+ specialized methods
 - FileValidationService with MIME type validation, size limits, security checks
@@ -646,6 +711,7 @@ POST /api/v1/stories/123/tags
 - Comprehensive documentation (2,500+ lines) ✨
 
 **Features:**
+
 - Full CRUD operations for attachments
 - **Dual upload modes** (synchronous 3-5s / asynchronous <500ms) ✨
 - **BullMQ queue integration** (4 job types: PROCESS_IMAGE, GENERATE_THUMBNAILS, OPTIMIZE_IMAGE, EXTRACT_METADATA) ✨
@@ -666,6 +732,7 @@ POST /api/v1/stories/123/tags
 - Encryption support (optional)
 
 **API Endpoints:**
+
 - `POST /attachments` - Upload file
 - `GET /attachments/stats` - Get statistics
 - `GET /attachments/:id` - Get attachment details
@@ -679,6 +746,7 @@ POST /api/v1/stories/123/tags
 - `POST /attachments/cleanup-orphaned` - Cleanup orphaned files
 
 **Performance:**
+
 - Repository caching: 10-minute TTL
 - Statistics caching: 5-minute TTL
 - Image optimization: 80% JPEG quality default, 73-87% compression ✨
@@ -689,12 +757,14 @@ POST /api/v1/stories/123/tags
 - **WebP variants**: 87% size reduction vs JPEG ✨
 
 **File Size Limits:**
+
 - Images: 5 MB
 - Videos: 100 MB
 - Documents: 10 MB
 - Default: 10 MB
 
 **Image Processing:**
+
 - Resize to specific dimensions
 - Generate 4 thumbnail sizes (150x150, 300x300, 600x600, 1200x1200)
 - Optimize quality and size
@@ -704,12 +774,14 @@ POST /api/v1/stories/123/tags
 - Extract metadata
 
 **S3 Key Structure:**
+
 ```
 {category}/{userId}/{year}/{month}/{filename}-{uuid}.{ext}
 Example: profile/abc-123/2025/10/avatar-def-456.jpg
 ```
 
 **Security Features:**
+
 - MIME type whitelist enforcement
 - File extension validation
 - Size limit enforcement by type
@@ -721,6 +793,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - Presigned URLs with expiration
 
 **Code Metrics:**
+
 - Attachment Entity: ~100 lines
 - AttachmentRepository: ~447 lines (15+ methods)
 - FileValidationService: ~370 lines
@@ -737,22 +810,26 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - Documentation: ~2,500 lines (900 initial + 1,600 queue docs) ✨
 
 **Express Parity:**
+
 - Express has: AttachmentModel, S3Client (basic)
 - NestJS has: Complete implementation with image processing, validation, caching, **async queue processing, ACL management, thumbnails, variants** ✨
 - **Status:** GREATLY EXCEEDED EXPRESS CAPABILITIES ✅
 
 **Documentation:**
+
 - `docs/features/attachments/attachments-implementation.md` - Complete implementation guide (900+ lines)
 - `docs/queues/ATTACHMENT_PROCESSING_QUEUE.md` - Queue implementation guide (1,600+ lines) ✨
 - `docs/queues/INDEX.md` - Updated queue system overview ✨
 
 **Critical Bug Fixes:**
+
 - ✅ Fixed Buffer serialization through Redis (s3Key instead of buffer) ✨
 - ✅ Fixed story main image not saving to database (repository layer) ✨
 - ✅ Fixed preview URL showing for private attachments ✨
 - ✅ Removed LegacyThumbnailMetadata type complexity ✨
 
-**Dependencies:** 
+**Dependencies:**
+
 - Sharp (image processing) ✅
 - @aws-sdk/client-s3 ✅
 - @aws-sdk/s3-request-presigner ✅
@@ -762,12 +839,14 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 ---
 
 ### 3.3 ACL & Permissions ✅ COMPLETE
+
 **Priority:** High  
 **Effort:** 2-3 days (COMPLETE)  
 **Status:** Production-ready (core implementation complete - 75%)  
 **Completion Date:** October 25, 2025
 
 **What Was Built:**
+
 - @casl/ability v6.7.3 integration
 - 4 core entities (Role, Permission, RolePermission, UserRole)
 - 4 database migrations with ENUM types
@@ -784,6 +863,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - 7 DTOs with comprehensive validation
 
 **Features:**
+
 - Fine-grained permissions (action + subject pairs)
 - Dynamic ownership checks (${userId} interpolation)
 - Field-level access control
@@ -798,6 +878,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - Permission caching with automatic invalidation
 
 **API Endpoints (Roles):**
+
 - `POST /api/v1/roles` - Create role
 - `GET /api/v1/roles` - List all roles
 - `GET /api/v1/roles/active` - List active roles
@@ -809,6 +890,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - `DELETE /api/v1/roles/:id` - Soft delete role
 
 **API Endpoints (Permissions):**
+
 - `POST /api/v1/permissions` - Create permission
 - `GET /api/v1/permissions` - List all permissions
 - `GET /api/v1/permissions?action=X&subject=Y` - Filter permissions
@@ -817,11 +899,13 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - `DELETE /api/v1/permissions/:id` - Delete permission
 
 **Performance:**
+
 - 15-minute cache TTL on all permission queries
 - Automatic cache invalidation on updates
 - Expected cache hit rate: 85-90%
 
 **Code Metrics:**
+
 - Total code written: ~3,500 lines
 - 40+ files created
 - Role Entity: ~50 lines
@@ -839,11 +923,13 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - Documentation: 3 files (~1,200 lines total)
 
 **Express Parity:**
+
 - Express has: acl/permissions/BaseRoleAccess.js
 - NestJS has: Complete CASL-based ACL with guards, decorators, repositories, caching
 - **Status:** EXCEEDED EXPRESS CAPABILITIES ✅
 
 **Remaining Tasks (25%):**
+
 - [ ] Run database migrations
 - [ ] Run ACL seeder (npm run db:seed:acl)
 - [ ] Add AbilityGuard to existing controllers (Stories, Attachments, Categories, Tags)
@@ -851,6 +937,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - [ ] End-to-end testing
 
 **Documentation:**
+
 - `docs/features/acl/README.md` - Complete implementation guide (400+ lines)
 - `docs/features/acl/IMPLEMENTATION_SUMMARY.md` - Implementation summary
 - `docs/features/acl/QUICK_REFERENCE.md` - Quick reference guide
@@ -861,10 +948,12 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 ---
 
 ### 3.4 Notifications (Email/SMS) ⏳ NOT STARTED
+
 **Priority:** Medium  
 **Effort:** 3-4 days
 
 **Scope:**
+
 - [ ] Create Notification module
 - [ ] Email service (SMTP integration)
 - [ ] SMS service integration
@@ -873,6 +962,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - [ ] Queue-based delivery (Bull)
 
 ### BullMQ Queue Infrastructure (In Progress)
+
 - ✅ Queue scaffolding (`QueuesModule`, queue config, bull-board dashboard)
 - ✅ Worker bootstrap (`src/worker.ts`) + PM2 entry (`kuybi-worker`)
 - ✅ Session cleanup processor & scheduler wired into BullMQ
@@ -881,6 +971,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - [ ] Delivery status tracking
 
 **Express Parity:**
+
 - Express has: clients/EmailClient, clients/SMSClient, notifications/
 - Need: Full email/SMS/Slack, templates, queuing
 
@@ -889,11 +980,13 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 ---
 
 ### 3.5 Sessions Management ✅ 100% COMPLETE 🎉
+
 **Priority:** Medium  
 **Effort:** 5 days (COMPLETE)  
 **Status:** Production-ready (all features implemented)
 
 **Completed:**
+
 - [x] Enhanced Session entity with 11 enterprise fields
 - [x] Created migration (executed successfully)
 - [x] SessionRepository with 16 specialized methods
@@ -909,6 +1002,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - [x] Soft delete with audit trail
 
 **Completed (Final):**
+
 - [x] SessionsController with 8 REST endpoints (680 lines)
 - [x] CleanupStatsController with 2 monitoring endpoints (NEW ✨)
 - [x] JWT authentication on all endpoints
@@ -920,20 +1014,24 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - [x] **Cleanup job tracking** (REST API + logs) ✨
 
 **Optional (Not Required for Production):**
+
 - [ ] Unit & integration tests (optional enhancement)
 - [ ] Additional architecture guides (optional documentation)
 
 **Express Parity:**
+
 - Express has: SessionModel, basic session handling
 - NestJS has: Enterprise session management with security features, caching, cleanup, risk assessment
 - **Status:** EXCEEDED EXPRESS CAPABILITIES ✅
 
 **Performance:**
+
 - Session validation: 15x faster with caching (1ms vs 15ms)
 - Session stats: 50x faster with caching (1ms vs 50ms)
 - Expected cache hit rate: 85-90%
 
 **Code Metrics:**
+
 - Total code written: ~2,530 lines (+80 for cleanup tracking)
 - Session Entity: ~100 lines
 - SessionRepository: 505 lines (16 methods)
@@ -944,6 +1042,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 - CleanupStatsController: ~80 lines (2 monitoring endpoints) ✨
 
 **Documentation:**
+
 - `SESSION_PROGRESS.md` - Detailed implementation progress
 - `AUTHSERVICE_REFACTOR.md` - Refactoring documentation
 - `SESSION_DTOS_COMPLETE.md` - DTOs documentation
@@ -959,6 +1058,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 ## 🎨 Phase 4: Advanced Features (IN PLANNING)
 
 ### 4.1 Dynamic Post Types System ⏳ PLANNING COMPLETE
+
 **Priority:** High (Next major feature)  
 **Effort:** 4-5 weeks  
 **Status:** Planning complete, ready to start  
@@ -968,6 +1068,7 @@ Example: profile/abc-123/2025/10/avatar-def-456.jpg
 WordPress + ACF-like system for dynamic content types with custom fields. Frontend can define any post type (Event, Product, Recipe) and attach custom fields with validation.
 
 **Completed Planning:**
+
 - [x] Architecture design (DDD-based)
 - [x] Database schema (4 tables, JSONB for field data)
 - [x] Field type system (15+ types with validators)
@@ -978,6 +1079,7 @@ WordPress + ACF-like system for dynamic content types with custom fields. Fronte
 - [x] 7-phase implementation plan
 
 **Core Components:**
+
 - **Post Types**: Dynamic type definitions (like WordPress custom post types)
 - **Field Definitions**: Schema for custom fields (15+ types: text, number, date, select, file, relation, etc.)
 - **Content**: Actual data instances with type-safe validation
@@ -985,6 +1087,7 @@ WordPress + ACF-like system for dynamic content types with custom fields. Fronte
 - **Validators**: Per-field-type validation strategies
 
 **Key Features:**
+
 - 🎯 Dynamic post type creation via API
 - 🔧 15+ field types with validation rules
 - 📊 JSONB-based flexible storage
@@ -995,6 +1098,7 @@ WordPress + ACF-like system for dynamic content types with custom fields. Fronte
 - 🔄 Conditional field logic
 
 **Database Schema:**
+
 ```
 post_types (10 fields)
   ├── name, slug, description
@@ -1017,6 +1121,7 @@ Relations: post_content_attachments, post_content_tags, post_content_categories
 ```
 
 **API Endpoints (19+ total):**
+
 ```
 Post Types:       5 endpoints (create, list, get, update, delete)
 Field Definitions: 6 endpoints (add, list, get, update, delete, reorder)
@@ -1024,6 +1129,7 @@ Content:          8+ endpoints (create, list, get, update, delete, publish, atta
 ```
 
 **Example Use Cases:**
+
 ```typescript
 // 1. Create "Event" post type
 POST /api/v1/post-types
@@ -1037,7 +1143,7 @@ POST /api/v1/post-types/event/fields
 
 // 3. Create event instance
 POST /api/v1/content/event
-{ 
+{
   title: "Tech Conference 2025",
   fieldData: {
     event_date: "2025-12-01",
@@ -1051,6 +1157,7 @@ GET /api/v1/content/event?filters=[{"field":"event_date","operator":"greater_tha
 ```
 
 **Implementation Phases:**
+
 1. **Week 1**: Core schema + entities + repositories (CRITICAL)
 2. **Week 2**: Field type validators (15+ types)
 3. **Week 2-3**: API layer + controllers + DTOs
@@ -1060,12 +1167,14 @@ GET /api/v1/content/event?filters=[{"field":"event_date","operator":"greater_tha
 7. **Week 5**: Documentation + testing + frontend guide
 
 **Performance Targets:**
+
 - Schema queries: < 50ms (cached)
 - Content queries: < 100ms (simple), < 300ms (complex)
 - Bulk operations: 100+ records/second
 - Cache hit rate: > 80%
 
 **Success Criteria:**
+
 - [ ] Can create custom post types via API
 - [ ] 15+ field types working with validation
 - [ ] Dynamic queries on JSONB fields < 100ms
@@ -1075,16 +1184,19 @@ GET /api/v1/content/event?filters=[{"field":"event_date","operator":"greater_tha
 - [ ] Complete documentation
 
 **Documentation:**
+
 - `docs/planning/DYNAMIC_POST_TYPES_PLAN.md` - Complete 2,000+ line plan ✅
 - Technical specs, architecture, examples, migration guide
 
-**Dependencies:** 
+**Dependencies:**
+
 - PostgreSQL JSONB + GIN indexes ✅
 - Existing ACL module ✅
 - Attachment module ✅
 - Cache module ✅
 
 **Next Steps:**
+
 1. Review plan with team
 2. Start Phase 1: Database migrations
 3. Create base entities
@@ -1095,10 +1207,12 @@ GET /api/v1/content/event?filters=[{"field":"event_date","operator":"greater_tha
 ## 📊 Phase 5: Observability & DevOps (PENDING)
 
 ### 5.1 Prometheus Metrics ⏳ NOT STARTED
+
 **Priority:** Medium  
 **Effort:** 1 day
 
 **Scope:**
+
 - [ ] Install @willsoto/nestjs-prometheus
 - [ ] HTTP request metrics
 - [ ] Database query metrics
@@ -1111,10 +1225,12 @@ GET /api/v1/content/event?filters=[{"field":"event_date","operator":"greater_tha
 ---
 
 ### 5.2 OpenTelemetry Tracing ⏳ NOT STARTED
+
 **Priority:** Low  
 **Effort:** 2 days
 
 **Scope:**
+
 - [ ] Install @opentelemetry/sdk-node
 - [ ] Distributed tracing setup
 - [ ] Trace HTTP requests
@@ -1127,10 +1243,12 @@ GET /api/v1/content/event?filters=[{"field":"event_date","operator":"greater_tha
 ---
 
 ### 5.3 Docker & CI/CD ⏳ NOT STARTED
+
 **Priority:** Medium  
 **Effort:** 1-2 days
 
 **Scope:**
+
 - [ ] Multi-stage Dockerfile
 - [ ] Docker Compose (app + postgres + redis)
 - [ ] GitHub Actions workflow
@@ -1144,11 +1262,12 @@ GET /api/v1/content/event?filters=[{"field":"event_date","operator":"greater_tha
 
 ## 📈 Progress Summary
 
-
 ## 🚧 Kuybi Dashboard (Vue) Development Progress
 
 ### Overview
+
 Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, Admin, Moderator, and User roles. The dashboard will provide:
+
 - Login/authentication
 - Stories management
 - Categories management
@@ -1156,11 +1275,13 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
 - Role-based access control (RBAC) matching backend ACL
 
 ### Initial Setup (November 1, 2025)
+
 - Created folder structure: `src/pages`, `src/components`, `src/store`, `public`
 - Added dashboard README with tech stack, features, and next steps
 - Planned integration with Kuybi backend REST API
 
 ### Next Steps
+
 - Scaffold main Vue files (App.vue, main.js/ts, router, Pinia store)
 - Implement login/authentication flow
 - Add RBAC logic for route/page access
@@ -1173,10 +1294,12 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
 ## ✅ Phase 4: Advanced Features (IN PROGRESS - 75% Complete)
 
 ### 4.1 Dynamic Post Types System - Phase 2 ✅ COMPLETE 🎉
+
 **Status:** REST API, validation, and testing complete  
 **Completion Date:** November 19, 2025
 
 **Phase 1 Summary (Complete):**
+
 - Database layer: 4 migrations, 5 tables, 2 enums
 - Entity layer: 6 TypeORM entities
 - Repository layer: 3 repositories with caching
@@ -1186,6 +1309,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
 **Phase 2: REST API & Validation (100% Complete):**
 
 **DTOs Layer (820 lines):**
+
 - **Post Types** (3 DTOs, ~265 lines):
   - CreatePostTypeDto: name, slug, labels, settings (JSONB)
   - UpdatePostTypeDto: partial updates with validation
@@ -1203,6 +1327,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
   - ContentResponseDto: formatted with relations
 
 **Controllers Layer (685 lines, 19 endpoints):**
+
 - **PostTypesController** (5 endpoints, 170 lines):
   - POST /api/post-types - Create with slug generation
   - GET /api/post-types - List (active only or include inactive)
@@ -1228,6 +1353,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
   - DELETE /api/content/:postTypeSlug/:id - Soft delete
 
 **Field Validation Service (1,850 lines + 780 test lines):**
+
 - **Core Features**:
   - Validates all 25 field types (text, number, date, wysiwyg, relation, etc.)
   - Type checking (string, number, boolean, object, array)
@@ -1248,6 +1374,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
   - Automatic injection via dependency injection
 
 **ACL Integration (Complete):**
+
 - 3 subjects added to AbilityFactory:
   - PostType: Create, Read, Update, Delete actions
   - FieldDefinition: Create, Read, Update, Delete actions
@@ -1258,6 +1385,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
 - Editor operations (create/publish content)
 
 **Integration Tests (2,132 lines, 68+ test cases):**
+
 - **PostTypesController Tests** (640 lines, 18 tests):
   - Create with auth, validation, duplicate prevention
   - List active/inactive, pagination
@@ -1285,18 +1413,21 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
   - Delete with auth
 
 **Documentation (6,000+ lines):**
+
 - FIELD_VALIDATION.md (1,100 lines): Complete guide for all 25 field types
 - PHASE_2_VALIDATION_COMPLETE.md (1,200 lines): Implementation summary
 - VALIDATION_QUICK_REFERENCE.md (200 lines): Quick lookup table
 - FRONTEND_INTEGRATION_GUIDE.md (3,500+ lines): Complete frontend developer guide ✨
 
 **Performance Characteristics:**
+
 - Repository caching: 30min (types), 15min (fields), 10min (content)
 - Validation: <50ms for typical field sets
 - Field validation caching: Results cached per field definition set
 - JSONB query performance: <100ms with GIN indexes
 
 **Code Statistics (Phase 2):**
+
 - **DTOs:** 13 files, ~820 lines
 - **Controllers:** 3 files, ~685 lines
 - **Field Validation Service:** 1,850 lines + 780 test lines
@@ -1305,6 +1436,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
 - **Total Phase 2 Code:** ~11,267 lines
 
 **Phase 2 Completion: 100% (11/11 tasks) 🎉**
+
 - ✅ Create DTOs for Post Types (3 DTOs)
 - ✅ Create DTOs for Field Definitions (4 DTOs)
 - ✅ Create DTOs for Content (5 DTOs)
@@ -1318,6 +1450,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
 - ✅ Documentation (6,000+ lines including frontend guide)
 
 **Complete Phase 1 + 2 Statistics:**
+
 - **Total Files Created:** 40+ files
 - **Total Lines of Code:** ~15,567 lines
 - **Phase 1:** ~4,300 lines (database, entities, repositories, services)
@@ -1329,6 +1462,7 @@ Started scaffolding the Vue 3 dashboard in `kuybi-dashboard/` for Super Admin, A
 **API Examples:**
 
 **Create Post Type:**
+
 ```bash
 POST /api/post-types
 Authorization: Bearer <admin-token>
@@ -1342,6 +1476,7 @@ Authorization: Bearer <admin-token>
 ```
 
 **Add Field Definition:**
+
 ```bash
 POST /api/post-types/<id>/fields
 Authorization: Bearer <admin-token>
@@ -1359,6 +1494,7 @@ Authorization: Bearer <admin-token>
 ```
 
 **Create Content:**
+
 ```bash
 POST /api/content/product
 Authorization: Bearer <editor-token>
@@ -1374,6 +1510,7 @@ Authorization: Bearer <editor-token>
 ```
 
 **Quality Metrics:**
+
 - ✅ Zero compilation errors
 - ✅ All 68+ integration tests passing
 - ✅ Full Swagger documentation
@@ -1388,36 +1525,37 @@ Authorization: Bearer <editor-token>
 
 ### Overall Completion: 80% (12/15 major tasks)
 
-| Phase | Tasks Complete | Tasks Total | Progress |
-|-------|---------------|-------------|----------|
-| Phase 1: Foundation | 3 | 3 | ✅ 100% |
-| Phase 2: Testing & Tools | 3 | 3 | ✅ 100% (Structured Logging ✅, Integration Tests ✅, Sentry ✅) |
-| Phase 3: Feature Parity | 5 | 5 | ✅ 100% (Categories ✅, Sessions ✅, Stories ✅, Attachments ✅, ACL ✅) |
-| Phase 4: Advanced Features | 1 | 1 | ✅ 100% (Dynamic Post Types Phase 1+2 ✅) |
-| Phase 5: Observability | 0 | 3 | ⏳ 0% |
-| **Total** | **12** | **15** | **80%** |
+| Phase                      | Tasks Complete | Tasks Total | Progress                                                                 |
+| -------------------------- | -------------- | ----------- | ------------------------------------------------------------------------ |
+| Phase 1: Foundation        | 3              | 3           | ✅ 100%                                                                  |
+| Phase 2: Testing & Tools   | 3              | 3           | ✅ 100% (Structured Logging ✅, Integration Tests ✅, Sentry ✅)         |
+| Phase 3: Feature Parity    | 5              | 5           | ✅ 100% (Categories ✅, Sessions ✅, Stories ✅, Attachments ✅, ACL ✅) |
+| Phase 4: Advanced Features | 1              | 1           | ✅ 100% (Dynamic Post Types Phase 1+2 ✅)                                |
+| Phase 5: Observability     | 0              | 3           | ⏳ 0%                                                                    |
+| **Total**                  | **12**         | **15**      | **80%**                                                                  |
 
 ### Code Metrics
 
-| Metric | Express App | NestJS App | Status |
-|--------|-------------|------------|--------|
-| Caching | ✅ Manual | ✅ Automatic | **IMPROVED** |
-| Repository Pattern | ❌ No | ✅ Yes | **IMPROVED** |
-| Type Safety | ⚠️ Partial | ✅ Full | **IMPROVED** |
-| Testing | ⚠️ Minimal | ✅ Integration Tests (27/27) | **IMPROVED** ✅ |
-| Logging | ⚠️ Console | ✅ Pino (Structured) | **IMPROVED** ✅ |
-| Error Tracking | ❌ No | ✅ Sentry | **IMPROVED** ✅ |
-| Metrics | ✅ Yes | ⏳ Pending | **PLANNED** |
-| ACL | ❌ No | ✅ Yes | **COMPLETE** ✅ |
-| Stories | ✅ Yes | ✅ Yes | **COMPLETE** ✅ |
-| Attachments | ✅ Yes | ✅ Yes | **COMPLETE** ✅ |
-| Categories | ✅ Yes | ✅ Yes | **COMPLETE** ✅ |
-| Sessions | ✅ Basic | ✅ Enterprise | **COMPLETE** ✅ |
-| Notifications | ✅ Yes | ❌ No | **PENDING** |
+| Metric             | Express App | NestJS App                   | Status          |
+| ------------------ | ----------- | ---------------------------- | --------------- |
+| Caching            | ✅ Manual   | ✅ Automatic                 | **IMPROVED**    |
+| Repository Pattern | ❌ No       | ✅ Yes                       | **IMPROVED**    |
+| Type Safety        | ⚠️ Partial  | ✅ Full                      | **IMPROVED**    |
+| Testing            | ⚠️ Minimal  | ✅ Integration Tests (27/27) | **IMPROVED** ✅ |
+| Logging            | ⚠️ Console  | ✅ Pino (Structured)         | **IMPROVED** ✅ |
+| Error Tracking     | ❌ No       | ✅ Sentry                    | **IMPROVED** ✅ |
+| Metrics            | ✅ Yes      | ⏳ Pending                   | **PLANNED**     |
+| ACL                | ❌ No       | ✅ Yes                       | **COMPLETE** ✅ |
+| Stories            | ✅ Yes      | ✅ Yes                       | **COMPLETE** ✅ |
+| Attachments        | ✅ Yes      | ✅ Yes                       | **COMPLETE** ✅ |
+| Categories         | ✅ Yes      | ✅ Yes                       | **COMPLETE** ✅ |
+| Sessions           | ✅ Basic    | ✅ Enterprise                | **COMPLETE** ✅ |
+| Notifications      | ✅ Yes      | ❌ No                        | **PENDING**     |
 
 ### Feature Parity: 100% 🎉
 
 **Implemented:**
+
 - ✅ Authentication (JWT)
 - ✅ User management
 - ✅ Countries module
@@ -1432,6 +1570,7 @@ Authorization: Bearer <editor-token>
 - ✅ **ACL/Permissions (75% - core complete, testing pending)** 🎉
 
 **Missing:**
+
 - ❌ Notifications (Email/SMS - not critical for MVP)
 - ⏳ ACL Testing (25% remaining - integration and E2E tests)
 - ❌ Metrics/tracing
@@ -1504,11 +1643,13 @@ Authorization: Bearer <editor-token>
 ## 📊 Success Metrics
 
 ### Performance (Achieved ✅)
+
 - ✅ API response time: < 100ms for cached requests
 - ✅ Cache hit rate: > 80% for read operations
 - ✅ Database load: 85-95% reduction
 
 ### Code Quality (Excellent ✅)
+
 - ✅ Type safety: 100% TypeScript
 - ✅ Test coverage: Integration tests complete (27/27 passing)
 - ✅ Code duplication: 60% reduction achieved
@@ -1516,11 +1657,13 @@ Authorization: Bearer <editor-token>
 - ✅ Security: ACL implementation complete
 
 ### Feature Parity (Complete ✅)
+
 - ✅ Core features: 100% parity (all major features implemented)
 - ✅ Critical features (ACL): 75% (core complete, testing pending)
 - ⏳ Nice-to-have features (Notifications): 0% (pending)
 
 ### Developer Experience (Excellent ✅)
+
 - ✅ Clean architecture: Layered design
 - ✅ Documentation: Comprehensive (8 guides)
 - ✅ Type safety: Full IntelliSense support
@@ -1530,11 +1673,13 @@ Authorization: Bearer <editor-token>
 ## 📁 Documentation Index
 
 ### Planning & Architecture
+
 - `planning/DYNAMIC_POST_TYPES_PLAN.md` - Complete dynamic post types system plan (2,000+ lines) ✨
 - `architecture/DOMAIN_DRIVEN_DESIGN.md` - Complete DDD guide (15,000+ words)
 - `architecture/DDD_MIGRATION_PLAN.md` - Practical migration plan (6,000+ words)
 
 ### Implementation Guides
+
 - `features/cache/REDIS_CACHING_COMPLETE.md` - Redis caching implementation
 - `progress/REPOSITORY_COMPLETE.md` - Repository pattern implementation
 - `architecture/REPOSITORY_PATTERN.md` - Detailed repository documentation
@@ -1553,6 +1698,7 @@ Authorization: Bearer <editor-token>
 - `features/audit/IMPLEMENTATION_SUMMARY.md` - Audit logging implementation ✨
 
 ### Quick References
+
 - `features/cache/CACHE_QUICKSTART.md` - Cache usage quick start
 - `guides/quick-references/REPOSITORY_QUICKREF.md` - Repository quick reference
 - `features/auth/CLEANUP_TRACKING_QUICKSTART.md` - Cleanup tracking quick start
@@ -1561,6 +1707,7 @@ Authorization: Bearer <editor-token>
 - `features/audit/README.md` - Audit logging quick reference ✨
 
 ### Architecture & Progress
+
 - `architecture/PATH_ALIAS_MIGRATION.md` - Path alias migration guide
 - `architecture/REFACTORING_SUMMARY.md` - Refactoring summary
 - `progress/FEATURE_SUMMARY.md` - Feature implementation summary
@@ -1568,10 +1715,12 @@ Authorization: Bearer <editor-token>
 - `testing/TEST_MIGRATION_SUMMARY.md` - Test migration summary
 
 ### Module Documentation
+
 - `src/core/cache/README.md` - Cache module technical documentation
 - `features/auth/SESSION_PROGRESS.md` - Session management implementation progress
 
 ### Next Steps
+
 - ✅ ~~Expand Pino logging to auth/session modules~~ **COMPLETE**
 - ✅ ~~Create ACL implementation guide~~ **COMPLETE**
 - ✅ ~~Plan dynamic post types system~~ **COMPLETE** ✨
@@ -1658,44 +1807,48 @@ Authorization: Bearer <editor-token>
    - **Core implementation: 75% complete** (testing pending)
 
 10. **Sentry Error Monitoring** ✅ **COMPLETE!**
-   - Production-grade error tracking
-   - Automatic error capture (500+ HTTP errors)
-   - Performance monitoring (10% sampling)
-   - User context tracking
-   - Sensitive data filtering
-   - Integration with Audit & Auth services
-   - Environment-based enable/disable
-   - Complete documentation (400+ lines)
+
+- Production-grade error tracking
+- Automatic error capture (500+ HTTP errors)
+- Performance monitoring (10% sampling)
+- User context tracking
+- Sensitive data filtering
+- Integration with Audit & Auth services
+- Environment-based enable/disable
+- Complete documentation (400+ lines)
 
 11. **Dynamic Post Types System** ✅ **PHASE 1 COMPLETE!** 🎉
-   - WordPress + ACF-like flexibility implemented
-   - Complete architecture implemented (4,300+ lines code)
-   - 4 database tables with GIN indexes (JSONB for flexibility)
-   - 25 field types with TypeScript enums
-   - 6 workflow statuses for content
-   - 6 TypeORM entities with full relationships
-   - 3 repositories with Redis caching (tiered TTLs)
-   - 3 services with comprehensive validation
-   - PostTypesModule registered in AppModule
-   - Test data seeder (Story + Event post types)
-   - 18 unit tests foundation (repository layer)
-   - **READY FOR PHASE 2:** Controllers, DTOs, ACL integration
-   - Branch: `feature/dynamic-post-types`
-   - Status: **87% of Phase 1 Complete** (20/23 tasks)
+
+- WordPress + ACF-like flexibility implemented
+- Complete architecture implemented (4,300+ lines code)
+- 4 database tables with GIN indexes (JSONB for flexibility)
+- 25 field types with TypeScript enums
+- 6 workflow statuses for content
+- 6 TypeORM entities with full relationships
+- 3 repositories with Redis caching (tiered TTLs)
+- 3 services with comprehensive validation
+- PostTypesModule registered in AppModule
+- Test data seeder (Story + Event post types)
+- 18 unit tests foundation (repository layer)
+- **READY FOR PHASE 2:** Controllers, DTOs, ACL integration
+- Branch: `feature/dynamic-post-types`
+- Status: **87% of Phase 1 Complete** (20/23 tasks)
 
 12. **Production Ready Foundation** ✅
-   - Zero compilation errors
-   - Zero runtime errors
-   - Error handling in place
-   - Health checks configured
-   - 5 complete modules with repositories
-   - Full observability with structured logging
-   - Feature parity: 100% (core features)
-   - ACL system: 75% complete
+
+- Zero compilation errors
+- Zero runtime errors
+- Error handling in place
+- Health checks configured
+- 5 complete modules with repositories
+- Full observability with structured logging
+- Feature parity: 100% (core features)
+- ACL system: 75% complete
 
 ## 🚧 Challenges & Risks
 
 ### Current Challenges
+
 - **Testing Gap:** No automated tests yet (High Priority)
 - **Notification Gap:** No email/SMS system (Not critical for MVP)
 - **Architectural Debt:** Cross-module coupling (Code review feedback)
@@ -1705,12 +1858,14 @@ Authorization: Bearer <editor-token>
 **Code Review Feedback**: "Formalize domain layers or bounded contexts (domain services, shared kernel packages) to prevent cross-module coupling as features grow."
 
 **Identified Issues:**
+
 1. Cross-module dependencies (Stories imports Attachments, Tags)
 2. Shared database layer (all modules depend on `src/database/repositories/`)
 3. No domain logic (anemic entities, all logic in services)
 4. No event-driven communication (direct method calls)
 
 **Proposed Solution**: Domain-Driven Design (DDD) Architecture
+
 - Define bounded contexts (Content, Identity, Media, Infrastructure)
 - Create shared kernel for common domain logic
 - Use facades for cross-context communication
@@ -1718,15 +1873,18 @@ Authorization: Bearer <editor-token>
 - Gradual migration (6-8 weeks)
 
 **Documentation Created:**
+
 - `docs/architecture/DOMAIN_DRIVEN_DESIGN.md` - Complete DDD guide (15,000+ words)
 - `docs/architecture/DDD_MIGRATION_PLAN.md` - Practical migration plan (6,000+ words)
 
 **Decision**: ✅ **Complete application features first, then refactor to DDD**
+
 - **Timeline**: Post-MVP (Q1-Q2 2026)
 - **Priority**: Low (defer until after feature completion)
 - **Status**: Documentation ready, migration deferred
 
 ### Mitigation Strategies
+
 - **Testing:** Start immediately with Phase 2 (high priority)
 - **ACL Testing:** Complete ACL implementation (25% remaining - immediate priority)
 - **Notifications:** Implement after testing (optional for MVP)
@@ -1735,6 +1893,7 @@ Authorization: Bearer <editor-token>
 ## 📞 Support & Resources
 
 ### Documentation
+
 - Full docs in `nest-app/` directory
 - Express app reference in main directory
 - `SESSION_PROGRESS.md` - Session management implementation
@@ -1743,6 +1902,7 @@ Authorization: Bearer <editor-token>
 - NestJS docs: https://docs.nestjs.com
 
 ### Team Knowledge
+
 - Express app patterns documented
 - NestJS best practices implemented
 - Migration path clear
@@ -1754,10 +1914,12 @@ Authorization: Bearer <editor-token>
 ## 🔒 Phase 5: API Security & Segregation (IN PROGRESS)
 
 ### 5.1 Stories API Security ✅ COMPLETE
+
 **Status:** Production-ready  
 **Completion Date:** February 15, 2025
 
 **What Was Built:**
+
 - Class-level authentication guards (JwtAuthGuard, AbilityGuard)
 - ACL checks on all 10 GET endpoints (@CheckAbility decorator)
 - Fine-grained permissions (Action.Read, Subject.Story)
@@ -1765,12 +1927,14 @@ Authorization: Bearer <editor-token>
 - Swagger bearer auth integration
 
 **Security Enhancements:**
+
 - **Authentication:** All endpoints now require JWT token
 - **Authorization:** CASL-based ACL checks per endpoint
 - **Consistency:** Aligns with Categories controller security model
 - **Documentation:** Updated @ApiResponse decorators for 401/403
 
 **Endpoints Secured:**
+
 - GET /v1/stories - List all stories
 - GET /v1/stories/stats - Story statistics
 - GET /v1/stories/user/:userId - User stories
@@ -1789,18 +1953,22 @@ Authorization: Bearer <editor-token>
 ✅ Response format correct: `{success:true, count:0, total:3}`
 
 **Files Modified:**
+
 - `src/modules/stories/controllers/stories.controller.ts`
 
 **Documentation:**
+
 - `docs/planning/API_SEGREGATION_PLAN.md` - Enterprise API segregation strategy
 
 ---
 
 ### 5.2 Web API Module ✅ COMPLETE
+
 **Status:** Production-ready  
 **Completion Date:** December 15, 2025
 
 **What Was Built:**
+
 - Public web API at `/api/web/v1` separate from admin API
 - WebStoriesController - Published stories only
 - WebCategoriesController - Active categories only
@@ -1809,11 +1977,12 @@ Authorization: Bearer <editor-token>
 - No authentication required
 
 **Architecture:**
+
 ```
 src/modules/web/
 ├── web.module.ts
 ├── controllers/
-│   ├── web-stories.controller.ts   
+│   ├── web-stories.controller.ts
 │   └── web-categories.controller.ts
 ├── services/
 │   ├── web-stories.service.ts      # Sanitizes responses
@@ -1823,6 +1992,7 @@ src/modules/web/
 ```
 
 **Endpoints Created:**
+
 - GET /api/web/v1/stories - List published stories
 - GET /api/web/v1/stories/:id - Single story
 - GET /api/web/v1/categories - List active categories
@@ -1831,6 +2001,7 @@ src/modules/web/
 - GET /api/web/v1/categories/:id - Category by ID
 
 **Security Features:**
+
 - Rate limiting with @nestjs/throttler
 - Response sanitization removes: createdBy, updatedBy, deletedBy, deletedAt, version
 - Only published stories visible
@@ -1844,6 +2015,7 @@ src/modules/web/
 ✅ Response sanitization working
 
 **Files Created:**
+
 - src/modules/web/web.module.ts
 - src/modules/web/controllers/web-stories.controller.ts
 - src/modules/web/controllers/web-categories.controller.ts
@@ -1854,29 +2026,34 @@ src/modules/web/
 ---
 
 ### 5.3 Frontend Integration ✅ COMPLETE
+
 **Status:** Production-ready  
 **Completion Date:** December 15, 2025
 
 **Next.js Frontend (kuybi-web):**
+
 - ✅ Updated `src/lib/api-client.ts` - Added `/web/v1` to PUBLIC_ENDPOINTS
 - ✅ Updated `src/services/story.service.ts` - Uses `/web/v1/stories` for public stories
 - ✅ Updated `src/services/category.service.ts` - Uses `/web/v1/categories` for public categories
 - ✅ Updated `test-public-access.sh` - Tests new public endpoints
 
 **Vue Dashboard (kuybi-dashboard):**
+
 - ✅ Created `client/src/services/publicApiService.ts` - Dedicated public API client
 - ✅ Separate axios instance (no authentication required)
 - ✅ Ready for public-facing features if needed
 
 **Verification:**
+
 ```bash
 $ bash test-public-access.sh
 ✓ GET /web/v1/stories - HTTP 200, 2 stories found
-✓ GET /web/v1/categories - HTTP 200, 5/6 categories found  
+✓ GET /web/v1/categories - HTTP 200, 5/6 categories found
 ✓ GET /web/v1/categories/tree - HTTP 200, 3 root categories
 ```
 
 **API Architecture Summary:**
+
 - **Admin API**: `/api/v1/*` - Requires JWT + CASL permissions
 - **Public API**: `/api/web/v1/*` - No auth, rate limited, sanitized responses
 

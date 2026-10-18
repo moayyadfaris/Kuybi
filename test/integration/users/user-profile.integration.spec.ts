@@ -3,10 +3,11 @@
  * Tests user profile API with authentication and caching
  */
 
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -83,8 +84,7 @@ describe('User Profile Integration Tests', () => {
       .compile()
 
     app = module.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }))
+    configureApp(app)
     await app.init()
 
     dataSource = module.get<DataSource>(DataSource)
@@ -118,7 +118,7 @@ describe('User Profile Integration Tests', () => {
       })
       .expect(201)
 
-    accessToken = loginResponse.body.accessToken
+    accessToken = loginResponse.body.data.accessToken
   })
 
   afterAll(async () => {
@@ -136,7 +136,7 @@ describe('User Profile Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      expect(response.body).toMatchObject({
+      expect(response.body.data).toMatchObject({
         id: testUser.id,
         name: 'Test User',
         email: 'test@example.com',
@@ -144,12 +144,12 @@ describe('User Profile Integration Tests', () => {
         isVerified: true
       })
       // Role is exposed by name plus a roleInfo object, not as primaryRoleId
-      expect(response.body.role).toBe('user')
-      expect(response.body.roleInfo?.id).toBe(roles['user'].id)
+      expect(response.body.data.role).toBe('user')
+      expect(response.body.data.roleInfo?.id).toBe(roles['user'].id)
 
       // Ensure sensitive fields are NOT exposed
-      expect(response.body.passwordHash).toBeUndefined()
-      expect(response.body.forcePasswordChange).toBeUndefined()
+      expect(response.body.data.passwordHash).toBeUndefined()
+      expect(response.body.data.forcePasswordChange).toBeUndefined()
     })
 
     it('should return 401 when not authenticated', async () => {
@@ -170,7 +170,7 @@ describe('User Profile Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      expect(response1.body.id).toBe(testUser.id)
+      expect(response1.body.data.id).toBe(testUser.id)
 
       // Verify cache was populated
       const cacheKey = `user:profile:safe:${testUser.id}`
@@ -184,7 +184,7 @@ describe('User Profile Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      expect(response2.body).toEqual(response1.body)
+      expect(response2.body.data).toEqual(response1.body.data)
     })
 
     it('should include all safe user fields in response', async () => {
@@ -194,21 +194,21 @@ describe('User Profile Integration Tests', () => {
         .expect(200)
 
       // Check all expected fields are present
-      expect(response.body).toHaveProperty('id')
-      expect(response.body).toHaveProperty('name')
-      expect(response.body).toHaveProperty('email')
-      expect(response.body).toHaveProperty('mobileNumber')
-      expect(response.body).toHaveProperty('role')
-      expect(response.body).toHaveProperty('isActive')
-      expect(response.body).toHaveProperty('isVerified')
-      expect(response.body).toHaveProperty('isEmailVerified')
-      expect(response.body).toHaveProperty('emailVerifiedAt')
-      expect(response.body).toHaveProperty('createdAt')
-      expect(response.body).toHaveProperty('updatedAt')
+      expect(response.body.data).toHaveProperty('id')
+      expect(response.body.data).toHaveProperty('name')
+      expect(response.body.data).toHaveProperty('email')
+      expect(response.body.data).toHaveProperty('mobileNumber')
+      expect(response.body.data).toHaveProperty('role')
+      expect(response.body.data).toHaveProperty('isActive')
+      expect(response.body.data).toHaveProperty('isVerified')
+      expect(response.body.data).toHaveProperty('isEmailVerified')
+      expect(response.body.data).toHaveProperty('emailVerifiedAt')
+      expect(response.body.data).toHaveProperty('createdAt')
+      expect(response.body.data).toHaveProperty('updatedAt')
 
       // Verify sensitive fields are excluded
-      expect(response.body).not.toHaveProperty('passwordHash')
-      expect(response.body).not.toHaveProperty('forcePasswordChange')
+      expect(response.body.data).not.toHaveProperty('passwordHash')
+      expect(response.body.data).not.toHaveProperty('forcePasswordChange')
     })
 
     it('should return null for emailVerifiedAt if not verified', async () => {
@@ -233,15 +233,15 @@ describe('User Profile Integration Tests', () => {
         })
         .expect(201)
 
-      const unverifiedToken = loginResponse.body.accessToken
+      const unverifiedToken = loginResponse.body.data.accessToken
 
       const response = await request(app.getHttpServer())
         .get('/api/v1/users/me')
         .set('Authorization', `Bearer ${unverifiedToken}`)
         .expect(200)
 
-      expect(response.body.emailVerifiedAt).toBeNull()
-      expect(response.body.isEmailVerified).toBe(false)
+      expect(response.body.data.emailVerifiedAt).toBeNull()
+      expect(response.body.data.isEmailVerified).toBe(false)
     })
   })
 })

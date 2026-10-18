@@ -23,6 +23,7 @@ Enterprise-grade error tracking and performance monitoring integration using Sen
 ## Features
 
 ### Core Capabilities
+
 - ✅ **Error Tracking**: Automatic capture of unhandled exceptions and errors
 - ✅ **Performance Monitoring**: Request tracing and performance profiling
 - ✅ **User Context**: Automatic user identification in error reports
@@ -34,6 +35,7 @@ Enterprise-grade error tracking and performance monitoring integration using Sen
 - ✅ **Global Coverage**: Works across API, workers, and dashboard processes
 
 ### Smart Filtering
+
 - **Server Errors Only**: Captures 500+ HTTP errors, ignores 4xx client errors
 - **Sensitive Data Scrubbing**: Removes authorization headers, cookies, passwords
 - **Breadcrumb Tracking**: HTTP requests, responses, and custom events
@@ -60,12 +62,15 @@ Request → SentryInterceptor (set user context, add breadcrumbs)
   ↓
 Controller/Service Execution
   ↓
-Error Occurs?
+Error Occurs? (in a guard, pipe, interceptor or handler)
   ↓
-SentryFilter (capture 500+ errors) → Sentry Dashboard
+SentryInterceptor (adds request context; does not capture)
   ↓
-SentryInterceptor (capture exception, add context) → Sentry Dashboard
+HttpExceptionFilter (the only global filter): logs it, captures 5xx once → Sentry Dashboard
 ```
+
+4xx errors are client errors (validation, expired tokens, 404s); they are logged at
+`warn` and not sent to Sentry. Both are wired in `src/app.setup.ts` (`configureApp`).
 
 ### Global Configuration
 
@@ -76,7 +81,7 @@ The `SentryModule` is marked as `@Global()` and registered in `AppModule`:
 @Module({
   imports: [
     // ... other modules
-    SentryModule.forRoot(), // Global error tracking
+    SentryModule.forRoot() // Global error tracking
     // ... other modules
   ]
 })
@@ -84,6 +89,7 @@ export class AppModule {}
 ```
 
 **Important**: Modules that use `SentryService` must explicitly import `SentryModule.forRoot()`:
+
 - `AuditModule` - For audit failure tracking
 - `AuthModule` - For authentication error tracking
 
@@ -126,12 +132,12 @@ SENTRY_DEBUG=false
 
 The system uses smart environment-aware defaults:
 
-| Setting | Development | Production |
-|---------|-------------|------------|
-| `enabled` | `false` | `true` (auto) |
-| `tracesSampleRate` | `0%` | `10%` |
-| `profilesSampleRate` | `0%` | `10%` |
-| `debug` | `false` | `false` |
+| Setting              | Development | Production    |
+| -------------------- | ----------- | ------------- |
+| `enabled`            | `false`     | `true` (auto) |
+| `tracesSampleRate`   | `0%`        | `10%`         |
+| `profilesSampleRate` | `0%`        | `10%`         |
+| `debug`              | `false`     | `false`       |
 
 ### TypeScript Configuration
 
@@ -221,15 +227,11 @@ this.sentryService.clearUser()
 
 ```typescript
 // Add breadcrumb for debugging context
-this.sentryService.addBreadcrumb(
-  'Database query executed',
-  'database',
-  {
-    query: 'SELECT * FROM users',
-    duration: 125,
-    rows: 50
-  }
-)
+this.sentryService.addBreadcrumb('Database query executed', 'database', {
+  query: 'SELECT * FROM users',
+  duration: 125,
+  rows: 50
+})
 ```
 
 #### Set Custom Context
@@ -278,28 +280,20 @@ try {
 }
 
 // Unauthorized access attempts
-this.sentryService.captureMessage(
-  `Unauthorized access attempt to ${resource}`,
-  'warning',
-  {
-    userId: context.userId,
-    resource,
-    reason,
-    ipAddress: context.ipAddress
-  }
-)
+this.sentryService.captureMessage(`Unauthorized access attempt to ${resource}`, 'warning', {
+  userId: context.userId,
+  resource,
+  reason,
+  ipAddress: context.ipAddress
+})
 
 // Suspicious activity
-this.sentryService.captureMessage(
-  `Suspicious activity detected: ${activityType}`,
-  'error',
-  {
-    userId: context.userId,
-    activityType,
-    ipAddress: context.ipAddress,
-    ...details
-  }
-)
+this.sentryService.captureMessage(`Suspicious activity detected: ${activityType}`, 'error', {
+  userId: context.userId,
+  activityType,
+  ipAddress: context.ipAddress,
+  ...details
+})
 ```
 
 ### Auth Service Integration
@@ -308,82 +302,33 @@ The `AuthService` tracks authentication failures:
 
 ```typescript
 // Failed login - user not found
-this.sentryService.captureMessage(
-  `Failed login attempt for email: ${email}`,
-  'warning',
-  {
-    email,
-    reason: 'user_not_found'
-  }
-)
+this.sentryService.captureMessage(`Failed login attempt for email: ${email}`, 'warning', {
+  email,
+  reason: 'user_not_found'
+})
 
 // Invalid password
-this.sentryService.captureMessage(
-  `Invalid password attempt for user: ${user.id}`,
-  'warning',
-  {
-    userId: user.id,
-    email: user.email,
-    reason: 'invalid_password'
-  }
-)
+this.sentryService.captureMessage(`Invalid password attempt for user: ${user.id}`, 'warning', {
+  userId: user.id,
+  email: user.email,
+  reason: 'invalid_password'
+})
 
 // Inactive user
-this.sentryService.captureMessage(
-  `Inactive user login attempt: ${user.id}`,
-  'warning',
-  {
-    userId: user.id,
-    email: user.email,
-    reason: 'user_inactive'
-  }
-)
+this.sentryService.captureMessage(`Inactive user login attempt: ${user.id}`, 'warning', {
+  userId: user.id,
+  email: user.email,
+  reason: 'user_inactive'
+})
 ```
 
 ### Automatic HTTP Error Tracking
 
-The `SentryInterceptor` and `SentryFilter` automatically track errors:
-
-```typescript
-// Interceptor: Captures ALL errors, adds request context
-@Injectable()
-export class SentryInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler) {
-    // Set user context
-    // Add request breadcrumb
-    return next.handle().pipe(
-      catchError((error) => {
-        // Capture exception with full context
-        this.sentryService.captureException(error, {
-          route: request.route?.path,
-          controller: context.getClass().name,
-          handler: context.getHandler().name
-        })
-        return throwError(() => error)
-      })
-    )
-  }
-}
-
-// Filter: Only captures 500+ errors (server errors)
-@Catch()
-export class SentryFilter implements ExceptionFilter {
-  catch(exception: unknown, host: ArgumentsHost) {
-    const status = exception instanceof HttpException 
-      ? exception.getStatus() 
-      : HttpStatus.INTERNAL_SERVER_ERROR
-
-    // Only capture 500+ errors to Sentry
-    if (status >= 500) {
-      this.sentryService.captureException(exception)
-    }
-
-    // Return error response
-  }
-}
-```
-
-## Testing
+`configureApp()` (src/app.setup.ts) passes a reporter to `HttpExceptionFilter`, which
+captures every 5xx exactly once, including errors thrown by guards (they never reach
+interceptors). `SentryInterceptor` only sets the user, breadcrumbs and request context.
+There is no separate Sentry exception filter: a second `@Catch()` filter would take
+over every error and answer with a different response shape.
 
 ### Test Endpoints (Development Only)
 
@@ -409,18 +354,21 @@ curl -X POST http://localhost:4040/api/sentry-test/test-message
 ### Manual Testing
 
 1. **Enable Sentry** in `.env`:
+
    ```bash
    SENTRY_ENABLED=true
    SENTRY_DSN=your-sentry-dsn-here
    ```
 
 2. **Restart application**:
+
    ```bash
    npm run build
    pm2 restart all
    ```
 
 3. **Trigger test error**:
+
    ```bash
    curl -X POST http://localhost:4040/api/sentry-test/test-error
    ```
@@ -517,6 +465,7 @@ SENTRY_RELEASE=kuybi-nest@1.2.0-20251031
 **Cause**: Sentry is not enabled in environment variables.
 
 **Solution**:
+
 ```bash
 # Enable in .env
 SENTRY_ENABLED=true
@@ -531,6 +480,7 @@ pm2 restart all
 **Cause**: Module doesn't import `SentryModule`.
 
 **Solution**:
+
 ```typescript
 // Add to module imports
 @Module({
@@ -544,6 +494,7 @@ pm2 restart all
 ### Issue: Errors not appearing in Sentry
 
 **Checklist**:
+
 - [ ] Verify `SENTRY_ENABLED=true`
 - [ ] Verify `SENTRY_DSN` is correct
 - [ ] Check error status code (4xx errors are not sent)
@@ -554,6 +505,7 @@ pm2 restart all
 ### Issue: Too many events in Sentry
 
 **Solution**: Reduce sample rates:
+
 ```bash
 # Reduce to 1% of requests
 SENTRY_TRACES_SAMPLE_RATE=1
@@ -563,6 +515,7 @@ SENTRY_PROFILES_SAMPLE_RATE=1
 ### Issue: Sensitive data in error reports
 
 **Solution**: The system automatically filters:
+
 - Authorization headers
 - Cookies
 - Passwords, tokens, secrets from request body
@@ -618,6 +571,7 @@ If additional filtering is needed, update `beforeSend` in `sentry.service.ts`.
 ## Support
 
 For issues or questions:
+
 - Check [Sentry Documentation](https://docs.sentry.io/platforms/node/)
 - Review application logs
 - Check PM2 process status: `pm2 status`

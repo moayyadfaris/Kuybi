@@ -77,7 +77,7 @@ export class SentryService {
         },
         integrations: [
           Sentry.httpIntegration(),
-          // SentryInterceptor / SentryFilter report errors; v11's automatic Express capture
+          // HttpExceptionFilter reports 5xx errors; v11's automatic Express capture
           // would report them twice
           Sentry.expressIntegration({ shouldHandleError: () => false }),
           nodeProfilingIntegration()

@@ -1,3 +1,5 @@
+import { isLocalEnvironment } from '@shared/utils/environment'
+
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (value === undefined) {
     return fallback
@@ -34,7 +36,10 @@ export default () => {
       host: process.env.APP_HOST || '0.0.0.0',
       port: parseInt(process.env.APP_PORT || '4040', 10),
       corsOrigin: process.env.CORS_ORIGIN || '*',
-      swaggerEnabled: parseBoolean(process.env.SWAGGER_ENABLED, env !== 'production')
+      // Opt-in outside development/test (SWAGGER_ENABLED=true)
+      swaggerEnabled: parseBoolean(process.env.SWAGGER_ENABLED, isLocalEnvironment(env)),
+      // Raw error messages and stack traces in responses: development/test only, no override
+      exposeErrorDetails: isLocalEnvironment(env)
     },
     logging: {
       level: process.env.LOG_LEVEL || (env === 'production' ? 'info' : 'debug'),

@@ -1,7 +1,7 @@
 import { CanActivate, INestApplication } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
-import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
-import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
+import { configureApp } from '@app/app.setup'
 import { randomUUID } from 'crypto'
 import { NextFunction, Request, Response } from 'express'
 import { LoggerModule, PinoLogger } from 'nestjs-pino'
@@ -21,6 +21,8 @@ import { AuditQueryService } from '@modules/audit/services/audit-query.service'
 
 import { JwtAuthGuard } from '@core/auth/jwt-auth.guard'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
+
+import { testConfig } from '../../test.config'
 
 class AllowGuard implements CanActivate {
   canActivate(): boolean {
@@ -114,6 +116,7 @@ describe('Audit Integration (controller)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
+        ConfigModule.forRoot({ isGlobal: true, load: [() => testConfig] }),
         LoggerModule.forRoot({
           pinoHttp: { level: 'silent' }
         })
@@ -134,12 +137,11 @@ describe('Audit Integration (controller)', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
+    configureApp(app)
     const requestIdMiddleware = new RequestIdMiddleware()
     app.use((req: Request, res: Response, next: NextFunction) =>
       requestIdMiddleware.use(req as any, res, next)
     )
-    app.useGlobalInterceptors(new RequestIdInterceptor(), new TransformInterceptor())
     await app.init()
   })
 

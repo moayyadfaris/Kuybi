@@ -1,22 +1,14 @@
-import { ValidationPipe } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
-import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
-import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
-import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import { errorMessage, errorStack } from '@shared/utils/error.util'
-import compression from 'compression'
 import { Request, Response } from 'express'
-import helmet from 'helmet'
-import { Logger, PinoLogger } from 'nestjs-pino'
+import { Logger } from 'nestjs-pino'
 
-import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
-import { LoggingContextService } from '@core/logging/logging-context.service'
 import { initTracing, shutdownTracing } from '@core/observability/otel-sdk'
-import { SentryFilter, SentryInterceptor, SentryService } from '@core/sentry'
 
 import { AppModule } from './app.module'
+import { configureApp } from './app.setup'
 
 // Initialize tracing before anything else
 initTracing()
@@ -24,14 +16,7 @@ initTracing()
 interface HttpConfig {
   host: string
   port: number
-  corsOrigin: string
   swaggerEnabled: boolean
-}
-
-interface CompressionConfig {
-  enabled: boolean
-  threshold: number
-  level: number
 }
 
 async function bootstrap() {
@@ -40,106 +25,16 @@ async function bootstrap() {
   const httpConfig = configService.get<HttpConfig>('http', {
     host: '0.0.0.0',
     port: 4040,
-    corsOrigin: '*',
     swaggerEnabled: false
-  })
-  const compressionConfig = configService.get<CompressionConfig>('compression', {
-    enabled: true,
-    threshold: 1024,
-    level: 6
   })
 
   // Set Pino as the application logger
   const appLogger = app.get(Logger)
   app.useLogger(appLogger)
 
-  // Get Sentry service for conditional middleware
-  const sentryService = app.get(SentryService)
+  configureApp(app)
 
-  // Security headers
-  app.use(helmet())
-
-  // Configure CORS
-  const corsOrigin = httpConfig.corsOrigin
-  const origin = corsOrigin.includes(',') ? corsOrigin.split(',').map(o => o.trim()) : corsOrigin
-
-  app.enableCors({
-    origin,
-    credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization'
-  })
-
-  // Set global prefix 'api' for all routes
-  // API versioning is handled at controller level with 'v1/' prefix
-  // All admin endpoints: /api/v1/*
-  // All public web endpoints: /api/web/v1/*
-  // Exclude /metrics endpoint for Prometheus scraping
-  app.setGlobalPrefix('api', {
-    exclude: ['/metrics']
-  })
-
-  // Response compression middleware with optimized settings
-  // IMPORTANT: Must be registered before routes
-  if (compressionConfig.enabled) {
-    app.use(
-      compression({
-        filter: (req, res) => {
-          // Don't compress responses with this request header
-          if (req.headers['x-no-compression']) {
-            return false
-          }
-          // Force compression for JSON responses above threshold
-          if (res.getHeader('Content-Type')?.toString().includes('application/json')) {
-            return true
-          }
-          // Fallback to standard filter function
-          return compression.filter(req, res)
-        },
-        threshold: compressionConfig.threshold,
-        level: compressionConfig.level
-      })
-    )
-
-    appLogger.log(
-      `✓ Compression enabled: threshold=${compressionConfig.threshold} bytes, level=${compressionConfig.level}`
-    )
-  } else {
-    appLogger.warn('⚠️  Compression is DISABLED')
-  }
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true }
-    })
-  )
-  const pinoLogger = appLogger as unknown as PinoLogger
-  app.useGlobalFilters(new HttpExceptionFilter(pinoLogger, configService))
-
-  const loggingContextService = app.get(LoggingContextService)
-
-  // Register global interceptors (Sentry first for error tracking)
-  const globalInterceptors = [new RequestIdInterceptor()]
-
-  if (sentryService.isEnabled()) {
-    globalInterceptors.push(new SentryInterceptor(sentryService))
-  }
-
-  globalInterceptors.push(
-    new LoggingContextInterceptor(loggingContextService, configService),
-    new TransformInterceptor()
-  )
-
-  app.useGlobalInterceptors(...globalInterceptors)
-
-  // Register Sentry global filter (must be before other filters)
-  if (sentryService.isEnabled()) {
-    app.useGlobalFilters(new SentryFilter(sentryService))
-  }
-
-  // API docs are opt-in for production (SWAGGER_ENABLED=true)
+  // API docs: on in development/test, opt-in elsewhere (SWAGGER_ENABLED=true)
   if (httpConfig.swaggerEnabled) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Kuybi API')
@@ -161,9 +56,7 @@ async function bootstrap() {
   }
 
   // Signal handling is done below (shutdown()), which calls app.close() and so runs all
-
   // lifecycle hooks. Do NOT add enableShutdownHooks(): Nest would close the app a second
-
   // time in parallel and re-raise the signal, killing the process mid-shutdown.
 
   await app.listen(httpConfig.port, httpConfig.host)

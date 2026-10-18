@@ -5,10 +5,11 @@
  * userId). These tests run without overriding AbilityGuard and with a cache that
  * returns plain JSON, like Redis, which the super-admin specs cannot catch.
  */
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -91,8 +92,7 @@ describe('Story ownership (regular users)', () => {
       .compile()
 
     app = moduleRef.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
+    configureApp(app)
     await app.init()
     dataSource = app.get(DataSource)
 
@@ -110,7 +110,7 @@ describe('Story ownership (regular users)', () => {
         .post('/api/v1/auth/login')
         .send({ email, password: PASSWORD })
         .expect(201)
-      return { user, token: login.body.accessToken as string }
+      return { user, token: login.body.data.accessToken as string }
     }
     owner = await signUp('owner@test-ownership.com')
     other = await signUp('other@test-ownership.com')

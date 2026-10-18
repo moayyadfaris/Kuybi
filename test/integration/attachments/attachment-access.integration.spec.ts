@@ -1,7 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -91,8 +92,7 @@ describe('Attachment access', () => {
       .compile()
 
     app = moduleRef.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
+    configureApp(app)
     await app.init()
     dataSource = app.get(DataSource)
 
@@ -110,7 +110,7 @@ describe('Attachment access', () => {
         .post('/api/v1/auth/login')
         .send({ email, password: PASSWORD })
         .expect(201)
-      return { user, token: login.body.accessToken as string }
+      return { user, token: login.body.data.accessToken as string }
     }
     owner = await signUp('owner@test-attachments.com', 'user')
     other = await signUp('other@test-attachments.com', 'user')
@@ -167,7 +167,7 @@ describe('Attachment access', () => {
 
   it("shows other users only someone's public files in the list", async () => {
     const response = await http().get('/api/v1/attachments').set(as(other.token)).expect(200)
-    const ids = response.body.data.map((a: { id: string }) => a.id)
+    const ids = response.body.data.data.map((a: { id: string }) => a.id)
 
     expect(ids).toContain(publicFile.id)
     expect(ids).not.toContain(privateFile.id)
