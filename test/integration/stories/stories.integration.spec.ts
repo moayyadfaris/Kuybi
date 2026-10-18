@@ -275,6 +275,40 @@ describe('Stories Integration Tests', () => {
     })
   })
 
+  describe('atomic writes', () => {
+    const UNKNOWN_CATEGORY = '00000000-0000-4000-8000-000000000000'
+
+    it('does not create a story when a category does not exist', async () => {
+      const before = await dataSource.getRepository(Story).count()
+
+      await request(app.getHttpServer())
+        .post('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ ...StoryFactory.create(), categoryIds: [UNKNOWN_CATEGORY] })
+        .expect(400)
+
+      expect(await dataSource.getRepository(Story).count()).toBe(before)
+    })
+
+    it('leaves the story unchanged when part of an update is invalid', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ ...StoryFactory.create(), title: 'Original title' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/stories/${created.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'Half-applied title', categoryIds: [UNKNOWN_CATEGORY] })
+        .expect(400)
+
+      const stored = await dataSource.getRepository(Story).findOneByOrFail({ id: created.body.id })
+      expect(stored.title).toBe('Original title')
+      expect(stored.version).toBe(created.body.version)
+    })
+  })
+
   describe('GET /api/v1/stories sorting', () => {
     it('sorts by an allowlisted column', async () => {
       await request(app.getHttpServer())

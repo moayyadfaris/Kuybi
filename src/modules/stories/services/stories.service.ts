@@ -10,7 +10,7 @@ import { DataSource, In, IsNull } from 'typeorm'
 
 import { Action } from '@modules/acl'
 import { CategoryRepository } from '@modules/categories'
-import { Tag } from '@modules/tags/entities'
+import { Category } from '@modules/categories/entities'
 import { User } from '@modules/users/entities'
 
 import { LoggingContextService } from '@core/logging/logging-context.service'
@@ -50,7 +50,10 @@ export class StoriesService {
   }
 
   /**
-   * Create a new story
+   * Create a new story.
+   *
+   * Lookups and validation run first; the story row and its tag/category links are then
+   * written in one transaction, and caches/metrics are updated only after it commits.
    */
   async create(createStoryDto: CreateStoryDto, currentUser: User): Promise<Story> {
     const userId = currentUser.id
@@ -59,153 +62,56 @@ export class StoriesService {
       action: 'create_story'
     })
     requestLogger.info({ userId, type: createStoryDto.type }, 'Creating story')
-    requestLogger.debug(
-      {
-        title: createStoryDto.title,
-        status: createStoryDto.status,
-        priority: createStoryDto.priority,
-        hasTags: Boolean(createStoryDto.tags?.length),
-        hasTagIds: Boolean(createStoryDto.tagIds?.length),
-        hasCategories: Boolean(createStoryDto.categoryIds?.length)
-      },
-      'Story creation payload summary'
-    )
 
-    // Wrap entire create operation in a transaction
-    return await this.dataSource.transaction(async transactionalEntityManager => {
-      try {
-        // Validate parent story exists if parentId provided
-        if (createStoryDto.parentId) {
-          requestLogger.debug({ parentId: createStoryDto.parentId }, 'Validating parent story')
-          const parent = await this.storyRepository.findById(createStoryDto.parentId)
-          if (!parent) {
-            throw new BadRequestException(
-              `Parent story with ID ${createStoryDto.parentId} not found`
-            )
-          }
-        }
+    const { categoryIds, tagIds, tags, ...storyData } = createStoryDto
 
-        // Extract categoryIds, tagIds, and tags from DTO
-        const { categoryIds, tagIds, tags, ...storyData } = createStoryDto
-        requestLogger.debug(
-          {
-            categoryIds,
-            tagIds,
-            tagCount: tags?.length,
-            storyDataKeys: Object.keys(storyData)
-          },
-          'Extracted data from DTO'
-        )
-        const story = await this.storyRepository.create({
+    try {
+      if (storyData.parentId) {
+        await this.assertParentExists(storyData.parentId)
+      }
+      const categories = categoryIds?.length ? await this.resolveCategories(categoryIds) : []
+      // Tags are shared and created idempotently, so creating one before the story is safe
+      const resolvedTags =
+        tagIds?.length || tags?.length
+          ? await this.storyRelationshipService.resolveAndCreateTags(tagIds, tags, userId)
+          : []
+
+      const storyId = await this.dataSource.transaction(async manager => {
+        const story = manager.create(Story, {
           ...storyData,
-          fromTime: createStoryDto.fromTime ? new Date(createStoryDto.fromTime) : undefined,
-          toTime: createStoryDto.toTime ? new Date(createStoryDto.toTime) : undefined,
+          fromTime: storyData.fromTime ? new Date(storyData.fromTime) : undefined,
+          toTime: storyData.toTime ? new Date(storyData.toTime) : undefined,
           userId,
           createdBy: userId,
-          lastModifiedBy: userId
+          lastModifiedBy: userId,
+          categories,
+          tags: resolvedTags
         })
-        requestLogger.debug({ storyId: story.id }, 'Story created in database')
+        return (await manager.save(story)).id
+      })
 
-        // Get story with relations for attaching categories and tags
-        const storyWithRelations = await transactionalEntityManager.findOne(Story, {
-          where: { id: story.id },
-          relations: ['categories', 'tags']
-        })
+      const created = await this.findOne(storyId, userId, { bypassCache: true })
+      await this.storyRepository.invalidateAfterWrite(created)
+      this.metricsService.incrementStoryCreated(created.type, created.status)
 
-        if (!storyWithRelations) {
-          throw new BadRequestException('Failed to create story')
-        }
-        requestLogger.debug({ storyId: story.id }, 'Fetched story with relations')
-
-        // Attach categories if provided
-        if (categoryIds && categoryIds.length > 0) {
-          requestLogger.debug({ categoryIds, count: categoryIds.length }, 'Processing categories')
-          const categories = await this.categoryRepository.findMany({
-            where: { id: In(categoryIds), deletedAt: IsNull() }
-          })
-
-          if (categories.length !== categoryIds.length) {
-            requestLogger.warn(
-              { action: 'create_story', requested: categoryIds.length, found: categories.length },
-              'Some categories not found'
-            )
-          }
-
-          storyWithRelations.categories = categories
-          requestLogger.debug(
-            { categoriesAttached: categories.length },
-            'Categories attached to story'
-          )
-        }
-
-        // Attach tags if provided
-        let attachedTags: Tag[] = []
-        if ((tagIds && tagIds.length > 0) || (tags && tags.length > 0)) {
-          requestLogger.debug(
-            {
-              tagIds,
-              tagNames: tags,
-              tagIdsCount: tagIds?.length,
-              tagNamesCount: tags?.length
-            },
-            'Processing tags'
-          )
-          try {
-            attachedTags = await this.storyRelationshipService.resolveAndCreateTags(
-              tagIds,
-              tags,
-              userId
-            )
-            requestLogger.debug({ tagsResolved: attachedTags.length }, 'Tags resolved and attached')
-            storyWithRelations.tags = attachedTags
-          } catch (tagError) {
-            requestLogger.error({ error: tagError, tagIds, tagNames: tags }, 'Error resolving tags')
-            throw tagError
-          }
-        }
-
-        // Save story with relations within transaction
-        if ((categoryIds && categoryIds.length > 0) || attachedTags.length > 0) {
-          requestLogger.debug(
-            {
-              storyId: story.id,
-              categoriesCount: categoryIds?.length,
-              tagsCount: attachedTags.length
-            },
-            'Saving story with relations'
-          )
-          await transactionalEntityManager.save(Story, storyWithRelations)
-          requestLogger.debug({ storyId: story.id }, 'Story with relations saved')
-
-          await this.storyRepository.invalidateStoryCache(story.id, userId)
-        }
-
-        requestLogger.info(
-          {
-            storyId: story.id,
-            userId,
-            type: story.type,
-            categoriesCount: categoryIds?.length || 0,
-            tagsCount: attachedTags.length
-          },
-          'Story created successfully'
-        )
-
-        const finalStory = await this.findOne(story.id, userId, { bypassCache: true })
-
-        // Record business metric
-        this.metricsService.incrementStoryCreated(finalStory.type, finalStory.status)
-
-        requestLogger.info({ storyId: story.id, userId }, 'Story creation completed successfully')
-        return this.storyEnrichmentService.enrichStoryMedia(finalStory) as Story
-      } catch (error) {
-        requestLogger.error(
-          { action: 'create_story', userId, error: errorMessage(error), stack: errorStack(error) },
-          'Failed to create story - transaction rolled back'
-        )
-        throw error
-      }
-    })
+      requestLogger.info(
+        {
+          storyId,
+          userId,
+          type: created.type,
+          categoriesCount: categories.length,
+          tagsCount: resolvedTags.length
+        },
+        'Story created successfully'
+      )
+      return created
+    } catch (error) {
+      requestLogger.error(
+        { action: 'create_story', userId, error: errorMessage(error), stack: errorStack(error) },
+        'Failed to create story'
+      )
+      throw error
+    }
   }
 
   /**
@@ -336,138 +242,126 @@ export class StoriesService {
   }
 
   /**
-   * Update story
+   * Update a story.
+   *
+   * Field changes and the replacement tag/category sets are written in one transaction;
+   * the automatic version and cache invalidation happen after it commits.
    */
   async update(id: number, updateStoryDto: UpdateStoryDto, currentUser: User): Promise<Story> {
     const userId = currentUser.id
     this.logger.info({ action: 'update_story', storyId: id, userId }, 'Updating story')
 
-    // Wrap update operation in a transaction
-    return await this.dataSource.transaction(async _transactionalEntityManager => {
-      try {
-        const story = await this.findOne(id)
+    try {
+      const story = await this.findOne(id)
 
-        if (!this.accessPolicy.can(currentUser, Action.Update, story)) {
-          this.logger.warn(
-            {
-              action: 'update_story',
-              storyId: id,
-              ownerId: story.userId,
-              requesterId: userId
-            },
-            'Update denied due to insufficient permissions'
-          )
-          throw new ForbiddenException('You do not have permission to update this story')
+      if (!this.accessPolicy.can(currentUser, Action.Update, story)) {
+        this.logger.warn(
+          {
+            action: 'update_story',
+            storyId: id,
+            ownerId: story.userId,
+            requesterId: userId
+          },
+          'Update denied due to insufficient permissions'
+        )
+        throw new ForbiddenException('You do not have permission to update this story')
+      }
+
+      const { tags, categoryIds, tagIds, ...updateData } = updateStoryDto
+
+      if (updateData.parentId && updateData.parentId !== story.parentId) {
+        if (updateData.parentId === id) {
+          throw new BadRequestException('Story cannot be its own parent')
         }
+        await this.assertParentExists(updateData.parentId)
+      }
 
-        // Validate parent story if being changed
-        if (updateStoryDto.parentId && updateStoryDto.parentId !== story.parentId) {
-          const parent = await this.storyRepository.findById(updateStoryDto.parentId)
-          if (!parent) {
-            throw new BadRequestException(
-              `Parent story with ID ${updateStoryDto.parentId} not found`
-            )
-          }
-          // Prevent circular references
-          if (updateStoryDto.parentId === id) {
-            throw new BadRequestException('Story cannot be its own parent')
-          }
-        }
+      // A non-empty list replaces the current set; omitted or empty leaves it unchanged
+      const categories = categoryIds?.length ? await this.resolveCategories(categoryIds) : undefined
+      const resolvedTags =
+        tagIds?.length || tags?.length
+          ? await this.storyRelationshipService.resolveAndCreateTags(tagIds, tags, userId)
+          : undefined
 
-        // Extract relationship fields that need special handling
-        const { tags, categoryIds, tagIds, ...updateData } = updateStoryDto
-
-        // Update basic story fields (excluding relationship arrays)
-        const updated = await this.storyRepository.update(id, {
-          ...updateData,
-          fromTime: updateStoryDto.fromTime ? new Date(updateStoryDto.fromTime) : undefined,
-          toTime: updateStoryDto.toTime ? new Date(updateStoryDto.toTime) : undefined,
-          updatedBy: userId,
-          lastModifiedBy: userId,
-          version: story.version + 1
+      await this.dataSource.transaction(async manager => {
+        const entity = await manager.findOne(Story, {
+          where: { id },
+          relations: ['categories', 'tags']
         })
-        if (!updated) {
-          // Removed between the existence check above and the update
+        if (!entity || entity.deletedAt) {
+          // Removed between the existence check above and this write
           throw new NotFoundException(`Story with ID ${id} not found`)
         }
 
-        // Handle category updates if provided
-        if (categoryIds !== undefined && categoryIds.length > 0) {
-          // Detach all existing categories first, then attach new ones
-          const existingStory = await this.storyRepository.findById(id)
-          if (existingStory?.categories && existingStory.categories.length > 0) {
-            await this.storyRelationshipService.detachCategories(
-              id,
-              { categoryIds: existingStory.categories.map(c => c.id) },
-              currentUser
-            )
-          }
-          await this.storyRelationshipService.attachCategories(id, { categoryIds }, currentUser)
-        }
-
-        // Handle tag updates if provided (tags by name)
-        if (tags !== undefined && tags.length > 0) {
-          const existingStory = await this.storyRepository.findById(id)
-          if (existingStory?.tags && existingStory.tags.length > 0) {
-            await this.storyRelationshipService.detachTags(
-              id,
-              { tagIds: existingStory.tags.map(t => t.id) },
-              currentUser
-            )
-          }
-          await this.storyRelationshipService.attachTags(id, { tags }, currentUser)
-        }
-
-        // Handle tag updates by ID if provided
-        if (tagIds !== undefined && tagIds.length > 0) {
-          const existingStory = await this.storyRepository.findById(id)
-          if (existingStory?.tags && existingStory.tags.length > 0) {
-            await this.storyRelationshipService.detachTags(
-              id,
-              { tagIds: existingStory.tags.map(t => t.id) },
-              currentUser
-            )
-          }
-          await this.storyRelationshipService.attachTags(id, { tagIds }, currentUser)
-        }
-
-        this.logger.info(
-          { action: 'update_story', storyId: id, userId, version: updated.version },
-          'Story updated successfully'
+        const changes = Object.fromEntries(
+          Object.entries({
+            ...updateData,
+            fromTime: updateData.fromTime ? new Date(updateData.fromTime) : undefined,
+            toTime: updateData.toTime ? new Date(updateData.toTime) : undefined
+          }).filter(([, value]) => value !== undefined)
         )
+        manager.merge(Story, entity, changes)
+        entity.updatedBy = userId
+        entity.lastModifiedBy = userId
+        entity.version += 1
+        if (categories) entity.categories = categories
+        if (resolvedTags) entity.tags = resolvedTags
 
-        // Create automatic version after update
-        try {
-          await this.versionService.createVersion(
-            updated,
-            {
-              versionType: VersionType.AUTO,
-              versionLabel: `Auto version ${updated.version}`,
-              commitMessage: `Automatic version created after update`
-            },
-            userId
-          )
-          this.logger.debug({ storyId: id, version: updated.version }, 'Auto version created')
-        } catch (versionError) {
-          // Log but don't fail the update if versioning fails
-          this.logger.warn(
-            {
-              storyId: id,
-              error: versionError instanceof Error ? versionError.message : 'Unknown error'
-            },
-            'Failed to create automatic version'
-          )
-        }
+        await manager.save(entity)
+      })
 
-        return this.storyEnrichmentService.enrichStoryMedia(updated) as Story
-      } catch (error) {
-        this.logger.error(
-          { action: 'update_story', storyId: id, userId, error: errorMessage(error) },
-          'Failed to update story - transaction rolled back'
+      const updated = await this.findOne(id, userId, { bypassCache: true })
+      await this.storyRepository.invalidateAfterWrite(story, updated)
+
+      this.logger.info(
+        { action: 'update_story', storyId: id, userId, version: updated.version },
+        'Story updated successfully'
+      )
+
+      // Create automatic version after update (best effort, outside the transaction)
+      try {
+        await this.versionService.createVersion(
+          updated,
+          {
+            versionType: VersionType.AUTO,
+            versionLabel: `Auto version ${updated.version}`,
+            commitMessage: `Automatic version created after update`
+          },
+          userId
         )
-        throw error
+        this.logger.debug({ storyId: id, version: updated.version }, 'Auto version created')
+      } catch (versionError) {
+        this.logger.warn(
+          { storyId: id, error: errorMessage(versionError) },
+          'Failed to create automatic version'
+        )
       }
+
+      return updated
+    } catch (error) {
+      this.logger.error(
+        { action: 'update_story', storyId: id, userId, error: errorMessage(error) },
+        'Failed to update story'
+      )
+      throw error
+    }
+  }
+
+  private async assertParentExists(parentId: number): Promise<void> {
+    const parent = await this.storyRepository.findById(parentId)
+    if (!parent || parent.deletedAt) {
+      throw new BadRequestException(`Parent story with ID ${parentId} not found`)
+    }
+  }
+
+  private async resolveCategories(categoryIds: string[]): Promise<Category[]> {
+    const categories = await this.categoryRepository.findMany({
+      where: { id: In(categoryIds), deletedAt: IsNull() }
     })
+    if (categories.length !== new Set(categoryIds).size) {
+      throw new BadRequestException('One or more categories not found')
+    }
+    return categories
   }
 
   /**
