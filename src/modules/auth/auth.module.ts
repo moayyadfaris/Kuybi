@@ -24,6 +24,7 @@ import { Session } from './entities/session.entity'
 import { UserCredentialsResetListener } from './listeners/user-credentials-reset.listener'
 import { PasswordHistoryRepository } from './repositories/password-history.repository'
 import { SessionRepository } from './repositories/session.repository'
+import { PasswordPolicyService } from './services/password-policy.service'
 import { PasswordResetService } from './services/password-reset.service'
 import { PasswordStrengthService } from './services/password-strength.service'
 import { RegistrationService } from './services/registration.service'
@@ -71,6 +72,7 @@ import {
   controllers: [AuthController, SessionsController, CleanupStatsController],
   providers: [
     AuthService,
+    PasswordPolicyService,
     AccessTokenService,
     PasswordChangeService,
     SessionListingService,

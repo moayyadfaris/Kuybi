@@ -16,6 +16,7 @@ import {
 } from '../dto/password-reset.dto'
 import { PasswordReset } from '../entities/password-reset.entity'
 
+import { PasswordPolicyService } from './password-policy.service'
 import { SessionsService } from './sessions.service'
 
 /**
@@ -39,6 +40,7 @@ export class PasswordResetService {
     private readonly passwordResetRepository: Repository<PasswordReset>,
     private readonly emailQueueService: EmailQueueService,
     private readonly sessionsService: SessionsService,
+    private readonly passwordPolicy: PasswordPolicyService,
     private readonly configService: ConfigService,
     @InjectPinoLogger(PasswordResetService.name)
     private readonly logger: PinoLogger
@@ -213,6 +215,14 @@ export class PasswordResetService {
 
     const user = resetRecord.user
 
+    // Same rules as a password change: strong enough, not the current or a recent one.
+    // Without this, "forgot password" was a way around the reuse policy.
+    const current = await this.userRepository.findOne({
+      where: { id: user.id },
+      select: ['id', 'passwordHash']
+    })
+    await this.passwordPolicy.assertAcceptable(user.id, newPassword, current?.passwordHash)
+
     // Hash new password
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(newPassword, salt)
@@ -241,6 +251,8 @@ export class PasswordResetService {
         { manager }
       )
     })
+
+    await this.passwordPolicy.record(user.id, passwordHash, { ipAddress }, current?.passwordHash)
 
     // Invalidate ALL user sessions (force re-login everywhere)
     const revokedCount = await this.sessionsService.revokeAllSessions(

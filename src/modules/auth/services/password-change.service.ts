@@ -18,7 +18,7 @@ import { SentryService } from '@core/sentry'
 import { PasswordHistoryRepository } from '../repositories/password-history.repository'
 import type { SessionContext } from '../types/session-context'
 
-import { PasswordStrengthService } from './password-strength.service'
+import { PasswordPolicyService } from './password-policy.service'
 import { SessionsService } from './sessions.service'
 
 /** Self-service password change: verification, policy checks, history and session revocation */
@@ -31,7 +31,7 @@ export class PasswordChangeService {
     private readonly configService: ConfigService,
     private readonly sessionsService: SessionsService,
     private readonly passwordHistoryRepository: PasswordHistoryRepository,
-    private readonly passwordStrengthService: PasswordStrengthService,
+    private readonly passwordPolicy: PasswordPolicyService,
     private readonly emailService: EmailService,
     private readonly sentryService: SentryService
   ) {}
@@ -84,16 +84,7 @@ export class PasswordChangeService {
       throw new BadRequestException('New password must be different from current password')
     }
 
-    // Check password strength
-    const strengthResult = await this.passwordStrengthService.calculateStrength(newPassword)
-    if (!strengthResult.passed) {
-      throw new BadRequestException({
-        message: 'Password does not meet strength requirements',
-        errors: strengthResult.feedback,
-        strength: strengthResult.strength,
-        score: strengthResult.score
-      })
-    }
+    await this.passwordPolicy.assertAcceptable(userId, newPassword, currentHash)
 
     // Check password change cooldown (temporary lockout)
     const cooldownHours = this.configService.get<number>('auth.passwordChangeCooldownHours', 1)
@@ -138,17 +129,6 @@ export class PasswordChangeService {
       }
     }
 
-    // Check password history (last 5 passwords)
-    const passwordHistory = await this.passwordHistoryRepository.findByUser(userId, 5)
-    for (const historyEntry of passwordHistory) {
-      const isReused = await bcrypt.compare(newPassword, historyEntry.passwordHash)
-      if (isReused) {
-        throw new BadRequestException(
-          'Password has been used recently. Please choose a different password.'
-        )
-      }
-    }
-
     // Hash new password
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(newPassword, salt)
@@ -162,13 +142,7 @@ export class PasswordChangeService {
     })
 
     // Save password to history
-    await this.passwordHistoryRepository.addPasswordHistory(
-      userId,
-      passwordHash,
-      context.ipAddress,
-      context.userAgent,
-      5 // Keep last 5 passwords
-    )
+    await this.passwordPolicy.record(userId, passwordHash, context, currentHash)
 
     this.logger.info(
       {
@@ -177,8 +151,7 @@ export class PasswordChangeService {
         ipAddress: context.ipAddress,
         action: 'password_changed',
         invalidateAllSessions: options.invalidateAllSessions,
-        sendNotification: options.sendNotificationEmail,
-        passwordStrength: strengthResult.strength
+        sendNotification: options.sendNotificationEmail
       },
       'User changed password successfully'
     )
