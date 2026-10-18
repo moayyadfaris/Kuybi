@@ -1,15 +1,10 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException
-} from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 import { In, Repository } from 'typeorm'
 
-import { AbilityFactory, Action } from '@modules/acl'
+import { Action } from '@modules/acl'
 import { AttachmentRepository, toAttachmentResponse } from '@modules/attachments'
 import { Attachment } from '@modules/attachments/entities'
 import { CategoryRepository } from '@modules/categories'
@@ -29,6 +24,8 @@ import {
 import { Story } from '../entities/story.entity'
 import { StoryRepository } from '../repositories/story.repository'
 
+import { StoryAccessPolicy } from './story-access.policy'
+
 @Injectable()
 export class StoryRelationshipService {
   constructor(
@@ -39,7 +36,7 @@ export class StoryRelationshipService {
     @InjectRepository(Story)
     private readonly storyEntityRepository: Repository<Story>,
     private readonly logger: PinoLogger,
-    private readonly abilityFactory: AbilityFactory
+    private readonly accessPolicy: StoryAccessPolicy
   ) {
     this.logger.setContext(StoryRelationshipService.name)
   }
@@ -152,10 +149,12 @@ export class StoryRelationshipService {
       }
 
       // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Update, story)) {
-        throw new ForbiddenException('You do not have permission to modify this story')
-      }
+      this.accessPolicy.assertCan(
+        currentUser,
+        Action.Update,
+        story,
+        'You do not have permission to modify this story'
+      )
 
       // Verify all attachments exist
       const attachments = await this.attachmentRepository.findMany({
@@ -217,10 +216,12 @@ export class StoryRelationshipService {
       }
 
       // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Update, story)) {
-        throw new ForbiddenException('You do not have permission to modify this story')
-      }
+      this.accessPolicy.assertCan(
+        currentUser,
+        Action.Update,
+        story,
+        'You do not have permission to modify this story'
+      )
 
       if (!story.attachments || story.attachments.length === 0) {
         return story
@@ -278,10 +279,12 @@ export class StoryRelationshipService {
       }
 
       // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Update, story)) {
-        throw new ForbiddenException('You do not have permission to modify this story')
-      }
+      this.accessPolicy.assertCan(
+        currentUser,
+        Action.Update,
+        story,
+        'You do not have permission to modify this story'
+      )
 
       // Validate that at least one type of tags is provided
       if ((!dto.tagIds || dto.tagIds.length === 0) && (!dto.tags || dto.tags.length === 0)) {
@@ -339,10 +342,12 @@ export class StoryRelationshipService {
       }
 
       // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Update, story)) {
-        throw new ForbiddenException('You do not have permission to modify this story')
-      }
+      this.accessPolicy.assertCan(
+        currentUser,
+        Action.Update,
+        story,
+        'You do not have permission to modify this story'
+      )
 
       // Validate that at least one type of tags is provided
       if ((!dto.tagIds || dto.tagIds.length === 0) && (!dto.tags || dto.tags.length === 0)) {
@@ -401,10 +406,12 @@ export class StoryRelationshipService {
       }
 
       // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Update, story)) {
-        throw new ForbiddenException('You do not have permission to modify this story')
-      }
+      this.accessPolicy.assertCan(
+        currentUser,
+        Action.Update,
+        story,
+        'You do not have permission to modify this story'
+      )
 
       // Verify all categories exist
       const categories = await this.categoryRepository.findMany({
@@ -466,10 +473,12 @@ export class StoryRelationshipService {
       }
 
       // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Update, story)) {
-        throw new ForbiddenException('You do not have permission to modify this story')
-      }
+      this.accessPolicy.assertCan(
+        currentUser,
+        Action.Update,
+        story,
+        'You do not have permission to modify this story'
+      )
 
       if (!story.categories || story.categories.length === 0) {
         return story

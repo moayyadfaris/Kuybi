@@ -4,13 +4,11 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
-import { DataSource, In, IsNull, Repository } from 'typeorm'
+import { DataSource, In, IsNull } from 'typeorm'
 
-import { AbilityFactory, Action, Subject } from '@modules/acl'
-import { AttachmentMetadata, AttachmentRepository, S3Service } from '@modules/attachments'
+import { Action } from '@modules/acl'
 import { CategoryRepository } from '@modules/categories'
 import { Tag } from '@modules/tags/entities'
 import { User } from '@modules/users/entities'
@@ -23,26 +21,29 @@ import { Story, StoryStatus, StoryType } from '../entities/story.entity'
 import { VersionType } from '../entities/story-version.entity'
 import { StoryRepository } from '../repositories/story.repository'
 
+import { StoryAccessPolicy } from './story-access.policy'
 import { StoryEnrichmentService } from './story-enrichment.service'
 import { StoryRelationshipService } from './story-relationship.service'
 import { StoryVersionService } from './story-version.service'
 
+/**
+ * Creating, reading and editing stories.
+ *
+ * Related: StoryLifecycleService (delete, restore, status), StoryMediaService (main image),
+ * StoryRelationshipService (tags, categories, attachments).
+ */
 @Injectable()
 export class StoriesService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly storyRepository: StoryRepository,
-    @InjectRepository(Story)
-    private readonly storyEntityRepository: Repository<Story>,
-    private readonly attachmentRepository: AttachmentRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly storyRelationshipService: StoryRelationshipService,
     private readonly storyEnrichmentService: StoryEnrichmentService,
     private readonly logger: PinoLogger,
     private readonly loggingContext: LoggingContextService,
     private readonly versionService: StoryVersionService,
-    private readonly s3Service: S3Service,
-    private readonly abilityFactory: AbilityFactory,
+    private readonly accessPolicy: StoryAccessPolicy,
     private readonly metricsService: MetricsService
   ) {
     this.logger.setContext(StoriesService.name)
@@ -346,9 +347,7 @@ export class StoriesService {
       try {
         const story = await this.findOne(id)
 
-        // Check permissions using CASL
-        const ability = this.abilityFactory.createForUser(currentUser)
-        if (!ability.can(Action.Update, story)) {
+        if (!this.accessPolicy.can(currentUser, Action.Update, story)) {
           this.logger.warn(
             {
               action: 'update_story',
@@ -472,179 +471,6 @@ export class StoriesService {
   }
 
   /**
-   * Soft delete story
-   */
-  async remove(id: number, currentUser: User, reason?: string): Promise<void> {
-    const userId = currentUser.id
-    this.logger.info({ action: 'delete_story', storyId: id, userId, reason }, 'Deleting story')
-
-    try {
-      const story = await this.findOne(id)
-
-      // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Delete, story)) {
-        this.logger.warn(
-          {
-            action: 'delete_story',
-            storyId: id,
-            ownerId: story.userId,
-            requesterId: userId
-          },
-          'Delete denied due to insufficient permissions'
-        )
-        throw new ForbiddenException('You do not have permission to delete this story')
-      }
-
-      // Soft delete with metadata
-      await this.storyRepository.update(id, {
-        deletedAt: new Date(),
-        deletedBy: userId,
-        deletionReason: reason,
-        status: StoryStatus.DELETED
-      })
-
-      this.logger.info(
-        { action: 'delete_story', storyId: id, userId },
-        'Story deleted successfully'
-      )
-    } catch (error) {
-      this.logger.error(
-        { action: 'delete_story', storyId: id, userId, error: errorMessage(error) },
-        'Failed to delete story'
-      )
-      throw error
-    }
-  }
-
-  /**
-   * Permanently delete story (admin only)
-   */
-  async hardDelete(id: number, currentUser: User): Promise<void> {
-    const userId = currentUser.id
-    this.logger.warn(
-      { action: 'hard_delete_story', storyId: id, userId },
-      'Permanently deleting story'
-    )
-
-    try {
-      // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Manage, Subject.All)) {
-        throw new ForbiddenException('Only admins can permanently delete stories')
-      }
-
-      const deleted = await this.storyRepository.delete(id)
-
-      if (!deleted) {
-        throw new NotFoundException(`Story with ID ${id} not found`)
-      }
-
-      this.logger.info(
-        { action: 'hard_delete_story', storyId: id, userId },
-        'Story permanently deleted'
-      )
-    } catch (error) {
-      this.logger.error(
-        { action: 'hard_delete_story', storyId: id, userId, error: errorMessage(error) },
-        'Failed to permanently delete story'
-      )
-      throw error
-    }
-  }
-
-  /**
-   * Restore soft-deleted story
-   */
-  async restore(id: number, currentUser: User): Promise<Story> {
-    const userId = currentUser.id
-    this.logger.info({ action: 'restore_story', storyId: id, userId }, 'Restoring story')
-
-    try {
-      const story = await this.storyRepository.findById(id)
-
-      if (!story) {
-        throw new NotFoundException(`Story with ID ${id} not found`)
-      }
-
-      if (!story.deletedAt) {
-        throw new BadRequestException('Story is not deleted')
-      }
-
-      // Check permissions using CASL
-      const ability = this.abilityFactory.createForUser(currentUser)
-      if (!ability.can(Action.Restore, story)) {
-        throw new ForbiddenException('You do not have permission to restore this story')
-      }
-
-      const restored = await this.storyRepository.update(id, {
-        deletedAt: null,
-        deletedBy: null,
-        deletionReason: null,
-        status: StoryStatus.DRAFT,
-        updatedBy: userId,
-        lastModifiedBy: userId
-      })
-
-      this.logger.info(
-        { action: 'restore_story', storyId: id, userId },
-        'Story restored successfully'
-      )
-
-      return this.storyEnrichmentService.enrichStoryMedia(restored) as Story
-    } catch (error) {
-      this.logger.error(
-        { action: 'restore_story', storyId: id, userId, error: errorMessage(error) },
-        'Failed to restore story'
-      )
-      throw error
-    }
-  }
-
-  /**
-   * Update story status
-   */
-  async updateStatus(id: number, status: StoryStatus, currentUser: User): Promise<Story> {
-    const userId = currentUser.id
-    this.logger.info(
-      { action: 'update_status', storyId: id, userId, status },
-      'Updating story status'
-    )
-
-    try {
-      const story = await this.findOne(id)
-
-      // Validate status transition (simplified - in production, use state machine)
-      this.validateStatusTransition(story.status, status)
-
-      const updated = await this.storyRepository.update(id, {
-        status,
-        updatedBy: userId,
-        lastModifiedBy: userId
-      })
-
-      this.logger.info(
-        {
-          action: 'update_status',
-          storyId: id,
-          userId,
-          oldStatus: story.status,
-          newStatus: status
-        },
-        'Story status updated'
-      )
-
-      return this.storyEnrichmentService.enrichStoryMedia(updated) as Story
-    } catch (error) {
-      this.logger.error(
-        { action: 'update_status', storyId: id, userId, status, error: errorMessage(error) },
-        'Failed to update story status'
-      )
-      throw error
-    }
-  }
-
-  /**
    * Get story statistics
    */
   async getStats(): Promise<StoryStatsDto> {
@@ -664,135 +490,5 @@ export class StoriesService {
       drafts: stats.drafts,
       deleted: stats.deleted
     }
-  }
-
-  /**
-   * Validate status transition (simplified)
-   * In production, implement proper state machine
-   */
-  private validateStatusTransition(currentStatus: StoryStatus, newStatus: StoryStatus): void {
-    // Example validation - customize based on business rules
-    if (currentStatus === StoryStatus.PUBLISHED && newStatus === StoryStatus.DRAFT) {
-      throw new BadRequestException('Cannot revert published story to draft')
-    }
-
-    if (currentStatus === StoryStatus.DELETED && newStatus !== StoryStatus.DRAFT) {
-      throw new BadRequestException('Deleted stories can only be restored to draft status')
-    }
-  }
-
-  /**
-   * Update story main image
-   */
-  async updateMainImage(storyId: number, attachmentId: string, currentUser: User): Promise<Story> {
-    const userId = currentUser.id
-    const requestLogger = this.loggingContext.getLogger({
-      context: StoriesService.name,
-      action: 'update_main_image'
-    })
-
-    requestLogger.info({ storyId, attachmentId, userId }, 'Updating story main image')
-
-    // Find the story
-    const story = await this.storyRepository.findById(storyId)
-    if (!story) {
-      throw new NotFoundException(`Story with ID ${storyId} not found`)
-    }
-
-    // Verify the attachment exists
-    const attachment = await this.attachmentRepository.findOne({ id: attachmentId })
-
-    if (!attachment) {
-      throw new NotFoundException('Attachment not found')
-    }
-
-    // Verify attachment belongs to the user
-    if (attachment.userId !== userId) {
-      throw new BadRequestException('Attachment does not belong to this user')
-    }
-
-    // Verify it's an image
-    if (!attachment.mimeType.startsWith('image/')) {
-      throw new BadRequestException('Attachment must be an image')
-    }
-
-    // Make the attachment public in S3 if it's not already
-    if (!attachment.isPublic) {
-      await this.s3Service.makePublic(attachment.path)
-      if (attachment.thumbnailPath) {
-        await this.s3Service.makePublic(attachment.thumbnailPath)
-      }
-
-      const metadata = (attachment.metadata || {}) as AttachmentMetadata
-      const thumbnails = metadata.thumbnails
-      if (thumbnails) {
-        const keys = Object.values(thumbnails)
-          .map(thumb => thumb?.key)
-          .filter((key): key is string => Boolean(key))
-
-        await Promise.all(keys.map(key => this.s3Service.makePublic(key)))
-      }
-
-      const optimization = metadata.optimization
-      const placeholderKey = optimization?.placeholderKey
-      if (placeholderKey) {
-        await this.s3Service.makePublic(placeholderKey)
-      }
-
-      if (optimization || placeholderKey !== undefined) {
-        metadata.optimization = {
-          ...(optimization || {}),
-          placeholderKey
-        }
-      }
-
-      // Update attachment record to reflect it's now public
-      await this.attachmentRepository.update(attachmentId, { isPublic: true, metadata })
-
-      requestLogger.info({ attachmentId }, 'Attachment made public for main image')
-    }
-
-    // Update story with the main image using repository to handle cache invalidation
-    await this.storyRepository.update(storyId, {
-      mainImageId: attachmentId,
-      lastModifiedBy: userId,
-      version: story.version + 1
-    })
-
-    requestLogger.info({ storyId, attachmentId }, 'Story main image updated successfully')
-
-    // Return the updated story with relations
-    return (await this.storyRepository.findById(storyId))!
-  }
-
-  /**
-   * Remove story main image
-   */
-  async removeMainImage(storyId: number, currentUser: User): Promise<Story> {
-    const userId = currentUser.id
-    const requestLogger = this.loggingContext.getLogger({
-      context: StoriesService.name,
-      action: 'remove_main_image'
-    })
-
-    requestLogger.info({ storyId, userId }, 'Removing story main image')
-
-    // Find the story
-    const story = await this.storyRepository.findById(storyId)
-    if (!story) {
-      throw new NotFoundException(`Story with ID ${storyId} not found`)
-    }
-
-    // Remove main image using repository to handle cache invalidation
-    await this.storyRepository.update(storyId, {
-      mainImageId: null,
-      lastModifiedBy: userId,
-      version: story.version + 1
-    })
-
-    requestLogger.info({ storyId }, 'Story main image removed successfully')
-
-    // Return the updated story with relations
-    return (await this.storyRepository.findById(storyId))!
   }
 }

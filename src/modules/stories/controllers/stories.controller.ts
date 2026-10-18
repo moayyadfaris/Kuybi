@@ -45,6 +45,8 @@ import {
 import { UpdateStoryMainImageDto } from '../dto/update-story-main-image.dto'
 import { Story, StoryStatus, StoryType } from '../entities/story.entity'
 import { StoriesService } from '../services/stories.service'
+import { StoryLifecycleService } from '../services/story-lifecycle.service'
+import { StoryMediaService } from '../services/story-media.service'
 import { StoryRelationshipService } from '../services/story-relationship.service'
 
 interface AuthenticatedRequest extends Request {
@@ -58,6 +60,8 @@ interface AuthenticatedRequest extends Request {
 export class StoriesController {
   constructor(
     private readonly storiesService: StoriesService,
+    private readonly storyLifecycleService: StoryLifecycleService,
+    private readonly storyMediaService: StoryMediaService,
     private readonly storyRelationshipService: StoryRelationshipService
   ) {}
 
@@ -211,7 +215,7 @@ export class StoriesController {
     @Req() req: AuthenticatedRequest
   ) {
     if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.updateStatus(id, status, req.user)
+    return this.storyLifecycleService.updateStatus(id, status, req.user)
   }
 
   @Delete(':id')
@@ -231,7 +235,7 @@ export class StoriesController {
     @Req() req: AuthenticatedRequest
   ) {
     if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.remove(id, req.user, reason)
+    return this.storyLifecycleService.remove(id, req.user, reason)
   }
 
   @Delete(':id/hard')
@@ -246,7 +250,7 @@ export class StoriesController {
   @ApiResponse({ status: 403, description: 'Forbidden - admin only' })
   hardDelete(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.hardDelete(id, req.user)
+    return this.storyLifecycleService.hardDelete(id, req.user)
   }
 
   @Post(':id/restore')
@@ -261,7 +265,7 @@ export class StoriesController {
   @ApiResponse({ status: 403, description: 'Forbidden - not the story owner' })
   restore(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.restore(id, req.user)
+    return this.storyLifecycleService.restore(id, req.user)
   }
 
   // Attachment management endpoints
@@ -423,7 +427,7 @@ export class StoriesController {
     @Req() req: AuthenticatedRequest
   ) {
     if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.updateMainImage(id, dto.attachmentId, req.user)
+    return this.storyMediaService.updateMainImage(id, dto.attachmentId, req.user)
   }
 
   @Delete(':id/main-image')
@@ -436,7 +440,7 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   removeMainImage(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.removeMainImage(id, req.user)
+    return this.storyMediaService.removeMainImage(id, req.user)
   }
 
   private getAuthenticatedUserId(req: AuthenticatedRequest): string {
