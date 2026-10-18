@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
-import { EmailService } from '@infrastructure/email/services/email.service'
+import { EmailQueueService } from '@infrastructure/email'
 import { errorMessage } from '@shared/utils/error.util'
 import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -53,7 +53,7 @@ export class AccountLockoutService {
     @InjectQueue(QueueName.ACCOUNT_SECURITY)
     private readonly accountSecurityQueue: Queue,
     private readonly configService: ConfigService,
-    private readonly emailService: EmailService,
+    private readonly emailQueueService: EmailQueueService,
     @InjectPinoLogger(AccountLockoutService.name)
     private readonly logger: PinoLogger
   ) {
@@ -153,14 +153,15 @@ export class AccountLockoutService {
     // Send email notification
     if (this.config.notifyOnLockout) {
       try {
-        await this.emailService.sendAccountLockedEmail(
-          user.email,
-          user.name,
-          now,
-          unlockAt,
-          user.failedLoginAttempts
-        )
-        this.logger.info({ userId: user.id, email: user.email }, 'Lockout email sent successfully')
+        // Queued, not sent inline: this runs inside the login request
+        await this.emailQueueService.queueAccountLockedEmail({
+          to: user.email,
+          userName: user.name,
+          lockedAt: now,
+          lockedUntil: unlockAt,
+          failedAttempts: user.failedLoginAttempts
+        })
+        this.logger.info({ userId: user.id }, 'Lockout email queued')
       } catch (error) {
         this.logger.error(
           { userId: user.id, email: user.email, error: errorMessage(error) },
@@ -264,14 +265,14 @@ export class AccountLockoutService {
     // Send email notification
     if (this.config.notifyOnUnlock) {
       try {
-        await this.emailService.sendAccountUnlockedEmail(
-          user.email,
-          user.name,
-          new Date(),
-          reason === 'AUTO_UNLOCK' ? 'automatic' : 'manual',
+        await this.emailQueueService.queueAccountUnlockedEmail({
+          to: user.email,
+          userName: user.name,
+          unlockedAt: new Date(),
+          unlockType: reason === 'AUTO_UNLOCK' ? 'automatic' : 'manual',
           previousAttempts
-        )
-        this.logger.info({ userId, email: user.email }, 'Unlock email sent successfully')
+        })
+        this.logger.info({ userId }, 'Unlock email queued')
       } catch (error) {
         this.logger.error(
           { userId, email: user.email, error: errorMessage(error) },

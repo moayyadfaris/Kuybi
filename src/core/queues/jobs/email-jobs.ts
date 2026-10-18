@@ -11,6 +11,8 @@ export enum EmailJobType {
   SEND_VERIFIED_SUCCESS = 'send-verified-success',
   SEND_PASSWORD_RESET = 'send-password-reset',
   SEND_PASSWORD_CHANGED = 'send-password-changed',
+  SEND_ACCOUNT_LOCKED = 'send-account-locked',
+  SEND_ACCOUNT_UNLOCKED = 'send-account-unlocked',
   SEND_CUSTOM = 'send-custom'
 }
 
@@ -61,6 +63,19 @@ export interface PasswordChangedEmailJobData extends BaseEmailJobData {
   ipAddress?: string
 }
 
+/** Dates are ISO strings: job data is stored as JSON */
+export interface AccountLockedEmailJobData extends BaseEmailJobData {
+  lockedAt: string
+  lockedUntil: string
+  failedAttempts: number
+}
+
+export interface AccountUnlockedEmailJobData extends BaseEmailJobData {
+  unlockedAt: string
+  unlockType: 'automatic' | 'manual'
+  previousAttempts?: number
+}
+
 /**
  * Custom email job data
  */
@@ -82,6 +97,8 @@ export type EmailJobData =
   | PasswordResetEmailJobData
   | PasswordChangedEmailJobData
   | CustomEmailJobData
+  | AccountLockedEmailJobData
+  | AccountUnlockedEmailJobData
 
 /**
  * Email job options

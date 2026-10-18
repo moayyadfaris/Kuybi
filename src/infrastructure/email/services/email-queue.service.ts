@@ -6,6 +6,8 @@ import { EntityManager } from 'typeorm'
 
 import { OutboxService } from '@core/outbox'
 import {
+  AccountLockedEmailJobData,
+  AccountUnlockedEmailJobData,
   CustomEmailJobData,
   DEFAULT_EMAIL_JOB_OPTIONS,
   EmailJobOptions,
@@ -197,6 +199,46 @@ export class EmailQueueService {
     )
 
     return jobId
+  }
+
+  async queueAccountLockedEmail(
+    data: {
+      to: string
+      userName: string
+      lockedAt: Date
+      lockedUntil: Date
+      failedAttempts: number
+    },
+    options?: EmailEnqueueOptions
+  ): Promise<string> {
+    const jobData: AccountLockedEmailJobData = {
+      to: data.to,
+      userName: data.userName,
+      lockedAt: data.lockedAt.toISOString(),
+      lockedUntil: data.lockedUntil.toISOString(),
+      failedAttempts: data.failedAttempts
+    }
+    return this.enqueue(EmailJobType.SEND_ACCOUNT_LOCKED, jobData, { priority: 1, ...options })
+  }
+
+  async queueAccountUnlockedEmail(
+    data: {
+      to: string
+      userName: string
+      unlockedAt: Date
+      unlockType: 'automatic' | 'manual'
+      previousAttempts?: number
+    },
+    options?: EmailEnqueueOptions
+  ): Promise<string> {
+    const jobData: AccountUnlockedEmailJobData = {
+      to: data.to,
+      userName: data.userName,
+      unlockedAt: data.unlockedAt.toISOString(),
+      unlockType: data.unlockType,
+      previousAttempts: data.previousAttempts
+    }
+    return this.enqueue(EmailJobType.SEND_ACCOUNT_UNLOCKED, jobData, options)
   }
 
   /**

@@ -6,7 +6,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { EmailService } from '@infrastructure/email/services/email.service'
+import { EmailQueueService } from '@infrastructure/email'
 import { errorMessage } from '@shared/utils/error.util'
 import * as bcrypt from 'bcrypt'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -32,7 +32,7 @@ export class PasswordChangeService {
     private readonly sessionsService: SessionsService,
     private readonly passwordHistoryRepository: PasswordHistoryRepository,
     private readonly passwordPolicy: PasswordPolicyService,
-    private readonly emailService: EmailService,
+    private readonly emailQueueService: EmailQueueService,
     private readonly sentryService: SentryService
   ) {}
 
@@ -193,12 +193,13 @@ export class PasswordChangeService {
     // Send notification email if requested
     if (options.sendNotificationEmail !== false) {
       try {
-        await this.emailService.sendPasswordChangedEmail(
-          user.email,
-          user.name,
-          new Date(),
-          context.ipAddress
-        )
+        // Queued, not sent inline: SMTP must not slow down or fail the request
+        await this.emailQueueService.sendPasswordChangedEmail({
+          to: user.email,
+          firstName: user.name,
+          resetTime: new Date().toISOString(),
+          resetIpAddress: context.ipAddress ?? 'Unknown'
+        })
 
         this.logger.info(
           {

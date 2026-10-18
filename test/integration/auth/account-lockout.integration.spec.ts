@@ -11,6 +11,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { ENTITIES } from '@app/database/entities'
+import { EmailService } from '@infrastructure/email/services/email.service'
 import * as bcrypt from 'bcrypt'
 import { Queue } from 'bullmq'
 import { LoggerModule } from 'nestjs-pino'
@@ -19,6 +20,7 @@ import { DataSource } from 'typeorm'
 
 import configuration from '@core/config/configuration'
 import { EventsModule } from '@core/events'
+import { OutboxMessage } from '@core/outbox'
 import { SentryModule } from '@core/sentry'
 
 import { CacheService } from '../../../src/core/cache/services/cache.service'
@@ -74,8 +76,9 @@ describe('Account Lockout Integration Tests', () => {
                   lockDuration: 5000, // 5 seconds for testing
                   resetAttemptsPeriod: 3000, // 3 seconds for testing
                   trackByIpAddress: true,
-                  notifyOnLockout: false, // Disable emails in tests
-                  notifyOnUnlock: false
+                  // Emails are queued in the outbox, so notifications can stay on
+                  notifyOnLockout: true,
+                  notifyOnUnlock: true
                 }
               }
             })
@@ -179,6 +182,24 @@ describe('Account Lockout Integration Tests', () => {
 
     // Clear queue jobs
     await accountSecurityQueue.drain()
+  })
+
+  describe('Lockout notification', () => {
+    // The lock happens inside the login request: SMTP must not run there
+    it('queues the lockout email in the outbox instead of sending it inline', async () => {
+      const smtp = jest.spyOn(app.get(EmailService), 'sendAccountLockedEmail')
+      await dataSource.query('DELETE FROM outbox_messages')
+
+      await lockAccountDirectly()
+
+      expect(smtp).not.toHaveBeenCalled()
+      const queued = await dataSource
+        .getRepository(OutboxMessage)
+        .findBy({ jobName: 'send-account-locked' })
+      expect(queued).toHaveLength(1)
+      expect(queued[0].payload).toMatchObject({ to: testUser.email, failedAttempts: 5 })
+      smtp.mockRestore()
+    })
   })
 
   describe('Failed Login Attempts Tracking', () => {

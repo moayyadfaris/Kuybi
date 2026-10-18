@@ -55,7 +55,7 @@ export class MyService {
 
   async getData(id: string) {
     const cacheKey = this.cacheService.buildKey('mydata', id)
-    
+
     // Try to get from cache
     const cached = await this.cacheService.get<MyData>(cacheKey)
     if (cached) {
@@ -64,10 +64,10 @@ export class MyService {
 
     // Fetch from database
     const data = await this.repository.findById(id)
-    
+
     // Cache for 1 hour (3600 seconds)
     await this.cacheService.set(cacheKey, data, 3600)
-    
+
     return data
   }
 }
@@ -80,7 +80,7 @@ The `wrap` method simplifies caching by automatically handling get/set:
 ```typescript
 async findById(id: number): Promise<Country | null> {
   const cacheKey = this.cacheService.buildKey('country', 'id', id)
-  
+
   return this.cacheService.wrap(
     cacheKey,
     async () => {
@@ -162,13 +162,13 @@ export class CountriesService {
   constructor(
     @InjectRepository(Country)
     private readonly countryRepository: Repository<Country>,
-    private readonly cacheService: CacheService,
+    private readonly cacheService: CacheService
   ) {}
 
   async searchCountries(query: ListCountriesQueryDto) {
     // Build cache key from query parameters
     const cacheKey = this.buildCacheKey(query)
-    
+
     // Try cache first
     const cached = await this.cacheService.get(cacheKey)
     if (cached) {
@@ -177,10 +177,10 @@ export class CountriesService {
 
     // Fetch from DB
     const results = await this.fetchFromDatabase(query)
-    
+
     // Cache for 1 hour
     await this.cacheService.set(cacheKey, results, 3600)
-    
+
     return { ...results, cached: false }
   }
 
@@ -239,6 +239,7 @@ Use hierarchical, namespaced keys:
 ```
 
 Examples:
+
 - `country:id:123`
 - `countries:list:page:0:limit:50`
 - `user:profile:abc-def-ghi`
@@ -258,11 +259,11 @@ Examples:
 // After creating/updating/deleting data
 async updateCountry(id: number, data: UpdateCountryDto) {
   const updated = await this.repository.update(id, data)
-  
+
   // Invalidate related caches
   await this.cacheService.del(`country:id:${id}`)
   await this.cacheService.delPattern('countries:list:*')
-  
+
   return updated
 }
 ```
@@ -312,12 +313,14 @@ INFO stats
 ### Redis Connection Refused
 
 Check Redis is running:
+
 ```bash
 redis-cli ping
 # Should return: PONG
 ```
 
 Start Redis:
+
 ```bash
 # macOS
 brew services start redis
@@ -339,11 +342,13 @@ docker run -d -p 6379:6379 redis:7-alpine
 ### Memory Issues
 
 Monitor Redis memory:
+
 ```bash
 redis-cli INFO memory
 ```
 
 Set max memory policy in Redis config:
+
 ```
 maxmemory 256mb
 maxmemory-policy allkeys-lru
@@ -368,14 +373,11 @@ const mockCacheService = {
   set: jest.fn(),
   del: jest.fn(),
   wrap: jest.fn((key, fn) => fn()),
-  buildKey: jest.fn((...parts) => parts.join(':')),
+  buildKey: jest.fn((...parts) => parts.join(':'))
 }
 
 const module: TestingModule = await Test.createTestingModule({
-  providers: [
-    MyService,
-    { provide: CacheService, useValue: mockCacheService },
-  ],
+  providers: [MyService, { provide: CacheService, useValue: mockCacheService }]
 }).compile()
 ```
 
