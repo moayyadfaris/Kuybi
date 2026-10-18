@@ -15,7 +15,7 @@ import { seedRolesWithPermissions } from '../../helpers/role-seeder'
 const rulesFor = async (dataSource: DataSource, roleName: string) => {
   const role = await dataSource.getRepository(Role).findOne({
     where: { name: roleName },
-    relations: ['rolePermissions', 'rolePermissions.permission']
+    relations: { rolePermissions: { permission: true } }
   })
   return (role?.rolePermissions ?? []).map(rp => ({
     action: rp.permission.action,

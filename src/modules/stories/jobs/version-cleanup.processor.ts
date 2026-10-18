@@ -77,7 +77,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
           isPinned: false,
           status: VersionStatus.ARCHIVED
         },
-        select: ['id', 'storyId', 'versionNumber', 'expiresAt']
+        select: { id: true, storyId: true, versionNumber: true, expiresAt: true }
       })
 
       if (expiredVersions.length === 0) {
@@ -184,7 +184,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
           isPinned: false,
           expiresAt: IsNull() // Only archive versions without explicit expiry
         },
-        select: ['id', 'storyId', 'versionNumber', 'createdAt']
+        select: { id: true, storyId: true, versionNumber: true, createdAt: true }
       })
 
       if (oldVersions.length === 0) {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { FindOptionsRelations, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -16,16 +16,11 @@ import { User } from '../entities/user.entity'
  * Relations loaded with every user lookup. Role permissions are included because
  * AbilityFactory builds CASL abilities from them for the authenticated user.
  */
-const USER_RELATIONS = [
-  'profileImage',
-  'primaryRole',
-  'primaryRole.rolePermissions',
-  'primaryRole.rolePermissions.permission',
-  'userRoles',
-  'userRoles.role',
-  'userRoles.role.rolePermissions',
-  'userRoles.role.rolePermissions.permission'
-]
+const USER_RELATIONS: FindOptionsRelations<User> = {
+  profileImage: true,
+  primaryRole: { rolePermissions: { permission: true } },
+  userRoles: { role: { rolePermissions: { permission: true } } }
+}
 
 @Injectable()
 export class UserRepository extends BaseRepository<User> {

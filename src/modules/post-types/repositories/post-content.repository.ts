@@ -137,7 +137,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
         async () => {
           return this.repository.findOne({
             where: { postTypeId, slug, deletedAt: IsNull() },
-            relations: ['author', 'featuredImage']
+            relations: { author: true, featuredImage: true }
           })
         },
         this.defaultTTL
@@ -146,7 +146,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
 
     return this.repository.findOne({
       where: { postTypeId, slug, deletedAt: IsNull() },
-      relations: ['author', 'featuredImage']
+      relations: { author: true, featuredImage: true }
     })
   }
 

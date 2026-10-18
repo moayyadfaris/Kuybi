@@ -142,7 +142,7 @@ export class RegistrationService {
     // Find verification record in database
     const verificationRecord = await this.emailVerificationRepository.findOne({
       where: { token },
-      relations: ['user']
+      relations: { user: true }
     })
 
     if (!verificationRecord) {

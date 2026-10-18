@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import { Test, TestingModule } from '@nestjs/testing'
-import { Connection } from 'typeorm'
 
 import { PostType } from '@modules/post-types/entities/post-type.entity'
 import { PostTypeRepository } from '@modules/post-types/repositories/post-type.repository'
@@ -14,7 +13,6 @@ describe('PostTypesService', () => {
   let service: PostTypesService
   let repository: jest.Mocked<PostTypeRepository>
   let _cacheService: jest.Mocked<CacheService>
-  let _connection: jest.Mocked<Connection>
 
   beforeEach(async () => {
     const mockRepository = {
@@ -38,17 +36,6 @@ describe('PostTypesService', () => {
       reset: jest.fn()
     }
 
-    const mockConnection = {
-      transaction: jest.fn(async cb =>
-        cb({
-          getRepository: jest.fn().mockReturnValue({
-            save: jest.fn(),
-            softDelete: jest.fn()
-          })
-        })
-      )
-    }
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PostTypesService,
@@ -59,10 +46,6 @@ describe('PostTypesService', () => {
         {
           provide: CacheService,
           useValue: mockCacheService
-        },
-        {
-          provide: Connection,
-          useValue: mockConnection
         }
       ]
     }).compile()
@@ -70,7 +53,6 @@ describe('PostTypesService', () => {
     service = module.get<PostTypesService>(PostTypesService)
     repository = module.get(PostTypeRepository)
     _cacheService = module.get(CacheService)
-    _connection = module.get(Connection)
   })
 
   describe('create', () => {

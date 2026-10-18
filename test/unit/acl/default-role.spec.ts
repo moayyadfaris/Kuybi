@@ -9,7 +9,7 @@ describe('findDefaultRoleId', () => {
     const repo = { findOne } as unknown as Repository<Role>
 
     await expect(findDefaultRoleId(repo)).resolves.toBe(17)
-    expect(findOne).toHaveBeenCalledWith({ where: { name: 'user' }, select: ['id'] })
+    expect(findOne).toHaveBeenCalledWith({ where: { name: 'user' }, select: { id: true } })
   })
 
   it('fails loudly when the ACL seed has not been run', async () => {

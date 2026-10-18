@@ -145,7 +145,7 @@ export class StoryRelationshipService {
     try {
       const story = await this.storyEntityRepository.findOne({
         where: { id: storyId },
-        relations: ['attachments']
+        relations: { attachments: true }
       })
 
       if (!story || story.deletedAt) {
@@ -219,7 +219,7 @@ export class StoryRelationshipService {
     try {
       const story = await this.storyEntityRepository.findOne({
         where: { id: storyId },
-        relations: ['attachments']
+        relations: { attachments: true }
       })
 
       if (!story || story.deletedAt) {
@@ -282,7 +282,7 @@ export class StoryRelationshipService {
     try {
       const story = await this.storyEntityRepository.findOne({
         where: { id: storyId },
-        relations: ['tags']
+        relations: { tags: true }
       })
 
       if (!story || story.deletedAt) {
@@ -345,7 +345,7 @@ export class StoryRelationshipService {
     try {
       const story = await this.storyEntityRepository.findOne({
         where: { id: storyId },
-        relations: ['tags']
+        relations: { tags: true }
       })
 
       if (!story || story.deletedAt) {
@@ -409,7 +409,7 @@ export class StoryRelationshipService {
     try {
       const story = await this.storyEntityRepository.findOne({
         where: { id: storyId },
-        relations: ['categories']
+        relations: { categories: true }
       })
 
       if (!story || story.deletedAt) {
@@ -476,7 +476,7 @@ export class StoryRelationshipService {
     try {
       const story = await this.storyEntityRepository.findOne({
         where: { id: storyId },
-        relations: ['categories']
+        relations: { categories: true }
       })
 
       if (!story || story.deletedAt) {
@@ -531,7 +531,7 @@ export class StoryRelationshipService {
   async getAttachments(storyId: number): Promise<Attachment[]> {
     const story = await this.storyEntityRepository.findOne({
       where: { id: storyId },
-      relations: ['attachments']
+      relations: { attachments: true }
     })
 
     if (!story) {
@@ -554,7 +554,7 @@ export class StoryRelationshipService {
   async getTags(storyId: number): Promise<Tag[]> {
     const story = await this.storyEntityRepository.findOne({
       where: { id: storyId },
-      relations: ['tags']
+      relations: { tags: true }
     })
 
     if (!story) {
@@ -570,7 +570,7 @@ export class StoryRelationshipService {
   async getCategories(storyId: number): Promise<Category[]> {
     const story = await this.storyEntityRepository.findOne({
       where: { id: storyId },
-      relations: ['categories']
+      relations: { categories: true }
     })
 
     if (!story) {

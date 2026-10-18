@@ -149,7 +149,7 @@ export class PasswordResetService {
 
     const resetRecord = await this.passwordResetRepository.findOne({
       where: { token },
-      relations: ['user']
+      relations: { user: true }
     })
 
     if (!resetRecord) {
@@ -194,7 +194,7 @@ export class PasswordResetService {
     // Find reset record with user relation
     const resetRecord = await this.passwordResetRepository.findOne({
       where: { token },
-      relations: ['user']
+      relations: { user: true }
     })
 
     if (!resetRecord) {
@@ -219,7 +219,7 @@ export class PasswordResetService {
     // Without this, "forgot password" was a way around the reuse policy.
     const current = await this.userRepository.findOne({
       where: { id: user.id },
-      select: ['id', 'passwordHash']
+      select: { id: true, passwordHash: true }
     })
     await this.passwordPolicy.assertAcceptable(user.id, newPassword, current?.passwordHash)
 

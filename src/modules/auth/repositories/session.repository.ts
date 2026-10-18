@@ -549,7 +549,7 @@ export class SessionRepository extends BaseRepository<Session> {
     if (!status) {
       const session = await this.repository.findOne({
         where: { id: sessionId },
-        select: ['id', 'userId', 'isActive', 'deletedAt', 'expiresAt']
+        select: { id: true, userId: true, isActive: true, deletedAt: true, expiresAt: true }
       })
       status = {
         active: !!session && session.userId === userId && session.isActive && !session.deletedAt,
