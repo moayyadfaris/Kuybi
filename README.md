@@ -171,10 +171,12 @@ test/
 | `npm run typecheck`                                                               | TypeScript type check                                    | nothing            |
 | `npm run lint:check`                                                              | ESLint                                                   | nothing            |
 
-Integration tests use a separate database configured in `.env.test` (`TEST_DB_*`,
-`TEST_REDIS_*`). They drop the schema, rebuild it with the real migrations, and hold a
+Integration tests use a separate database configured in `.env.test` (copy
+[`.env.test.example`](./.env.test.example); `TEST_DB_*`, `TEST_REDIS_*`). They drop the schema, rebuild it with the real migrations, and hold a
 lock on it for the whole run, so a second concurrent run stops immediately instead of
 corrupting the first. Setup fails if the migrations and the entities disagree.
+Tests may only rely on the variables in `.env.test.example`, which CI sets too: a test
+that passes only with your local `.env` will fail in CI.
 
 **Changing the schema:** edit the entity, then generate a migration from the difference
 and commit both:

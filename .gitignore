@@ -17,6 +17,9 @@ temp/
 # Environment variables
 .env
 .env.*
+# Templates are committed
+!.env.example
+!.env.test.example
 !.env.example
 
 # Logs
