@@ -22,11 +22,9 @@ import {
 } from '@nestjs/swagger'
 import { plainToInstance } from 'class-transformer'
 
-import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
-import { Action } from '@modules/acl/types/actions.enum'
-import { Subject } from '@modules/acl/types/subjects.enum'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+
+import { JwtAuthGuard } from '@core/auth'
 
 import { CreatePostTypeDto, ResponsePostTypeDto, UpdatePostTypeDto } from '../dto'
 import { PostTypesService } from '../services/post-types.service'

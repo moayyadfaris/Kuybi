@@ -1,8 +1,9 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 
-import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
+import { SuperAdminGuard } from '@modules/acl'
+
+import { JwtAuthGuard } from '@core/auth'
 
 import {
   DetectSuspiciousActivityDto,

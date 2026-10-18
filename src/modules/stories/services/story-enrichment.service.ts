@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common'
 
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
-import { Story } from '@modules/stories/entities/story.entity'
+import { toAttachmentResponse } from '@modules/attachments'
+import { Attachment } from '@modules/attachments/entities'
+
+import { Story } from '../entities/story.entity'
 
 @Injectable()
 export class StoryEnrichmentService {

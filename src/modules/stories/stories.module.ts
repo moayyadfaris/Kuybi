@@ -1,17 +1,16 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
-import { CategoriesModule } from '@modules/categories/categories.module'
-import { CountriesModule } from '@modules/countries/countries.module'
-import { TagsModule } from '@modules/tags/tags.module'
-import { UsersModule } from '@modules/users/users.module'
+import { AclModule } from '@modules/acl'
+import { AttachmentsModule } from '@modules/attachments'
+import { Attachment } from '@modules/attachments/entities'
+import { CategoriesModule } from '@modules/categories'
+import { CountriesModule } from '@modules/countries'
+import { TagsModule } from '@modules/tags'
+import { UsersModule } from '@modules/users'
 
 import { CacheConfigModule } from '@core/cache/cache.module'
 import { MetricsModule } from '@core/observability/metrics.module'
-
-import { AclModule } from '../acl/acl.module'
-import { AttachmentsModule } from '../attachments/attachments.module'
-import { Attachment } from '../attachments/entities/attachment.entity'
 
 import { StoriesController } from './controllers/stories.controller'
 import { StoryVersionController } from './controllers/story-version.controller'

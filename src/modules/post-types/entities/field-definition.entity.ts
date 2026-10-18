@@ -10,7 +10,8 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { User } from '../../users/entities/user.entity'
+import { User } from '@modules/users/entities'
+
 import { FieldType } from '../enums/field-type.enum'
 
 import { PostType } from './post-type.entity'

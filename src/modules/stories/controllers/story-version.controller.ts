@@ -21,12 +21,10 @@ import {
 } from '@nestjs/swagger'
 import { Request } from 'express'
 
-import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
-import { Action } from '@modules/acl/types/actions.enum'
-import { Subject } from '@modules/acl/types/subjects.enum'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { User } from '@modules/users/entities/user.entity'
+import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { User } from '@modules/users/entities'
+
+import { JwtAuthGuard } from '@core/auth'
 
 import { UpdateStoryDto } from '../dto/update-story.dto'
 import { BranchInfoDto, VersionComparisonDto, VersionResponseDto } from '../dto/version'

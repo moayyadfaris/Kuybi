@@ -5,9 +5,9 @@ import { DatabaseModule } from '@app/database/database.module'
 import { EmailModule } from '@infrastructure/email/email.module'
 import { LoggerModule } from 'nestjs-pino'
 
-import { AttachmentsJobsModule } from '@modules/attachments/jobs/attachments-jobs.module'
-import { AuthJobsModule } from '@modules/auth/jobs/auth-jobs.module'
-import { StoriesJobsModule } from '@modules/stories/jobs/stories-jobs.module'
+import { AttachmentsJobsModule } from '@modules/attachments'
+import { AuthJobsModule } from '@modules/auth'
+import { StoriesJobsModule } from '@modules/stories'
 
 import { CacheConfigModule } from '@core/cache/cache.module'
 import configuration from '@core/config/configuration'
@@ -18,6 +18,7 @@ import { LoggingModule } from '@core/logging/logging.module'
 import { QueueName } from '@core/queues/jobs/types'
 import { EmailProcessor } from '@core/queues/processors/email.processor'
 import { QueuesModule } from '@core/queues/queues.module'
+import { SentryModule } from '@core/sentry'
 import { ShutdownModule } from '@core/shutdown/shutdown.module'
 
 /**
@@ -44,6 +45,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     EmailModule,
     CacheConfigModule,
     LoggingModule,
+    SentryModule.forRoot(),
     EventsModule,
     ShutdownModule,
     AuthJobsModule,

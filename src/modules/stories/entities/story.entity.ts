@@ -11,11 +11,11 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { Attachment } from '../../attachments/entities/attachment.entity'
-import { Category } from '../../categories/entities/category.entity'
-import { Country } from '../../countries/entities/country.entity'
-import { Tag } from '../../tags/entities/tag.entity'
-import { User } from '../../users/entities/user.entity'
+import { Attachment } from '@modules/attachments/entities'
+import { Category } from '@modules/categories/entities'
+import { Country } from '@modules/countries/entities'
+import { Tag } from '@modules/tags/entities'
+import { User } from '@modules/users/entities'
 
 export enum StoryType {
   TIP_OFF = 'TIP_OFF',

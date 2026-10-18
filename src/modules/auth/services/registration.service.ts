@@ -12,11 +12,10 @@ import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Repository } from 'typeorm'
 
-import { findDefaultRoleId } from '@modules/acl/default-role'
-import { Role } from '@modules/acl/entities/role.entity'
+import { findDefaultRoleId } from '@modules/acl'
+import { Role } from '@modules/acl/entities'
+import { EmailVerification, User } from '@modules/users/entities'
 
-import { EmailVerification } from '../../users/entities/email-verification.entity'
-import { User } from '../../users/entities/user.entity'
 import { RegisterUserDto } from '../dto/register.dto'
 
 /**

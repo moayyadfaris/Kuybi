@@ -7,16 +7,13 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { EmailModule } from '@infrastructure/email'
 import type { StringValue } from 'ms'
 
-import { Role } from '@modules/acl/entities/role.entity'
-import { AuditModule } from '@modules/audit/audit.module'
+import { Role } from '@modules/acl/entities'
+import { AuditModule } from '@modules/audit'
+import { UsersModule } from '@modules/users'
+import { EmailVerification, User } from '@modules/users/entities'
 
 import { MetricsModule } from '@core/observability/metrics.module'
 import { QueueName } from '@core/queues/jobs/types'
-import { SentryModule } from '@core/sentry'
-
-import { EmailVerification } from '../users/entities/email-verification.entity'
-import { User } from '../users/entities/user.entity'
-import { UsersModule } from '../users/users.module'
 
 import { AuthController } from './controllers/auth.controller'
 import { CleanupStatsController } from './controllers/cleanup-stats.controller'
@@ -44,7 +41,6 @@ import {
     UsersModule,
     EmailModule,
     MetricsModule,
-    SentryModule.forRoot(),
     AuditModule,
     TypeOrmModule.forFeature([
       Session,

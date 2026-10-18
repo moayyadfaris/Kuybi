@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 
-import { User } from '@modules/users/entities/user.entity'
+import { User } from '@modules/users/entities'
 
 /**
  * Guard to allow access if user is admin OR owns the resource

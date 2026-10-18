@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { RoleRepository } from '@modules/acl/repositories/role.repository'
-import { AuditAction, AuditSeverity } from '@modules/audit/entities/audit-log.entity'
-import { AuditService } from '@modules/audit/services/audit.service'
+import { RoleRepository } from '@modules/acl'
+import { AuditService } from '@modules/audit'
+import { AuditAction, AuditSeverity } from '@modules/audit/entities'
 
 import {
   AdminUpdateUserDto,

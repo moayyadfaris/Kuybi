@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn
 } from 'typeorm'
 
-import { Tag } from '../../tags/entities/tag.entity'
+import { Tag } from '@modules/tags/entities'
 
 import { PostContent } from './post-content.entity'
 

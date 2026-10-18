@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 
-import { UserRepository } from '@modules/users/repositories/user.repository'
+import { UserRepository } from '@modules/users'
 
 import { TagRepository } from '../repositories/tag.repository'
 

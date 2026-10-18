@@ -24,6 +24,7 @@ import { UsersModule } from '@modules/users/users.module'
 import { CacheService } from '@core/cache/services/cache.service'
 import { EventsModule } from '@core/events'
 import { LoggingModule } from '@core/logging/logging.module'
+import { SentryModule } from '@core/sentry'
 
 import { StoryFactory } from '../../factories/story.factory'
 import { UserFactory } from '../../factories/user.factory'
@@ -62,6 +63,7 @@ describe('Stories Integration Tests', () => {
     const moduleBuilder = Test.createTestingModule({
       imports: [
         EventsModule,
+        SentryModule.forRoot(),
         ConfigModule.forRoot({
           isGlobal: true,
           load: [() => testConfig]

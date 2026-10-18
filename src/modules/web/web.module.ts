@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common'
 import { ThrottlerModule } from '@nestjs/throttler'
 
-import { CategoriesModule } from '@modules/categories/categories.module'
-import { StoriesModule } from '@modules/stories/stories.module'
+import { CategoriesModule } from '@modules/categories'
+import { StoriesModule } from '@modules/stories'
 
 import { WebCategoriesController } from './controllers/web-categories.controller'
 import { WebStoriesController } from './controllers/web-stories.controller'

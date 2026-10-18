@@ -2,9 +2,9 @@ import { BullModule } from '@nestjs/bullmq'
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
-import { QueueName } from '@core/queues/jobs/types'
+import { AclModule } from '@modules/acl'
 
-import { AclModule } from '../acl/acl.module'
+import { QueueName } from '@core/queues/jobs/types'
 
 import { AttachmentsController } from './controllers/attachments.controller'
 import { Attachment } from './entities/attachment.entity'

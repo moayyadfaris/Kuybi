@@ -1,15 +1,7 @@
-/**
- * Post Types Module - Entities Barrel Export
- *
- * Centralized exports for all entity classes in the dynamic post types system.
- *
- * Part of: Phase 1 - Dynamic Post Types System
- * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
- */
-
-export { FieldDefinition } from './field-definition.entity'
-export { PostContent } from './post-content.entity'
-export { PostContentAttachment } from './post-content-attachment.entity'
-export { PostContentCategory } from './post-content-category.entity'
-export { PostContentTag } from './post-content-tag.entity'
-export { PostType } from './post-type.entity'
+/** Entities (and their enums) that other modules may reference */
+export * from './field-definition.entity'
+export * from './post-content.entity'
+export * from './post-content-attachment.entity'
+export * from './post-content-category.entity'
+export * from './post-content-tag.entity'
+export * from './post-type.entity'

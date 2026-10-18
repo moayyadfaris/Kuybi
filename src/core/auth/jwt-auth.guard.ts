@@ -6,7 +6,7 @@ import { Request } from 'express'
 import {
   ALLOW_PASSWORD_CHANGE_TOKEN_KEY,
   PASSWORD_CHANGE_TOKEN_SCOPE
-} from '../decorators/allow-password-change-token.decorator'
+} from './allow-password-change-token.decorator'
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {

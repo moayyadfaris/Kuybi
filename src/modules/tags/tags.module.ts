@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
-import { UsersModule } from '@modules/users/users.module'
+import { AclModule } from '@modules/acl'
+import { UsersModule } from '@modules/users'
 
 import { CacheConfigModule } from '@core/cache/cache.module'
-
-import { AclModule } from '../acl/acl.module'
 
 import { TagsController } from './controllers/tags.controller'
 import { Tag } from './entities/tag.entity'

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Repository } from 'typeorm'
 
-import { User } from '@modules/users/entities/user.entity'
+import { User } from '@modules/users/entities'
 
 import { Role } from '../entities/role.entity'
 

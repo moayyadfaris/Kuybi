@@ -9,13 +9,15 @@ import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 import { In, Repository } from 'typeorm'
 
-import { AbilityFactory } from '@modules/acl/abilities/ability.factory'
-import { Action } from '@modules/acl/types/actions.enum'
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
-import { toAttachmentResponse } from '@modules/attachments/utils/attachment-url.util'
-import { Category } from '@modules/categories/entities/category.entity'
-import { CategoryRepository } from '@modules/categories/repositories/category.repository'
+import { AbilityFactory, Action } from '@modules/acl'
+import { AttachmentRepository, toAttachmentResponse } from '@modules/attachments'
+import { Attachment } from '@modules/attachments/entities'
+import { CategoryRepository } from '@modules/categories'
+import { Category } from '@modules/categories/entities'
+import { TagRepository } from '@modules/tags'
+import { Tag } from '@modules/tags/entities'
+import { User } from '@modules/users/entities'
+
 import {
   AttachAttachmentsDto,
   AttachCategoriesDto,
@@ -23,12 +25,8 @@ import {
   DetachAttachmentsDto,
   DetachCategoriesDto,
   DetachTagsDto
-} from '@modules/stories/dto'
-import { Story } from '@modules/stories/entities/story.entity'
-import { Tag } from '@modules/tags/entities/tag.entity'
-import { TagRepository } from '@modules/tags/repositories/tag.repository'
-import { User } from '@modules/users/entities/user.entity'
-
+} from '../dto'
+import { Story } from '../entities/story.entity'
 import { StoryRepository } from '../repositories/story.repository'
 
 @Injectable()

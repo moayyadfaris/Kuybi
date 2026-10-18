@@ -36,6 +36,9 @@ jobs:
       - name: Field initialization (outside entities/DTOs)
         run: npm run typecheck:fields
 
+      - name: Module dependency graph has no cycles
+        run: npm run check:module-graph
+
       - name: Unit tests
         run: npm run test:unit
 

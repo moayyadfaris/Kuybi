@@ -7,9 +7,8 @@ import {
 import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 
-import { CreateTagDto, UpdateTagDto } from '@modules/tags/dto'
-import { Tag } from '@modules/tags/entities/tag.entity'
-
+import { CreateTagDto, UpdateTagDto } from '../dto'
+import { Tag } from '../entities/tag.entity'
 import { TagRepository } from '../repositories/tag.repository'
 
 @Injectable()

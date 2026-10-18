@@ -2,12 +2,12 @@ import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from '@app/app.module'
 
-import { AclSeeder } from '@modules/acl/seeders/acl.seeder'
-import { CategoriesSeeder } from '@modules/categories/seeders/categories.seeder'
-import { CountriesSeeder } from '@modules/countries/seeders/countries.seeder'
-import { StoriesSeeder } from '@modules/stories/seeders/stories.seeder'
-import { TagsSeeder } from '@modules/tags/seeders/tags.seeder'
-import { UsersSeeder } from '@modules/users/seeders/users.seeder'
+import { AclSeeder } from '@modules/acl'
+import { CategoriesSeeder } from '@modules/categories'
+import { CountriesSeeder } from '@modules/countries'
+import { StoriesSeeder } from '@modules/stories'
+import { TagsSeeder } from '@modules/tags'
+import { UsersSeeder } from '@modules/users'
 
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule)

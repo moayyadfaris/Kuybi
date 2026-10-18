@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { UserCredentialsResetEvent } from '@modules/users/events/user-credentials-reset.event'
+import { UserCredentialsResetEvent } from '@modules/users'
 
 import { OnDomainEvent } from '@core/events'
 

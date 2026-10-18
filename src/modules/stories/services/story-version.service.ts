@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { createHash } from 'crypto'
 import { PinoLogger } from 'nestjs-pino'
 
-import { User } from '@modules/users/entities/user.entity'
+import { User } from '@modules/users/entities'
 
 import { CreateVersionDto } from '../dto/version/create-version.dto'
 import { VersionDiff } from '../dto/version/version-comparison.dto'

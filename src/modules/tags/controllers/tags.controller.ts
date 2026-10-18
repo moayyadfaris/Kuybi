@@ -23,13 +23,12 @@ import {
 } from '@nestjs/swagger'
 import { Request } from 'express'
 
-import { CheckAbility } from '@modules/acl/abilities/ability.decorator'
-import { AbilityGuard } from '@modules/acl/abilities/ability.guard'
-import { Action } from '@modules/acl/types/actions.enum'
-import { Subject } from '@modules/acl/types/subjects.enum'
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard'
-import { CreateTagDto, UpdateTagDto } from '@modules/tags/dto'
-import { TagsService } from '@modules/tags/services/tags.service'
+import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+
+import { JwtAuthGuard } from '@core/auth'
+
+import { CreateTagDto, UpdateTagDto } from '../dto'
+import { TagsService } from '../services/tags.service'
 
 interface AuthenticatedRequest extends Request {
   user?: {

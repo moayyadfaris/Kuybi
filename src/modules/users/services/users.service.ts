@@ -8,17 +8,15 @@ import { InjectRepository } from '@nestjs/typeorm'
 import * as bcrypt from 'bcrypt'
 import { Repository } from 'typeorm'
 
-import { findDefaultRoleId } from '@modules/acl/default-role'
-import { Role } from '@modules/acl/entities/role.entity'
-import { Attachment } from '@modules/attachments/entities/attachment.entity'
-import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
-import { S3Service } from '@modules/attachments/services/s3.service'
-import { AttachmentMetadata } from '@modules/attachments/utils/attachment-image.util'
-import { UserProfileDto } from '@modules/users/dto/user-profile.dto'
-import { User } from '@modules/users/entities/user.entity'
+import { findDefaultRoleId } from '@modules/acl'
+import { Role } from '@modules/acl/entities'
+import { AttachmentMetadata, AttachmentRepository, S3Service } from '@modules/attachments'
+import { Attachment } from '@modules/attachments/entities'
 
 import { CacheService } from '@core/cache/services/cache.service'
 
+import { UserProfileDto } from '../dto/user-profile.dto'
+import { User } from '../entities/user.entity'
 import { UserRepository } from '../repositories/user.repository'
 
 @Injectable()

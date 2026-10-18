@@ -13,6 +13,7 @@ import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { EventsModule } from '@core/events'
+import { SentryModule } from '@core/sentry'
 
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { AuthModule } from '../../../src/modules/auth/auth.module'
@@ -50,6 +51,7 @@ describe('User Profile Integration Tests', () => {
     const moduleBuilder = Test.createTestingModule({
       imports: [
         EventsModule,
+        SentryModule.forRoot(),
         ConfigModule.forRoot({
           isGlobal: true,
           load: [() => testConfig]

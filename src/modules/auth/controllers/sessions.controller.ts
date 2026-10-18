@@ -28,8 +28,10 @@ import { errorMessage } from '@shared/utils/error.util'
 import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { SuperAdminGuard } from '@modules/acl/guards/super-admin.guard'
-import { User } from '@modules/users/entities/user.entity'
+import { SuperAdminGuard } from '@modules/acl'
+import { User } from '@modules/users/entities'
+
+import { JwtAuthGuard } from '@core/auth'
 
 import {
   DeviceType,
@@ -39,7 +41,6 @@ import {
   SessionFilterDto,
   SessionStatsDto
 } from '../dto'
-import { JwtAuthGuard } from '../guards/jwt-auth.guard'
 import { SessionCleanupService, SessionsService } from '../services'
 
 // The controller is guarded by JwtAuthGuard, so the user is always present

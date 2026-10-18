@@ -10,9 +10,8 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
-import { Role } from '../../acl/entities/role.entity'
-import { UserRole } from '../../acl/entities/user-role.entity'
-import { Attachment } from '../../attachments/entities/attachment.entity'
+import { Role, UserRole } from '@modules/acl/entities'
+import { Attachment } from '@modules/attachments/entities'
 
 @Entity({ name: 'users' })
 export class User {

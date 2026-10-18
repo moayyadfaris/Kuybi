@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
 
-import { CategoryRepository } from '@modules/categories/repositories/category.repository'
-import { CountryRepository } from '@modules/countries/repositories/country.repository'
-import { TagRepository } from '@modules/tags/repositories/tag.repository'
-import { UserRepository } from '@modules/users/repositories/user.repository'
+import { CategoryRepository } from '@modules/categories'
+import { CountryRepository } from '@modules/countries'
+import { TagRepository } from '@modules/tags'
+import { UserRepository } from '@modules/users'
 
 import { StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
 import { StoryRepository } from '../repositories/story.repository'

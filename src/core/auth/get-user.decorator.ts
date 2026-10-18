@@ -1,12 +1,11 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common'
 
-import { User } from '@modules/users/entities/user.entity'
-
 /**
  * GetUser Decorator
  *
  * Extracts the authenticated user from the request.
- * The user is attached to the request by JwtAuthGuard after successful authentication.
+ * The user is attached to the request by JwtAuthGuard after successful authentication
+ * (the auth module's JWT strategy loads the full User entity).
  *
  * Usage:
  * ```typescript
@@ -25,9 +24,9 @@ import { User } from '@modules/users/entities/user.entity'
  * ```
  */
 export const GetUser = createParamDecorator(
-  (data: keyof User | undefined, ctx: ExecutionContext): User | User[keyof User] => {
-    const request = ctx.switchToHttp().getRequest()
-    const user = request.user as User
+  (data: keyof Express.User | undefined, ctx: ExecutionContext): unknown => {
+    const request = ctx.switchToHttp().getRequest<Express.Request>()
+    const user = request.user
 
     // If data is provided, return specific property
     if (data) {

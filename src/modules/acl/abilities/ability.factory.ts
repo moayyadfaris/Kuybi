@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { AbilityBuilder, createMongoAbility, InferSubjects, MongoAbility } from '@casl/ability'
 
-import { Story } from '../../stories/entities/story.entity'
-import { User } from '../../users/entities/user.entity'
+import { Story } from '@modules/stories/entities'
+import { User } from '@modules/users/entities'
+
 import { Role } from '../entities/role.entity'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'

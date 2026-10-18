@@ -1,11 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
-import { CreateCategoryDto } from '@modules/categories/dto/create-category.dto'
-import { SearchCategoriesDto } from '@modules/categories/dto/search-categories.dto'
-import { UpdateCategoryDto } from '@modules/categories/dto/update-category.dto'
-import { Category } from '@modules/categories/entities/category.entity'
-
+import { CreateCategoryDto } from '../dto/create-category.dto'
+import { SearchCategoriesDto } from '../dto/search-categories.dto'
+import { UpdateCategoryDto } from '../dto/update-category.dto'
+import { Category } from '../entities/category.entity'
 import { CategoryRepository } from '../repositories/category.repository'
 
 @Injectable()

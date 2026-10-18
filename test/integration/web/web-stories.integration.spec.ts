@@ -26,6 +26,7 @@ import { WebModule } from '@modules/web/web.module'
 import { CacheService } from '@core/cache/services/cache.service'
 import { EventsModule } from '@core/events'
 import { LoggingModule } from '@core/logging/logging.module'
+import { SentryModule } from '@core/sentry'
 
 import { StoryFactory } from '../../factories/story.factory'
 import { UserFactory } from '../../factories/user.factory'
@@ -87,6 +88,7 @@ describe('Public web stories API', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         EventsModule,
+        SentryModule.forRoot(),
         ConfigModule.forRoot({
           isGlobal: true,
           load: [

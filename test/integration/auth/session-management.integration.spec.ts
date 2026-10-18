@@ -23,6 +23,7 @@ import { UsersModule } from '@modules/users/users.module'
 import { CacheService } from '@core/cache/services/cache.service'
 import configuration from '@core/config/configuration'
 import { EventsModule } from '@core/events'
+import { SentryModule } from '@core/sentry'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
@@ -49,6 +50,7 @@ describe('Session Management Integration Tests', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         EventsModule,
+        SentryModule.forRoot(),
         ConfigModule.forRoot({
           isGlobal: true,
           load: [configuration]

@@ -1,7 +1,8 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 
-import { JwtAuthGuard } from '../guards/jwt-auth.guard'
+import { JwtAuthGuard } from '@core/auth'
+
 import { SessionCleanupService } from '../services'
 
 @ApiTags('admin/cleanup')
