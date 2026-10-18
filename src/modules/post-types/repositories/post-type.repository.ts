@@ -48,7 +48,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
         async () => {
           return this.repository.findOne({
             where: { slug },
-            relations: ['fieldDefinitions']
+            relations: { fieldDefinitions: true }
           })
         },
         this.defaultTTL
@@ -57,7 +57,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
 
     return this.repository.findOne({
       where: { slug },
-      relations: ['fieldDefinitions']
+      relations: { fieldDefinitions: true }
     })
   }
 

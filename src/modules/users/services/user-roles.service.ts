@@ -35,7 +35,7 @@ export class UserRolesService {
   async getUserRoles(userId: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['userRoles', 'userRoles.role']
+      relations: { userRoles: { role: true } }
     })
 
     if (!user) {
@@ -171,7 +171,7 @@ export class UserRolesService {
   async revokeRole(userId: string, roleId: number, revokedBy?: User): Promise<void> {
     const userRole = await this.userRoleRepository.findOne({
       where: { userId, roleId },
-      relations: ['role', 'user']
+      relations: { role: true, user: true }
     })
 
     if (!userRole) {
@@ -228,7 +228,7 @@ export class UserRolesService {
   async activateRole(userId: string, roleId: number) {
     const userRole = await this.userRoleRepository.findOne({
       where: { userId, roleId },
-      relations: ['role']
+      relations: { role: true }
     })
 
     if (!userRole) {
@@ -257,7 +257,7 @@ export class UserRolesService {
   async deactivateRole(userId: string, roleId: number) {
     const userRole = await this.userRoleRepository.findOne({
       where: { userId, roleId },
-      relations: ['role']
+      relations: { role: true }
     })
 
     if (!userRole) {

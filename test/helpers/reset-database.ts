@@ -36,7 +36,8 @@ export async function resetDatabase(dataSource: DataSource, tables: string[]): P
         `resetDatabase: TRUNCATE blocked for ${LOCK_TIMEOUT}. Open transactions:\n` +
           blockers
             .map(b => `  pid=${b.pid} state=${b.state} open=${b.xact_seconds}s query=${b.query}`)
-            .join('\n')
+            .join('\n'),
+        { cause: error }
       )
     }
     throw error

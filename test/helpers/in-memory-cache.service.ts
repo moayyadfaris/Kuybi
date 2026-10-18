@@ -41,12 +41,14 @@ export class InMemoryCacheService implements CacheServiceApi {
     this.store.delete(key)
   }
 
-  async delPattern(pattern: string): Promise<void> {
+  async scanKeys(pattern: string): Promise<string[]> {
     const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-    for (const key of this.store.keys()) {
-      if (regex.test(key)) {
-        this.store.delete(key)
-      }
+    return [...this.store.keys()].filter(key => regex.test(key))
+  }
+
+  async delPattern(pattern: string): Promise<void> {
+    for (const key of await this.scanKeys(pattern)) {
+      this.store.delete(key)
     }
   }
 

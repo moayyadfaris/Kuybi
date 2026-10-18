@@ -96,7 +96,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
         async () => {
           return this.repository.findOne({
             where: { storyId, versionNumber },
-            relations: ['author', 'parentVersion']
+            relations: { author: true, parentVersion: true }
           })
         },
         options?.ttl ?? this.defaultTTL
@@ -105,7 +105,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
 
     return this.repository.findOne({
       where: { storyId, versionNumber },
-      relations: ['author', 'parentVersion']
+      relations: { author: true, parentVersion: true }
     })
   }
 
@@ -125,7 +125,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
         async () => {
           return this.repository.findOne({
             where: { storyId, branchName: branch },
-            relations: ['author'],
+            relations: { author: true },
             order: { versionNumber: 'DESC' }
           })
         },
@@ -135,7 +135,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
 
     return this.repository.findOne({
       where: { storyId, branchName: branch },
-      relations: ['author'],
+      relations: { author: true },
       order: { versionNumber: 'DESC' }
     })
   }
@@ -162,7 +162,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     while (currentId) {
       const version = await this.repository.findOne({
         where: { id: currentId },
-        relations: ['author', 'parentVersion']
+        relations: { author: true, parentVersion: true }
       })
 
       if (!version) break
@@ -224,7 +224,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
 
     const versions = await this.repository.find({
       where: { storyId, branchName: branch },
-      relations: ['author'],
+      relations: { author: true },
       order: { versionNumber: 'DESC' }
     })
 
@@ -251,7 +251,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
 
     const versions = await this.repository.find({
       where: { storyId, tag: Not(IsNull()) } as unknown as FindOptionsWhere<StoryVersion>,
-      relations: ['author'],
+      relations: { author: true },
       order: { createdAt: 'DESC' }
     })
 
@@ -278,7 +278,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
         async () => {
           return this.repository.findOne({
             where: { storyId, tag },
-            relations: ['author']
+            relations: { author: true }
           })
         },
         options?.ttl ?? this.defaultTTL
@@ -287,7 +287,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
 
     return this.repository.findOne({
       where: { storyId, tag },
-      relations: ['author']
+      relations: { author: true }
     })
   }
 
@@ -307,7 +307,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
 
     const versions = await this.repository.find({
       where: { contentHash },
-      relations: ['author'],
+      relations: { author: true },
       order: { createdAt: 'DESC' }
     })
 

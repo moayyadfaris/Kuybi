@@ -289,7 +289,7 @@ export class AccountLockoutService {
   async isAccountLocked(userId: string): Promise<boolean> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'isLocked', 'lockedUntil']
+      select: { id: true, isLocked: true, lockedUntil: true }
     })
 
     if (!user) {
@@ -323,7 +323,14 @@ export class AccountLockoutService {
   async getAccountLockInfo(userId: string): Promise<LockoutInfo> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'isLocked', 'failedLoginAttempts', 'lockedAt', 'lockedUntil', 'lockReason']
+      select: {
+        id: true,
+        isLocked: true,
+        failedLoginAttempts: true,
+        lockedAt: true,
+        lockedUntil: true,
+        lockReason: true
+      }
     })
 
     if (!user) {

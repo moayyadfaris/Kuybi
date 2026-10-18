@@ -299,7 +299,7 @@ export class StoriesService {
       await this.dataSource.transaction(async manager => {
         const entity = await manager.findOne(Story, {
           where: { id },
-          relations: ['categories', 'tags']
+          relations: { categories: true, tags: true }
         })
         if (!entity || entity.deletedAt) {
           // Removed between the existence check above and this write

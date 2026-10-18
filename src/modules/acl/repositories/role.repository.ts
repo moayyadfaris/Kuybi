@@ -31,7 +31,7 @@ export class RoleRepository extends BaseRepository<Role> {
       async () => {
         return this.repository.findOne({
           where: { name, deletedAt: IsNull() },
-          relations: ['rolePermissions', 'rolePermissions.permission']
+          relations: { rolePermissions: { permission: true } }
         })
       },
       this.defaultTTL
@@ -85,7 +85,7 @@ export class RoleRepository extends BaseRepository<Role> {
       async () => {
         return this.repository.find({
           where: { deletedAt: IsNull() },
-          relations: ['rolePermissions', 'rolePermissions.permission'],
+          relations: { rolePermissions: { permission: true } },
           order: { priority: 'DESC', name: 'ASC' }
         })
       },
@@ -104,7 +104,7 @@ export class RoleRepository extends BaseRepository<Role> {
       async () => {
         return this.repository.findOne({
           where: { id, deletedAt: IsNull() },
-          relations: ['rolePermissions', 'rolePermissions.permission']
+          relations: { rolePermissions: { permission: true } }
         })
       },
       this.defaultTTL
