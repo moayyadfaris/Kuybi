@@ -10,6 +10,7 @@ import { TagsModule } from '@modules/tags'
 import { UsersModule } from '@modules/users'
 
 import { CacheConfigModule } from '@core/cache/cache.module'
+import { IdempotencyModule } from '@core/idempotency'
 import { MetricsModule } from '@core/observability/metrics.module'
 
 import { StoriesController } from './controllers/stories.controller'
@@ -29,6 +30,7 @@ import { StoryVersionService } from './services/story-version.service'
 
 @Module({
   imports: [
+    IdempotencyModule,
     TypeOrmModule.forFeature([Story, StoryVersion, Attachment]),
     CacheConfigModule,
     MetricsModule,

@@ -21,10 +21,12 @@ import { Story, StoryVersion } from '@modules/stories/entities'
 import { Tag } from '@modules/tags/entities'
 import { EmailVerification, User } from '@modules/users/entities'
 
+import { IdempotencyKey } from '@core/idempotency/idempotency-key.entity'
 import { OutboxMessage } from '@core/outbox/outbox-message.entity'
 
 export const ENTITIES = [
   OutboxMessage,
+  IdempotencyKey,
   Country,
   User,
   EmailVerification,

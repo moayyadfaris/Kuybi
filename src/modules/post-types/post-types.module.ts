@@ -5,6 +5,8 @@ import { AclModule } from '@modules/acl'
 import { UsersModule } from '@modules/users'
 
 // Controllers
+import { IdempotencyModule } from '@core/idempotency'
+
 import { ContentController, FieldDefinitionsController, PostTypesController } from './controllers'
 // Entities
 import {
@@ -67,6 +69,7 @@ import {
  */
 @Module({
   imports: [
+    IdempotencyModule,
     // Register entities with TypeORM
     TypeOrmModule.forFeature([
       PostType,

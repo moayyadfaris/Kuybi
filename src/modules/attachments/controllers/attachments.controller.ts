@@ -34,6 +34,7 @@ import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
 import { JwtAuthGuard } from '@core/auth'
+import { Idempotent } from '@core/idempotency'
 
 import {
   AttachmentQueryDto,
@@ -55,6 +56,7 @@ export class AttachmentsController {
   constructor(private readonly attachmentService: AttachmentService) {}
 
   @Post()
+  @Idempotent()
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
   @ApiConsumes('multipart/form-data')
@@ -114,6 +116,7 @@ export class AttachmentsController {
   }
 
   @Post('bulk')
+  @Idempotent()
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
   @ApiConsumes('multipart/form-data')

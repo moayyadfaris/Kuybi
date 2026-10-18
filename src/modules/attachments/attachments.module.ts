@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { AclModule } from '@modules/acl'
 
+import { IdempotencyModule } from '@core/idempotency'
 import { OutboxModule } from '@core/outbox'
 import { QueueName } from '@core/queues/jobs/types'
 
@@ -20,6 +21,7 @@ import { S3Service } from './services/s3.service'
 
 @Module({
   imports: [
+    IdempotencyModule,
     TypeOrmModule.forFeature([Attachment]),
     AclModule,
     OutboxModule,

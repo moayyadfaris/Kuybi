@@ -28,6 +28,7 @@ import { plainToInstance } from 'class-transformer'
 import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 
 import { GetUser, JwtAuthGuard } from '@core/auth'
+import { Idempotent } from '@core/idempotency'
 
 import {
   ContentListResponseDto,
@@ -171,6 +172,7 @@ export class ContentController {
   }
 
   @Post()
+  @Idempotent()
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Content })
   @ApiBearerAuth()

@@ -35,6 +35,7 @@ import { TestRedis } from '../../helpers/test-redis'
 import { testConfig } from '../../test.config'
 
 const STORY_TABLES_TO_TRUNCATE = [
+  'idempotency_keys',
   'stories',
   'tags',
   'categories',
@@ -272,6 +273,57 @@ describe('Stories Integration Tests', () => {
       const story = response.body.results[0]
       expect(story).toHaveProperty('tags')
       expect(story).toHaveProperty('categories')
+    })
+  })
+
+  describe('Idempotency-Key on POST /api/v1/stories', () => {
+    const post = (key: string | undefined, body: object) => {
+      const req = request(app.getHttpServer())
+        .post('/api/v1/stories')
+        .set('Authorization', `Bearer ${accessToken}`)
+      if (key) req.set('Idempotency-Key', key)
+      return req.send(body)
+    }
+
+    it('replays the first result for a retry instead of creating a second story', async () => {
+      const body = StoryFactory.create({ title: 'Retried once' })
+
+      const first = await post('retry-key-1', body).expect(201)
+      const retry = await post('retry-key-1', body).expect(201)
+
+      expect(retry.headers['idempotent-replayed']).toBe('true')
+      expect(retry.body.id).toBe(first.body.id)
+      expect(await dataSource.getRepository(Story).countBy({ title: 'Retried once' })).toBe(1)
+    })
+
+    it('rejects the same key with a different body', async () => {
+      await post('retry-key-2', StoryFactory.create({ title: 'One' })).expect(201)
+      await post('retry-key-2', StoryFactory.create({ title: 'Two' })).expect(422)
+    })
+
+    it('replays a 4xx outcome too', async () => {
+      const body = {
+        ...StoryFactory.create(),
+        categoryIds: ['00000000-0000-4000-8000-000000000000']
+      }
+
+      await post('retry-key-3', body).expect(400)
+      const retry = await post('retry-key-3', body).expect(400)
+
+      expect(retry.headers['idempotent-replayed']).toBe('true')
+    })
+
+    it('behaves normally without the header', async () => {
+      const body = StoryFactory.create({ title: 'No key' })
+
+      await post(undefined, body).expect(201)
+      await post(undefined, body).expect(201)
+
+      expect(await dataSource.getRepository(Story).countBy({ title: 'No key' })).toBe(2)
+    })
+
+    it('rejects a malformed key', async () => {
+      await post('has spaces in it', StoryFactory.create()).expect(400)
     })
   })
 
