@@ -65,6 +65,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         )
         throw new UnauthorizedException('Session has ended')
       }
+      req.sessionId = payload.sid
     } else if (!payload.tempPasswordChange) {
       throw new UnauthorizedException('Access token is not bound to a session')
     }
