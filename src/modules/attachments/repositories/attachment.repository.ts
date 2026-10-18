@@ -19,6 +19,8 @@ export interface AttachmentQueryOptions {
   endDate?: Date
   includeDeleted?: boolean
   tags?: string[]
+  /** Only files this user owns or that are public */
+  visibleToUserId?: string
 }
 
 @Injectable()
@@ -478,6 +480,12 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   ): void {
     if (!options.includeDeleted) {
       query.andWhere('attachment.deletedAt IS NULL')
+    }
+
+    if (options.visibleToUserId) {
+      query.andWhere('(attachment.userId = :viewerId OR attachment.isPublic = true)', {
+        viewerId: options.visibleToUserId
+      })
     }
 
     if (options.category) {

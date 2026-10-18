@@ -10,6 +10,7 @@ import { AttachmentsController } from './controllers/attachments.controller'
 import { Attachment } from './entities/attachment.entity'
 import { AttachmentRepository } from './repositories/attachment.repository'
 import { AttachmentService } from './services/attachment.service'
+import { AttachmentAccessPolicy } from './services/attachment-access.policy'
 import { ExifProcessorService } from './services/exif-processor.service'
 import { FileValidationService } from './services/file-validation.service'
 import { ImageOptimizationService } from './services/image-optimization.service'
@@ -27,6 +28,7 @@ import { S3Service } from './services/s3.service'
   controllers: [AttachmentsController],
   providers: [
     AttachmentService,
+    AttachmentAccessPolicy,
     AttachmentRepository,
     FileValidationService,
     ImageProcessingService,

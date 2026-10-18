@@ -65,6 +65,47 @@ describe('AclSeeder (integration)', () => {
     expect(userRules).not.toContainEqual({ action: 'update', subject: 'Story', conditions: {} })
   })
 
+  it('limits users and guests to their own and public attachments', async () => {
+    await seedRolesWithPermissions(dataSource)
+
+    const userRules = await rulesFor(dataSource, 'user')
+    expect(userRules).toEqual(
+      expect.arrayContaining([
+        { action: 'read', subject: 'Attachment', conditions: { userId: '${userId}' } },
+        { action: 'read', subject: 'Attachment', conditions: { isPublic: true } }
+      ])
+    )
+    expect(userRules).not.toContainEqual({ action: 'read', subject: 'Attachment', conditions: {} })
+    expect(await rulesFor(dataSource, 'guest')).not.toContainEqual({
+      action: 'read',
+      subject: 'Attachment',
+      conditions: {}
+    })
+  })
+
+  it('revokes the old "read every attachment" grant from already-seeded databases', async () => {
+    await seedRolesWithPermissions(dataSource)
+    // Simulate a database seeded by an older release
+    await dataSource.query(`
+      INSERT INTO role_permissions ("roleId", "permissionId")
+      SELECT r.id, p.id FROM roles r, permissions p
+      WHERE r.name = 'user' AND p.action = 'read' AND p.subject = 'Attachment'
+        AND (p.conditions IS NULL OR p.conditions = '{}'::jsonb)`)
+    expect(await rulesFor(dataSource, 'user')).toContainEqual({
+      action: 'read',
+      subject: 'Attachment',
+      conditions: {}
+    })
+
+    await seedRolesWithPermissions(dataSource)
+
+    expect(await rulesFor(dataSource, 'user')).not.toContainEqual({
+      action: 'read',
+      subject: 'Attachment',
+      conditions: {}
+    })
+  })
+
   it('is idempotent when run twice', async () => {
     await seedRolesWithPermissions(dataSource)
     const first = await dataSource.query('SELECT count(*)::int AS n FROM permissions')

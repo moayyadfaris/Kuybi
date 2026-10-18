@@ -11,6 +11,9 @@ import { Queue } from 'bullmq'
 import * as crypto from 'crypto'
 import { PinoLogger } from 'nestjs-pino'
 
+import { Action } from '@modules/acl'
+import { User } from '@modules/users/entities'
+
 import { AttachmentJobType, QueueName } from '@core/queues/jobs/types'
 
 import {
@@ -33,6 +36,7 @@ import {
   ThumbnailMetadata
 } from '../utils/attachment-image.util'
 
+import { AttachmentAccessPolicy } from './attachment-access.policy'
 import { ExifProcessorService } from './exif-processor.service'
 import { FileValidationService, MulterFile } from './file-validation.service'
 import { ImageOptimizationService } from './image-optimization.service'
@@ -50,6 +54,7 @@ export class AttachmentService {
     private readonly imageOptimizationService: ImageOptimizationService,
     private readonly exifProcessorService: ExifProcessorService,
     private readonly s3Service: S3Service,
+    private readonly accessPolicy: AttachmentAccessPolicy,
     private readonly configService: ConfigService,
     private readonly logger: PinoLogger,
     @InjectQueue(QueueName.ATTACHMENT_PROCESSING)
@@ -322,16 +327,26 @@ export class AttachmentService {
     return this.formatAttachmentResponse(attachment)
   }
 
-  async getById(id: string): Promise<AttachmentResponseDto> {
-    const attachment = await this.attachmentRepository.findById(id)
-    if (!attachment) {
-      throw new NotFoundException('Attachment not found')
-    }
+  async getById(id: string, currentUser: User): Promise<AttachmentResponseDto> {
+    const attachment = await this.findReadable(id, currentUser)
     return this.formatAttachmentResponse(attachment)
   }
 
-  async listAll(query: AttachmentQueryDto) {
+  /**
+   * Loads an attachment the user may read. Someone else's private file answers 404, not
+   * 403, so its existence is not revealed.
+   */
+  private async findReadable(id: string, currentUser: User): Promise<Attachment> {
+    const attachment = await this.attachmentRepository.findById(id)
+    if (!attachment || !this.accessPolicy.can(currentUser, Action.Read, attachment)) {
+      throw new NotFoundException('Attachment not found')
+    }
+    return attachment
+  }
+
+  async listAll(query: AttachmentQueryDto, currentUser: User) {
     const result = await this.attachmentRepository.listAll({
+      visibleToUserId: this.accessPolicy.canReadAll(currentUser) ? undefined : currentUser.id,
       category: query.category,
       mimeType: query.mimeType,
       isPublic: query.isPublic,
@@ -356,7 +371,11 @@ export class AttachmentService {
     }
   }
 
-  async getUserAttachments(userId: string, query: AttachmentQueryDto) {
+  async getUserAttachments(userId: string, query: AttachmentQueryDto, currentUser: User) {
+    // Other users' file lists are only for roles that may read their private files
+    if (userId !== currentUser.id && !this.accessPolicy.canReadAll(currentUser)) {
+      throw new ForbiddenException("You cannot list another user's attachments")
+    }
     const attachments = await this.attachmentRepository.findByUserId(userId, query)
     return {
       data: attachments.map(a => this.formatAttachmentResponse(a)),
@@ -369,48 +388,51 @@ export class AttachmentService {
   async updateMetadata(
     id: string,
     dto: UpdateAttachmentDto,
-    userId: string
+    currentUser: User
   ): Promise<AttachmentResponseDto> {
     const attachment = await this.attachmentRepository.findById(id)
     if (!attachment) throw new NotFoundException('Attachment not found')
-    if (attachment.userId !== userId) throw new ForbiddenException('Access denied')
+    this.accessPolicy.assertCan(currentUser, Action.Update, attachment, 'Access denied')
 
     const updated = await this.attachmentRepository.update(id, dto as Partial<Attachment>)
     return this.formatAttachmentResponse(updated!)
   }
 
-  async softDelete(id: string, userId: string) {
+  async softDelete(id: string, currentUser: User) {
     const attachment = await this.attachmentRepository.findById(id)
     if (!attachment) throw new NotFoundException('Attachment not found')
-    if (attachment.userId !== userId) throw new ForbiddenException('Access denied')
+    this.accessPolicy.assertCan(currentUser, Action.Delete, attachment, 'Access denied')
 
     await this.attachmentRepository.softDelete(id)
     return { message: 'Attachment deleted successfully' }
   }
 
-  async hardDelete(id: string, userId: string) {
+  async hardDelete(id: string, currentUser: User) {
     const attachment = await this.attachmentRepository.findByIdWithOptions(id, true)
     if (!attachment) throw new NotFoundException('Attachment not found')
-    if (attachment.userId !== userId) throw new ForbiddenException('Access denied')
+    this.accessPolicy.assertCan(currentUser, Action.Delete, attachment, 'Access denied')
 
     await this.s3Service.delete(attachment.path)
     await this.attachmentRepository.hardDelete(id)
     return { message: 'Attachment permanently deleted' }
   }
 
-  async restore(id: string, userId: string): Promise<AttachmentResponseDto> {
+  async restore(id: string, currentUser: User): Promise<AttachmentResponseDto> {
     const attachment = await this.attachmentRepository.findByIdWithOptions(id, true)
     if (!attachment) throw new NotFoundException('Attachment not found')
-    if (attachment.userId !== userId) throw new ForbiddenException('Access denied')
+    this.accessPolicy.assertCan(currentUser, Action.Restore, attachment, 'Access denied')
 
     await this.attachmentRepository.restore(id)
     const restored = await this.attachmentRepository.findById(id)
     return this.formatAttachmentResponse(restored!)
   }
 
-  async generatePresignedUrl(id: string, dto: PresignedUrlDto): Promise<PresignedUrlResponseDto> {
-    const attachment = await this.attachmentRepository.findById(id)
-    if (!attachment) throw new NotFoundException('Attachment not found')
+  async generatePresignedUrl(
+    id: string,
+    dto: PresignedUrlDto,
+    currentUser: User
+  ): Promise<PresignedUrlResponseDto> {
+    const attachment = await this.findReadable(id, currentUser)
 
     const url = await this.s3Service.getPresignedUrl(attachment.path, dto.expiresIn || 3600)
     await this.attachmentRepository.incrementDownloadCount(id)
@@ -444,9 +466,8 @@ export class AttachmentService {
     return { deleted, totalSize }
   }
 
-  async downloadAttachment(id: string) {
-    const attachment = await this.attachmentRepository.findById(id)
-    if (!attachment) throw new NotFoundException('Attachment not found')
+  async downloadAttachment(id: string, currentUser: User) {
+    const attachment = await this.findReadable(id, currentUser)
 
     const buffer = await this.s3Service.download(attachment.path)
     await this.attachmentRepository.incrementDownloadCount(id)
