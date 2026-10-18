@@ -7,6 +7,9 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "target": "ES2017",
+    // Type definitions for the Node 24 runtime; the emit target stays ES2017 (ES2022
+    // would turn on useDefineForClassFields and break decorated entity/DTO fields)
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "sourceMap": true,
     "outDir": "./dist",
     "incremental": true,
