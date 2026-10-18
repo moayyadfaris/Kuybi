@@ -275,6 +275,29 @@ describe('Stories Integration Tests', () => {
     })
   })
 
+  describe('GET /api/v1/stories sorting', () => {
+    it('sorts by an allowlisted column', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/stories')
+        .query({ sortBy: 'title', sortOrder: 'asc' })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
+    })
+
+    // sortBy becomes an ORDER BY identifier, which cannot be a bound parameter
+    it.each([
+      'createdAt, (CASE WHEN (SELECT 1) = 1 THEN 1 ELSE 1/0 END)',
+      'createdAt; DROP TABLE stories; --',
+      'passwordHash'
+    ])('rejects sortBy=%j', async sortBy => {
+      await request(app.getHttpServer())
+        .get('/api/v1/stories')
+        .query({ sortBy })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400)
+    })
+  })
+
   describe('GET /api/v1/stories/:id', () => {
     let storyId: number
 
