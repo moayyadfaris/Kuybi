@@ -4,12 +4,16 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { AclModule } from '@modules/acl'
 
+import { IdempotencyModule } from '@core/idempotency'
+import { OutboxModule } from '@core/outbox'
 import { QueueName } from '@core/queues/jobs/types'
 
 import { AttachmentsController } from './controllers/attachments.controller'
 import { Attachment } from './entities/attachment.entity'
 import { AttachmentRepository } from './repositories/attachment.repository'
 import { AttachmentService } from './services/attachment.service'
+import { AttachmentAccessPolicy } from './services/attachment-access.policy'
+import { DirectUploadService } from './services/direct-upload.service'
 import { ExifProcessorService } from './services/exif-processor.service'
 import { FileValidationService } from './services/file-validation.service'
 import { ImageOptimizationService } from './services/image-optimization.service'
@@ -18,8 +22,10 @@ import { S3Service } from './services/s3.service'
 
 @Module({
   imports: [
+    IdempotencyModule,
     TypeOrmModule.forFeature([Attachment]),
     AclModule,
+    OutboxModule,
     BullModule.registerQueue({
       name: QueueName.ATTACHMENT_PROCESSING
     })
@@ -27,6 +33,8 @@ import { S3Service } from './services/s3.service'
   controllers: [AttachmentsController],
   providers: [
     AttachmentService,
+    AttachmentAccessPolicy,
+    DirectUploadService,
     AttachmentRepository,
     FileValidationService,
     ImageProcessingService,

@@ -1,11 +1,14 @@
-import { Body, Controller, Get, Post } from '@nestjs/common'
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common'
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
+import { DevelopmentOnlyGuard } from '@shared/guards/development-only.guard'
 
 import { SendEmailDto } from '../dto/send-email.dto'
 import { EmailService } from '../services/email.service'
 
 @ApiTags('Email (Test)')
 @Controller('v1/email-test')
+// Unauthenticated: sends mail to any address / manages the email queue. Never expose.
+@UseGuards(DevelopmentOnlyGuard)
 export class EmailTestController {
   constructor(private readonly emailService: EmailService) {}
 

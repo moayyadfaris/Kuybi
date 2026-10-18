@@ -19,6 +19,7 @@ import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { EventsModule } from '@core/events'
+import { OutboxMessage } from '@core/outbox'
 import { SentryModule } from '@core/sentry'
 
 import { UserFactory } from '../../factories/user.factory'
@@ -753,6 +754,30 @@ describe('Auth Integration Tests', () => {
       expect(response.body.message).toContain('Other sessions have been logged out')
       await me(current).expect(200)
       await me(other).expect(401)
+    })
+  })
+  describe('POST /api/v1/auth/register', () => {
+    it('records the welcome email in the outbox with the new user', async () => {
+      const email = `register-${Date.now()}@example.com`
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .send({ email, password: 'Secure@Pass123', firstName: 'New', lastName: 'Person' })
+        .expect(201)
+
+      const user = await dataSource.getRepository(User).findOneByOrFail({ email })
+      const queued = await dataSource
+        .getRepository(OutboxMessage)
+        .createQueryBuilder('m')
+        .where("m.payload->>'to' = :email", { email })
+        .getMany()
+      expect(queued).toHaveLength(1)
+      expect(queued[0]).toMatchObject({
+        queue: 'email-queue',
+        jobName: 'send-welcome',
+        status: 'pending'
+      })
+      expect(user.id).toBeDefined()
     })
   })
 })

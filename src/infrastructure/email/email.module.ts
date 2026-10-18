@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 
+import { OutboxModule } from '@core/outbox'
 import { QueueName } from '@core/queues/jobs/types'
 
 import { EmailQueueTestController } from './controllers/email-queue-test.controller'
@@ -13,6 +14,7 @@ import { EmailTemplateService } from './services/email-template.service'
 @Module({
   imports: [
     ConfigModule,
+    OutboxModule,
     BullModule.registerQueue({
       name: QueueName.EMAIL
     })

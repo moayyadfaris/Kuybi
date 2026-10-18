@@ -30,6 +30,11 @@ export interface FileValidationOptions {
   checkSize?: boolean
   checkSecurity?: boolean
   maxSize?: number
+  /**
+   * `file.buffer` holds only the start of the file (direct uploads read a head from
+   * storage); `file.size` is the full size
+   */
+  truncatedContent?: boolean
 }
 
 /**
@@ -176,7 +181,7 @@ export class FileValidationService {
     if (opts.checkMimeType) {
       this.validateMimeType(file, result)
       if (result.isValid) {
-        await this.verifyContentMatchesDeclaredType(file, result)
+        await this.verifyContentMatchesDeclaredType(file, result, opts.truncatedContent)
       }
     }
 
@@ -193,6 +198,24 @@ export class FileValidationService {
     // Check consistency between MIME type and extension
     this.checkMimeTypeExtensionConsistency(file, result)
 
+    return result
+  }
+
+  /**
+   * Checks what a client declares before uploading directly to storage: allowed type,
+   * safe name and extension, size. The content itself is verified on completion with
+   * validateFile(..., { truncatedContent: true }).
+   */
+  validateDeclaredFile(
+    declared: Pick<MulterFile, 'originalname' | 'mimetype' | 'size'>
+  ): FileValidationResult {
+    const file = { ...declared, buffer: Buffer.alloc(0) } as MulterFile
+    const result: FileValidationResult = { isValid: true, errors: [], warnings: [] }
+    this.performSecurityChecks(file, result)
+    this.validateMimeType(file, result)
+    this.validateExtension(file, result)
+    this.validateFileSize(file, result)
+    this.checkMimeTypeExtensionConsistency(file, result)
     return result
   }
 
@@ -244,7 +267,8 @@ export class FileValidationService {
    */
   private async verifyContentMatchesDeclaredType(
     file: MulterFile,
-    result: FileValidationResult
+    result: FileValidationResult,
+    truncated = false
   ): Promise<void> {
     const declared = this.mimeAliases[file.mimetype] ?? file.mimetype
     const detected = file.buffer?.length ? await fileTypeFromBuffer(file.buffer) : undefined
@@ -259,7 +283,8 @@ export class FileValidationService {
       if (detected) {
         return reject(`File declared as '${file.mimetype}' but its content is '${detected.mime}'`)
       }
-      if (!isUtf8(file.buffer) || file.buffer.includes(0)) {
+      const text = truncated ? withoutPartialUtf8Tail(file.buffer) : file.buffer
+      if (!isUtf8(text) || text.includes(0)) {
         return reject(`File declared as '${file.mimetype}' but its content is not plain text`)
       }
       result.verifiedMimeType = declared
@@ -446,4 +471,20 @@ export class FileValidationService {
       ...this.allowedMimeTypes.archives
     ]
   }
+}
+
+/**
+ * Drops an incomplete UTF-8 sequence at the end of a buffer that was cut at an
+ * arbitrary byte (a head read), so valid text is not rejected for the cut itself.
+ */
+export function withoutPartialUtf8Tail(buffer: Buffer): Buffer {
+  for (let back = 1; back <= Math.min(3, buffer.length); back++) {
+    const byte = buffer[buffer.length - back]
+    if ((byte & 0xc0) !== 0x80) {
+      // Lead byte (or ASCII): how long should its sequence be?
+      const expected = byte >= 0xf0 ? 4 : byte >= 0xe0 ? 3 : byte >= 0xc0 ? 2 : 1
+      return expected > back ? buffer.subarray(0, buffer.length - back) : buffer
+    }
+  }
+  return buffer
 }

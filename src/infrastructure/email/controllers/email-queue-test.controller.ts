@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { DevelopmentOnlyGuard } from '@shared/guards/development-only.guard'
 
 import { EmailQueueService } from '../services/email-queue.service'
 
@@ -10,6 +11,8 @@ import { EmailQueueService } from '../services/email-queue.service'
  */
 @ApiTags('Email Queue Testing')
 @Controller('v1/email-queue-test')
+// Unauthenticated: sends mail to any address / manages the email queue. Never expose.
+@UseGuards(DevelopmentOnlyGuard)
 export class EmailQueueTestController {
   constructor(private readonly emailQueueService: EmailQueueService) {}
 

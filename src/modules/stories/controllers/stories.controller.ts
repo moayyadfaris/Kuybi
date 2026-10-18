@@ -30,6 +30,7 @@ import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
 import { JwtAuthGuard } from '@core/auth'
+import { Idempotent } from '@core/idempotency'
 
 import {
   AttachAttachmentsDto,
@@ -66,6 +67,7 @@ export class StoriesController {
   ) {}
 
   @Post()
+  @Idempotent()
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Story })
   @ApiBearerAuth()

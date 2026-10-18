@@ -182,6 +182,19 @@ describe('Account Lockout Integration Tests', () => {
   })
 
   describe('Failed Login Attempts Tracking', () => {
+    // Brute force sends requests in parallel; a read-modify-write counter loses most of them
+    it('counts concurrent failed attempts exactly and locks the account', async () => {
+      await Promise.all(
+        Array.from({ length: 10 }, () => accountLockoutService.recordFailedAttempt(testUser.id))
+      )
+
+      const user = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
+      expect(user.failedLoginAttempts).toBe(10)
+      expect(user.isLocked).toBe(true)
+    })
+
     it('should track failed login attempts', async () => {
       // First failed attempt
       await request(app.getHttpServer())

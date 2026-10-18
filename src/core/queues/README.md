@@ -38,6 +38,26 @@ src/worker.module.ts             # worker root module: composes the jobs modules
 src/worker.ts                    # worker bootstrap entry
 ```
 
+### Producing jobs: use the outbox
+
+Jobs that follow a database change go through `OutboxService` (`src/core/outbox`), not
+`queue.add()`: the job is a row written in the same transaction, and `OutboxRelay` (worker
+process) hands it to BullMQ. A rolled-back change sends nothing, and a Redis outage delays
+jobs instead of losing them.
+
+```ts
+await dataSource.transaction(async manager => {
+  const user = await manager.save(newUser)
+  await emailQueueService.queueWelcomeEmail(user.email, name, link, { manager })
+  // or, for any queue:
+  await outbox.enqueue({ queue: QueueName.X, name: 'job', data, delayMs: 0 }, manager)
+})
+```
+
+Delivery is at-least-once (the message id is the BullMQ jobId, which de-duplicates
+re-dispatch while the job is still in Redis), so processors must tolerate a repeat.
+High-frequency, self-healing jobs (the failed-login counter reset) still use `queue.add()`.
+
 Processors start consuming as soon as they are instantiated, so they live in a
 separate `<module>-jobs.module.ts` that only `src/worker.module.ts` imports, never in
 the feature module itself (which the API also loads).

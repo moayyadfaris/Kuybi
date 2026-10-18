@@ -5,7 +5,7 @@ import { EmailQueueService } from '@infrastructure/email'
 import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { LessThan, Repository } from 'typeorm'
+import { EntityManager, LessThan, Repository } from 'typeorm'
 
 import { User } from '@modules/users/entities'
 
@@ -87,36 +87,36 @@ export class PasswordResetService {
       return { message: successMessage }
     }
 
-    // Invalidate all existing reset tokens for this user
-    await this.invalidateUserResetTokens(user.id)
-
     // Generate new reset token
     const resetToken = randomUUID()
     const expiresAt = new Date(Date.now() + this.resetTokenExpiry)
-
-    // Store reset token in database
-    const passwordResetRecord = this.passwordResetRepository.create({
-      userId: user.id,
-      email: user.email,
-      token: resetToken,
-      expiresAt,
-      used: false,
-      usedAt: null,
-      requestIpAddress: ipAddress,
-      userAgent
-    })
-
-    await this.passwordResetRepository.save(passwordResetRecord)
-
-    // Queue password reset email
     const resetLink = `${this.appUrl}/reset-password?token=${resetToken}`
 
-    await this.emailQueueService.sendPasswordResetEmail({
-      to: user.email,
-      firstName: user.name.split(' ')[0] || 'User',
-      resetLink,
-      resetToken,
-      expiresInMinutes: 60
+    // Old tokens expire, the new one is stored and its email queued, all or nothing
+    await this.passwordResetRepository.manager.transaction(async manager => {
+      await this.invalidateUserResetTokens(user.id, manager)
+      await manager.save(
+        manager.create(PasswordReset, {
+          userId: user.id,
+          email: user.email,
+          token: resetToken,
+          expiresAt,
+          used: false,
+          usedAt: null,
+          requestIpAddress: ipAddress,
+          userAgent
+        })
+      )
+      await this.emailQueueService.sendPasswordResetEmail(
+        {
+          to: user.email,
+          firstName: user.name.split(' ')[0] || 'User',
+          resetLink,
+          resetToken,
+          expiresInMinutes: 60
+        },
+        { manager }
+      )
     })
 
     this.logger.info(
@@ -217,15 +217,30 @@ export class PasswordResetService {
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(newPassword, salt)
 
-    // Update user password
-    user.passwordHash = passwordHash
-    await this.userRepository.save(user)
+    await this.passwordResetRepository.manager.transaction(async manager => {
+      // Claim the token atomically: of two concurrent requests with the same token only
+      // one may succeed (checking `used` above and saving later let both through)
+      const claim = await manager.update(
+        PasswordReset,
+        { id: resetRecord.id, used: false },
+        { used: true, usedAt: new Date(), resetIpAddress: ipAddress ?? null }
+      )
+      if (!claim.affected) {
+        throw new BadRequestException('Reset token has already been used')
+      }
 
-    // Mark reset token as used
-    resetRecord.used = true
-    resetRecord.usedAt = new Date()
-    resetRecord.resetIpAddress = ipAddress ?? null
-    await this.passwordResetRepository.save(resetRecord)
+      await manager.update(User, user.id, { passwordHash })
+
+      await this.emailQueueService.sendPasswordChangedEmail(
+        {
+          to: user.email,
+          firstName: user.name.split(' ')[0] || 'User',
+          resetTime: new Date().toISOString(),
+          resetIpAddress: ipAddress || 'Unknown'
+        },
+        { manager }
+      )
+    })
 
     // Invalidate ALL user sessions (force re-login everywhere)
     const revokedCount = await this.sessionsService.revokeAllSessions(
@@ -245,14 +260,6 @@ export class PasswordResetService {
       'Password reset completed successfully'
     )
 
-    // Send confirmation email
-    await this.emailQueueService.sendPasswordChangedEmail({
-      to: user.email,
-      firstName: user.name.split(' ')[0] || 'User',
-      resetTime: new Date().toLocaleString(),
-      resetIpAddress: ipAddress || 'Unknown'
-    })
-
     return {
       message: 'Password has been reset successfully. You can now log in with your new password.',
       email: user.email
@@ -266,11 +273,12 @@ export class PasswordResetService {
    * - New reset request is made
    * - User successfully resets password
    */
-  private async invalidateUserResetTokens(userId: string): Promise<void> {
+  private async invalidateUserResetTokens(userId: string, manager?: EntityManager): Promise<void> {
     // Mark all unused tokens as expired by setting expiresAt to now
     const now = new Date()
 
-    await this.passwordResetRepository.update(
+    await (manager ?? this.passwordResetRepository.manager).update(
+      PasswordReset,
       {
         userId,
         used: false,

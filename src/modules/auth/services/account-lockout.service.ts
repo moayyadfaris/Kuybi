@@ -76,31 +76,38 @@ export class AccountLockoutService {
       return
     }
 
-    const user = await this.userRepository.findOne({ where: { id: userId } })
-    if (!user) {
+    // Atomic increment: concurrent failures (a parallel brute force) must all count.
+    // Reading the counter and saving it back lost most of them.
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ failedLoginAttempts: () => '"failedLoginAttempts" + 1' })
+      .where('id = :userId', { userId })
+      .returning(['failedLoginAttempts'])
+      .execute()
+    const rows = result.raw as Array<{ failedLoginAttempts: number }>
+    if (rows.length === 0) {
       throw new NotFoundException(`User ${userId} not found`)
     }
-
-    // Increment failed attempts
-    user.failedLoginAttempts += 1
+    const failedAttempts = rows[0].failedLoginAttempts
 
     this.logger.info(
       {
         userId,
-        failedAttempts: user.failedLoginAttempts,
+        failedAttempts,
         maxAttempts: this.config.maxAttempts,
         ipAddress,
         action: 'failed_login_attempt'
       },
-      `Failed login attempt ${user.failedLoginAttempts}/${this.config.maxAttempts}`
+      `Failed login attempt ${failedAttempts}/${this.config.maxAttempts}`
     )
 
-    // Check if threshold exceeded
-    if (user.failedLoginAttempts >= this.config.maxAttempts) {
+    // Exactly one attempt reaches the threshold, so the account is locked (and the
+    // unlock job and email sent) once, however many requests race past it
+    if (failedAttempts === this.config.maxAttempts) {
+      const user = await this.userRepository.findOneOrFail({ where: { id: userId } })
       await this.lockAccount(user, LockReason.FAILED_ATTEMPTS)
-    } else {
-      await this.userRepository.save(user)
-
+    } else if (failedAttempts < this.config.maxAttempts) {
       // Schedule reset of failed attempts after reset period
       await this.scheduleResetFailedAttempts(userId)
     }
@@ -118,7 +125,14 @@ export class AccountLockoutService {
     user.lockedUntil = unlockAt
     user.lockReason = reason
 
-    await this.userRepository.save(user)
+    // Only the lock columns: saving the whole entity would overwrite failedLoginAttempts
+    // with the value read earlier, undoing increments made concurrently
+    await this.userRepository.update(user.id, {
+      isLocked: true,
+      lockedAt: now,
+      lockedUntil: unlockAt,
+      lockReason: reason
+    })
 
     this.logger.warn(
       {

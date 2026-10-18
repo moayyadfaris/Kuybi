@@ -108,6 +108,18 @@ export class AclSeeder {
       // Attachment permissions
       { action: Action.Create, subject: Subject.Attachment, reason: 'Upload attachments' },
       { action: Action.Read, subject: Subject.Attachment, reason: 'Read all attachments' },
+      {
+        action: Action.Read,
+        subject: Subject.Attachment,
+        conditions: { userId: '${userId}' },
+        reason: 'Read own attachments'
+      },
+      {
+        action: Action.Read,
+        subject: Subject.Attachment,
+        conditions: { isPublic: true },
+        reason: 'Read public attachments'
+      },
       { action: Action.Update, subject: Subject.Attachment, reason: 'Update any attachment' },
       {
         action: Action.Update,
@@ -380,9 +392,10 @@ export class AclSeeder {
       findPerm(Action.Create, Subject.StoryVersion),
       findPerm(Action.Read, Subject.StoryVersion),
       findPerm(Action.Update, Subject.StoryVersion),
-      // Own attachments
+      // Own attachments, plus anyone's public ones
       findPerm(Action.Create, Subject.Attachment),
-      findPerm(Action.Read, Subject.Attachment),
+      findPerm(Action.Read, Subject.Attachment, { userId: '${userId}' }),
+      findPerm(Action.Read, Subject.Attachment, { isPublic: true }),
       findPerm(Action.Update, Subject.Attachment, { userId: '${userId}' }),
       findPerm(Action.Delete, Subject.Attachment, { userId: '${userId}' }),
       // Read public resources
@@ -401,7 +414,7 @@ export class AclSeeder {
     const guest = roleMap.get('guest')!
     const guestActions = [
       findPerm(Action.Read, Subject.Story),
-      findPerm(Action.Read, Subject.Attachment),
+      findPerm(Action.Read, Subject.Attachment, { isPublic: true }),
       findPerm(Action.Read, Subject.Category),
       findPerm(Action.Read, Subject.Tag),
       findPerm(Action.Read, Subject.Country)
@@ -409,11 +422,26 @@ export class AclSeeder {
     for (const perm of guestActions) {
       await this.assignPermission(guest, perm)
     }
+
+    // Grants removed in later releases. The seeder only adds, so already-seeded
+    // databases would keep these unless they are revoked explicitly.
+    const revoked: Array<[Role, Permission | undefined]> = [
+      // Was "read every attachment, including other users' private files"
+      [user, findPerm(Action.Read, Subject.Attachment)],
+      [guest, findPerm(Action.Read, Subject.Attachment)]
+    ]
+    for (const [role, perm] of revoked) {
+      if (perm) await this.revokePermission(role, perm)
+    }
   }
 
   /**
    * Helper to assign permission to role
    */
+  private async revokePermission(role: Role, permission: Permission): Promise<void> {
+    await this.rolePermissionRepository.delete({ roleId: role.id, permissionId: permission.id })
+  }
+
   private async assignPermission(role: Role, permission: Permission): Promise<void> {
     const existing = await this.rolePermissionRepository.findOne({
       where: { roleId: role.id, permissionId: permission.id }

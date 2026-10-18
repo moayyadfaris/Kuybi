@@ -4,7 +4,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -22,7 +25,9 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiCreatedResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiQuery,
   ApiTags
@@ -34,14 +39,19 @@ import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
 import { JwtAuthGuard } from '@core/auth'
+import { Idempotent } from '@core/idempotency'
 
 import {
   AttachmentQueryDto,
+  AttachmentResponseDto,
+  InitiateUploadDto,
+  InitiateUploadResponseDto,
   PresignedUrlDto,
   UpdateAttachmentDto,
   UploadAttachmentDto
 } from '../dto'
 import { AttachmentService } from '../services/attachment.service'
+import { DirectUploadService } from '../services/direct-upload.service'
 import { MAX_UPLOAD_BYTES } from '../services/file-validation.service'
 
 interface AuthenticatedRequest extends Request {
@@ -52,9 +62,13 @@ interface AuthenticatedRequest extends Request {
 @ApiBearerAuth()
 @Controller('v1/attachments')
 export class AttachmentsController {
-  constructor(private readonly attachmentService: AttachmentService) {}
+  constructor(
+    private readonly attachmentService: AttachmentService,
+    private readonly directUploadService: DirectUploadService
+  ) {}
 
   @Post()
+  @Idempotent()
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
   @ApiConsumes('multipart/form-data')
@@ -114,6 +128,7 @@ export class AttachmentsController {
   }
 
   @Post('bulk')
+  @Idempotent()
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
   @ApiConsumes('multipart/form-data')
@@ -183,6 +198,37 @@ export class AttachmentsController {
     return { attachments }
   }
 
+  @Post('uploads')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
+  @Idempotent()
+  @ApiOperation({
+    summary: 'Start a direct upload',
+    description:
+      'Returns a presigned POST: upload the file straight to storage with it, then call /uploads/:id/complete. File bytes never pass through the API.'
+  })
+  @ApiCreatedResponse({ type: InitiateUploadResponseDto })
+  async initiateUpload(@Body() dto: InitiateUploadDto, @Req() req: AuthenticatedRequest) {
+    return this.directUploadService.initiate(dto, this.requireUser(req))
+  }
+
+  @Post('uploads/:id/complete')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
+  @ApiOperation({
+    summary: 'Finish a direct upload',
+    description:
+      'Verifies the stored file (size and content type) and queues processing. 409 if the file is not uploaded yet or the upload was already completed; 422 if the file is rejected.'
+  })
+  @ApiOkResponse({ type: AttachmentResponseDto })
+  async completeUpload(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.directUploadService.complete(id, this.requireUser(req))
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Read, subject: Subject.Attachment })
@@ -204,31 +250,41 @@ export class AttachmentsController {
   })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
   @ApiOkResponse({ description: 'List of attachments retrieved' })
-  async list(@Query() query: AttachmentQueryDto) {
-    return this.attachmentService.listAll(query)
+  async list(@Query() query: AttachmentQueryDto, @Req() req: AuthenticatedRequest) {
+    return this.attachmentService.listAll(query, this.requireUser(req))
   }
 
   @Get('stats')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Manage, subject: Subject.All })
   @ApiOkResponse({ description: 'Get attachment statistics' })
   async getStatistics() {
     return this.attachmentService.getStatistics()
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Read, subject: Subject.Attachment })
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment details retrieved' })
-  async getById(@Param('id') id: string) {
-    return this.attachmentService.getById(id)
+  async getById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.attachmentService.getById(id, this.requireUser(req))
   }
 
   @Get('user/:userId')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Read, subject: Subject.Attachment })
   @ApiParam({ name: 'userId', type: 'string' })
   @ApiQuery({ name: 'page', required: false, type: 'number' })
   @ApiQuery({ name: 'limit', required: false, type: 'number' })
   @ApiQuery({ name: 'category', required: false, type: 'string' })
   @ApiOkResponse({ description: 'User attachments retrieved' })
-  async getUserAttachments(@Param('userId') userId: string, @Query() query: AttachmentQueryDto) {
-    return this.attachmentService.getUserAttachments(userId, query)
+  async getUserAttachments(
+    @Param('userId') userId: string,
+    @Query() query: AttachmentQueryDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.attachmentService.getUserAttachments(userId, query, this.requireUser(req))
   }
 
   @Patch(':id')
@@ -241,11 +297,10 @@ export class AttachmentsController {
     @Body() dto: UpdateAttachmentDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = req.user?.id
-    if (!userId) {
+    if (!req.user) {
       throw new UnauthorizedException('User context missing')
     }
-    return this.attachmentService.updateMetadata(id, dto, userId)
+    return this.attachmentService.updateMetadata(id, dto, req.user)
   }
 
   @Delete(':id')
@@ -254,11 +309,10 @@ export class AttachmentsController {
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment soft deleted' })
   async softDelete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.id
-    if (!userId) {
+    if (!req.user) {
       throw new UnauthorizedException('User context missing')
     }
-    return this.attachmentService.softDelete(id, userId)
+    return this.attachmentService.softDelete(id, req.user)
   }
 
   @Delete(':id/hard')
@@ -267,11 +321,10 @@ export class AttachmentsController {
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment permanently deleted (admin only)' })
   async hardDelete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.id
-    if (!userId) {
+    if (!req.user) {
       throw new UnauthorizedException('User context missing')
     }
-    return this.attachmentService.hardDelete(id, userId)
+    return this.attachmentService.hardDelete(id, req.user)
   }
 
   @Post(':id/restore')
@@ -280,29 +333,43 @@ export class AttachmentsController {
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment restored' })
   async restore(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const userId = req.user?.id
-    if (!userId) {
+    if (!req.user) {
       throw new UnauthorizedException('User context missing')
     }
-    return this.attachmentService.restore(id, userId)
+    return this.attachmentService.restore(id, req.user)
   }
 
   @Post(':id/presigned-url')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Read, subject: Subject.Attachment })
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Presigned URL generated' })
-  async generatePresignedUrl(@Param('id') id: string, @Body() dto: PresignedUrlDto) {
-    return this.attachmentService.generatePresignedUrl(id, dto)
+  async generatePresignedUrl(
+    @Param('id') id: string,
+    @Body() dto: PresignedUrlDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.attachmentService.generatePresignedUrl(id, dto, this.requireUser(req))
   }
 
   @Get(':id/download')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Read, subject: Subject.Attachment })
   @ApiParam({ name: 'id', type: 'string' })
   @ApiOkResponse({ description: 'Attachment downloaded' })
-  async download(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
-    const { buffer, attachment } = await this.attachmentService.downloadAttachment(id)
+  async download(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const { buffer, attachment } = await this.attachmentService.downloadAttachment(
+      id,
+      this.requireUser(req)
+    )
 
     res.set({
       'Content-Type': attachment.mimeType,
-      'Content-Disposition': `attachment; filename="${attachment.originalName}"`,
+      'Content-Disposition': contentDisposition(attachment.originalName),
       'Content-Length': buffer.length
     })
 
@@ -310,10 +377,19 @@ export class AttachmentsController {
   }
 
   @Post('cleanup-orphaned')
+  @UseGuards(JwtAuthGuard, AbilityGuard)
+  @CheckAbility({ action: Action.Manage, subject: Subject.All })
   @ApiQuery({ name: 'olderThanDays', required: false, type: 'number' })
   @ApiOkResponse({ description: 'Orphaned attachments cleaned up' })
   async cleanupOrphaned(@Query('olderThanDays') olderThanDays?: number) {
     return this.attachmentService.cleanupOrphaned(olderThanDays ? Number(olderThanDays) : 7)
+  }
+
+  private requireUser(req: AuthenticatedRequest): User {
+    if (!req.user) {
+      throw new UnauthorizedException('User context missing')
+    }
+    return req.user
   }
 
   private extractIp(request: Request): string | undefined {
@@ -326,4 +402,14 @@ export class AttachmentsController {
     }
     return request.ip
   }
+}
+
+/**
+ * attachment; filename="..." with the uploaded name made header-safe: an ASCII fallback
+ * (quotes, backslashes and control characters replaced) plus the RFC 5987 UTF-8 form.
+ * Interpolating the raw name broke the header on quotes and threw on CR/LF.
+ */
+export function contentDisposition(originalName: string): string {
+  const fallback = originalName.replace(/[^\x20-\x7e]|["\\]/g, '_') || 'download'
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(originalName)}`
 }
