@@ -7,6 +7,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
+import { DatabaseModule } from '@app/database/database.module'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
 import { DataSource } from 'typeorm'
@@ -23,7 +24,6 @@ import { UsersModule } from '@modules/users/users.module'
 import { WebModule } from '@modules/web/web.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { DatabaseModule } from '@core/database/database.module'
 import { LoggingModule } from '@core/logging/logging.module'
 
 import { StoryFactory } from '../../factories/story.factory'

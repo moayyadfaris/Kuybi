@@ -2,7 +2,7 @@ import { config as loadEnv } from 'dotenv'
 import * as path from 'path'
 import { DataSource } from 'typeorm'
 
-import configuration from '../config/configuration'
+import configuration from '@core/config/configuration'
 
 import { ENTITIES } from './entities'
 

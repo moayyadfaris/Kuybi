@@ -163,7 +163,7 @@ corrupting the first. Setup fails if the migrations and the entities disagree.
 and commit both:
 
 ```bash
-npm run migration:generate src/core/database/migrations/AddStoryPinnedFlag
+npm run migration:generate src/database/migrations/AddStoryPinnedFlag
 npm run migration:run
 ```
 
