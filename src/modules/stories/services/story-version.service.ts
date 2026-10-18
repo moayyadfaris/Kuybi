@@ -61,7 +61,7 @@ export class StoryVersionService {
 
     // Calculate diff from previous version
     let changes: Record<string, unknown> | null = null
-    let changeSummary: string | null = null
+    let changeSummary: string
     let changesCount = 0
 
     if (previousVersion) {

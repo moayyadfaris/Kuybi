@@ -1,6 +1,7 @@
 // @ts-check
 import eslint from '@eslint/js'
-import importPlugin from 'eslint-plugin-import'
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript'
+import importX from 'eslint-plugin-import-x'
 import prettierRecommended from 'eslint-plugin-prettier/recommended'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import unusedImports from 'eslint-plugin-unused-imports'
@@ -48,7 +49,7 @@ export default tseslint.config(
     plugins: {
       'simple-import-sort': simpleImportSort,
       'unused-imports': unusedImports,
-      import: importPlugin
+      'import-x': importX
     },
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
@@ -85,9 +86,9 @@ export default tseslint.config(
         }
       ],
       'simple-import-sort/exports': 'error',
-      'import/first': 'error',
-      'import/newline-after-import': 'error',
-      'import/no-duplicates': 'error',
+      'import-x/first': 'error',
+      'import-x/newline-after-import': 'error',
+      'import-x/no-duplicates': 'error',
       'prettier/prettier': 'error',
       'no-console': ['warn', { allow: ['warn', 'error'] }]
     }
@@ -130,10 +131,10 @@ export default tseslint.config(
     // src/app.module.ts, src/worker.module.ts and src/database are the composition roots.
     files: ['src/**/*.ts'],
     settings: {
-      'import/resolver': { typescript: { project: 'tsconfig.json' } }
+      'import-x/resolver-next': [createTypeScriptImportResolver({ project: 'tsconfig.json' })]
     },
     rules: {
-      'import/no-restricted-paths': [
+      'import-x/no-restricted-paths': [
         'error',
         {
           zones: [

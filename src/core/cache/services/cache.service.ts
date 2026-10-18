@@ -369,7 +369,7 @@ export class CacheService {
         }
 
         const tagKey = `cache:tag:${tag}`
-        let keys: string[] = []
+        let keys: string[]
 
         try {
           if (typeof redisClient.smembers === 'function') {

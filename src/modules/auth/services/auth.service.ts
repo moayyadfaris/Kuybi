@@ -316,7 +316,7 @@ export class AuthService {
     }
 
     // Perform logout
-    let sessionsInvalidated = 0
+    let sessionsInvalidated: number
     if (logoutAll) {
       sessionsInvalidated = await this.sessionsService.revokeAllSessions(
         userId,
