@@ -1,7 +1,7 @@
 import { ENTITIES } from '@app/database/entities'
 import { DataSource } from 'typeorm'
 
-import { IdempotencyService } from '@core/idempotency/idempotency.service'
+import { IDEMPOTENCY_LEASE_MS, IdempotencyService } from '@core/idempotency/idempotency.service'
 import { IdempotencyKey } from '@core/idempotency/idempotency-key.entity'
 
 import { testConfig } from '../../test.config'
@@ -60,5 +60,42 @@ describe('IdempotencyService (PostgreSQL)', () => {
     })
 
     expect((await service.begin('u1:POST /x', 'old', 'other-hash')).kind).toBe('started')
+  })
+  describe('crashed requests (lease)', () => {
+    const startAndAge = async (key: string, ageMs: number) => {
+      const first = await service.begin('u1:POST /x', key, 'hash')
+      if (first.kind !== 'started') throw new Error('expected started')
+      await dataSource.getRepository(IdempotencyKey).update(first.record.id, {
+        lockedAt: new Date(Date.now() - ageMs)
+      })
+    }
+
+    it('keeps answering 409 while the holder may still be running', async () => {
+      await startAndAge('fresh', 60_000)
+
+      expect((await service.begin('u1:POST /x', 'fresh', 'hash')).kind).toBe('in_progress')
+    })
+
+    it('lets a retry take over a key whose holder died', async () => {
+      await startAndAge('crashed', IDEMPOTENCY_LEASE_MS + 1000)
+
+      expect((await service.begin('u1:POST /x', 'crashed', 'hash')).kind).toBe('started')
+    })
+
+    it('hands an abandoned key to exactly one of many concurrent retries', async () => {
+      await startAndAge('crashed-many', IDEMPOTENCY_LEASE_MS + 1000)
+
+      const results = await Promise.all(
+        Array.from({ length: 10 }, () => service.begin('u1:POST /x', 'crashed-many', 'hash'))
+      )
+
+      expect(results.filter(r => r.kind === 'started')).toHaveLength(1)
+    })
+
+    it('still rejects a different request on an abandoned key', async () => {
+      await startAndAge('crashed-other', IDEMPOTENCY_LEASE_MS + 1000)
+
+      expect((await service.begin('u1:POST /x', 'crashed-other', 'other')).kind).toBe('mismatch')
+    })
   })
 })

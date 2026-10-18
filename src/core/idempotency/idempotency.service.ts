@@ -7,6 +7,12 @@ import { IdempotencyKey } from './idempotency-key.entity'
 
 /** How long a key's outcome is kept for replay */
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000
+/**
+ * An in-progress key whose lock is older than this belongs to a request that died
+ * (process crash) and may be taken over by a retry. Longer than the slowest request
+ * (large uploads), or a retry would run alongside a live one.
+ */
+export const IDEMPOTENCY_LEASE_MS = 5 * 60 * 1000
 
 export type BeginResult =
   | { kind: 'started'; record: IdempotencyKey }
@@ -51,10 +57,27 @@ export class IdempotencyService {
         continue
       }
       if (existing.requestHash !== requestHash) return { kind: 'mismatch' }
-      if (existing.status === 'in_progress') return { kind: 'in_progress' }
+      if (existing.status === 'in_progress') {
+        const takenOver = await this.takeOverAbandoned(existing)
+        return takenOver ? { kind: 'started', record: takenOver } : { kind: 'in_progress' }
+      }
       return { kind: 'replay', record: existing }
     }
     return { kind: 'in_progress' }
+  }
+
+  /**
+   * Claims a key whose holder stopped without completing or releasing it. The update is
+   * conditional on the old lock, so of several retries exactly one takes it over.
+   */
+  private async takeOverAbandoned(existing: IdempotencyKey): Promise<IdempotencyKey | null> {
+    if (existing.lockedAt.getTime() > Date.now() - IDEMPOTENCY_LEASE_MS) return null
+    const lockedAt = new Date()
+    const result = await this.repository.update(
+      { id: existing.id, status: 'in_progress', lockedAt: existing.lockedAt },
+      { lockedAt }
+    )
+    return result.affected ? { ...existing, lockedAt } : null
   }
 
   async complete(id: string, responseStatus: number, responseBody: unknown): Promise<void> {

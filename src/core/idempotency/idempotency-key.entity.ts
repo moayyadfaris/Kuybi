@@ -33,6 +33,10 @@ export class IdempotencyKey {
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 
+  /** When the attempt now holding the key started; an old lock means it died */
+  @Column({ type: 'timestamptz', default: () => 'now()' })
+  lockedAt: Date
+
   @Column({ type: 'timestamptz' })
   expiresAt: Date
 }
