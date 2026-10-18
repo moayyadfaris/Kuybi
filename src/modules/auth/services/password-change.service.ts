@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { EmailService } from '@infrastructure/email/services/email.service'
 import { errorMessage } from '@shared/utils/error.util'
@@ -55,7 +61,7 @@ export class PasswordChangeService {
   ) {
     // Validate passwords match
     if (newPassword !== confirmPassword) {
-      throw new UnauthorizedException('New password and confirmation do not match')
+      throw new BadRequestException('New password and confirmation do not match')
     }
 
     // Get user
@@ -68,19 +74,20 @@ export class PasswordChangeService {
     const currentHash = await this.usersService.getPasswordHash(userId)
     const passwordValid = !!currentHash && (await bcrypt.compare(currentPassword, currentHash))
     if (!passwordValid) {
-      throw new UnauthorizedException('Current password is incorrect')
+      // 400, not 401: the caller is authenticated, and clients treat 401 as "log out"
+      throw new BadRequestException('Current password is incorrect')
     }
 
     // Prevent reusing the same password
     const samePassword = await bcrypt.compare(newPassword, currentHash)
     if (samePassword) {
-      throw new UnauthorizedException('New password must be different from current password')
+      throw new BadRequestException('New password must be different from current password')
     }
 
     // Check password strength
     const strengthResult = await this.passwordStrengthService.calculateStrength(newPassword)
     if (!strengthResult.passed) {
-      throw new UnauthorizedException({
+      throw new BadRequestException({
         message: 'Password does not meet strength requirements',
         errors: strengthResult.feedback,
         strength: strengthResult.strength,
@@ -101,19 +108,22 @@ export class PasswordChangeService {
           const remainingHours = Math.ceil(cooldownHours - hoursSinceChange)
           const remainingMinutes = Math.ceil((cooldownHours - hoursSinceChange) * 60)
 
-          throw new UnauthorizedException({
-            message: 'Password was changed too recently',
-            code: 'PASSWORD_CHANGE_COOLDOWN',
-            cooldownHours,
-            remainingTime:
-              remainingHours >= 1
-                ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}`
-                : `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`,
-            lastChangedAt: lastChangeDate,
-            canChangeAfter: new Date(
-              new Date(lastChangeDate).getTime() + cooldownHours * 60 * 60 * 1000
-            )
-          })
+          throw new HttpException(
+            {
+              message: 'Password was changed too recently',
+              code: 'PASSWORD_CHANGE_COOLDOWN',
+              cooldownHours,
+              remainingTime:
+                remainingHours >= 1
+                  ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}`
+                  : `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`,
+              lastChangedAt: lastChangeDate,
+              canChangeAfter: new Date(
+                new Date(lastChangeDate).getTime() + cooldownHours * 60 * 60 * 1000
+              )
+            },
+            HttpStatus.TOO_MANY_REQUESTS
+          )
         }
 
         this.logger.info(
@@ -133,7 +143,7 @@ export class PasswordChangeService {
     for (const historyEntry of passwordHistory) {
       const isReused = await bcrypt.compare(newPassword, historyEntry.passwordHash)
       if (isReused) {
-        throw new UnauthorizedException(
+        throw new BadRequestException(
           'Password has been used recently. Please choose a different password.'
         )
       }

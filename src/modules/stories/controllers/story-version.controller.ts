@@ -9,6 +9,7 @@ import {
   Post,
   Query,
   Req,
+  UnauthorizedException,
   UseGuards
 } from '@nestjs/common'
 import {
@@ -53,7 +54,7 @@ export class StoryVersionController {
   private getUserId(req: AuthenticatedRequest): string {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User not authenticated')
+      throw new UnauthorizedException('User not authenticated')
     }
     return userId
   }
@@ -176,7 +177,7 @@ export class StoryVersionController {
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
     const userId = this.getUserId(req)
-    if (!req.user) throw new Error('User not authenticated')
+    if (!req.user) throw new UnauthorizedException('User not authenticated')
     const commitMessage = dto.commitMessage || `Rollback to version ${dto.versionNumber}`
 
     // Perform rollback and get restored content

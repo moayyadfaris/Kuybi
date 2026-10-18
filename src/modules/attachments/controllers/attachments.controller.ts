@@ -97,7 +97,7 @@ export class AttachmentsController {
   ) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User context missing; ensure auth guard adds req.user')
+      throw new UnauthorizedException('User context missing; ensure auth guard adds req.user')
     }
 
     // Use async processing if requested via body.async or if env var is set
@@ -243,7 +243,7 @@ export class AttachmentsController {
   ) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User context missing')
+      throw new UnauthorizedException('User context missing')
     }
     return this.attachmentService.updateMetadata(id, dto, userId)
   }
@@ -256,7 +256,7 @@ export class AttachmentsController {
   async softDelete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User context missing')
+      throw new UnauthorizedException('User context missing')
     }
     return this.attachmentService.softDelete(id, userId)
   }
@@ -269,7 +269,7 @@ export class AttachmentsController {
   async hardDelete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User context missing')
+      throw new UnauthorizedException('User context missing')
     }
     return this.attachmentService.hardDelete(id, userId)
   }
@@ -282,7 +282,7 @@ export class AttachmentsController {
   async restore(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User context missing')
+      throw new UnauthorizedException('User context missing')
     }
     return this.attachmentService.restore(id, userId)
   }

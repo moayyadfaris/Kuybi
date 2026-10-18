@@ -23,22 +23,17 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
   }
 
   /**
-   * Get password history for a user (most recent first)
+   * Get password history for a user (most recent first).
+   *
+   * Always read from the database: the reuse and cooldown policies decide on this data,
+   * and the rows contain password hashes, which must not be copied into the cache.
    */
   async findByUser(userId: string, limit: number = 5): Promise<PasswordHistory[]> {
-    const cacheKey = `${this.entityName}:user:${userId}:limit:${limit}`
-
-    return this.cacheService.wrap(
-      cacheKey,
-      async () => {
-        return this.repository.find({
-          where: { userId },
-          order: { createdAt: 'DESC' },
-          take: limit
-        })
-      },
-      3600 // Cache for 1 hour
-    )
+    return this.repository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: limit
+    })
   }
 
   /**
@@ -107,16 +102,8 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
     const patterns = [`${this.entityName}:user:${userId}:*`, `${this.entityName}:list:*`]
 
     for (const pattern of patterns) {
-      await this.cacheService.del(pattern)
+      await this.cacheService.delPattern(pattern)
     }
-  }
-
-  /**
-   * Check if a password hash exists in user's history
-   */
-  async isPasswordInHistory(userId: string, passwordHash: string): Promise<boolean> {
-    const history = await this.findByUser(userId, 5)
-    return history.some(entry => entry.passwordHash === passwordHash)
   }
 
   /**

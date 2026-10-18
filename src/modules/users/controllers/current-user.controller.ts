@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Put,
   Req,
+  UnauthorizedException,
   UseGuards
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
@@ -60,7 +61,7 @@ export class CurrentUserController {
   async updateProfileImage(@Req() req: AuthenticatedRequest, @Body() dto: UpdateProfileImageDto) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User ID not found in request')
+      throw new UnauthorizedException('User ID not found in request')
     }
 
     const updated = await this.usersService.updateProfileImage(userId, dto.attachmentId)
@@ -80,7 +81,7 @@ export class CurrentUserController {
   async removeProfileImage(@Req() req: AuthenticatedRequest) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User ID not found in request')
+      throw new UnauthorizedException('User ID not found in request')
     }
 
     await this.usersService.removeProfileImage(userId)

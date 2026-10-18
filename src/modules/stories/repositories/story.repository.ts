@@ -654,6 +654,27 @@ export class StoryRepository extends BaseRepository<Story> {
   }
 
   /**
+   * Clears every cache a write to this story can affect: the story, list/stats caches and
+   * the owner/status/type/priority lists of each given state (pass the state before and
+   * after an update). Call it after the transaction that wrote the story commits.
+   */
+  async invalidateAfterWrite(
+    ...states: Pick<Story, 'id' | 'userId' | 'status' | 'type' | 'priority'>[]
+  ): Promise<void> {
+    const tags = new Set(['stories', 'stats'])
+    for (const state of states) {
+      tags.add(`story:${state.id}`)
+      if (state.userId) tags.add(`user:${state.userId}:stories`)
+      if (state.status) tags.add(`story:status:${state.status}`)
+      if (state.type) tags.add(`story:type:${state.type}`)
+      if (state.priority) tags.add(`story:priority:${state.priority}`)
+      await this.invalidateCacheByEntityId(state.id)
+    }
+    await this.invalidateCacheByTag()
+    await this.cacheService.invalidateTags([...tags])
+  }
+
+  /**
    * Manually invalidate cache for a story
    * Used by other services that modify story relationships directy
    */

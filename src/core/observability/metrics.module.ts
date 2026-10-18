@@ -23,6 +23,11 @@ import { MetricsService } from './metrics.service'
       name: 'user_logins_total',
       help: 'Total number of user logins',
       labelNames: ['role']
+    }),
+    makeCounterProvider({
+      name: 'auth_failed_logins_total',
+      help: 'Failed login attempts by reason',
+      labelNames: ['reason'] // user_not_found | invalid_password | account_locked | user_inactive
     })
   ],
   exports: [MetricsService]
