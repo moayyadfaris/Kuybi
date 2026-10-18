@@ -18,8 +18,6 @@ import { Attachment } from '../attachments/entities/attachment.entity'
 import { StoriesController } from './controllers/stories.controller'
 import { StoryVersionController } from './controllers/story-version.controller'
 import { Story } from './entities/story.entity'
-import { StoryAttachment } from './entities/story-attachment.entity'
-import { StoryTag } from './entities/story-tag.entity'
 import { StoryVersion } from './entities/story-version.entity'
 import { StoriesSeeder } from './seeders/stories.seeder'
 import { StoriesService } from './services/stories.service'
@@ -29,7 +27,7 @@ import { StoryVersionService } from './services/story-version.service'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Story, StoryVersion, StoryAttachment, StoryTag, Attachment]),
+    TypeOrmModule.forFeature([Story, StoryVersion, Attachment]),
     CacheConfigModule,
     MetricsModule,
     AclModule,

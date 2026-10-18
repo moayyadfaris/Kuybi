@@ -82,6 +82,26 @@ jobs:
 
       - run: npm ci
 
+      # Runs the ts-node entry points (migrations, seeders) that the test suites never load.
+      # Integration global setup drops this schema again afterwards.
+      - name: Migrate and seed a clean database
+        env:
+          NODE_ENV: development
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: kuybi
+          DB_PASSWORD: kuybi
+          DB_NAME: kuybi_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          CORS_ORIGIN: http://localhost:3000
+          S3_ACCESS: ci-dummy
+          S3_SECRET: ci-dummy
+        run: |
+          npm run migration:run
+          npm run db:seed:all
+          npm run db:seed:post-types
+
       - name: Unit tests with coverage
         run: npm run test:unit:cov
 

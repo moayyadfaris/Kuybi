@@ -34,6 +34,9 @@
       "@infrastructure/*": ["./src/infrastructure/*"]
     }
   },
+  // ts-node (seeders, migrations) otherwise compiles only imported files and misses
+  // global augmentations such as src/shared/types/express.d.ts
+  "ts-node": { "files": true },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,4 +1,5 @@
 import { config as loadEnv } from 'dotenv'
+import * as path from 'path'
 import { DataSource } from 'typeorm'
 
 import configuration from '../config/configuration'
@@ -17,6 +18,7 @@ export const AppDataSource = new DataSource({
   password: appConfig.database.password,
   database: appConfig.database.name,
   entities: ENTITIES,
-  migrations: ['src/core/database/migrations/*.ts'],
+  // Resolved next to this file, so it works from src (ts-node) and from dist (node)
+  migrations: [path.join(__dirname, 'migrations', '*.{ts,js}')],
   migrationsTableName: 'migrations'
 })
