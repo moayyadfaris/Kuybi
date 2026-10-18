@@ -9,7 +9,7 @@
  */
 const { spawnSync } = require('child_process')
 
-const EXEMPT = [/\/entities\/[^/]+\.entity\.ts\(/, /\/dto\//]
+const EXEMPT = [/\.entity\.ts\(/, /\/dto\//]
 
 const result = spawnSync(
   'npx',
