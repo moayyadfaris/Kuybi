@@ -30,21 +30,16 @@ export class SessionCleanupScheduler implements OnModuleInit {
     )
   }
 
+  /**
+   * Creates or updates a BullMQ job scheduler. Idempotent, and unlike the legacy
+   * repeatable jobs (removed in BullMQ 6) a changed pattern or payload takes effect.
+   */
   private async ensureRepeatableJob(
-    jobId: string,
+    schedulerId: string,
     jobName: SessionCleanupJobType,
     repeat: { pattern: string },
     data: Record<string, unknown> = {}
   ) {
-    const existing = await this.sessionQueue.getRepeatableJobs()
-    const alreadyScheduled = existing.some(job => job.id === jobId)
-    if (alreadyScheduled) {
-      return
-    }
-
-    await this.sessionQueue.add(jobName, data, {
-      repeat,
-      jobId
-    })
+    await this.sessionQueue.upsertJobScheduler(schedulerId, repeat, { name: jobName, data })
   }
 }
