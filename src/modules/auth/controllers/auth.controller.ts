@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Req,
+  UnauthorizedException,
   UseGuards
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
@@ -346,7 +347,7 @@ export class AuthController {
   async logout(@Body() body: LogoutDto, @Req() req: AuthenticatedRequest) {
     const user = req.user
     if (!user) {
-      throw new Error('Authenticated user not found on request context')
+      throw new UnauthorizedException('Authenticated user not found on request context')
     }
 
     // Extract access token from Authorization header
@@ -420,7 +421,7 @@ export class AuthController {
   async listSessions(@Query() query: ListSessionsQueryDto, @Req() req: AuthenticatedRequest) {
     const user = req.user
     if (!user) {
-      throw new Error('Authenticated user not found on request context')
+      throw new UnauthorizedException('Authenticated user not found on request context')
     }
 
     this.logger.info(
@@ -487,7 +488,7 @@ export class AuthController {
   async changePassword(@Body() dto: ChangePasswordDto, @Req() req: AuthenticatedRequest) {
     const user = req.user
     if (!user) {
-      throw new Error('Authenticated user not found on request context')
+      throw new UnauthorizedException('Authenticated user not found on request context')
     }
 
     const context = this.auditService.createContextFromRequest(req, {
@@ -664,7 +665,7 @@ export class AuthController {
   async getPasswordHistory(@Req() req: AuthenticatedRequest) {
     const user = req.user
     if (!user) {
-      throw new Error('Authenticated user not found on request context')
+      throw new UnauthorizedException('Authenticated user not found on request context')
     }
 
     this.logger.info(

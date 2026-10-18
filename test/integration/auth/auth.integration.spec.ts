@@ -664,6 +664,61 @@ describe('Auth Integration Tests', () => {
     const OLD_PASSWORD = 'Original@Pass123'
     const NEW_PASSWORD = 'Changed@Pass456'
 
+    // Validation failures must not be 401: clients treat 401 as "your session is gone"
+    it('answers 400 for invalid input and 429 during the cooldown, never 401', async () => {
+      const data = await UserFactory.createWithHashedPassword({
+        email: `pw-status-${Date.now()}@example.com`,
+        password: OLD_PASSWORD,
+        primaryRoleId: roles['user'].id
+      })
+      const user = await dataSource.getRepository(User).save(data as User)
+      const token = (
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email: user.email, password: OLD_PASSWORD })
+          .expect(201)
+      ).body.accessToken
+      const change = (body: Record<string, string>) =>
+        request(app.getHttpServer())
+          .post('/api/v1/auth/change-password')
+          .set('Authorization', `Bearer ${token}`)
+          .send(body)
+
+      await change({
+        currentPassword: 'Wrong@Pass999',
+        newPassword: NEW_PASSWORD,
+        confirmPassword: NEW_PASSWORD
+      }).expect(400)
+      await change({
+        currentPassword: OLD_PASSWORD,
+        newPassword: NEW_PASSWORD,
+        confirmPassword: 'Other@Pass789'
+      }).expect(400)
+      await change({
+        currentPassword: OLD_PASSWORD,
+        newPassword: OLD_PASSWORD,
+        confirmPassword: OLD_PASSWORD
+      }).expect(400)
+
+      await change({
+        currentPassword: OLD_PASSWORD,
+        newPassword: NEW_PASSWORD,
+        confirmPassword: NEW_PASSWORD
+      }).expect(201)
+      const again = await change({
+        currentPassword: NEW_PASSWORD,
+        newPassword: 'Third@Pass789',
+        confirmPassword: 'Third@Pass789'
+      }).expect(429)
+      expect(again.body.code ?? again.body.message?.code).toBeDefined()
+
+      // The session survived all of it
+      await request(app.getHttpServer())
+        .get('/api/v1/sessions/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200)
+    })
+
     it('keeps the session that made the change and ends the others', async () => {
       const data = await UserFactory.createWithHashedPassword({
         email: `pw-change-${Date.now()}@example.com`,
