@@ -343,24 +343,10 @@ export class TokenBlacklistService {
   }
 
   /**
-   * Scan for blacklist keys (for stats and cleanup)
+   * Scan for blacklist keys (for stats and cleanup). SCAN walks the whole keyspace, so
+   * this is for admin/maintenance use, never the request path.
    */
   private async scanBlacklistKeys(): Promise<string[]> {
-    // This is a simplified implementation
-    // In production, you'd want to use SCAN with cursor for large datasets
-    // (pattern `${this.BLACKLIST_PREFIX}:*`)
-
-    try {
-      // CacheService should expose a method to scan keys
-      // For now, we return empty array (stats will show 0)
-      // You can enhance CacheService to add scanKeys() method
-      return []
-    } catch (error) {
-      this.logger.warn(
-        { error: errorMessage(error), action: 'scan_keys_failed' },
-        'Failed to scan blacklist keys'
-      )
-      return []
-    }
+    return this.cacheService.scanKeys(`${this.BLACKLIST_PREFIX}:*`)
   }
 }

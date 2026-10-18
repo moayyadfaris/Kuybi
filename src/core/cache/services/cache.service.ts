@@ -18,7 +18,9 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
  * (node-redis or ioredis), so every member is optional and checked before use.
  */
 interface RedisClientLike {
-  scanIterator?: (options: { MATCH: string }) => AsyncIterable<string | Buffer>
+  scanIterator?: (options: {
+    MATCH: string
+  }) => AsyncIterable<string | Buffer | (string | Buffer)[]>
   keys?: (pattern: string) => Promise<string[]>
   sadd?: (key: string, member: string) => Promise<unknown>
   smembers?: (key: string) => Promise<string[]>
@@ -111,6 +113,16 @@ export class CacheService {
         pattern
       }
     )
+  }
+
+  /**
+   * List the keys matching a glob pattern (SCAN, never KEYS on node-redis). The keys are
+   * returned without the store namespace, ready for get/del. Returns [] on cache failure.
+   */
+  async scanKeys(pattern: string): Promise<string[]> {
+    return this.executeWithResilience('scanKeys', () => this.scanKeysInternal(pattern), [], {
+      pattern
+    })
   }
 
   /**
@@ -230,9 +242,7 @@ export class CacheService {
     }
   }
 
-  private async deletePatternInternal(pattern: string): Promise<void> {
-    this.logger.info({ pattern }, 'Attempting to delete cache keys matching pattern')
-
+  private async scanKeysInternal(pattern: string): Promise<string[]> {
     const redisClient = this.getRedisClient()
 
     const cacheStore = this.cacheManager as unknown as CacheStoreLike
@@ -248,41 +258,46 @@ export class CacheService {
       ''
 
     // Keyv always joins namespace and key with ':', regardless of the store's keyPrefixSeparator
-    const separator = ':'
+    const prefix = namespace ? `${namespace}:` : ''
+    const namespacedPattern = `${prefix}${pattern}`
+    const stripPrefix = (key: string | Buffer): string => {
+      const value = typeof key === 'string' ? key : key.toString()
+      return prefix && value.startsWith(prefix) ? value.slice(prefix.length) : value
+    }
 
-    const prefix = namespace ? `${namespace}${separator}` : ''
-    const namespacedPattern = prefix ? `${prefix}${pattern}` : pattern
-
-    const keysToDelete: string[] = []
+    const keys = new Set<string>()
 
     if (redisClient?.scanIterator) {
-      for await (const rawKey of redisClient.scanIterator({ MATCH: namespacedPattern })) {
-        const key = typeof rawKey === 'string' ? rawKey : rawKey.toString()
-        const normalizedKey = prefix && key.startsWith(prefix) ? key.slice(prefix.length) : key
-        keysToDelete.push(normalizedKey)
+      // node-redis 5 yields one batch (string[]) per SCAN page; v4 yielded single keys.
+      // SCAN may return a key more than once, hence the Set.
+      for await (const batch of redisClient.scanIterator({ MATCH: namespacedPattern })) {
+        for (const key of Array.isArray(batch) ? batch : [batch]) {
+          keys.add(stripPrefix(key))
+        }
       }
     } else if (redisClient?.keys) {
-      const redisKeys = await redisClient.keys(namespacedPattern)
-      for (const key of redisKeys) {
-        const normalizedKey = prefix && key.startsWith(prefix) ? key.slice(prefix.length) : key
-        keysToDelete.push(normalizedKey)
+      for (const key of await redisClient.keys(namespacedPattern)) {
+        keys.add(stripPrefix(key))
       }
     } else if (typeof keyvInstance?.iterator === 'function') {
-      const toRegex = (value: string): RegExp => {
-        const escaped = value.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
-        return new RegExp(`^${escaped.replace(/\*/g, '.*')}$`)
-      }
-
-      const matcher = toRegex(pattern)
+      const escaped = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
+      const matcher = new RegExp(`^${escaped.replace(/\*/g, '.*')}$`)
       for await (const [key] of keyvInstance.iterator(namespace || undefined)) {
         if (matcher.test(key)) {
-          keysToDelete.push(key)
+          keys.add(key)
         }
       }
     } else {
-      this.logger.warn({ pattern }, 'Cache store does not support pattern deletion')
-      return
+      this.logger.warn({ pattern }, 'Cache store does not support key scanning')
     }
+
+    return [...keys]
+  }
+
+  private async deletePatternInternal(pattern: string): Promise<void> {
+    this.logger.info({ pattern }, 'Attempting to delete cache keys matching pattern')
+
+    const keysToDelete = await this.scanKeysInternal(pattern)
 
     if (keysToDelete.length === 0) {
       this.logger.info({ pattern }, 'No cache keys found matching pattern')
