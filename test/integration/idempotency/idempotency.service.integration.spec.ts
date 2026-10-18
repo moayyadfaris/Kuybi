@@ -71,7 +71,7 @@ describe('IdempotencyService (PostgreSQL)', () => {
     }
 
     it('keeps answering 409 while the holder may still be running', async () => {
-      await startAndAge('fresh', 60_000)
+      await startAndAge('fresh', 10_000)
 
       expect((await service.begin('u1:POST /x', 'fresh', 'hash')).kind).toBe('in_progress')
     })
@@ -126,6 +126,31 @@ describe('IdempotencyService (PostgreSQL)', () => {
       ).toBe(true)
       const replay = await service.begin('u1:POST /x', 'slow', 'hash')
       expect(replay).toMatchObject({ kind: 'replay', record: { responseBody: { from: 'retry' } } })
+    })
+
+    it('keeps a long-running request that sends heartbeats from being taken over', async () => {
+      const running = await service.begin('u1:POST /x', 'long', 'hash')
+      if (running.kind !== 'started') throw new Error('expected started')
+      await dataSource.query(
+        `UPDATE idempotency_keys SET "lockedAt" = now() - interval '10 minutes' WHERE id = $1`,
+        [running.record.id]
+      )
+
+      expect(await service.renew(running.record.id, running.record.lockId)).toBe(true)
+
+      expect((await service.begin('u1:POST /x', 'long', 'hash')).kind).toBe('in_progress')
+    })
+
+    it('tells a heartbeat when its attempt no longer holds the key', async () => {
+      const original = await service.begin('u1:POST /x', 'lost', 'hash')
+      if (original.kind !== 'started') throw new Error('expected started')
+      await dataSource.query(
+        `UPDATE idempotency_keys SET "lockedAt" = now() - interval '10 minutes' WHERE id = $1`,
+        [original.record.id]
+      )
+      await service.begin('u1:POST /x', 'lost', 'hash') // takeover
+
+      expect(await service.renew(original.record.id, original.record.lockId)).toBe(false)
     })
 
     it('still rejects a different request on an abandoned key', async () => {

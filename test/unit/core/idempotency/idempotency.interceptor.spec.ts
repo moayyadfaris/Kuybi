@@ -4,10 +4,10 @@ import {
   ExecutionContext,
   InternalServerErrorException
 } from '@nestjs/common'
-import { lastValueFrom, of, throwError } from 'rxjs'
+import { lastValueFrom, of, Subject, throwError } from 'rxjs'
 
 import { fingerprint, IdempotencyInterceptor } from '@core/idempotency/idempotency.interceptor'
-import { IdempotencyService } from '@core/idempotency/idempotency.service'
+import { IDEMPOTENCY_HEARTBEAT_MS, IdempotencyService } from '@core/idempotency/idempotency.service'
 
 const handler = function create() {}
 
@@ -31,7 +31,8 @@ function serviceWith(begin: IdempotencyService['begin']) {
   return {
     begin: jest.fn(begin),
     complete: jest.fn(),
-    release: jest.fn()
+    release: jest.fn(),
+    renew: jest.fn().mockResolvedValue(true)
   }
 }
 
@@ -104,6 +105,65 @@ describe('IdempotencyInterceptor', () => {
 
     expect(body).toBe('normal')
     expect(service.begin).not.toHaveBeenCalled()
+  })
+})
+
+describe('IdempotencyInterceptor heartbeat', () => {
+  beforeEach(() => jest.useFakeTimers())
+  afterEach(() => jest.useRealTimers())
+
+  const started = () =>
+    serviceWith(async () => ({ kind: 'started', record: { id: 'rec', lockId: 'lock' } as never }))
+
+  it('renews the lock while the handler runs and stops when it finishes', async () => {
+    const service = started()
+    const response = new Subject<unknown>()
+    const done = lastValueFrom(
+      new IdempotencyInterceptor(service as never).intercept(contextFor('u1', 'k'), {
+        handle: () => response
+      })
+    )
+    await jest.advanceTimersByTimeAsync(0)
+
+    await jest.advanceTimersByTimeAsync(IDEMPOTENCY_HEARTBEAT_MS * 3)
+    expect(service.renew).toHaveBeenCalledTimes(3)
+    expect(service.renew).toHaveBeenCalledWith('rec', 'lock')
+
+    response.next({ id: 1 })
+    response.complete()
+    await done
+    await jest.advanceTimersByTimeAsync(IDEMPOTENCY_HEARTBEAT_MS * 3)
+    expect(service.renew).toHaveBeenCalledTimes(3)
+  })
+
+  it('stops renewing once the key was taken over', async () => {
+    const service = started()
+    service.renew.mockResolvedValue(false)
+    const response = new Subject<unknown>()
+    void lastValueFrom(
+      new IdempotencyInterceptor(service as never).intercept(contextFor('u1', 'k'), {
+        handle: () => response
+      })
+    ).catch(() => undefined)
+    await jest.advanceTimersByTimeAsync(0)
+
+    await jest.advanceTimersByTimeAsync(IDEMPOTENCY_HEARTBEAT_MS * 4)
+
+    expect(service.renew).toHaveBeenCalledTimes(1)
+    response.complete()
+  })
+
+  it('does not beat for requests that finish quickly', async () => {
+    const service = started()
+
+    await lastValueFrom(
+      new IdempotencyInterceptor(service as never).intercept(contextFor('u1', 'k'), {
+        handle: () => of('fast')
+      })
+    )
+    await jest.advanceTimersByTimeAsync(IDEMPOTENCY_HEARTBEAT_MS * 3)
+
+    expect(service.renew).not.toHaveBeenCalled()
   })
 })
 
