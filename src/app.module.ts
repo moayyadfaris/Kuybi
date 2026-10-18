@@ -23,6 +23,7 @@ import { CacheConfigModule } from '@core/cache/cache.module'
 import configuration from '@core/config/configuration'
 import { createLoggerConfig } from '@core/config/logger.config'
 import { validate } from '@core/config/validation'
+import { EventsModule } from '@core/events'
 import { HealthModule } from '@core/health/health.module'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingModule } from '@core/logging/logging.module'
@@ -79,6 +80,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     PostTypesModule, // Dynamic Post Types System (Phase 1)
     WebModule, // Public Web API
     LoggingModule,
+    EventsModule,
     ObservabilityModule,
     ShutdownModule // Graceful shutdown handling
   ],

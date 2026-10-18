@@ -22,6 +22,7 @@ import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
+import { EventsModule } from '@core/events'
 import { LoggingModule } from '@core/logging/logging.module'
 
 import { StoryFactory } from '../../factories/story.factory'
@@ -60,6 +61,7 @@ describe('Stories Integration Tests', () => {
     // Create test module
     const moduleBuilder = Test.createTestingModule({
       imports: [
+        EventsModule,
         ConfigModule.forRoot({
           isGlobal: true,
           load: [() => testConfig]

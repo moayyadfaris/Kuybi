@@ -18,6 +18,7 @@ import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
+import { EventsModule } from '@core/events'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
@@ -54,6 +55,7 @@ describe('Auth Integration Tests', () => {
     // Create test module
     const moduleBuilder = Test.createTestingModule({
       imports: [
+        EventsModule,
         ConfigModule.forRoot({
           isGlobal: true,
           load: [() => testConfig]

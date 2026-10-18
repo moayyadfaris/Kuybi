@@ -24,6 +24,7 @@ import { UsersModule } from '@modules/users/users.module'
 import { WebModule } from '@modules/web/web.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
+import { EventsModule } from '@core/events'
 import { LoggingModule } from '@core/logging/logging.module'
 
 import { StoryFactory } from '../../factories/story.factory'
@@ -85,6 +86,7 @@ describe('Public web stories API', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
+        EventsModule,
         ConfigModule.forRoot({
           isGlobal: true,
           load: [

@@ -13,6 +13,7 @@ import { CacheConfigModule } from '@core/cache/cache.module'
 import configuration from '@core/config/configuration'
 import { createLoggerConfig } from '@core/config/logger.config'
 import { validate } from '@core/config/validation'
+import { EventsModule } from '@core/events'
 import { LoggingModule } from '@core/logging/logging.module'
 import { QueueName } from '@core/queues/jobs/types'
 import { EmailProcessor } from '@core/queues/processors/email.processor'
@@ -43,6 +44,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     EmailModule,
     CacheConfigModule,
     LoggingModule,
+    EventsModule,
     ShutdownModule,
     AuthJobsModule,
     AttachmentsJobsModule,

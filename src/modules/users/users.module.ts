@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common'
+import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { EmailModule } from '@infrastructure/email'
 
@@ -8,7 +8,6 @@ import { UserRole } from '../acl/entities/user-role.entity'
 import { AttachmentsModule } from '../attachments/attachments.module'
 import { Attachment } from '../attachments/entities/attachment.entity'
 import { AuditModule } from '../audit/audit.module'
-import { AuthModule } from '../auth/auth.module'
 
 import { AdminUsersController } from './controllers/admin-users.controller'
 import { CurrentUserController } from './controllers/current-user.controller'
@@ -30,8 +29,7 @@ import { UsersService } from './services/users.service'
     AclModule,
     AuditModule,
     EmailModule,
-    AttachmentsModule,
-    forwardRef(() => AuthModule)
+    AttachmentsModule
   ],
   controllers: [CurrentUserController, UsersController, UserRolesController, AdminUsersController],
   providers: [

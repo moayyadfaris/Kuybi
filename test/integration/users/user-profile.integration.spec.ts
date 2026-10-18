@@ -12,6 +12,8 @@ import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
 import { DataSource } from 'typeorm'
 
+import { EventsModule } from '@core/events'
+
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { AuthModule } from '../../../src/modules/auth/auth.module'
 import { User } from '../../../src/modules/users/entities/user.entity'
@@ -47,6 +49,7 @@ describe('User Profile Integration Tests', () => {
 
     const moduleBuilder = Test.createTestingModule({
       imports: [
+        EventsModule,
         ConfigModule.forRoot({
           isGlobal: true,
           load: [() => testConfig]

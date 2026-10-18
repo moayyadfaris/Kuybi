@@ -18,6 +18,7 @@ import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import configuration from '@core/config/configuration'
+import { EventsModule } from '@core/events'
 
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { AccountSecurityJobType, QueueName } from '../../../src/core/queues/jobs/types'
@@ -58,6 +59,7 @@ describe('Account Lockout Integration Tests', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
+        EventsModule,
         ConfigModule.forRoot({
           isGlobal: true,
           load: [

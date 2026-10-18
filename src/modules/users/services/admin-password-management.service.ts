@@ -1,17 +1,11 @@
-import {
-  BadRequestException,
-  forwardRef,
-  Inject,
-  Injectable,
-  NotFoundException
-} from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { EmailQueueService } from '@infrastructure/email'
 import * as bcrypt from 'bcrypt'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Repository } from 'typeorm'
 
-import { SessionsService } from '@modules/auth/services/sessions.service'
+import { EventBus } from '@core/events'
 
 import {
   AdminPasswordResetResponseDto,
@@ -19,6 +13,7 @@ import {
   AdminSetPasswordDto
 } from '../dto/admin-password-management.dto'
 import { User } from '../entities/user.entity'
+import { UserCredentialsResetEvent } from '../events/user-credentials-reset.event'
 
 /**
  * Admin Password Management Service
@@ -36,8 +31,7 @@ export class AdminPasswordManagementService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @Inject(forwardRef(() => SessionsService))
-    private readonly sessionsService: SessionsService,
+    private readonly eventBus: EventBus,
     private readonly emailQueueService: EmailQueueService,
     @InjectPinoLogger(AdminPasswordManagementService.name)
     private readonly logger: PinoLogger
@@ -119,11 +113,9 @@ export class AdminPasswordManagementService {
     user.forcePasswordChange = forcePasswordChange
     await this.userRepository.save(user)
 
-    // Invalidate all user sessions (force re-login)
-    const revokedCount = await this.sessionsService.revokeAllSessions(
-      userId,
-      undefined,
-      `Password reset by admin: ${adminEmail}`
+    // Invalidate all user sessions (force re-login); fails the request if revocation fails
+    await this.eventBus.publish(
+      new UserCredentialsResetEvent(userId, adminId, `Password reset by admin: ${adminEmail}`)
     )
 
     this.logger.warn(
@@ -133,7 +125,7 @@ export class AdminPasswordManagementService {
         adminId,
         adminEmail,
         reason,
-        revokedSessions: revokedCount,
+        sessionsRevoked: true,
         forcePasswordChange,
         action: 'admin_password_reset'
       },
@@ -201,11 +193,9 @@ export class AdminPasswordManagementService {
     user.forcePasswordChange = forcePasswordChange
     await this.userRepository.save(user)
 
-    // Invalidate all user sessions (force re-login)
-    const revokedCount = await this.sessionsService.revokeAllSessions(
-      userId,
-      undefined,
-      `Password set by admin: ${adminEmail}`
+    // Invalidate all user sessions (force re-login); fails the request if revocation fails
+    await this.eventBus.publish(
+      new UserCredentialsResetEvent(userId, adminId, `Password set by admin: ${adminEmail}`)
     )
 
     this.logger.warn(
@@ -215,7 +205,7 @@ export class AdminPasswordManagementService {
         adminId,
         adminEmail,
         reason,
-        revokedSessions: revokedCount,
+        sessionsRevoked: true,
         forcePasswordChange,
         sendNotification,
         action: 'admin_password_set'

@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq'
-import { forwardRef, Module } from '@nestjs/common'
+import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
@@ -24,6 +24,7 @@ import { SessionsController } from './controllers/sessions.controller'
 import { PasswordHistory } from './entities/password-history.entity'
 import { PasswordReset } from './entities/password-reset.entity'
 import { Session } from './entities/session.entity'
+import { UserCredentialsResetListener } from './listeners/user-credentials-reset.listener'
 import { PasswordHistoryRepository } from './repositories/password-history.repository'
 import { SessionRepository } from './repositories/session.repository'
 import { PasswordResetService } from './services/password-reset.service'
@@ -40,7 +41,7 @@ import {
 
 @Module({
   imports: [
-    forwardRef(() => UsersModule),
+    UsersModule,
     EmailModule,
     MetricsModule,
     SentryModule.forRoot(),
@@ -79,6 +80,7 @@ import {
     PasswordResetService,
     PasswordStrengthService,
     JwtStrategy,
+    UserCredentialsResetListener,
     SessionRepository,
     PasswordHistoryRepository
   ],

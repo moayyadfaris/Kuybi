@@ -15,11 +15,14 @@ import { DataSource } from 'typeorm'
 import { AclModule } from '@modules/acl/acl.module'
 import { Role } from '@modules/acl/entities/role.entity'
 import { AuthModule } from '@modules/auth/auth.module'
+import { Session } from '@modules/auth/entities/session.entity'
 import { User } from '@modules/users/entities/user.entity'
+import { AdminPasswordManagementService } from '@modules/users/services/admin-password-management.service'
 import { UsersModule } from '@modules/users/users.module'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import configuration from '@core/config/configuration'
+import { EventsModule } from '@core/events'
 
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
@@ -45,6 +48,7 @@ describe('Session Management Integration Tests', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
+        EventsModule,
         ConfigModule.forRoot({
           isGlobal: true,
           load: [configuration]
@@ -404,6 +408,48 @@ describe('Session Management Integration Tests', () => {
       )
       expect(revokedSession).toBeDefined()
       expect(revokedSession.revokedAt).toBeTruthy()
+    })
+  })
+  // users publishes UserCredentialsResetEvent; the auth listener revokes the sessions
+  describe('Admin password reset (users -> auth domain event)', () => {
+    const RESET_USER_PASSWORD = 'Reset@User123'
+    let resetUser: User
+
+    beforeAll(async () => {
+      const data = await UserFactory.createWithHashedPassword({
+        email: 'reset-target@test-session.com',
+        password: RESET_USER_PASSWORD,
+        primaryRoleId: regularUser.primaryRoleId
+      })
+      resetUser = await dataSource.getRepository(User).save(data as User)
+
+      for (let i = 0; i < 2; i++) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email: resetUser.email, password: RESET_USER_PASSWORD })
+          .expect(201)
+      }
+    })
+
+    const activeSessions = () =>
+      dataSource.getRepository(Session).count({ where: { userId: resetUser.id, isActive: true } })
+
+    it('revokes every session of the user when an admin resets the password', async () => {
+      expect(await activeSessions()).toBe(2)
+
+      const result = await app
+        .get(AdminPasswordManagementService)
+        .resetPassword({ userId: resetUser.id }, superAdminUser.id, superAdminUser.email)
+
+      expect(result.temporaryPassword).toBeTruthy()
+      expect(await activeSessions()).toBe(0)
+    })
+
+    it("does not touch other users' sessions", async () => {
+      const others = await dataSource
+        .getRepository(Session)
+        .count({ where: { userId: regularUser.id, isActive: true } })
+      expect(others).toBeGreaterThan(0)
     })
   })
 })
