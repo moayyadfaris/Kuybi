@@ -6,7 +6,8 @@ import { Counter } from 'prom-client'
 export class MetricsService {
   constructor(
     @InjectMetric('stories_created_total') public storiesCreated: Counter<string>,
-    @InjectMetric('user_logins_total') public userLogins: Counter<string>
+    @InjectMetric('user_logins_total') public userLogins: Counter<string>,
+    @InjectMetric('auth_failed_logins_total') public failedLogins: Counter<string>
   ) {}
 
   incrementStoryCreated(type: string, status: string) {
@@ -22,6 +23,14 @@ export class MetricsService {
       this.userLogins.labels(role).inc()
     } catch (error) {
       // Silently fail or log error to avoid breaking business logic
+    }
+  }
+
+  incrementFailedLogin(reason: string) {
+    try {
+      this.failedLogins.labels(reason).inc()
+    } catch {
+      // Metrics must never break authentication
     }
   }
 }

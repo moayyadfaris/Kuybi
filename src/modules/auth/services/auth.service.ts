@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common'
 import { errorMessage } from '@shared/utils/error.util'
 import * as bcrypt from 'bcrypt'
+import { createHash, randomBytes } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { UsersService } from '@modules/users'
@@ -15,6 +16,16 @@ import { AccessTokenService } from './access-token.service'
 import { AccountLockoutService } from './account-lockout.service'
 import { SessionsService } from './sessions.service'
 import { TokenBlacklistService } from './token-blacklist.service'
+
+/**
+ * Hash of a random secret, compared against when the email is unknown. Same cost (10) as
+ * the stored user passwords, so both failure paths take the same time.
+ */
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(randomBytes(16).toString('hex'), 10)
+
+function hashEmail(email: string): string {
+  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16)
+}
 
 type AccountLockInfo = Awaited<ReturnType<AccountLockoutService['getAccountLockInfo']>>
 
@@ -43,11 +54,10 @@ export class AuthService {
     // Bypass cache to ensure we get User entity with methods (not plain object from cache)
     const user = await this.usersService.findByEmail(email, true)
     if (!user) {
-      // Capture failed login attempts to Sentry for security monitoring
-      this.sentryService.captureMessage(`Failed login attempt for email: ${email}`, 'warning', {
-        email,
-        reason: 'user_not_found'
-      })
+      // Spend the same bcrypt time as a wrong password, so response timing does not
+      // reveal which emails are registered
+      await bcrypt.compare(password, DUMMY_PASSWORD_HASH)
+      this.recordFailedLogin('user_not_found', { emailHash: hashEmail(email) }, context)
       throw new UnauthorizedException('Invalid credentials')
     }
 
@@ -55,16 +65,11 @@ export class AuthService {
     const isLocked = await this.accountLockoutService.isAccountLocked(user.id)
     if (isLocked) {
       const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
-
-      // Log lockout attempt to Sentry
-      this.sentryService.captureMessage(`Locked account login attempt: ${user.id}`, 'warning', {
-        userId: user.id,
-        email: user.email,
-        reason: 'account_locked',
-        lockedUntil: lockInfo.lockedUntil,
-        failedAttempts: lockInfo.failedAttempts
-      })
-
+      this.recordFailedLogin(
+        'account_locked',
+        { userId: user.id, lockedUntil: lockInfo.lockedUntil },
+        context
+      )
       throw accountLockedException(lockInfo)
     }
 
@@ -76,22 +81,20 @@ export class AuthService {
 
       // Get updated lock info to check if account was just locked
       const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
-
-      // Capture invalid password attempts to Sentry
-      this.sentryService.captureMessage(
-        `Invalid password attempt for user: ${user.id}`,
-        'warning',
-        {
-          userId: user.id,
-          email: user.email,
-          reason: 'invalid_password',
-          failedAttempts: lockInfo.failedAttempts,
-          accountLocked: lockInfo.isLocked
-        }
+      this.recordFailedLogin(
+        'invalid_password',
+        { userId: user.id, failedAttempts: lockInfo.failedAttempts },
+        context
       )
 
       // If account was just locked, inform user with 423 Locked
       if (lockInfo.isLocked) {
+        // A lockout is rare and worth an alert; individual failures are only logged
+        this.sentryService.captureMessage('Account locked after failed logins', 'warning', {
+          userId: user.id,
+          failedAttempts: lockInfo.failedAttempts,
+          lockedUntil: lockInfo.lockedUntil
+        })
         throw accountLockedException(lockInfo)
       }
 
@@ -99,12 +102,7 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      // Capture inactive user login attempts
-      this.sentryService.captureMessage(`Inactive user login attempt: ${user.id}`, 'warning', {
-        userId: user.id,
-        email: user.email,
-        reason: 'user_inactive'
-      })
+      this.recordFailedLogin('user_inactive', { userId: user.id }, context)
       throw new UnauthorizedException('User is inactive')
     }
 
@@ -112,6 +110,23 @@ export class AuthService {
     await this.accountLockoutService.resetFailedAttempts(user.id)
 
     return user
+  }
+
+  /**
+   * Failed logins are logged and counted, not sent to Sentry: anyone can trigger them, so
+   * they would exhaust the quota, and the submitted email is personal data (logged only
+   * as a hash, which still lets attempts on one address be correlated).
+   */
+  private recordFailedLogin(
+    reason: 'user_not_found' | 'invalid_password' | 'account_locked' | 'user_inactive',
+    details: Record<string, unknown>,
+    context?: SessionContext
+  ): void {
+    this.metricsService.incrementFailedLogin(reason)
+    this.logger.warn(
+      { action: 'login_failed', reason, ipAddress: context?.ipAddress, ...details },
+      'Login failed'
+    )
   }
 
   async login(user: User, context: SessionContext = {}) {
