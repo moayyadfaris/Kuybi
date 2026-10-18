@@ -50,12 +50,36 @@ export class SentryService {
         environment: this.options.environment,
         release: this.options.release,
         tracesSampleRate: this.options.tracesSampleRate,
-        profilesSampleRate: this.options.profilesSampleRate,
+        // v11 replaced per-transaction profiling with session sampling; 'trace' profiles
+        // while a trace is active, the closest match to the old behaviour
+        profileSessionSampleRate: this.options.profilesSampleRate,
+        profileLifecycle: 'trace',
         debug: this.options.debug,
         attachStacktrace: true,
+        // v11 collects much more by default when this is unset (request and response
+        // bodies, cookies, user info, DB queries, queue payloads). Bodies here carry
+        // passwords, access/refresh tokens and reset links, so keep the v10 baseline.
+        dataCollection: {
+          userInfo: false,
+          cookies: false,
+          httpHeaders: {
+            request: {
+              deny: ['forwarded', '-ip', 'remote-', 'via', '-user', 'authorization', 'cookie']
+            },
+            response: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user', 'set-cookie'] }
+          },
+          httpBodies: [],
+          urlQueryParams: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user', 'token'] },
+          genAI: { inputs: false, outputs: false },
+          databaseQueryData: false,
+          queues: false,
+          graphQL: { document: false, variables: false }
+        },
         integrations: [
           Sentry.httpIntegration(),
-          Sentry.expressIntegration(),
+          // SentryInterceptor / SentryFilter report errors; v11's automatic Express capture
+          // would report them twice
+          Sentry.expressIntegration({ shouldHandleError: () => false }),
           nodeProfilingIntegration()
         ],
         beforeSend: (event, _hint) => {
