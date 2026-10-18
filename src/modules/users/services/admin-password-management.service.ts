@@ -218,7 +218,7 @@ export class AdminPasswordManagementService {
       await this.emailQueueService.sendPasswordChangedEmail({
         to: user.email,
         firstName: user.name.split(' ')[0] || 'User',
-        resetTime: new Date().toLocaleString(),
+        resetTime: new Date().toISOString(),
         resetIpAddress: 'Admin Action'
       })
 

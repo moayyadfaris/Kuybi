@@ -15,6 +15,7 @@ import { createLoggerConfig } from '@core/config/logger.config'
 import { validate } from '@core/config/validation'
 import { EventsModule } from '@core/events'
 import { LoggingModule } from '@core/logging/logging.module'
+import { OutboxRelayModule } from '@core/outbox'
 import { QueueName } from '@core/queues/jobs/types'
 import { EmailProcessor } from '@core/queues/processors/email.processor'
 import { QueuesModule } from '@core/queues/queues.module'
@@ -46,6 +47,7 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     CacheConfigModule,
     LoggingModule,
     SentryModule.forRoot(),
+    OutboxRelayModule,
     EventsModule,
     ShutdownModule,
     AuthJobsModule,

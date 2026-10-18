@@ -88,31 +88,36 @@ export class RegistrationService {
       // For now, we'll send the email and mark as pending verification
     })
 
-    const savedUser = await this.userRepository.save(user)
-
-    // Store verification token in database
-    const emailVerificationRecord = this.emailVerificationRepository.create({
-      userId: savedUser.id,
-      email: savedUser.email,
-      token: emailVerificationToken,
-      expiresAt: emailVerificationExpiry,
-      verified: false,
-      verifiedAt: null,
-      ipAddress: null, // Can be passed from controller if needed
-      userAgent: null
-    })
-
-    await this.emailVerificationRepository.save(emailVerificationRecord)
-
-    // Generate verification link
     const verificationLink = `${this.appUrl}/api/v1/auth/verify-email?token=${emailVerificationToken}`
 
-    // Queue welcome email with verification link
-    await this.emailQueueService.queueWelcomeEmail(
-      user.email,
-      firstName,
-      verificationLink,
-      { priority: 1 } // High priority for welcome emails
+    // User, verification token and welcome email commit together: a user can no longer
+    // end up without a token, or receive an email for a registration that rolled back
+    const { savedUser, emailVerificationRecord } = await this.userRepository.manager.transaction(
+      async manager => {
+        const savedUser = await manager.save(user)
+        const emailVerificationRecord = await manager.save(
+          manager.create(EmailVerification, {
+            userId: savedUser.id,
+            email: savedUser.email,
+            token: emailVerificationToken,
+            expiresAt: emailVerificationExpiry,
+            verified: false,
+            verifiedAt: null,
+            ipAddress: null, // Can be passed from controller if needed
+            userAgent: null
+          })
+        )
+        await this.emailQueueService.queueWelcomeEmail(
+          savedUser.email,
+          firstName,
+          verificationLink,
+          {
+            priority: 1, // High priority for welcome emails
+            manager
+          }
+        )
+        return { savedUser, emailVerificationRecord }
+      }
     )
 
     this.logger.info(
@@ -178,26 +183,26 @@ export class RegistrationService {
     // Update verification record
     verificationRecord.verified = true
     verificationRecord.verifiedAt = new Date()
-    await this.emailVerificationRepository.save(verificationRecord)
 
     // Update user verification status
     user.isEmailVerified = true
     user.emailVerifiedAt = new Date()
     user.isVerified = true // Mark user as fully verified
 
-    const updatedUser = await this.userRepository.save(user)
-
     // Get first name for success email
     const firstName = user.name.split(' ')[0]
     const loginUrl = `${this.appUrl}/login`
 
-    // Queue success email
-    await this.emailQueueService.queueVerifiedSuccessEmail(
-      user.email,
-      firstName,
-      loginUrl,
-      { priority: 1 } // High priority
-    )
+    // Token, user and confirmation email commit together
+    const updatedUser = await this.userRepository.manager.transaction(async manager => {
+      await manager.save(verificationRecord)
+      const updatedUser = await manager.save(user)
+      await this.emailQueueService.queueVerifiedSuccessEmail(user.email, firstName, loginUrl, {
+        priority: 1, // High priority
+        manager
+      })
+      return updatedUser
+    })
 
     this.logger.info(
       {
@@ -230,44 +235,39 @@ export class RegistrationService {
     const emailVerificationToken = randomUUID()
     const emailVerificationExpiry = new Date(Date.now() + this.verificationTokenExpiry)
 
-    // Invalidate any existing unverified tokens for this user
-    await this.emailVerificationRepository.update(
-      {
-        userId: user.id,
-        verified: false
-      },
-      {
-        expiresAt: new Date() // Expire immediately
-      }
-    )
-
-    // Create new verification record
-    const emailVerificationRecord = this.emailVerificationRepository.create({
-      userId: user.id,
-      email: user.email,
-      token: emailVerificationToken,
-      expiresAt: emailVerificationExpiry,
-      verified: false,
-      verifiedAt: null,
-      ipAddress: null,
-      userAgent: null
-    })
-
-    await this.emailVerificationRepository.save(emailVerificationRecord)
-
     const verificationLink = `${this.appUrl}/api/v1/auth/verify-email?token=${emailVerificationToken}`
 
     // Get first name from full name
     const firstName = user.name.split(' ')[0]
 
-    // Queue verification email
-    await this.emailQueueService.queueVerificationEmail(
-      user.email,
-      firstName,
-      verificationLink,
-      '24 hours',
-      { priority: 2 } // Medium-high priority
-    )
+    // Old tokens expire, the new one is stored and its email queued, all or nothing
+    const emailVerificationRecord = await this.userRepository.manager.transaction(async manager => {
+      await manager.update(
+        EmailVerification,
+        { userId: user.id, verified: false },
+        { expiresAt: new Date() } // Expire immediately
+      )
+      const emailVerificationRecord = await manager.save(
+        manager.create(EmailVerification, {
+          userId: user.id,
+          email: user.email,
+          token: emailVerificationToken,
+          expiresAt: emailVerificationExpiry,
+          verified: false,
+          verifiedAt: null,
+          ipAddress: null,
+          userAgent: null
+        })
+      )
+      await this.emailQueueService.queueVerificationEmail(
+        user.email,
+        firstName,
+        verificationLink,
+        '24 hours',
+        { priority: 2, manager } // Medium-high priority
+      )
+      return emailVerificationRecord
+    })
 
     this.logger.info(
       {

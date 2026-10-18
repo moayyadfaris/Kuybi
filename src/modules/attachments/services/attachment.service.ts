@@ -1,4 +1,3 @@
-import { InjectQueue } from '@nestjs/bullmq'
 import {
   BadRequestException,
   ForbiddenException,
@@ -7,13 +6,13 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { errorMessage } from '@shared/utils/error.util'
-import { Queue } from 'bullmq'
 import * as crypto from 'crypto'
 import { PinoLogger } from 'nestjs-pino'
 
 import { Action } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
+import { OutboxService } from '@core/outbox'
 import { AttachmentJobType, QueueName } from '@core/queues/jobs/types'
 
 import {
@@ -57,8 +56,7 @@ export class AttachmentService {
     private readonly accessPolicy: AttachmentAccessPolicy,
     private readonly configService: ConfigService,
     private readonly logger: PinoLogger,
-    @InjectQueue(QueueName.ATTACHMENT_PROCESSING)
-    private readonly attachmentQueue: Queue
+    private readonly outbox: OutboxService
   ) {
     this.logger.setContext(AttachmentService.name)
     // Enable async processing via environment variable
@@ -286,41 +284,51 @@ export class AttachmentService {
       isPublic
     })
 
-    // Create attachment record with "processing" status
-    const attachment = await this.attachmentRepository.create({
-      userId,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-      path: storageKey,
-      category: dto.category,
-      description: dto.description,
-      tags: dto.tags || [],
-      isPublic,
-      checksum,
-      securityStatus: 'processing',
-      metadata: { processingStatus: 'queued' }
-    } as Partial<Attachment>)
-
-    // Queue image processing job if it's an image
-    if (isImage) {
-      await this.attachmentQueue.add(
-        AttachmentJobType.PROCESS_IMAGE,
-        {
-          attachmentId: attachment.id,
-          s3Key: storageKey,
-          originalName: file.originalname,
+    // The record and its processing job commit together: no attachment can be left
+    // "processing" forever because the job was lost (or queued for a rolled-back row)
+    const attachment = await this.attachmentRepository.transaction(async manager => {
+      const attachment = await manager.save(
+        manager.create(Attachment, {
           userId,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          path: storageKey,
           category: dto.category,
+          description: dto.description,
+          tags: dto.tags || [],
           isPublic,
-          generateThumbnails: dto.generateThumbnails !== false
-        },
-        {
-          priority: 5,
-          attempts: 2
-        }
+          checksum,
+          securityStatus: 'processing',
+          metadata: { processingStatus: 'queued' }
+        } as Partial<Attachment>)
       )
+      if (isImage) {
+        await this.outbox.enqueue(
+          {
+            queue: QueueName.ATTACHMENT_PROCESSING,
+            name: AttachmentJobType.PROCESS_IMAGE,
+            data: {
+              attachmentId: attachment.id,
+              s3Key: storageKey,
+              originalName: file.originalname,
+              userId,
+              category: dto.category,
+              isPublic,
+              generateThumbnails: dto.generateThumbnails !== false
+            },
+            options: {
+              priority: 5,
+              attempts: 2
+            }
+          },
+          manager
+        )
+      }
+      return attachment
+    })
 
+    if (isImage) {
       this.logger.info({ attachmentId: attachment.id }, 'Image processing job queued')
     }
 

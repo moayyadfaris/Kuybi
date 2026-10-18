@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { AclModule } from '@modules/acl'
 
+import { OutboxModule } from '@core/outbox'
 import { QueueName } from '@core/queues/jobs/types'
 
 import { AttachmentsController } from './controllers/attachments.controller'
@@ -21,6 +22,7 @@ import { S3Service } from './services/s3.service'
   imports: [
     TypeOrmModule.forFeature([Attachment]),
     AclModule,
+    OutboxModule,
     BullModule.registerQueue({
       name: QueueName.ATTACHMENT_PROCESSING
     })

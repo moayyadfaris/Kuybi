@@ -2,7 +2,9 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable } from '@nestjs/common'
 import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { EntityManager } from 'typeorm'
 
+import { OutboxService } from '@core/outbox'
 import {
   CustomEmailJobData,
   DEFAULT_EMAIL_JOB_OPTIONS,
@@ -16,15 +18,27 @@ import {
 } from '@core/queues/jobs/email-jobs'
 import { QueueName } from '@core/queues/jobs/types'
 
+/** Job options, plus the transaction the email belongs to */
+export type EmailEnqueueOptions = EmailJobOptions & {
+  /**
+   * EntityManager of the caller's transaction: the email is sent if and only if that
+   * transaction commits (e.g. the user row and the welcome email)
+   */
+  manager?: EntityManager
+}
+
 /**
  * Email Queue Service
  *
- * Manages email job creation and queueing for background processing
+ * Emails are recorded in the transactional outbox and reach the email queue through
+ * OutboxRelay, so a Redis outage cannot lose them and a rolled-back transaction cannot
+ * send them. Returned ids are outbox message ids, which are also the BullMQ job ids.
  */
 @Injectable()
 export class EmailQueueService {
   constructor(
     @InjectQueue(QueueName.EMAIL) private readonly emailQueue: Queue,
+    private readonly outbox: OutboxService,
     @InjectPinoLogger(EmailQueueService.name)
     private readonly logger: PinoLogger
   ) {}
@@ -36,29 +50,26 @@ export class EmailQueueService {
     to: string,
     userName: string,
     verificationLink: string,
-    options?: EmailJobOptions
-  ): Promise<string | undefined> {
+    options?: EmailEnqueueOptions
+  ): Promise<string> {
     const jobData: WelcomeEmailJobData = {
       to,
       userName,
       verificationLink
     }
 
-    const job = await this.emailQueue.add(EmailJobType.SEND_WELCOME, jobData, {
-      ...DEFAULT_EMAIL_JOB_OPTIONS,
-      ...options
-    })
+    const jobId = await this.enqueue(EmailJobType.SEND_WELCOME, jobData, options)
 
     this.logger.info(
       {
-        jobId: job.id,
+        jobId,
         jobType: EmailJobType.SEND_WELCOME,
         to
       },
       'Welcome email queued'
     )
 
-    return job.id
+    return jobId
   }
 
   /**
@@ -69,8 +80,8 @@ export class EmailQueueService {
     userName: string,
     verificationLink: string,
     expiresIn?: string,
-    options?: EmailJobOptions
-  ): Promise<string | undefined> {
+    options?: EmailEnqueueOptions
+  ): Promise<string> {
     const jobData: VerificationEmailJobData = {
       to,
       userName,
@@ -78,21 +89,18 @@ export class EmailQueueService {
       expiresIn
     }
 
-    const job = await this.emailQueue.add(EmailJobType.SEND_VERIFICATION, jobData, {
-      ...DEFAULT_EMAIL_JOB_OPTIONS,
-      ...options
-    })
+    const jobId = await this.enqueue(EmailJobType.SEND_VERIFICATION, jobData, options)
 
     this.logger.info(
       {
-        jobId: job.id,
+        jobId,
         jobType: EmailJobType.SEND_VERIFICATION,
         to
       },
       'Verification email queued'
     )
 
-    return job.id
+    return jobId
   }
 
   /**
@@ -102,29 +110,26 @@ export class EmailQueueService {
     to: string,
     userName: string,
     loginUrl: string,
-    options?: EmailJobOptions
-  ): Promise<string | undefined> {
+    options?: EmailEnqueueOptions
+  ): Promise<string> {
     const jobData: VerifiedSuccessEmailJobData = {
       to,
       userName,
       loginUrl
     }
 
-    const job = await this.emailQueue.add(EmailJobType.SEND_VERIFIED_SUCCESS, jobData, {
-      ...DEFAULT_EMAIL_JOB_OPTIONS,
-      ...options
-    })
+    const jobId = await this.enqueue(EmailJobType.SEND_VERIFIED_SUCCESS, jobData, options)
 
     this.logger.info(
       {
-        jobId: job.id,
+        jobId,
         jobType: EmailJobType.SEND_VERIFIED_SUCCESS,
         to
       },
       'Verified success email queued'
     )
 
-    return job.id
+    return jobId
   }
 
   /**
@@ -138,8 +143,8 @@ export class EmailQueueService {
       resetToken: string
       expiresInMinutes: number
     },
-    options?: EmailJobOptions
-  ): Promise<string | undefined> {
+    options?: EmailEnqueueOptions
+  ): Promise<string> {
     const jobData: PasswordResetEmailJobData = {
       to: data.to,
       userName: data.firstName,
@@ -147,21 +152,18 @@ export class EmailQueueService {
       expiresIn: `${data.expiresInMinutes} minutes`
     }
 
-    const job = await this.emailQueue.add(EmailJobType.SEND_PASSWORD_RESET, jobData, {
-      ...DEFAULT_EMAIL_JOB_OPTIONS,
-      ...options
-    })
+    const jobId = await this.enqueue(EmailJobType.SEND_PASSWORD_RESET, jobData, options)
 
     this.logger.info(
       {
-        jobId: job.id,
+        jobId,
         jobType: EmailJobType.SEND_PASSWORD_RESET,
         to: data.to
       },
       'Password reset email queued'
     )
 
-    return job.id
+    return jobId
   }
 
   /**
@@ -174,8 +176,8 @@ export class EmailQueueService {
       resetTime: string
       resetIpAddress: string
     },
-    options?: EmailJobOptions
-  ): Promise<string | undefined> {
+    options?: EmailEnqueueOptions
+  ): Promise<string> {
     const jobData: PasswordChangedEmailJobData = {
       to: data.to,
       userName: data.firstName,
@@ -183,38 +185,29 @@ export class EmailQueueService {
       ipAddress: data.resetIpAddress
     }
 
-    const job = await this.emailQueue.add(EmailJobType.SEND_PASSWORD_CHANGED, jobData, {
-      ...DEFAULT_EMAIL_JOB_OPTIONS,
-      ...options
-    })
+    const jobId = await this.enqueue(EmailJobType.SEND_PASSWORD_CHANGED, jobData, options)
 
     this.logger.info(
       {
-        jobId: job.id,
+        jobId,
         jobType: EmailJobType.SEND_PASSWORD_CHANGED,
         to: data.to
       },
       'Password changed email queued'
     )
 
-    return job.id
+    return jobId
   }
 
   /**
    * Queue a custom email
    */
-  async queueCustomEmail(
-    data: CustomEmailJobData,
-    options?: EmailJobOptions
-  ): Promise<string | undefined> {
-    const job = await this.emailQueue.add(EmailJobType.SEND_CUSTOM, data, {
-      ...DEFAULT_EMAIL_JOB_OPTIONS,
-      ...options
-    })
+  async queueCustomEmail(data: CustomEmailJobData, options?: EmailEnqueueOptions): Promise<string> {
+    const jobId = await this.enqueue(EmailJobType.SEND_CUSTOM, data, options)
 
     this.logger.info(
       {
-        jobId: job.id,
+        jobId,
         jobType: EmailJobType.SEND_CUSTOM,
         to: data.to,
         subject: data.subject
@@ -222,7 +215,25 @@ export class EmailQueueService {
       'Custom email queued'
     )
 
-    return job.id
+    return jobId
+  }
+
+  private enqueue(
+    name: EmailJobType,
+    data: object,
+    options: EmailEnqueueOptions = {}
+  ): Promise<string> {
+    const { manager, delay, ...jobOptions } = options
+    return this.outbox.enqueue(
+      {
+        queue: QueueName.EMAIL,
+        name,
+        data,
+        options: { ...DEFAULT_EMAIL_JOB_OPTIONS, ...jobOptions },
+        delayMs: delay
+      },
+      manager
+    )
   }
 
   /**

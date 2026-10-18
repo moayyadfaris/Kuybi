@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DeepPartial, Repository, SelectQueryBuilder } from 'typeorm'
+import { DeepPartial, EntityManager, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -396,6 +396,17 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   /**
    * Override create to invalidate list caches on new uploads
    */
+  /**
+   * Runs work in a transaction and clears the list caches once it commits (for writes
+   * that must be atomic with other rows, such as an outbox message)
+   */
+  async transaction<T>(work: (manager: EntityManager) => Promise<T>): Promise<T> {
+    const result = await this.repository.manager.transaction(work)
+    await this.invalidateListCaches()
+    await this.invalidateCacheByTag()
+    return result
+  }
+
   async create(data: Partial<Attachment>): Promise<Attachment> {
     const attachment = await super.create(data as DeepPartial<Attachment>)
     await this.invalidateListCaches()
