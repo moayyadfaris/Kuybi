@@ -56,8 +56,9 @@ export class CreateStoryDto {
     default: StoryStatus.DRAFT,
     example: StoryStatus.DRAFT
   })
+  @IsOptional()
   @IsEnum(StoryStatus)
-  status: StoryStatus
+  status?: StoryStatus
 
   @ApiPropertyOptional({
     description: 'Story start time',

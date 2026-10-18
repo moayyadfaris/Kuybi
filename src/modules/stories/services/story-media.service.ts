@@ -1,7 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 
 import { Action } from '@modules/acl'
-import { AttachmentMetadata, AttachmentRepository, S3Service } from '@modules/attachments'
+import {
+  assertAttachmentUsable,
+  AttachmentMetadata,
+  AttachmentRepository,
+  S3Service
+} from '@modules/attachments'
 import { User } from '@modules/users/entities'
 
 import { LoggingContextService } from '@core/logging/logging-context.service'
@@ -57,6 +62,7 @@ export class StoryMediaService {
     if (attachment.userId !== userId) {
       throw new BadRequestException('Attachment does not belong to this user')
     }
+    assertAttachmentUsable(attachment)
 
     // Verify it's an image
     if (!attachment.mimeType.startsWith('image/')) {

@@ -5,7 +5,11 @@ import { PinoLogger } from 'nestjs-pino'
 import { In, Repository } from 'typeorm'
 
 import { Action } from '@modules/acl'
-import { AttachmentRepository, toAttachmentResponse } from '@modules/attachments'
+import {
+  assertAttachmentUsable,
+  AttachmentRepository,
+  toAttachmentResponse
+} from '@modules/attachments'
 import { Attachment } from '@modules/attachments/entities'
 import { CategoryRepository } from '@modules/categories'
 import { Category } from '@modules/categories/entities'
@@ -163,6 +167,13 @@ export class StoryRelationshipService {
 
       if (attachments.length !== dto.attachmentIds.length) {
         throw new BadRequestException('One or more attachments not found')
+      }
+      for (const attachment of attachments) {
+        // Linking a file to a story shows it to everyone who can read the story
+        if (attachment.userId !== userId && !attachment.isPublic) {
+          throw new BadRequestException(`Attachment ${attachment.id} does not belong to you`)
+        }
+        assertAttachmentUsable(attachment)
       }
 
       // Add new attachments (avoiding duplicates)

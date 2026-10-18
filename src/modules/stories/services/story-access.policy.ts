@@ -4,7 +4,8 @@ import { subject } from '@casl/ability'
 import { AbilityFactory, Action, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
-import { Story } from '../entities/story.entity'
+import { Story, StoryStatus } from '../entities/story.entity'
+import { AUTHOR_STATUSES } from '../story-status.rules'
 
 /**
  * Per-story authorization (e.g. the 'user' role may update only its own stories).
@@ -28,6 +29,21 @@ export class StoryAccessPolicy {
     if (!this.can(user, action, story)) {
       throw new ForbiddenException(message)
     }
+  }
+
+  /**
+   * Whether the user may give `story` (or, on create, a new story of theirs) this
+   * status. Editorial statuses need Publish, like PATCH /stories/:id/status.
+   */
+  assertCanSetStatus(user: User, status: StoryStatus, story?: Story): void {
+    if (AUTHOR_STATUSES.has(status)) return
+    const target = story ?? ({ userId: user.id } as Story)
+    this.assertCan(
+      user,
+      Action.Publish,
+      target,
+      `You do not have permission to set status ${status}`
+    )
   }
 
   /** Unrestricted access (super-admin) */

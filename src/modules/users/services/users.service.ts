@@ -10,7 +10,12 @@ import { Repository } from 'typeorm'
 
 import { findDefaultRoleId } from '@modules/acl'
 import { Role } from '@modules/acl/entities'
-import { AttachmentMetadata, AttachmentRepository, S3Service } from '@modules/attachments'
+import {
+  assertAttachmentUsable,
+  AttachmentMetadata,
+  AttachmentRepository,
+  S3Service
+} from '@modules/attachments'
 import { Attachment } from '@modules/attachments/entities'
 
 import { CacheService } from '@core/cache/services/cache.service'
@@ -171,6 +176,7 @@ export class UsersService {
     if (attachment.userId !== userId) {
       throw new BadRequestException('Attachment does not belong to this user')
     }
+    assertAttachmentUsable(attachment)
 
     // Verify it's an image
     if (!attachment.mimeType.startsWith('image/')) {

@@ -13,6 +13,7 @@ import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { AuthModule } from '@modules/auth/auth.module'
+import { PasswordReset } from '@modules/auth/entities/password-reset.entity'
 import { Session } from '@modules/auth/entities/session.entity'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
@@ -778,6 +779,35 @@ describe('Auth Integration Tests', () => {
         status: 'pending'
       })
       expect(user.id).toBeDefined()
+    })
+  })
+  describe('POST /api/v1/auth/reset-password (policies)', () => {
+    const FIRST = 'First@Pass123'
+    const SECOND = 'Second@Pass456'
+
+    const resetTo = async (email: string, newPassword: string) => {
+      await request(app.getHttpServer()).post('/api/v1/auth/forgot-password').send({ email })
+      const { token } = await dataSource
+        .getRepository(PasswordReset)
+        .findOneOrFail({ where: { email, used: false }, order: { createdAt: 'DESC' } })
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token, newPassword })
+    }
+
+    // "Forgot password" must not be a way around the reuse rules of change-password
+    it('rejects the current password and recently used ones', async () => {
+      const email = `reset-policy-${Date.now()}@example.com`
+      const data = await UserFactory.createWithHashedPassword({
+        email,
+        password: FIRST,
+        primaryRoleId: roles['user'].id
+      })
+      await dataSource.getRepository(User).save(data as User)
+
+      expect((await resetTo(email, FIRST)).status).toBe(400)
+      expect((await resetTo(email, SECOND)).status).toBeLessThan(300)
+      expect((await resetTo(email, FIRST)).status).toBe(400) // now in the history
     })
   })
 })

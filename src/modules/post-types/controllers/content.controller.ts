@@ -13,6 +13,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards
 } from '@nestjs/common'
 import {
@@ -24,10 +25,12 @@ import {
   ApiTags
 } from '@nestjs/swagger'
 import { plainToInstance } from 'class-transformer'
+import { Request } from 'express'
 
-import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { AbilityFactory, AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { User } from '@modules/users/entities'
 
-import { GetUser, JwtAuthGuard } from '@core/auth'
+import { GetUser, JwtAuthGuard, OptionalJwtAuthGuard } from '@core/auth'
 import { Idempotent } from '@core/idempotency'
 
 import {
@@ -37,14 +40,33 @@ import {
   ScheduleContentDto,
   UpdateContentDto
 } from '../dto'
+import { PostContent } from '../entities/post-content.entity'
+import { ContentStatus } from '../enums/content-status.enum'
 import { ContentService } from '../services/content.service'
 
 @ApiTags('Content')
 @Controller('v1/content/:postTypeSlug')
 export class ContentController {
-  constructor(private readonly contentService: ContentService) {}
+  constructor(
+    private readonly contentService: ContentService,
+    private readonly abilityFactory: AbilityFactory
+  ) {}
+
+  /** Editors (Update on content) see drafts, scheduled and deleted entries; others only published */
+  private canSeeUnpublished(req: Request): boolean {
+    const user = req.user as User | undefined
+    return !!user && this.abilityFactory.createForUser(user).can(Action.Update, Subject.Content)
+  }
+
+  private assertVisible(content: PostContent, req: Request): void {
+    if (content.status !== ContentStatus.PUBLISHED && !this.canSeeUnpublished(req)) {
+      // Same answer as a missing entry: unpublished content does not exist publicly
+      throw new NotFoundException('Content not found')
+    }
+  }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get content list for a post type' })
   @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
   @ApiQuery({
@@ -90,7 +112,8 @@ export class ContentController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
     @Query('search') search?: string,
-    @Query('includeDeleted') includeDeleted?: string
+    @Query('includeDeleted') includeDeleted?: string,
+    @Req() req?: Request
   ): Promise<ContentListResponseDto> {
     // Validate limit
     const validLimit = Math.min(Math.max(limit || 20, 1), 100)
@@ -101,12 +124,14 @@ export class ContentController {
     // Get post type by slug to get its ID
     const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
 
+    // Status and deleted filters are for editors; everyone else sees published entries only
+    const editor = !!req && this.canSeeUnpublished(req)
     const result = await this.contentService.findAll(postType.id, {
-      status,
+      status: editor ? status : ContentStatus.PUBLISHED,
       limit: validLimit,
       offset: offset || 0,
       search,
-      includeDeleted: shouldIncludeDeleted
+      includeDeleted: editor && shouldIncludeDeleted
     })
 
     return {
@@ -120,6 +145,7 @@ export class ContentController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get content by ID' })
   @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
   @ApiParam({ name: 'id', description: 'Content ID' })
@@ -131,7 +157,8 @@ export class ContentController {
   @ApiResponse({ status: 404, description: 'Content not found' })
   async findOne(
     @Param('postTypeSlug') postTypeSlug: string,
-    @Param('id', ParseUUIDPipe) id: string
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request
   ): Promise<ResponseContentDto> {
     const content = await this.contentService.findOne(id)
     // Verify content belongs to the specified post type
@@ -139,12 +166,14 @@ export class ContentController {
     if (content.postTypeId !== postType.id) {
       throw new NotFoundException('Content not found for this post type')
     }
+    this.assertVisible(content, req)
     return plainToInstance(ResponseContentDto, content, {
       excludeExtraneousValues: true
     })
   }
 
   @Get('slug/:slug')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get content by slug' })
   @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
   @ApiParam({ name: 'slug', description: 'Content slug' })
@@ -156,7 +185,8 @@ export class ContentController {
   @ApiResponse({ status: 404, description: 'Content not found' })
   async findBySlug(
     @Param('postTypeSlug') postTypeSlug: string,
-    @Param('slug') slug: string
+    @Param('slug') slug: string,
+    @Req() req: Request
   ): Promise<ResponseContentDto> {
     // Get post type by slug to get its ID
     const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
@@ -165,6 +195,7 @@ export class ContentController {
     if (!content || content.deletedAt) {
       throw new NotFoundException('Content not found')
     }
+    this.assertVisible(content, req)
 
     return plainToInstance(ResponseContentDto, content, {
       excludeExtraneousValues: true

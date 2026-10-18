@@ -493,8 +493,10 @@ describe('Content Integration Tests', () => {
     })
 
     it('should get content by ID', async () => {
+      // The entry is a draft: only editors may see it (anonymous gets 404)
       const response = await request(app.getHttpServer())
         .get(`/api/v1/content/${postTypeSlug}/${contentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(200)
 
       expect(response.body.id).toBe(contentId)

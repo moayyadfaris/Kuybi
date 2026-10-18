@@ -6,6 +6,8 @@ import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import {
+  AccountLockedEmailJobData,
+  AccountUnlockedEmailJobData,
   CustomEmailJobData,
   EmailJobData,
   EmailJobType,
@@ -80,6 +82,30 @@ export class EmailProcessor extends BaseProcessor {
         case EmailJobType.SEND_PASSWORD_CHANGED:
           result = await this.processPasswordChangedEmail(job.data as PasswordChangedEmailJobData)
           break
+
+        case EmailJobType.SEND_ACCOUNT_LOCKED: {
+          const data = job.data as AccountLockedEmailJobData
+          result = await this.emailService.sendAccountLockedEmail(
+            data.to,
+            data.userName || 'User',
+            new Date(data.lockedAt),
+            new Date(data.lockedUntil),
+            data.failedAttempts
+          )
+          break
+        }
+
+        case EmailJobType.SEND_ACCOUNT_UNLOCKED: {
+          const data = job.data as AccountUnlockedEmailJobData
+          result = await this.emailService.sendAccountUnlockedEmail(
+            data.to,
+            data.userName || 'User',
+            new Date(data.unlockedAt),
+            data.unlockType,
+            data.previousAttempts
+          )
+          break
+        }
 
         case EmailJobType.SEND_CUSTOM:
           result = await this.processCustomEmail(job.data as CustomEmailJobData)
@@ -175,7 +201,8 @@ export class EmailProcessor extends BaseProcessor {
     await this.emailService.sendPasswordChangedEmail(
       data.to,
       data.userName || 'User',
-      data.changeTime,
+      // A string once the job data has been through JSON
+      new Date(data.changeTime),
       data.ipAddress
     )
   }

@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { ScheduleModule } from '@nestjs/schedule'
@@ -31,6 +31,7 @@ import { ObservabilityModule } from '@core/observability/observability.module'
 import { QueuesModule } from '@core/queues/queues.module'
 import { SentryModule } from '@core/sentry'
 import { ShutdownModule } from '@core/shutdown/shutdown.module'
+import { RedisThrottlerStorage } from '@core/throttling/redis-throttler.storage'
 
 @Module({
   imports: [
@@ -50,7 +51,23 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
       useFactory: (configService: ConfigService) => {
         const ttl = configService.get<number>('rateLimit.ttl', 60)
         const limit = configService.get<number>('rateLimit.limit', 20)
+        const logger = new Logger('RateLimit')
+        let lastWarning = 0
         return {
+          // Shared by all API instances; per-process fallback if Redis is unreachable
+          storage: new RedisThrottlerStorage(
+            {
+              host: configService.get<string>('redis.host'),
+              port: configService.get<number>('redis.port'),
+              password: configService.get<string>('redis.password') || undefined,
+              db: configService.get<number>('redis.db', 0)
+            },
+            error => {
+              if (Date.now() - lastWarning < 60_000) return
+              lastWarning = Date.now()
+              logger.warn(`Rate-limit storage unavailable, counting per process: ${String(error)}`)
+            }
+          ),
           throttlers: [
             {
               name: 'default',
