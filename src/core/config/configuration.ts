@@ -120,7 +120,13 @@ export default () => {
       bucket: defaultBucket,
       region: process.env.S3_REGION || 'us-east-1',
       baseUrl: process.env.S3_BASE_URL || `https://${defaultBucket}.s3.amazonaws.com`,
-      uploadPrefix: process.env.S3_UPLOAD_PREFIX || 'uploads'
+      uploadPrefix: process.env.S3_UPLOAD_PREFIX || 'uploads',
+      accessKeyId:
+        process.env.S3_ACCESS || process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey:
+        process.env.S3_SECRET ||
+        process.env.S3_SECRET_ACCESS_KEY ||
+        process.env.AWS_SECRET_ACCESS_KEY
     },
     email: {
       from: process.env.EMAIL_FROM || 'noreply@kuybi.dev',

@@ -47,6 +47,9 @@ export const testConfig = {
       process.env.S3_BUCKET_NAME ||
       'test-bucket',
     region: process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1',
-    baseUrl: process.env.S3_BASE_URL || process.env.AWS_S3_ENDPOINT || ''
+    baseUrl: process.env.S3_BASE_URL || process.env.AWS_S3_ENDPOINT || '',
+    // Tests never call real S3; dummy keys let S3Service start without a .env.test (CI)
+    accessKeyId: process.env.S3_ACCESS || 'test-access-key',
+    secretAccessKey: process.env.S3_SECRET || 'test-secret-key'
   }
 }

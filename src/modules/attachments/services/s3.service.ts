@@ -63,11 +63,10 @@ export class S3Service {
     this.bucket = this.configService.get<string>('s3.bucket') ?? ''
     this.baseUrl = this.configService.get<string>('s3.baseUrl', '')
 
-    // WORKAROUND: Use process.env directly as ConfigService is returning empty strings
-    const accessKeyId =
-      process.env.S3_ACCESS || process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
-    const secretAccessKey =
-      process.env.S3_SECRET || process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY
+    // Read through config like every other setting (configuration.ts maps S3_ACCESS /
+    // S3_SECRET and their aliases); the old process.env read ignored injected config
+    const accessKeyId = this.configService.get<string>('s3.accessKeyId')
+    const secretAccessKey = this.configService.get<string>('s3.secretAccessKey')
 
     if (!this.bucket) {
       throw new Error('S3 bucket configuration is missing')
