@@ -20,6 +20,7 @@ import { CreateStoryDto, StoryFilterDto, StoryStatsDto, UpdateStoryDto } from '.
 import { Story, StoryStatus, StoryType } from '../entities/story.entity'
 import { VersionType } from '../entities/story-version.entity'
 import { StoryRepository } from '../repositories/story.repository'
+import { assertStatusTransition } from '../story-status.rules'
 
 import { StoryAccessPolicy } from './story-access.policy'
 import { StoryEnrichmentService } from './story-enrichment.service'
@@ -64,8 +65,13 @@ export class StoriesService {
     requestLogger.info({ userId, type: createStoryDto.type }, 'Creating story')
 
     const { categoryIds, tagIds, tags, ...storyData } = createStoryDto
+    storyData.status = storyData.status ?? StoryStatus.DRAFT
 
     try {
+      // Authors may create drafts or submit for review; anything else needs Publish
+      assertStatusTransition(undefined, storyData.status)
+      this.accessPolicy.assertCanSetStatus(currentUser, storyData.status)
+
       if (storyData.parentId) {
         await this.assertParentExists(storyData.parentId)
       }
@@ -268,6 +274,13 @@ export class StoriesService {
       }
 
       const { tags, categoryIds, tagIds, ...updateData } = updateStoryDto
+
+      // A status change through PATCH (or a rollback) follows the same rules as
+      // PATCH /status: valid transition, and Publish for editorial statuses
+      if (updateData.status !== undefined && updateData.status !== story.status) {
+        assertStatusTransition(story.status, updateData.status)
+        this.accessPolicy.assertCanSetStatus(currentUser, updateData.status, story)
+      }
 
       if (updateData.parentId && updateData.parentId !== story.parentId) {
         if (updateData.parentId === id) {

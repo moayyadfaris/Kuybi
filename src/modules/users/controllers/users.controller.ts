@@ -1,27 +1,56 @@
 import {
   Controller,
   DefaultValuePipe,
+  ForbiddenException,
   Get,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Query,
+  Req,
   UseGuards
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
+import { subject } from '@casl/ability'
+import { Request } from 'express'
 
-import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { AbilityFactory, AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 
 import { JwtAuthGuard } from '@core/auth'
 
 import { UserProfileDto } from '../dto/user-profile.dto'
+import { User } from '../entities/user.entity'
 import { UsersService } from '../services/users.service'
+
+interface AuthenticatedRequest extends Request {
+  user?: User
+}
 
 @ApiTags('Users')
 @ApiBearerAuth()
 @Controller('v1/users')
 @UseGuards(JwtAuthGuard, AbilityGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly abilityFactory: AbilityFactory
+  ) {}
+
+  /**
+   * Whether the caller may read this user's record. The route guard only checks
+   * "Read User" in general, which the 'user' role has for itself ({ id: own id }).
+   */
+  private canRead(caller: User, userId: string): boolean {
+    const target = subject(Subject.User, { id: userId }) as unknown as User
+    return this.abilityFactory.createForUser(caller).can(Action.Read, target)
+  }
+
+  /** Lists and statistics cover every user, so they need read access to other users */
+  private assertCanReadEveryone(req: AuthenticatedRequest): void {
+    if (!req.user || !this.canRead(req.user, '\u0000someone-else')) {
+      throw new ForbiddenException('You do not have permission to read other users')
+    }
+  }
 
   @Get()
   @CheckAbility({ action: Action.Read, subject: Subject.User })
@@ -61,6 +90,7 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   async listUsers(
+    @Req() req: AuthenticatedRequest,
     @Query('search') search?: string,
     @Query('role') role?: string,
     @Query('isActive') isActive?: boolean,
@@ -68,6 +98,7 @@ export class UsersController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number
   ) {
+    this.assertCanReadEveryone(req)
     const [users, total] = await this.usersService.searchUsers({
       search,
       role,
@@ -108,7 +139,8 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'User statistics retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  async getUserStats() {
+  async getUserStats(@Req() req: AuthenticatedRequest) {
+    this.assertCanReadEveryone(req)
     return this.usersService.getUserStats()
   }
 
@@ -122,7 +154,11 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserById(@Param('id') id: string) {
+  async getUserById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    // Someone else's profile without permission: 404, so ids cannot be probed
+    if (!req.user || !this.canRead(req.user, id)) {
+      throw new NotFoundException('User not found')
+    }
     return this.usersService.getUserProfile(id)
   }
 }

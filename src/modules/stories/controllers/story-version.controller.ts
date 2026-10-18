@@ -35,6 +35,7 @@ import { CreateVersionDto } from '../dto/version/create-version.dto'
 import { MergeVersionDto } from '../dto/version/merge-version.dto'
 import { RollbackVersionDto } from '../dto/version/rollback-version.dto'
 import { StoriesService } from '../services/stories.service'
+import { StoryAccessPolicy } from '../services/story-access.policy'
 import { StoryVersionService } from '../services/story-version.service'
 
 interface AuthenticatedRequest extends Request {
@@ -48,8 +49,24 @@ interface AuthenticatedRequest extends Request {
 export class StoryVersionController {
   constructor(
     private readonly versionService: StoryVersionService,
-    private readonly storiesService: StoriesService
+    private readonly storiesService: StoriesService,
+    private readonly accessPolicy: StoryAccessPolicy
   ) {}
+
+  /**
+   * Version history is part of the story: changing it (snapshots, branches, merges,
+   * tags, rollbacks) requires Update on that story, not just on versions in general
+   */
+  private async assertCanEditStory(storyId: number, req: AuthenticatedRequest): Promise<void> {
+    if (!req.user) throw new UnauthorizedException('User not authenticated')
+    const story = await this.storiesService.findOne(storyId)
+    this.accessPolicy.assertCan(
+      req.user,
+      Action.Update,
+      story,
+      'You do not have permission to modify the versions of this story'
+    )
+  }
 
   private getUserId(req: AuthenticatedRequest): string {
     const userId = req.user?.id
@@ -148,6 +165,7 @@ export class StoryVersionController {
     @Body() dto: CreateVersionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
+    await this.assertCanEditStory(storyId, req)
     const userId = this.getUserId(req)
     const story = await this.storiesService.findOne(storyId)
     const version = await this.versionService.createVersion(story, dto, userId)
@@ -176,6 +194,7 @@ export class StoryVersionController {
     @Body() dto: RollbackVersionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
+    await this.assertCanEditStory(storyId, req)
     const userId = this.getUserId(req)
     if (!req.user) throw new UnauthorizedException('User not authenticated')
     const commitMessage = dto.commitMessage || `Rollback to version ${dto.versionNumber}`
@@ -236,6 +255,7 @@ export class StoryVersionController {
     @Body() dto: CreateBranchDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
+    await this.assertCanEditStory(storyId, req)
     const userId = this.getUserId(req)
     const version = await this.versionService.createBranch(
       storyId,
@@ -273,6 +293,7 @@ export class StoryVersionController {
     @Body() dto: MergeVersionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
+    await this.assertCanEditStory(storyId, req)
     const userId = this.getUserId(req)
     const version = await this.versionService.mergeVersion(
       storyId,
@@ -359,8 +380,10 @@ export class StoryVersionController {
   async tagVersion(
     @Param('storyId', ParseIntPipe) storyId: number,
     @Param('versionNumber', ParseIntPipe) versionNumber: number,
-    @Body('tag') tag: string
+    @Body('tag') tag: string,
+    @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
+    await this.assertCanEditStory(storyId, req)
     const version = await this.versionService.tagVersion(storyId, versionNumber, tag)
     return this.versionService.toResponseDto(version)
   }

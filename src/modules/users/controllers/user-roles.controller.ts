@@ -94,6 +94,7 @@ export class UserRolesController {
   }
 
   @Post(':roleId/activate')
+  @UseGuards(RoleHierarchyGuard)
   @CheckAbility({ action: Action.Assign, subject: Subject.Role })
   @ApiOperation({ summary: 'Activate a user role assignment' })
   @ApiParam({ name: 'userId', description: 'User UUID' })
@@ -110,6 +111,7 @@ export class UserRolesController {
   }
 
   @Post(':roleId/deactivate')
+  @UseGuards(RoleHierarchyGuard)
   @CheckAbility({ action: Action.Assign, subject: Subject.Role })
   @ApiOperation({ summary: 'Deactivate a user role assignment' })
   @ApiParam({ name: 'userId', description: 'User UUID' })

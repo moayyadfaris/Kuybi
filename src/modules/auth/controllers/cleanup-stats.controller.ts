@@ -1,13 +1,16 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 
+import { SuperAdminGuard } from '@modules/acl'
+
 import { JwtAuthGuard } from '@core/auth'
 
 import { SessionCleanupService } from '../services'
 
 @ApiTags('admin/cleanup')
 @Controller('v1/admin/cleanup')
-@UseGuards(JwtAuthGuard)
+// Global maintenance (statistics, manual cleanup runs): super-admins only
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
 @ApiBearerAuth()
 export class CleanupStatsController {
   constructor(private readonly cleanupService: SessionCleanupService) {}

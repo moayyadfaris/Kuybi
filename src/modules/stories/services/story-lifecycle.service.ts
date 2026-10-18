@@ -12,6 +12,7 @@ import { User } from '@modules/users/entities'
 
 import { Story, StoryStatus } from '../entities/story.entity'
 import { StoryRepository } from '../repositories/story.repository'
+import { assertStatusTransition } from '../story-status.rules'
 
 import { StoriesService } from './stories.service'
 import { StoryAccessPolicy } from './story-access.policy'
@@ -179,8 +180,7 @@ export class StoryLifecycleService {
         'You do not have permission to change the status of this story'
       )
 
-      // Validate status transition (simplified - in production, use state machine)
-      this.validateStatusTransition(story.status, status)
+      assertStatusTransition(story.status, status)
 
       const updated = await this.storyRepository.update(id, {
         status,
@@ -206,21 +206,6 @@ export class StoryLifecycleService {
         'Failed to update story status'
       )
       throw error
-    }
-  }
-
-  /**
-   * Validate status transition (simplified)
-   * In production, implement proper state machine
-   */
-  private validateStatusTransition(currentStatus: StoryStatus, newStatus: StoryStatus): void {
-    // Example validation - customize based on business rules
-    if (currentStatus === StoryStatus.PUBLISHED && newStatus === StoryStatus.DRAFT) {
-      throw new BadRequestException('Cannot revert published story to draft')
-    }
-
-    if (currentStatus === StoryStatus.DELETED && newStatus !== StoryStatus.DRAFT) {
-      throw new BadRequestException('Deleted stories can only be restored to draft status')
     }
   }
 }

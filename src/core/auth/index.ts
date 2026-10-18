@@ -11,3 +11,4 @@ export {
 } from './allow-password-change-token.decorator'
 export { GetUser } from './get-user.decorator'
 export { JwtAuthGuard } from './jwt-auth.guard'
+export { OptionalJwtAuthGuard } from './optional-jwt-auth.guard'
