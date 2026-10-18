@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common'
-import { ThrottlerModule } from '@nestjs/throttler'
 
 import { CategoriesModule } from '@modules/categories'
 import { StoriesModule } from '@modules/stories'
@@ -12,14 +11,7 @@ import { WebStoriesService } from './services/web-stories.service'
 @Module({
   imports: [
     StoriesModule, // For StoryRepository
-    CategoriesModule, // For CategoryRepository
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: 900000, // 15 minutes in milliseconds
-        limit: 100 // 100 requests per 15 minutes
-      }
-    ])
+    CategoriesModule // For CategoryRepository
   ],
   controllers: [WebStoriesController, WebCategoriesController],
   providers: [WebStoriesService, WebCategoriesService],

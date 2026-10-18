@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -12,6 +13,7 @@ import {
   Min
 } from 'class-validator'
 
+import { STORY_SORT_FIELDS, type StorySortField } from '../constants/story-sort-fields'
 import { StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
 
 export enum StorySortOrder {
@@ -150,11 +152,12 @@ export class StoryFilterDto {
 
   @ApiPropertyOptional({
     description: 'Sort by field',
+    enum: STORY_SORT_FIELDS,
     example: 'createdAt'
   })
   @IsOptional()
-  @IsString()
-  sortBy?: string = 'createdAt'
+  @IsIn(STORY_SORT_FIELDS)
+  sortBy?: StorySortField = 'createdAt'
 
   @ApiPropertyOptional({
     description: 'Sort order',

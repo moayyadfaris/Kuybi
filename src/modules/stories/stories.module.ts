@@ -20,7 +20,10 @@ import { StoryRepository } from './repositories/story.repository'
 import { StoryVersionRepository } from './repositories/story-version.repository'
 import { StoriesSeeder } from './seeders/stories.seeder'
 import { StoriesService } from './services/stories.service'
+import { StoryAccessPolicy } from './services/story-access.policy'
 import { StoryEnrichmentService } from './services/story-enrichment.service'
+import { StoryLifecycleService } from './services/story-lifecycle.service'
+import { StoryMediaService } from './services/story-media.service'
 import { StoryRelationshipService } from './services/story-relationship.service'
 import { StoryVersionService } from './services/story-version.service'
 
@@ -39,6 +42,9 @@ import { StoryVersionService } from './services/story-version.service'
 
   controllers: [StoriesController, StoryVersionController],
   providers: [
+    StoryLifecycleService,
+    StoryMediaService,
+    StoryAccessPolicy,
     StoriesService,
     StoryVersionService,
     StoryRepository,

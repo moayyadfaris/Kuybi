@@ -33,7 +33,7 @@ import {
 import { RefreshTokenDto } from '../dto/refresh-token.dto'
 import { RegisterUserDto, ResendVerificationDto, VerifyEmailDto } from '../dto/register.dto'
 import { PasswordHistoryRepository } from '../repositories/password-history.repository'
-import { AuthService } from '../services'
+import { AuthService, PasswordChangeService, SessionListingService } from '../services'
 import { PasswordResetService } from '../services/password-reset.service'
 import { PasswordStrengthService } from '../services/password-strength.service'
 import { RegistrationService } from '../services/registration.service'
@@ -49,6 +49,8 @@ export class AuthController {
     @InjectPinoLogger(AuthController.name)
     private readonly logger: PinoLogger,
     private readonly authService: AuthService,
+    private readonly passwordChangeService: PasswordChangeService,
+    private readonly sessionListingService: SessionListingService,
     private readonly registrationService: RegistrationService,
     private readonly passwordResetService: PasswordResetService,
     private readonly passwordStrengthService: PasswordStrengthService,
@@ -431,7 +433,7 @@ export class AuthController {
       'List sessions request'
     )
 
-    const result = await this.authService.listSessions(user.id, query)
+    const result = await this.sessionListingService.list(user.id, query)
 
     this.logger.info(
       {
@@ -505,10 +507,10 @@ export class AuthController {
       'Password change attempt'
     )
 
-    // Extract current session ID from JWT token to keep it active if requested
-    const currentSessionId = (req as AuthenticatedRequest & { sessionId?: string }).sessionId
+    // Session of the access token used for this request (set by JwtStrategy); kept active
+    const currentSessionId = req.sessionId
 
-    const result = await this.authService.changePassword(
+    const result = await this.passwordChangeService.changePassword(
       user.id,
       dto.currentPassword,
       dto.newPassword,

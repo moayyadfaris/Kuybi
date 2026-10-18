@@ -232,6 +232,27 @@ describe('Auth Integration Tests', () => {
       expect(response.body).toHaveProperty('refreshToken')
     })
 
+    it('ends the old session: its access token stops working, the new one works', async () => {
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: testUser.email, password: TEST_PASSWORD })
+        .expect(201)
+      const me = (token: string) =>
+        request(app.getHttpServer())
+          .get('/api/v1/sessions/me')
+          .set('Authorization', `Bearer ${token}`)
+
+      await me(login.body.accessToken).expect(200)
+
+      const refreshed = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: login.body.refreshToken })
+        .expect(201)
+
+      await me(login.body.accessToken).expect(401)
+      await me(refreshed.body.accessToken).expect(200)
+    })
+
     it('should fail with invalid refresh token', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
@@ -637,6 +658,46 @@ describe('Auth Integration Tests', () => {
           confirmPassword: 'weak'
         })
         .expect(400)
+    })
+  })
+  describe('POST /api/v1/auth/change-password (sessions)', () => {
+    const OLD_PASSWORD = 'Original@Pass123'
+    const NEW_PASSWORD = 'Changed@Pass456'
+
+    it('keeps the session that made the change and ends the others', async () => {
+      const data = await UserFactory.createWithHashedPassword({
+        email: `pw-change-${Date.now()}@example.com`,
+        password: OLD_PASSWORD,
+        primaryRoleId: roles['user'].id
+      })
+      const user = await dataSource.getRepository(User).save(data as User)
+      const login = () =>
+        request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email: user.email, password: OLD_PASSWORD })
+          .expect(201)
+      const me = (token: string) =>
+        request(app.getHttpServer())
+          .get('/api/v1/sessions/me')
+          .set('Authorization', `Bearer ${token}`)
+
+      const current = (await login()).body.accessToken
+      const other = (await login()).body.accessToken
+
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${current}`)
+        .send({
+          currentPassword: OLD_PASSWORD,
+          newPassword: NEW_PASSWORD,
+          confirmPassword: NEW_PASSWORD
+        })
+        .expect(201)
+
+      expect(response.body.sessionsRevoked).toBe(1)
+      expect(response.body.message).toContain('Other sessions have been logged out')
+      await me(current).expect(200)
+      await me(other).expect(401)
     })
   })
 })

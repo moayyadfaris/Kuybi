@@ -4,6 +4,8 @@ declare global {
     interface Request {
       id?: string
       requestId?: string
+      /** Session of the request's access token (`sid` claim); set by JwtStrategy */
+      sessionId?: string
     }
 
     /** Authenticated principal attached by JwtStrategy (a User entity) */

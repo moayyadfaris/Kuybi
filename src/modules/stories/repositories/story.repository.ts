@@ -5,6 +5,7 @@ import { Between, Brackets, IsNull, Repository } from 'typeorm'
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
+import { STORY_SORT_FIELDS, type StorySortField } from '../constants/story-sort-fields'
 import { Story, StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
 
 /**
@@ -405,9 +406,12 @@ export class StoryRepository extends BaseRepository<Story> {
 
     builder.skip(offset).take(limit)
 
-    // Apply sorting
-    const sortBy = filters.sortBy || 'createdAt'
-    const sortOrder = filters.sortOrder || 'DESC'
+    // Apply sorting. sortBy becomes an identifier in ORDER BY, so only allowlisted
+    // columns get through, whoever the caller is (the DTO validates it too)
+    const sortBy: StorySortField = STORY_SORT_FIELDS.includes(filters.sortBy as StorySortField)
+      ? (filters.sortBy as StorySortField)
+      : 'createdAt'
+    const sortOrder = filters.sortOrder === 'ASC' ? 'ASC' : 'DESC'
     builder.orderBy(`story.${sortBy}`, sortOrder)
 
     const results = await builder.getMany()

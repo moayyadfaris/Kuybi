@@ -29,9 +29,12 @@ import { PasswordStrengthService } from './services/password-strength.service'
 import { RegistrationService } from './services/registration.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import {
+  AccessTokenService,
   AccountLockoutService,
   AuthService,
+  PasswordChangeService,
   SessionCleanupService,
+  SessionListingService,
   SessionsService,
   TokenBlacklistService
 } from './services'
@@ -68,6 +71,9 @@ import {
   controllers: [AuthController, SessionsController, CleanupStatsController],
   providers: [
     AuthService,
+    AccessTokenService,
+    PasswordChangeService,
+    SessionListingService,
     SessionsService,
     SessionCleanupService,
     TokenBlacklistService,
