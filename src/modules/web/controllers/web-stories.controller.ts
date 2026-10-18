@@ -1,13 +1,13 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common'
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
-import { Throttle } from '@nestjs/throttler'
+import { minutes, Throttle } from '@nestjs/throttler'
 
 import { WebStoriesQueryDto } from '../dto/web-query.dto'
 import { WebStoriesService } from '../services/web-stories.service'
 
 @ApiTags('Web - Public Stories')
 @Controller('web/v1/stories')
-@Throttle({ default: { limit: 100, ttl: 900000 } }) // 100 requests per 15 minutes
+@Throttle({ default: { limit: 100, ttl: minutes(15) } }) // applied by the global ThrottlerGuard
 export class WebStoriesController {
   constructor(private readonly webStoriesService: WebStoriesService) {}
 
