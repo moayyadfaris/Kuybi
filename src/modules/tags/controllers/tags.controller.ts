@@ -11,23 +11,17 @@ import {
   Post,
   Query,
   Req,
+  UnauthorizedException,
   UseGuards
 } from '@nestjs/common'
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags
-} from '@nestjs/swagger'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Request } from 'express'
 
 import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 
 import { JwtAuthGuard } from '@core/auth'
 
-import { CreateTagDto, UpdateTagDto } from '../dto'
+import { CreateTagDto, ListTagsQueryDto, UpdateTagDto } from '../dto'
 import { TagsService } from '../services/tags.service'
 
 interface AuthenticatedRequest extends Request {
@@ -55,21 +49,16 @@ export class TagsController {
   create(@Body() createTagDto: CreateTagDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User not authenticated')
+      throw new UnauthorizedException()
     }
     return this.tagsService.create(createTagDto, userId)
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all tags' })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['name', 'sortOrder', 'createdAt'] })
-  @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
   @ApiResponse({ status: 200, description: 'List of tags' })
-  findAll(
-    @Query('sortBy') sortBy?: 'name' | 'sortOrder' | 'createdAt',
-    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC'
-  ) {
-    return this.tagsService.findAll({ sortBy, sortOrder })
+  findAll(@Query() query: ListTagsQueryDto) {
+    return this.tagsService.findAll({ sortBy: query.sortBy, sortOrder: query.sortOrder })
   }
 
   @Get('system')
@@ -106,7 +95,7 @@ export class TagsController {
   ) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User not authenticated')
+      throw new UnauthorizedException()
     }
     return this.tagsService.update(id, updateTagDto, userId)
   }
@@ -125,7 +114,7 @@ export class TagsController {
   remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User not authenticated')
+      throw new UnauthorizedException()
     }
     return this.tagsService.remove(id, userId)
   }
@@ -144,7 +133,7 @@ export class TagsController {
   hardDelete(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id
     if (!userId) {
-      throw new Error('User not authenticated')
+      throw new UnauthorizedException()
     }
     return this.tagsService.hardDelete(id, userId)
   }
