@@ -77,7 +77,7 @@ describe('Stories Integration Tests', () => {
           password: testConfig.database.password,
           database: testConfig.database.database,
           entities: ENTITIES,
-          synchronize: true, // Auto-create schema for stories test
+          synchronize: false, // Schema created in global setup
           dropSchema: false,
           logging: false
         }),

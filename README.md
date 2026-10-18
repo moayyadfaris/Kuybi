@@ -155,14 +155,23 @@ test/
 | `npm run lint:check`                                                              | ESLint                                                   | nothing            |
 
 Integration tests use a separate database configured in `.env.test` (`TEST_DB_*`,
-`TEST_REDIS_*`). They drop and recreate its schema, and hold a lock on it for the whole
-run, so a second concurrent run stops immediately instead of corrupting the first.
+`TEST_REDIS_*`). They drop the schema, rebuild it with the real migrations, and hold a
+lock on it for the whole run, so a second concurrent run stops immediately instead of
+corrupting the first. Setup fails if the migrations and the entities disagree.
+
+**Changing the schema:** edit the entity, then generate a migration from the difference
+and commit both:
+
+```bash
+npm run migration:generate src/core/database/migrations/AddStoryPinnedFlag
+npm run migration:run
+```
 
 **CI** ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) runs on every pull
 request and push to `main`. All jobs must pass:
 
 - lint, typecheck, unit tests and build
-- integration tests with PostgreSQL and Redis services
+- migrations and seeders on a clean database, then integration tests with PostgreSQL and Redis services
 - combined unit + integration coverage above the floor in
   [`scripts/check-coverage.js`](./scripts/check-coverage.js) (raise it as coverage grows)
 - `npm audit` of production dependencies at high severity
@@ -186,11 +195,12 @@ docker run --env-file .env.production kuybi node dist/worker.js             # wo
 docker run --env-file .env.production -p 4050:4050 kuybi node dist/dashboard.js  # dashboard
 ```
 
-Run migrations as a release step before starting the new version:
+Run migrations as a release step before starting the new version. The image contains only
+`dist`, so use the compiled entry points:
 
 ```bash
-npm run migration:run
-npm run db:seed:acl   # idempotent; adds permissions introduced by new releases
+docker run --env-file .env.production kuybi npm run migration:run:prod
+docker run --env-file .env.production kuybi npm run db:seed:acl:prod   # idempotent; adds permissions introduced by new releases
 ```
 
 ### PM2

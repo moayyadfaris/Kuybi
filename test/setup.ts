@@ -33,8 +33,7 @@ export default async function globalSetup() {
     database: process.env.TEST_DB_NAME || 'kuybi_test'
   })
 
-  // Create DataSource to drop and recreate schema with all tables
-  // Use glob patterns to auto-load all entities
+  // Connection used only to drop and recreate the schema
   const dataSource = new DataSource({
     type: 'postgres',
     host: process.env.TEST_DB_HOST || 'localhost',
@@ -60,14 +59,11 @@ export default async function globalSetup() {
     await dataSource.query('GRANT ALL ON SCHEMA public TO public;')
     console.log('  ↳ Dropped and recreated public schema')
 
-    // Enable required PostgreSQL extensions
-    await dataSource.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
-    console.log('  ↳ Enabled uuid-ossp extension')
-
     // Close connection completely and create new DataSource instance
     await dataSource.destroy()
 
-    // Create fresh DataSource to avoid TypeORM's internal caching issues
+    // Build the schema with the real migrations (not synchronize), so every run
+    // exercises them and fails if they drift from the entities
     const freshDataSource = new DataSource({
       type: 'postgres',
       host: process.env.TEST_DB_HOST || 'localhost',
@@ -76,12 +72,28 @@ export default async function globalSetup() {
       password: process.env.TEST_DB_PASSWORD || 'postgres',
       database: process.env.TEST_DB_NAME || 'kuybi_test',
       entities: ['src/modules/**/*.entity.ts'],
-      synchronize: true, // Enable auto-sync on fresh connection
+      migrations: [path.resolve(__dirname, '..', 'src/core/database/migrations/*.ts')],
+      migrationsTableName: 'migrations',
+      synchronize: false,
       logging: ['error', 'warn']
     })
 
     await freshDataSource.initialize()
-    console.log('  ↳ Created all tables and relations')
+    const executed = await freshDataSource.runMigrations({ transaction: 'each' })
+    console.log(`  ↳ Ran ${executed.length} migration(s)`)
+
+    const pending = await freshDataSource.driver.createSchemaBuilder().log()
+    if (pending.upQueries.length > 0) {
+      const sample = pending.upQueries
+        .slice(0, 5)
+        .map(q => `    ${q.query}`)
+        .join('\n')
+      await freshDataSource.destroy()
+      throw new Error(
+        `Migrations are out of sync with the entities (${pending.upQueries.length} pending ` +
+          `change(s)). Run \`npm run migration:generate src/core/database/migrations/<Name>\`.\n${sample}`
+      )
+    }
 
     await freshDataSource.destroy()
     console.log('✅ Test database schema setup complete')

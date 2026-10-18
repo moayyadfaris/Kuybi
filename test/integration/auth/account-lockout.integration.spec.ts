@@ -86,8 +86,8 @@ describe('Account Lockout Integration Tests', () => {
           ...testConfig.database,
           type: 'postgres',
           entities: ENTITIES,
-          synchronize: true,
-          dropSchema: true
+          synchronize: false,
+          dropSchema: false
         }),
         BullModule.forRoot({
           connection: {

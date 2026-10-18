@@ -18,8 +18,8 @@ export const testConfig = {
     username: process.env.TEST_DB_USERNAME || 'postgres',
     password: process.env.TEST_DB_PASSWORD || 'postgres',
     database: process.env.TEST_DB_NAME || 'kuybi_test',
-    synchronize: true, // Auto-sync schema for tests
-    dropSchema: false, // Schema dropped in global setup
+    synchronize: false, // Schema is built by the real migrations in global setup
+    dropSchema: false,
     logging: false // Disable SQL logging in tests
   },
   redis: {
