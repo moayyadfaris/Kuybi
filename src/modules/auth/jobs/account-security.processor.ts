@@ -3,17 +3,16 @@ import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { AccountLockoutService } from '@modules/auth/services/account-lockout.service'
-
 import {
   AccountSecurityJobType,
   CheckExpiredLocksJobData,
   QueueName,
   ResetFailedAttemptsJobData,
   UnlockAccountJobData
-} from '../jobs/types'
+} from '@core/queues/jobs/types'
+import { BaseProcessor } from '@core/queues/processors/base.processor'
 
-import { BaseProcessor } from './base.processor'
+import { AccountLockoutService } from '../services/account-lockout.service'
 
 /**
  * Account Security Queue Processor

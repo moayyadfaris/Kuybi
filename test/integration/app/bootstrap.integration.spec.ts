@@ -27,7 +27,7 @@ describe('Application bootstrap', () => {
   })
 
   it('compiles the worker module graph', async () => {
-    const { QueueWorkerModule } = await import('../../../src/core/queues/worker.module')
+    const { QueueWorkerModule } = await import('../../../src/worker.module')
     const moduleRef = await Test.createTestingModule({ imports: [QueueWorkerModule] }).compile()
 
     expect(moduleRef).toBeDefined()

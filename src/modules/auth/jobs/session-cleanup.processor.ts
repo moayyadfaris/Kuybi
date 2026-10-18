@@ -2,12 +2,11 @@ import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { SessionRepository } from '@modules/auth/repositories/session.repository'
-import { SessionsService } from '@modules/auth/services/sessions.service'
+import { QueueName, SessionCleanupJobType } from '@core/queues/jobs/types'
+import { BaseProcessor } from '@core/queues/processors/base.processor'
 
-import { QueueName, SessionCleanupJobType } from '../jobs/types'
-
-import { BaseProcessor } from './base.processor'
+import { SessionRepository } from '../repositories/session.repository'
+import { SessionsService } from '../services/sessions.service'
 
 interface CleanupJobData {
   olderThanDays?: number

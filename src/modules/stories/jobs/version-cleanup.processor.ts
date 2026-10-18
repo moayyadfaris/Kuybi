@@ -4,12 +4,11 @@ import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { IsNull, LessThan, Repository } from 'typeorm'
 
-import { StoryVersion, VersionStatus } from '@modules/stories/entities/story-version.entity'
-import { StoryVersionRepository } from '@modules/stories/repositories/story-version.repository'
+import { QueueName, VersionCleanupJobType } from '@core/queues/jobs/types'
+import { BaseProcessor } from '@core/queues/processors/base.processor'
 
-import { QueueName, VersionCleanupJobType } from '../jobs/types'
-
-import { BaseProcessor } from './base.processor'
+import { StoryVersion, VersionStatus } from '../entities/story-version.entity'
+import { StoryVersionRepository } from '../repositories/story-version.repository'
 
 interface CleanupExpiredJobData {
   dryRun?: boolean

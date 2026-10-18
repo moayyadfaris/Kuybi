@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core'
 import { PinoLogger } from 'nestjs-pino'
 
-import { QueueWorkerModule } from '@core/queues/worker.module'
+import { QueueWorkerModule } from './worker.module'
 
 async function bootstrap() {
   process.env.APP_MODE = 'worker'
