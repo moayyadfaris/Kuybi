@@ -234,7 +234,11 @@ docker run --env-file .env.production kuybi npm run db:seed:acl:prod   # idempot
 - **Logs:** structured JSON via Pino, with a request ID (`x-request-id`) on every request
   and sensitive fields redacted
 - **Tracing:** OpenTelemetry, exported over OTLP (`OBSERVABILITY_*` variables)
-- **Metrics:** Prometheus at `/metrics`
+- **Metrics:** Prometheus at `/metrics` (unauthenticated, like most exporters: expose it
+  only on the internal network, not through the public load balancer). Includes the
+  outbox gauges `outbox_messages{status}` and `outbox_oldest_due_pending_age_seconds`,
+  with ready-made alert rules in
+  [`docs/observability/alerts/outbox.rules.yml`](./docs/observability/alerts/outbox.rules.yml)
 - **Errors:** Sentry when `SENTRY_DSN` is set
 - **Health:** `/api/health` (full), `/api/health/live` (liveness), `/api/health/ready`
   (readiness)
