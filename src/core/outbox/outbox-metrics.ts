@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { Gauge, register } from 'prom-client'
+import { Gauge, register } from '@prometheus-io/client'
 import { DataSource } from 'typeorm'
 
 import { OutboxMessage } from './outbox-message.entity'
@@ -15,6 +15,9 @@ const OLDEST_DUE = 'outbox_oldest_due_pending_age_seconds'
  *   is a job that will never run without someone looking at it.
  * - outbox_oldest_due_pending_age_seconds: how long the oldest message that is due
  *   (not delayed) has waited. Growth means the relay is stopped or Redis is down.
+ *
+ * Registered with @prometheus-io/client, the package @willsoto/nestjs-prometheus serves
+ * /metrics from (not its predecessor prom-client, which has a separate registry).
  *
  * Alert rules: docs/observability/alerts/outbox.rules.yml
  */

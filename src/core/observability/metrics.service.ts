@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
+import { Counter } from '@prometheus-io/client'
 import { InjectMetric } from '@willsoto/nestjs-prometheus'
-import { Counter } from 'prom-client'
 
 @Injectable()
 export class MetricsService {

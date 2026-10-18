@@ -7,9 +7,9 @@ import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { ENTITIES } from '@app/database/entities'
+import { PrometheusController } from '@willsoto/nestjs-prometheus'
 import { Queue } from 'bullmq'
 import { LoggerModule } from 'nestjs-pino'
-import { register } from 'prom-client'
 import { DataSource } from 'typeorm'
 
 import {
@@ -141,9 +141,14 @@ describe('Transactional outbox', () => {
     expect(await queue.getJobCountByTypes('waiting', 'prioritized', 'delayed')).toBe(30)
   })
   describe('metrics', () => {
+    // Read what /metrics actually serves (the exporter's own controller), not a registry
+    // of our choosing: the gauges once lived in a registry the exporter never read
     const value = async (name: string, status?: string) => {
-      const metric = await register.getSingleMetric(name)!.get()
-      return metric.values.find(v => !status || v.labels.status === status)?.value
+      const response = { header: () => undefined }
+      const text = await new PrometheusController().index(response)
+      const label = status ? `{status="${status}"}` : ''
+      const line = text.split('\n').find(l => l.startsWith(`${name}${label} `))
+      return line === undefined ? undefined : Number(line.split(' ')[1])
     }
 
     it('reports counts by status and the age of the oldest due message', async () => {
