@@ -164,7 +164,7 @@ export class ImageOptimizationService {
             { originalSize, avifSize: result.avif.length },
             'Generated AVIF version'
           )
-        } catch (error) {
+        } catch {
           this.logger.warn('Failed to generate AVIF format, skipping')
         }
       }
@@ -222,7 +222,7 @@ export class ImageOptimizationService {
           result.avif = await sharp(buffer)
             .avif({ quality: quality - 10 })
             .toBuffer()
-        } catch (error) {
+        } catch {
           this.logger.warn('AVIF generation failed for original')
         }
       }
@@ -280,7 +280,7 @@ export class ImageOptimizationService {
               })
               .avif({ quality: quality - 10 })
               .toBuffer()
-          } catch (error) {
+          } catch {
             this.logger.warn(`AVIF generation failed for ${breakpoint.name}`)
           }
         }

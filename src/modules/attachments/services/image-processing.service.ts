@@ -49,7 +49,7 @@ export class ImageProcessingService {
   async getMetadata(buffer: Buffer): Promise<Metadata> {
     try {
       return await sharp(buffer).metadata()
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Invalid image file or corrupted data')
     }
   }
@@ -118,7 +118,7 @@ export class ImageProcessingService {
           hasAlpha: resultBuffer.info.channels === 4
         }
       }
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to resize image')
     }
   }
@@ -151,7 +151,7 @@ export class ImageProcessingService {
       )
 
       return results
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to generate thumbnails')
     }
   }
@@ -186,7 +186,7 @@ export class ImageProcessingService {
       }
 
       return await image.toBuffer()
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException(`Failed to convert image to ${format}`)
     }
   }
@@ -245,7 +245,7 @@ export class ImageProcessingService {
           hasAlpha: result.info.channels === 4
         }
       }
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to optimize image')
     }
   }
@@ -259,7 +259,7 @@ export class ImageProcessingService {
 
       // Return a placeholder color - in production use a proper color quantization library
       return ['#808080']
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to extract dominant colors')
     }
   }
@@ -270,7 +270,7 @@ export class ImageProcessingService {
   async crop(buffer: Buffer, x: number, y: number, width: number, height: number): Promise<Buffer> {
     try {
       return await sharp(buffer).extract({ left: x, top: y, width, height }).toBuffer()
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to crop image')
     }
   }
@@ -281,7 +281,7 @@ export class ImageProcessingService {
   async rotate(buffer: Buffer, angle: number): Promise<Buffer> {
     try {
       return await sharp(buffer).rotate(angle).toBuffer()
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to rotate image')
     }
   }
@@ -292,7 +292,7 @@ export class ImageProcessingService {
   async blur(buffer: Buffer, sigma = 5): Promise<Buffer> {
     try {
       return await sharp(buffer).blur(sigma).toBuffer()
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to apply blur effect')
     }
   }
@@ -303,7 +303,7 @@ export class ImageProcessingService {
   async grayscale(buffer: Buffer): Promise<Buffer> {
     try {
       return await sharp(buffer).grayscale().toBuffer()
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to convert to grayscale')
     }
   }
@@ -365,7 +365,7 @@ export class ImageProcessingService {
           }
         ])
         .toBuffer()
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to add watermark')
     }
   }
@@ -392,7 +392,7 @@ export class ImageProcessingService {
         width: metadata.width || 0,
         height: metadata.height || 0
       }
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to get image dimensions')
     }
   }

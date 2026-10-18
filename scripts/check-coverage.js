@@ -12,7 +12,9 @@ const fs = require('fs')
 const path = require('path')
 const { createCoverageMap } = require('istanbul-lib-coverage')
 
-const FLOOR = { lines: 45, statements: 45, branches: 27, functions: 33 }
+// About 2 points under CI's measurement on 2026-10-18 (lines 55.7, statements 56.4,
+// branches 35.3, functions 45.3). Raise it as coverage grows; never lower it to pass.
+const FLOOR = { lines: 53, statements: 54, branches: 33, functions: 43 }
 const SOURCES = ['coverage/unit/coverage-final.json', 'coverage/integration/coverage-final.json']
 
 const map = createCoverageMap({})

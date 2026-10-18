@@ -5,11 +5,13 @@ This guide helps diagnose and fix slow API responses, particularly when frontend
 ## 🎯 Problem Statement
 
 **Symptoms**:
+
 - API calls from Postman: Fast (~100-200ms)
 - API calls from Frontend: Slow (~2000ms+)
 - Inconsistent response times
 
 **Common Causes**:
+
 1. **CORS preflight requests** - Adds extra round trip
 2. **Missing compression** - Large payloads take longer to download
 3. **No connection reuse** - Each request creates new TCP connection
@@ -36,6 +38,7 @@ npm run perf:diagnose
 ```
 
 **What it tests**:
+
 - Response times (TTFB, download time)
 - CORS configuration
 - Connection keep-alive
@@ -43,6 +46,7 @@ npm run perf:diagnose
 - Statistical analysis (P50, P95, P99)
 
 **Example Output**:
+
 ```
 ✓ Average response time is GOOD (120ms)
 ✓ TTFB is good - server responds quickly
@@ -57,6 +61,7 @@ npm run perf:db
 ```
 
 **What it checks**:
+
 - Missing database indexes
 - Query execution time
 - Table size and bloat
@@ -64,6 +69,7 @@ npm run perf:db
 - Query plan analysis
 
 **Example Output**:
+
 ```
 ⚠️  Missing index on story_id
 ⚠️  Missing composite index on (story_id, version_number)
@@ -94,6 +100,7 @@ npm run test:performance
 ```
 
 **What it tests**:
+
 - ✓ Response time under 200ms for version history
 - ✓ Handle 100 concurrent requests efficiently
 - ✓ Pagination performance
@@ -102,6 +109,7 @@ npm run test:performance
 - ✓ Response size analysis
 
 **Example Output**:
+
 ```
 ✓ Version history response time: 145ms
 ✓ 100 concurrent requests completed in 2500ms
@@ -113,27 +121,32 @@ npm run test:performance
 ### 2. Load Testing with Artillery
 
 Install Artillery (one-time):
+
 ```bash
 npm install -g artillery
 ```
 
 Edit the config file first:
+
 ```bash
 # Edit test/performance/artillery-load-test.yml
 # Update authToken and storyId variables
 ```
 
 Run load test:
+
 ```bash
 npm run perf:artillery
 ```
 
 **What it does**:
+
 - Simulates 4 phases: Warm-up → Sustained load → Spike → Cool down
 - Tests 5 realistic scenarios with weighted distribution
 - Generates detailed performance metrics
 
 **Example Output**:
+
 ```
 Summary:
   scenarios.launched: 1500
@@ -154,15 +167,19 @@ Summary:
 **Symptom**: Large payloads, slow download times
 
 **Solution**: Already enabled in your app! Check logs:
+
 ```typescript
 // main.ts - compression is already configured
-app.use(compression({
-  threshold: 1024,  // Compress responses > 1KB
-  level: 6          // Balanced compression
-}))
+app.use(
+  compression({
+    threshold: 1024, // Compress responses > 1KB
+    level: 6 // Balanced compression
+  })
+)
 ```
 
 **Verify**: Check response headers in browser DevTools:
+
 ```
 Content-Encoding: gzip
 ```
@@ -175,23 +192,24 @@ Content-Encoding: gzip
 
 ```sql
 -- Add to a new migration file
-CREATE INDEX IF NOT EXISTS idx_story_versions_story_id 
+CREATE INDEX IF NOT EXISTS idx_story_versions_story_id
   ON story_versions(story_id);
 
-CREATE INDEX IF NOT EXISTS idx_story_versions_branch 
+CREATE INDEX IF NOT EXISTS idx_story_versions_branch
   ON story_versions(branch_name);
 
-CREATE INDEX IF NOT EXISTS idx_story_versions_created_by 
+CREATE INDEX IF NOT EXISTS idx_story_versions_created_by
   ON story_versions(created_by);
 
-CREATE INDEX IF NOT EXISTS idx_story_versions_story_version 
+CREATE INDEX IF NOT EXISTS idx_story_versions_story_version
   ON story_versions(story_id, version_number);
 
-CREATE INDEX IF NOT EXISTS idx_story_versions_created_at 
+CREATE INDEX IF NOT EXISTS idx_story_versions_created_at
   ON story_versions(created_at DESC);
 ```
 
 **Check existing indexes**:
+
 ```sql
 SELECT * FROM pg_indexes WHERE tablename = 'story_versions';
 ```
@@ -222,6 +240,7 @@ await app.listen(4040, '0.0.0.0', () => {
 **Symptom**: Sequential API calls visible in Network waterfall
 
 **Bad**:
+
 ```javascript
 // Sequential - each waits for previous
 const versions = await fetchVersions()
@@ -230,6 +249,7 @@ const comparison = await compareVersions(1, 5)
 ```
 
 **Good**:
+
 ```javascript
 // Parallel - all start simultaneously
 const [versions, version5, comparison] = await Promise.all([
@@ -254,7 +274,7 @@ function VersionHistory({ storyId }) {
     staleTime: 30000, // Cache for 30 seconds
     cacheTime: 5 * 60 * 1000 // Keep in memory for 5 minutes
   })
-  
+
   if (isLoading) return <div>Loading...</div>
   return <VersionList versions={data} />
 }
@@ -275,6 +295,7 @@ return versions
 ```
 
 **Verify cache hits**:
+
 ```bash
 # Monitor Redis
 redis-cli MONITOR
@@ -300,8 +321,9 @@ database: {
 ```
 
 **Monitor connections**:
+
 ```sql
-SELECT 
+SELECT
   count(*) as total,
   count(*) FILTER (WHERE state = 'active') as active,
   count(*) FILTER (WHERE state = 'idle') as idle
@@ -315,21 +337,21 @@ WHERE datname = 'kuybi';
 
 ### Target Response Times
 
-| Endpoint | Target | Good | Needs Improvement |
-|----------|--------|------|-------------------|
-| GET /versions | < 200ms | < 150ms | > 300ms |
-| GET /versions/:id | < 150ms | < 100ms | > 250ms |
-| POST /compare | < 300ms | < 200ms | > 500ms |
-| POST /rollback | < 500ms | < 300ms | > 1000ms |
-| POST /versions | < 400ms | < 250ms | > 700ms |
+| Endpoint          | Target  | Good    | Needs Improvement |
+| ----------------- | ------- | ------- | ----------------- |
+| GET /versions     | < 200ms | < 150ms | > 300ms           |
+| GET /versions/:id | < 150ms | < 100ms | > 250ms           |
+| POST /compare     | < 300ms | < 200ms | > 500ms           |
+| POST /rollback    | < 500ms | < 300ms | > 1000ms          |
+| POST /versions    | < 400ms | < 250ms | > 700ms           |
 
 ### Concurrent Load Targets
 
-| Metric | Target |
-|--------|--------|
-| Requests/second | > 50 |
-| Error rate | < 1% |
-| P95 response time | < 500ms |
+| Metric            | Target   |
+| ----------------- | -------- |
+| Requests/second   | > 50     |
+| Error rate        | < 1%     |
+| P95 response time | < 500ms  |
 | P99 response time | < 1000ms |
 
 ---
@@ -352,6 +374,7 @@ WHERE datname = 'kuybi';
    - **Content Download**: High? Enable compression or reduce payload
 
 **Example Analysis**:
+
 ```
 Request to /api/v1/stories/8/versions:
   Queueing:           20ms   ← OK
@@ -366,6 +389,7 @@ Request to /api/v1/stories/8/versions:
 ```
 
 **Fix**:
+
 ```javascript
 // Add to your fetch configuration
 const api = axios.create({
@@ -378,6 +402,7 @@ const api = axios.create({
 ### Issue 2: "Works in Postman but not in browser"
 
 **Check CORS**:
+
 ```bash
 curl -H "Origin: http://localhost:3000" \
   -H "Access-Control-Request-Method: GET" \
@@ -387,6 +412,7 @@ curl -H "Origin: http://localhost:3000" \
 ```
 
 **Should return**:
+
 ```
 Access-Control-Allow-Origin: http://localhost:3000
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE
@@ -394,6 +420,7 @@ Access-Control-Allow-Headers: authorization, content-type
 ```
 
 **Fix in NestJS** (already done):
+
 ```typescript
 app.enableCors({
   origin: process.env.CORS_ORIGIN || '*',
@@ -404,12 +431,14 @@ app.enableCors({
 ### Issue 3: "First request slow, subsequent requests fast"
 
 **This is normal!** First request:
+
 - DNS lookup
 - TCP connection
 - SSL handshake
 - Auth validation
 
 **Optimize**:
+
 1. Use HTTP/2 (multiplexing)
 2. Enable keep-alive
 3. Preload critical resources
@@ -459,13 +488,13 @@ this.logger.info({
   expr: http_response_time_p95 > 500
   for: 5m
   annotations:
-    summary: "API response time is high"
+    summary: 'API response time is high'
 
 - alert: HighErrorRate
   expr: http_errors_total / http_requests_total > 0.01
   for: 5m
   annotations:
-    summary: "Error rate exceeds 1%"
+    summary: 'Error rate exceeds 1%'
 ```
 
 ---
@@ -491,6 +520,7 @@ this.logger.info({
 If performance issues persist after trying these fixes:
 
 1. **Run full diagnostic suite**:
+
    ```bash
    npm run perf:diagnose > diagnosis.txt
    npm run perf:db > db-analysis.txt
@@ -505,6 +535,7 @@ If performance issues persist after trying these fixes:
    - Export trace
 
 3. **Check server logs**:
+
    ```bash
    npm run logs:view
    # Look for slow query warnings

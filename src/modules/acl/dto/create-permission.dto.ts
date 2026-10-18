@@ -29,7 +29,7 @@ export class CreatePermissionDto {
   })
   @IsOptional()
   @IsObject()
-  conditions?: Record<string, any>
+  conditions?: Record<string, unknown>
 
   @ApiPropertyOptional({
     description: 'Specific fields this permission applies to',

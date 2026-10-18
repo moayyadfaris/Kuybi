@@ -19,7 +19,7 @@ export class LoggingContextService {
     return this.storage.run(logger, fn)
   }
 
-  getLogger(bindings?: Record<string, any>): pino.Logger {
+  getLogger(bindings?: Record<string, unknown>): pino.Logger {
     const currentLogger = this.storage.getStore() ?? this.fallbackLogger
     return bindings ? currentLogger.child(bindings) : currentLogger
   }

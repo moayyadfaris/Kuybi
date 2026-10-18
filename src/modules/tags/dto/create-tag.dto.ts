@@ -56,5 +56,5 @@ export class CreateTagDto {
     example: { category: 'news', importance: 'high' }
   })
   @IsOptional()
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }

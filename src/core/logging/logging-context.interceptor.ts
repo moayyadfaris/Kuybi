@@ -12,7 +12,7 @@ export class LoggingContextInterceptor implements NestInterceptor {
     private readonly configService: ConfigService
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== 'http') {
       return next.handle()
     }

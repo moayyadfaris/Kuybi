@@ -34,7 +34,7 @@ export class CompressionInterceptor implements NestInterceptor {
     this.level = level
   }
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
       map(data => {
         const ctx = context.switchToHttp()

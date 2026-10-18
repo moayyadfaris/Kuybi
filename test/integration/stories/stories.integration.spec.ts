@@ -147,7 +147,6 @@ describe('Stories Integration Tests', () => {
     if (!accessToken) {
       throw new Error(`Login failed in stories integration: ${JSON.stringify(loginResponse.body)}`)
     }
-    const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString())
   })
 
   afterAll(async () => {

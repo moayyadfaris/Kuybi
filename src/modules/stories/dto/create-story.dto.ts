@@ -99,7 +99,7 @@ export class CreateStoryDto {
     example: { source: 'mobile', verified: true }
   })
   @IsOptional()
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 
   @ApiPropertyOptional({
     description: 'Internal notes (admin only)',

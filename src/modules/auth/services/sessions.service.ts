@@ -15,7 +15,7 @@ export interface CreateSessionOptions {
   fingerprint?: string
   sessionType?: SessionTypeValue
   expiresInDays?: number
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface SessionValidationResult {
@@ -457,10 +457,11 @@ export class SessionsService {
     ensureDate: (value?: Date | string | number | null) => Date
   ): void {
     // Check multiple sources for revocation timestamp (backward compatibility)
-    const revokedAtSource =
-      session.metadata?.revokedAt ||
-      session.metadata?.revoked_at ||
-      (session.deletedAt ? session.deletedAt : undefined)
+    // metadata is free-form jsonb: only accept values that can actually be a date
+    const fromMetadata = [session.metadata?.revokedAt, session.metadata?.revoked_at].find(
+      (value): value is string | number => typeof value === 'string' || typeof value === 'number'
+    )
+    const revokedAtSource = fromMetadata ?? (session.deletedAt ? session.deletedAt : undefined)
 
     if (revokedAtSource) {
       const revokedAtDate = ensureDate(revokedAtSource)

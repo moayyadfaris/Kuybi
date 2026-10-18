@@ -63,7 +63,7 @@ export class CreateContentDto {
     }
   })
   @IsObject()
-  field_data: Record<string, any>
+  field_data: Record<string, unknown>
 
   @ApiPropertyOptional({
     description: 'Metadata (SEO, etc.)',
@@ -71,7 +71,7 @@ export class CreateContentDto {
   })
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 
   @ApiPropertyOptional({
     description: 'Attachment IDs',

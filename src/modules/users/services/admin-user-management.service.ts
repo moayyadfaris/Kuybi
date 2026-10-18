@@ -71,8 +71,8 @@ export class AdminUserManagementService {
     }
 
     // Store original values for audit trail
-    const originalValues: Record<string, any> = {}
-    const newValues: Record<string, any> = {}
+    const originalValues: Record<string, unknown> = {}
+    const newValues: Record<string, unknown> = {}
     const changes: string[] = []
 
     // Validate and prepare updates

@@ -1,0 +1,31 @@
+# Prometheus alerting rules for the transactional outbox (src/core/outbox).
+# Load with rule_files: [docs/observability/alerts/outbox.rules.yml]
+groups:
+  - name: kuybi-outbox
+    rules:
+      - alert: OutboxRelayStalled
+        # Due messages waiting > 5 min: the worker (OutboxRelay) is down or Redis is
+        # unreachable. Emails, image processing and other jobs are piling up.
+        expr: outbox_oldest_due_pending_age_seconds > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Outbox messages are not being dispatched
+          description: >-
+            The oldest due outbox message has waited {{ $value | humanizeDuration }}.
+            Check that the worker process is running and can reach Redis.
+
+      - alert: OutboxMessagesFailed
+        # A message is parked as 'failed' after 10 dispatch attempts; it will not run
+        # until someone resets it: UPDATE outbox_messages SET status = 'pending',
+        # attempts = 0, "availableAt" = now() WHERE id = '<id>'
+        expr: outbox_messages{status="failed"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value }} outbox message(s) failed permanently'
+          description: >-
+            Inspect lastError in outbox_messages WHERE status = 'failed', fix the cause,
+            then reset the rows to pending.

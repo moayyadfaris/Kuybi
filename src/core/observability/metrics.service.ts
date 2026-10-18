@@ -13,7 +13,7 @@ export class MetricsService {
   incrementStoryCreated(type: string, status: string) {
     try {
       this.storiesCreated.labels(type, status).inc()
-    } catch (error) {
+    } catch {
       // Silently fail or log error to avoid breaking business logic
     }
   }
@@ -21,7 +21,7 @@ export class MetricsService {
   incrementUserLogin(role: string) {
     try {
       this.userLogins.labels(role).inc()
-    } catch (error) {
+    } catch {
       // Silently fail or log error to avoid breaking business logic
     }
   }

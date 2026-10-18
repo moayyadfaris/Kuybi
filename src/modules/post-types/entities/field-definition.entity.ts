@@ -13,6 +13,7 @@ import {
 import { User } from '@modules/users/entities'
 
 import { FieldType } from '../enums/field-type.enum'
+import type { FieldOptions, FieldValidationRules } from '../types/field-validation-rules'
 
 import { PostType } from './post-type.entity'
 
@@ -129,7 +130,7 @@ export class FieldDefinition {
    * - Email: { "pattern": "^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$" }
    */
   @Column({ type: 'jsonb', default: {}, name: 'validationRules' })
-  validationRules: Record<string, any>
+  validationRules: FieldValidationRules
 
   /**
    * Field-specific options (varies by field type)
@@ -140,20 +141,20 @@ export class FieldDefinition {
    * - Repeater: { "subFields": [...], "min": 1, "max": 10 }
    */
   @Column({ type: 'jsonb', default: {}, name: 'fieldOptions' })
-  fieldOptions: Record<string, any>
+  fieldOptions: FieldOptions
 
   /**
    * Conditional logic for showing/hiding field
    * Example: { "show_if": { "fieldId": "uuid", "operator": "equals", "value": "yes" } }
    */
   @Column({ type: 'jsonb', nullable: true, name: 'conditionalLogic' })
-  conditionalLogic?: Record<string, any> | null
+  conditionalLogic?: Record<string, unknown> | null
 
   /**
    * Additional metadata
    */
   @Column({ type: 'jsonb', default: {} })
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
 
   // ========== Audit Trail ==========
 

@@ -466,7 +466,7 @@ export class AttachmentService {
         await this.attachmentRepository.hardDelete(attachment.id)
         deleted++
         totalSize += attachment.size
-      } catch (error) {
+      } catch {
         this.logger.error(`Failed to delete orphaned attachment ${attachment.id}`)
       }
     }

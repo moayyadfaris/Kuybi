@@ -262,9 +262,13 @@ describe('Session Management Integration Tests', () => {
       expect(response.body).toHaveProperty('sessionId', freshSessionId)
       expect(response.body).toHaveProperty('userId', regularUser.id)
 
+      // The revoked session's access token stops working immediately (tokens carry sid)
+      await request(app.getHttpServer())
+        .get('/api/v1/sessions/me')
+        .set('Authorization', `Bearer ${freshToken}`)
+        .expect(401)
+
       // Verify session is marked as revoked in database
-      // Note: Token remains cryptographically valid until expiry
-      // TODO: Implement token blacklisting for admin-revoked sessions
       const verifyRevoked = await request(app.getHttpServer())
         .get(`/api/v1/sessions/users/${regularUser.id}?includeExpired=true`)
         .set('Authorization', `Bearer ${superAdminToken}`)

@@ -46,7 +46,7 @@ export class EmailProcessor extends BaseProcessor {
   /**
    * Main process method - routes jobs to appropriate handlers
    */
-  async process(job: Job<EmailJobData, any, EmailJobType>): Promise<any> {
+  async process(job: Job<EmailJobData, unknown, EmailJobType>): Promise<unknown> {
     const startTime = Date.now()
 
     this.logger.info(

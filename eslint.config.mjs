@@ -93,10 +93,25 @@ export default tseslint.config(
     }
   },
   {
+    // Command-line entry points (dashboard, migration and seed scripts) and tests print
+    // to the console by design; application code uses the Pino logger
+    files: [
+      'test/**/*.ts',
+      'src/dashboard.ts',
+      'src/database/scripts/**/*.ts',
+      'src/modules/*/seeders/seed-*.ts'
+    ],
+    rules: {
+      'no-console': 'off'
+    }
+  },
+  {
     // `as any` silences the compiler and has hidden real bugs here (ignored soft-delete
     // filters, a broken log shipper). Use a precise type or `as unknown as T` instead.
     files: ['src/**/*.ts'],
     rules: {
+      // src has no explicit `any` left (Oct 2026); keep it that way. Tests may use it.
+      '@typescript-eslint/no-explicit-any': 'error',
       'no-restricted-syntax': [
         'error',
         {

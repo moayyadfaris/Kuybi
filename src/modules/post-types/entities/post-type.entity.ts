@@ -111,7 +111,7 @@ export class PostType {
    * }
    */
   @Column({ type: 'jsonb', default: {} })
-  settings: Record<string, any>
+  settings: Record<string, unknown>
 
   // ========== Relationships ==========
 

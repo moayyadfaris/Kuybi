@@ -89,7 +89,7 @@ export class CreateSessionDto {
   @IsOptional()
   @IsObject()
   @Type(() => Object)
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 
   @ApiPropertyOptional({
     description: 'Device information (browser, OS, etc.)',
@@ -104,5 +104,5 @@ export class CreateSessionDto {
   @IsOptional()
   @IsObject()
   @Type(() => Object)
-  deviceInfo?: Record<string, any>
+  deviceInfo?: Record<string, unknown>
 }

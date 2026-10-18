@@ -238,15 +238,4 @@ export class AdminPasswordManagementService {
       reason
     }
   }
-
-  /**
-   * Get password change audit log for a user
-   * (Optional - requires separate audit table)
-   */
-  async getPasswordChangeHistory(userId: string): Promise<any[]> {
-    // TODO: Implement if you create a password_change_audit table
-    // For now, this would require querying logs
-    this.logger.info({ userId }, 'Password change history requested (not yet implemented)')
-    return []
-  }
 }

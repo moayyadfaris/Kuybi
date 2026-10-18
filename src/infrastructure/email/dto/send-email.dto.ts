@@ -21,5 +21,5 @@ export class SendEmailDto {
 
   @IsObject()
   @IsOptional()
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 }

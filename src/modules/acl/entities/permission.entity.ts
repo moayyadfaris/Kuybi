@@ -34,7 +34,7 @@ export class Permission {
   subject: Subject
 
   @Column({ type: 'jsonb', nullable: true })
-  conditions?: Record<string, any> // e.g., { userId: '${userId}' } for ownership
+  conditions?: Record<string, unknown> // e.g., { userId: '${userId}' } for ownership
 
   @Column({ type: 'simple-array', nullable: true })
   fields?: string[] // Specific fields allowed/denied

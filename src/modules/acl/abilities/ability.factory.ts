@@ -110,14 +110,14 @@ export class AbilityFactory {
    * @returns Interpolated conditions object
    */
   private interpolateConditions(
-    conditions: Record<string, any> | undefined,
+    conditions: Record<string, unknown> | undefined,
     userId: string
-  ): Record<string, any> | undefined {
+  ): Record<string, unknown> | undefined {
     if (!conditions) {
       return undefined
     }
 
-    const interpolated: Record<string, any> = {}
+    const interpolated: Record<string, unknown> = {}
 
     for (const [key, value] of Object.entries(conditions)) {
       if (typeof value === 'string' && value === '${userId}') {

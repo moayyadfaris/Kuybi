@@ -43,7 +43,7 @@ export class Tag {
   deletedAt?: Date
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 
   @Column({ length: 7, nullable: true })
   color?: string

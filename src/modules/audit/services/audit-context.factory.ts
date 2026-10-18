@@ -7,7 +7,9 @@ import { AuditContext } from './audit.service'
 
 @Injectable()
 export class AuditContextFactory {
-  private sanitizeMetadata(metadata?: Record<string, any> | null): Record<string, any> | undefined {
+  private sanitizeMetadata(
+    metadata?: Record<string, unknown> | null
+  ): Record<string, unknown> | undefined {
     if (!metadata) {
       return undefined
     }
@@ -40,7 +42,7 @@ export class AuditContextFactory {
         }
         seen.add(value)
 
-        const result: Record<string, any> = {}
+        const result: Record<string, unknown> = {}
         for (const [key, nestedValue] of Object.entries(value)) {
           if (shouldRedact(key)) {
             result[key] = '[REDACTED]'
@@ -54,7 +56,7 @@ export class AuditContextFactory {
       return value
     }
 
-    return sanitizeValue(metadata) as Record<string, any>
+    return sanitizeValue(metadata) as Record<string, unknown>
   }
 
   fromRequest(req: Request): AuditContext {

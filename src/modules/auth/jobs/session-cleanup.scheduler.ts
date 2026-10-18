@@ -34,7 +34,7 @@ export class SessionCleanupScheduler implements OnModuleInit {
     jobId: string,
     jobName: SessionCleanupJobType,
     repeat: { pattern: string },
-    data: Record<string, any> = {}
+    data: Record<string, unknown> = {}
   ) {
     const existing = await this.sessionQueue.getRepeatableJobs()
     const alreadyScheduled = existing.some(job => job.id === jobId)

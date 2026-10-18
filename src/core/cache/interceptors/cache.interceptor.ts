@@ -24,7 +24,7 @@ export class HttpCacheInterceptor implements NestInterceptor {
     @InjectPinoLogger(HttpCacheInterceptor.name) private readonly logger: PinoLogger
   ) {}
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const request = context.switchToHttp().getRequest()
     const method = request.method
 

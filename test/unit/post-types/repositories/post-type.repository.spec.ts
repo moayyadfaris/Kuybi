@@ -51,7 +51,7 @@ describe('PostTypeRepository', () => {
       buildKey: jest.fn((...parts: unknown[]) => parts.join(':')),
       get: jest.fn(),
       set: jest.fn(),
-      wrap: jest.fn((key: string, fn: () => Promise<unknown>, ttl?: number) => fn()),
+      wrap: jest.fn((_key: string, fn: () => Promise<unknown>) => fn()),
       del: jest.fn(),
       reset: jest.fn()
     }

@@ -13,6 +13,7 @@ import {
 } from 'class-validator'
 
 import { FieldType } from '../../enums/field-type.enum'
+import type { FieldOptions, FieldValidationRules } from '../../types/field-validation-rules'
 
 /**
  * DTO for creating a new field definition
@@ -154,7 +155,7 @@ export class CreateFieldDefinitionDto {
   })
   @IsOptional()
   @IsObject()
-  validationRules?: Record<string, any>
+  validationRules?: FieldValidationRules
 
   @ApiPropertyOptional({
     description: 'Field-specific options',
@@ -162,7 +163,7 @@ export class CreateFieldDefinitionDto {
   })
   @IsOptional()
   @IsObject()
-  fieldOptions?: Record<string, any>
+  fieldOptions?: FieldOptions
 
   @ApiPropertyOptional({
     description: 'Conditional logic rules (Phase 2 feature)',
@@ -170,5 +171,5 @@ export class CreateFieldDefinitionDto {
   })
   @IsOptional()
   @IsObject()
-  conditionalLogic?: Record<string, any>
+  conditionalLogic?: Record<string, unknown>
 }

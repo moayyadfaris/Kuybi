@@ -295,7 +295,9 @@ export class PostTypesSeeder {
         isUnique: false,
         displayOrder: 1,
         validationRules: {
-          min: new Date().toISOString().split('T')[0] // Cannot be in the past
+          // Cannot be in the past. The validator reads minDate ('today' is evaluated at
+          // validation time); a `min` date string was ignored
+          minDate: 'today'
         },
         fieldOptions: {
           format: 'YYYY-MM-DD',

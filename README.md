@@ -171,10 +171,12 @@ test/
 | `npm run typecheck`                                                               | TypeScript type check                                    | nothing            |
 | `npm run lint:check`                                                              | ESLint                                                   | nothing            |
 
-Integration tests use a separate database configured in `.env.test` (`TEST_DB_*`,
-`TEST_REDIS_*`). They drop the schema, rebuild it with the real migrations, and hold a
+Integration tests use a separate database configured in `.env.test` (copy
+[`.env.test.example`](./.env.test.example); `TEST_DB_*`, `TEST_REDIS_*`). They drop the schema, rebuild it with the real migrations, and hold a
 lock on it for the whole run, so a second concurrent run stops immediately instead of
 corrupting the first. Setup fails if the migrations and the entities disagree.
+Tests may only rely on the variables in `.env.test.example`, which CI sets too: a test
+that passes only with your local `.env` will fail in CI.
 
 **Changing the schema:** edit the entity, then generate a migration from the difference
 and commit both:
@@ -232,7 +234,11 @@ docker run --env-file .env.production kuybi npm run db:seed:acl:prod   # idempot
 - **Logs:** structured JSON via Pino, with a request ID (`x-request-id`) on every request
   and sensitive fields redacted
 - **Tracing:** OpenTelemetry, exported over OTLP (`OBSERVABILITY_*` variables)
-- **Metrics:** Prometheus at `/metrics`
+- **Metrics:** Prometheus at `/metrics` (unauthenticated, like most exporters: expose it
+  only on the internal network, not through the public load balancer). Includes the
+  outbox gauges `outbox_messages{status}` and `outbox_oldest_due_pending_age_seconds`,
+  with ready-made alert rules in
+  [`docs/observability/alerts/outbox.rules.yml`](./docs/observability/alerts/outbox.rules.yml)
 - **Errors:** Sentry when `SENTRY_DSN` is set
 - **Health:** `/api/health` (full), `/api/health/live` (liveness), `/api/health/ready`
   (readiness)

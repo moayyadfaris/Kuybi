@@ -135,7 +135,7 @@ export class CategoriesService {
    * Soft delete a category
    */
   async remove(id: string, deletedBy?: string): Promise<void> {
-    const existing = await this.findOne(id)
+    await this.findOne(id) // 404 if it does not exist
 
     const deleted = await this.categoryRepository.softDelete(id, deletedBy)
 

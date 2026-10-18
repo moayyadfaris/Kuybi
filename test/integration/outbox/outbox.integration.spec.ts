@@ -9,10 +9,12 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { ENTITIES } from '@app/database/entities'
 import { Queue } from 'bullmq'
 import { LoggerModule } from 'nestjs-pino'
+import { register } from 'prom-client'
 import { DataSource } from 'typeorm'
 
 import {
   OutboxMessage,
+  OutboxMetrics,
   OutboxModule,
   OutboxRelay,
   OutboxRelayModule,
@@ -137,5 +139,37 @@ describe('Transactional outbox', () => {
     expect(claimed.reduce((a, b) => a + b, 0)).toBe(30)
     expect(await messages().countBy({ status: 'dispatched' })).toBe(30)
     expect(await queue.getJobCountByTypes('waiting', 'prioritized', 'delayed')).toBe(30)
+  })
+  describe('metrics', () => {
+    const value = async (name: string, status?: string) => {
+      const metric = await register.getSingleMetric(name)!.get()
+      return metric.values.find(v => !status || v.labels.status === status)?.value
+    }
+
+    it('reports counts by status and the age of the oldest due message', async () => {
+      moduleRef.get(OutboxMetrics).onModuleInit()
+      const due = await outbox.enqueue(job(1))
+      await outbox.enqueue({ ...job(2), delayMs: 60 * 60 * 1000 }) // delayed: not "stuck"
+      const failed = await outbox.enqueue(job(3))
+      await dataSource.query(
+        `UPDATE outbox_messages SET "createdAt" = now() - interval '10 minutes' WHERE id = $1`,
+        [due]
+      )
+      await messages().update(failed, { status: 'failed' })
+
+      expect(await value('outbox_messages', 'pending')).toBe(2)
+      expect(await value('outbox_messages', 'failed')).toBe(1)
+      expect(await value('outbox_messages', 'dispatched')).toBe(0)
+      const age = await value('outbox_oldest_due_pending_age_seconds')
+      expect(age).toBeGreaterThanOrEqual(600)
+      expect(age).toBeLessThan(700)
+    })
+
+    it('reports zero age when nothing is due', async () => {
+      moduleRef.get(OutboxMetrics).onModuleInit()
+      await outbox.enqueue({ ...job(1), delayMs: 60 * 60 * 1000 })
+
+      expect(await value('outbox_oldest_due_pending_age_seconds')).toBe(0)
+    })
   })
 })
