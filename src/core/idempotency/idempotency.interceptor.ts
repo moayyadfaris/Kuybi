@@ -5,15 +5,16 @@ import {
   ExecutionContext,
   HttpException,
   Injectable,
+  Logger,
   NestInterceptor,
   UnprocessableEntityException
 } from '@nestjs/common'
 import { createHash } from 'crypto'
 import { Request, Response } from 'express'
 import { from, Observable, of, throwError } from 'rxjs'
-import { catchError, mergeMap } from 'rxjs/operators'
+import { catchError, finalize, mergeMap } from 'rxjs/operators'
 
-import { IdempotencyService } from './idempotency.service'
+import { IDEMPOTENCY_HEARTBEAT_MS, IdempotencyService } from './idempotency.service'
 
 export const IDEMPOTENCY_HEADER = 'idempotency-key'
 /** Value of @nestjs/common's HTTP_CODE_METADATA (not exported from the package root) */
@@ -35,7 +36,33 @@ type UploadedFiles = {
  */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(IdempotencyInterceptor.name)
+
   constructor(private readonly idempotency: IdempotencyService) {}
+
+  /**
+   * Keeps the key's lock fresh while the handler runs, in this process: if the process
+   * dies the beats stop and a retry can take the key over after the lease. Stops by
+   * itself once the attempt no longer holds the key.
+   */
+  private startHeartbeat(id: string, lockId: string): NodeJS.Timeout {
+    const timer = setInterval(() => {
+      this.idempotency.renew(id, lockId).then(
+        held => {
+          if (!held) {
+            clearInterval(timer)
+            this.logger.warn(
+              `Idempotency key ${id} was taken over while its request was still running`
+            )
+          }
+        },
+        // A missed beat is tolerated: the lease allows a couple before a takeover
+        (error: unknown) => this.logger.warn(`Idempotency heartbeat failed: ${String(error)}`)
+      )
+    }, IDEMPOTENCY_HEARTBEAT_MS)
+    timer.unref() // never keeps the process alive on its own
+    return timer
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const http = context.switchToHttp()
@@ -76,6 +103,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
             const successStatus =
               (Reflect.getMetadata(HTTP_CODE_METADATA, context.getHandler()) as
                 number | undefined) ?? (request.method === 'POST' ? 201 : 200)
+            const heartbeat = this.startHeartbeat(id, lockId)
             return next.handle().pipe(
               mergeMap(async body => {
                 await this.idempotency.complete(id, lockId, successStatus, body)
@@ -95,7 +123,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
                   await this.idempotency.release(id, lockId)
                 }
                 throw error
-              })
+              }),
+              finalize(() => clearInterval(heartbeat))
             )
           }
         }

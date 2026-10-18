@@ -10,10 +10,12 @@ import { IdempotencyKey } from './idempotency-key.entity'
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000
 /**
  * An in-progress key whose lock is older than this belongs to a request that died
- * (process crash) and may be taken over by a retry. Longer than the slowest request
- * (large uploads), or a retry would run alongside a live one.
+ * (process crash) and may be taken over by a retry. Live requests keep their lock fresh
+ * with a heartbeat, so this only has to outlast a few missed beats, not the request.
  */
-export const IDEMPOTENCY_LEASE_MS = 5 * 60 * 1000
+export const IDEMPOTENCY_LEASE_MS = 60 * 1000
+/** How often a running request renews its lock (a third of the lease) */
+export const IDEMPOTENCY_HEARTBEAT_MS = 20 * 1000
 
 export type BeginResult =
   | { kind: 'started'; record: IdempotencyKey }
@@ -89,6 +91,22 @@ export class IdempotencyService {
       .execute()
     const rows = result.raw as IdempotencyKey[]
     return rows.length > 0 ? this.repository.create(rows[0]) : null
+  }
+
+  /**
+   * Heartbeat: renews the lock of a request that is still running. Returns false once
+   * the attempt no longer holds the key (it was taken over or released).
+   */
+  async renew(id: string, lockId: string): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(IdempotencyKey)
+      .set({ lockedAt: () => 'now()' })
+      .where('id = :id', { id })
+      .andWhere('"lockId" = :lockId', { lockId })
+      .andWhere('status = :status', { status: 'in_progress' })
+      .execute()
+    return !!result.affected
   }
 
   /**
