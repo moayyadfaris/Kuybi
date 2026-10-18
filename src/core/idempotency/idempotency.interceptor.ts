@@ -71,14 +71,14 @@ export class IdempotencyInterceptor implements NestInterceptor {
             return of(result.record.responseBody)
           }
           case 'started': {
-            const id = result.record.id
+            const { id, lockId } = result.record
             // Nest applies @HttpCode (or 201 for POST) after interceptors run
             const successStatus =
               (Reflect.getMetadata(HTTP_CODE_METADATA, context.getHandler()) as
                 number | undefined) ?? (request.method === 'POST' ? 201 : 200)
             return next.handle().pipe(
               mergeMap(async body => {
-                await this.idempotency.complete(id, successStatus, body)
+                await this.idempotency.complete(id, lockId, successStatus, body)
                 return body
               }),
               catchError(async (error: unknown) => {
@@ -87,11 +87,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
                   // Deterministic rejection: a retry would get the same answer
                   await this.idempotency.complete(
                     id,
+                    lockId,
                     status,
                     (error as HttpException).getResponse()
                   )
                 } else {
-                  await this.idempotency.release(id)
+                  await this.idempotency.release(id, lockId)
                 }
                 throw error
               })

@@ -49,7 +49,10 @@ describe('IdempotencyInterceptor', () => {
   })
 
   it('releases the key after a 5xx so the client can retry', async () => {
-    const service = serviceWith(async () => ({ kind: 'started', record: { id: 'rec-1' } as never }))
+    const service = serviceWith(async () => ({
+      kind: 'started',
+      record: { id: 'rec-1', lockId: 'lock-1' } as never
+    }))
     const next: CallHandler = {
       handle: () => throwError(() => new InternalServerErrorException())
     }
@@ -59,12 +62,15 @@ describe('IdempotencyInterceptor', () => {
         new IdempotencyInterceptor(service as never).intercept(contextFor('u1', 'k'), next)
       )
     ).rejects.toBeInstanceOf(InternalServerErrorException)
-    expect(service.release).toHaveBeenCalledWith('rec-1')
+    expect(service.release).toHaveBeenCalledWith('rec-1', 'lock-1')
     expect(service.complete).not.toHaveBeenCalled()
   })
 
   it('stores the success with the route status (201 for POST)', async () => {
-    const service = serviceWith(async () => ({ kind: 'started', record: { id: 'rec-2' } as never }))
+    const service = serviceWith(async () => ({
+      kind: 'started',
+      record: { id: 'rec-2', lockId: 'lock-2' } as never
+    }))
 
     const body = await lastValueFrom(
       new IdempotencyInterceptor(service as never).intercept(contextFor('u1', 'k'), {
@@ -73,7 +79,7 @@ describe('IdempotencyInterceptor', () => {
     )
 
     expect(body).toEqual({ id: 7 })
-    expect(service.complete).toHaveBeenCalledWith('rec-2', 201, { id: 7 })
+    expect(service.complete).toHaveBeenCalledWith('rec-2', 'lock-2', 201, { id: 7 })
   })
 
   it('scopes keys per user and route', async () => {
