@@ -1,7 +1,13 @@
+import { ENVIRONMENTS, isLocalEnvironment } from '@shared/utils/environment'
 import { plainToInstance } from 'class-transformer'
-import { IsInt, IsOptional, IsString, validateSync } from 'class-validator'
+import { IsIn, IsInt, IsOptional, IsString, validateSync } from 'class-validator'
 
 class EnvironmentVariables {
+  // A typo such as "prod" must not boot with the development defaults
+  @IsIn(ENVIRONMENTS)
+  @IsOptional()
+  NODE_ENV?: string
+
   @IsString()
   @IsOptional()
   APP_NAME?: string
@@ -225,21 +231,23 @@ const MIN_SECRET_LENGTH = 32
 const PLACEHOLDER_PATTERN = /change-me|changeme|admin123|^secret$|^password$/i
 
 /**
- * Fails fast when production secrets are missing, short, or left at placeholder values.
- * Outside production this is a no-op so local development keeps working with .env defaults.
+ * Fails fast when secrets are missing, short, or left at placeholder values, and when
+ * CORS is left open. Applies to every environment except development and test (staging
+ * included), so a deployed instance can never boot with the local defaults.
  */
 export function assertProductionSecrets(
   config: Record<string, unknown>,
   required: string[] = ['JWT_SECRET', 'DB_PASSWORD']
 ): void {
-  if (config.NODE_ENV !== 'production') {
+  const env = typeof config.NODE_ENV === 'string' ? config.NODE_ENV : 'development'
+  if (isLocalEnvironment(env)) {
     return
   }
 
   const problems = required.flatMap(key => {
     const value = config[key]
     if (typeof value !== 'string' || value.length === 0) {
-      return [`${key} is required in production`]
+      return [`${key} is required in ${env}`]
     }
     if (PLACEHOLDER_PATTERN.test(value)) {
       return [`${key} uses a placeholder value`]
@@ -250,7 +258,15 @@ export function assertProductionSecrets(
     return []
   })
 
+  // Only when validating the app's own config (custom key lists check just those keys)
+  if (required.includes('JWT_SECRET')) {
+    const corsOrigin = config.CORS_ORIGIN
+    if (typeof corsOrigin !== 'string' || corsOrigin.split(',').some(o => o.trim() === '*')) {
+      problems.push(`CORS_ORIGIN must list the allowed origins in ${env} (no "*")`)
+    }
+  }
+
   if (problems.length > 0) {
-    throw new Error(`Insecure production configuration:\n  - ${problems.join('\n  - ')}`)
+    throw new Error(`Insecure ${env} configuration:\n  - ${problems.join('\n  - ')}`)
   }
 }
