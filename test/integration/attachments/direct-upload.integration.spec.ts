@@ -279,11 +279,14 @@ describe('Direct uploads', () => {
   })
 
   describe('multipart upload (POST /attachments)', () => {
+    // Unique bytes per upload: identical content is deduplicated to the existing row
+    let n = 0
     const upload = (fields: Record<string, string>) => {
+      const body = Buffer.concat([PDF, Buffer.from(`% ${Date.now()}-${++n}\n`)])
       const req = http()
         .post('/api/v1/attachments')
         .set(as(owner.token))
-        .attach('file', PDF, { filename: 'payslip.pdf', contentType: 'application/pdf' })
+        .attach('file', body, { filename: 'payslip.pdf', contentType: 'application/pdf' })
       for (const [name, value] of Object.entries(fields)) req.field(name, value)
       return req
     }
