@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import { Reflector } from '@nestjs/core'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { User } from '@modules/users/entities'
+import { AclPrincipal } from '../types/acl-principal'
 
 /**
  * Guard to restrict access to super-admin users only
@@ -22,14 +22,14 @@ export class SuperAdminGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest()
-    const user: User = request.user
+    const user: AclPrincipal = request.user
 
     if (!user) {
       this.logger.warn('SuperAdminGuard: No user in request')
       throw new ForbiddenException('Authentication required')
     }
 
-    // Check using User entity methods (authoritative)
+    // Check using the principal's role methods (authoritative)
     const isSuperAdmin = user.isSuperAdmin()
 
     if (!isSuperAdmin) {

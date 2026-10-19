@@ -1,9 +1,8 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { User } from '@modules/users/entities'
-
 import { RoleRepository } from '../repositories/role.repository'
+import { AclPrincipal } from '../types/acl-principal'
 
 /**
  * Guard to enforce role hierarchy rules
@@ -25,7 +24,7 @@ export class RoleHierarchyGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest()
-    const user: User = request.user
+    const user: AclPrincipal = request.user
     const body = request.body
     const params = request.params
 

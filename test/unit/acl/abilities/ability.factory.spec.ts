@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability'
 
-import { AbilityFactory } from '@modules/acl/abilities/ability.factory'
+import { AbilityFactory, asSubject } from '@modules/acl/abilities/ability.factory'
 import { Permission } from '@modules/acl/entities/permission.entity'
 import { Role } from '@modules/acl/entities/role.entity'
 import { RolePermission } from '@modules/acl/entities/role-permission.entity'
@@ -12,10 +12,11 @@ import { User } from '@modules/users/entities/user.entity'
 const permission = (
   action: Action,
   subj: Subject,
-  conditions: Record<string, unknown> = {}
+  conditions: Record<string, unknown> = {},
+  inverted = false
 ): RolePermission =>
   ({
-    permission: { action, subject: subj, conditions, inverted: false } as Permission
+    permission: { action, subject: subj, conditions, inverted } as Permission
   }) as RolePermission
 
 const role = (id: number, name: string, perms: RolePermission[], isActive = true): Role =>
@@ -75,5 +76,42 @@ describe('AbilityFactory', () => {
     expect(
       ability.can(Action.Update, subject(Subject.Story, { userId: 'someone-else' }) as never)
     ).toBe(false)
+  })
+
+  describe('per-record checks with asSubject', () => {
+    const ownStories = role(4, 'user', [
+      permission(Action.Update, Subject.Story, { userId: '${userId}' })
+    ])
+
+    it('applies conditional rules to plain objects (records served from the cache)', () => {
+      const ability = factory.createForUser(userWith(ownStories))
+      // A cache hit is JSON, not a Story instance
+      const cached = JSON.parse(JSON.stringify({ id: 9, userId: 'user-1' }))
+
+      expect(ability.can(Action.Update, asSubject(Subject.Story, cached))).toBe(true)
+      expect(ability.can(Action.Update, asSubject(Subject.Story, { userId: 'other' }))).toBe(false)
+    })
+
+    it('does not modify the record it tags', () => {
+      const record = { id: 9, userId: 'user-1' }
+
+      asSubject(Subject.Story, record)
+
+      expect(Object.keys(record)).toEqual(['id', 'userId'])
+    })
+
+    it('honours inverted (cannot) permissions', () => {
+      const ability = factory.createForUser(
+        userWith(
+          role(4, 'user', [
+            permission(Action.Read, Subject.Story),
+            permission(Action.Read, Subject.Story, { status: 'DRAFT' }, true)
+          ])
+        )
+      )
+
+      expect(ability.can(Action.Read, asSubject(Subject.Story, { status: 'PUBLISHED' }))).toBe(true)
+      expect(ability.can(Action.Read, asSubject(Subject.Story, { status: 'DRAFT' }))).toBe(false)
+    })
   })
 })
