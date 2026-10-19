@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Transform, Type } from 'class-transformer'
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
 
@@ -15,11 +16,7 @@ export class AttachmentQueryDto {
 
   @ApiPropertyOptional({ description: 'Filter by public/private', example: true })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true' || value === '1') return true
-    if (value === 'false' || value === '0') return false
-    return value
-  })
+  @ToBoolean()
   @IsBoolean()
   isPublic?: boolean
 
@@ -65,7 +62,7 @@ export class AttachmentQueryDto {
 
   @ApiPropertyOptional({ description: 'Include soft-deleted attachments', default: false })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === '1')
+  @ToBoolean()
   @IsBoolean()
   includeDeleted?: boolean
 

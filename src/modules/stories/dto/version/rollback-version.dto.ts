@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsBoolean, IsInt, IsOptional, IsString, Length, Min } from 'class-validator'
 
 /**
@@ -20,6 +21,7 @@ export class RollbackVersionDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   createBranch?: boolean
 

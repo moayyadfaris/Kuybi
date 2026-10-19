@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Type } from 'class-transformer'
 import {
   IsArray,
@@ -77,6 +78,7 @@ export class SearchAuditLogsDto {
 
   @ApiPropertyOptional({ description: 'Filter archived logs', default: false })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   @Type(() => Boolean)
   isArchived?: boolean

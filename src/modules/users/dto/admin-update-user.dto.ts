@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   IsBoolean,
   IsEmail,
@@ -68,6 +69,7 @@ export class AdminUpdateUserDto {
     example: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 
@@ -76,6 +78,7 @@ export class AdminUpdateUserDto {
     example: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isVerified?: boolean
 
@@ -84,6 +87,7 @@ export class AdminUpdateUserDto {
     example: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isEmailVerified?: boolean
 
@@ -92,6 +96,7 @@ export class AdminUpdateUserDto {
     example: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   forcePasswordChange?: boolean
 
@@ -100,6 +105,7 @@ export class AdminUpdateUserDto {
     example: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isLocked?: boolean
 

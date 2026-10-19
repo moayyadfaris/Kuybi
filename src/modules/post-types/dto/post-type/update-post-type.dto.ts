@@ -1,4 +1,5 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsBoolean, IsOptional } from 'class-validator'
 
 import { CreatePostTypeDto } from './create-post-type.dto'
@@ -13,6 +14,7 @@ export class UpdatePostTypeDto extends PartialType(CreatePostTypeDto) {
     example: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 }

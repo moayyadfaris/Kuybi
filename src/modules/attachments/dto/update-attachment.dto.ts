@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { Transform } from 'class-transformer'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class UpdateAttachmentDto {
@@ -36,10 +36,7 @@ export class UpdateAttachmentDto {
 
   @ApiPropertyOptional({ description: 'Mark attachment as public', default: false })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'boolean') return value
-    return value === 'true' || value === '1'
-  })
+  @ToBoolean()
   @IsBoolean()
   isPublic?: boolean
 

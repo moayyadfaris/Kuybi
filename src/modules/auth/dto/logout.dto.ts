@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { Transform } from 'class-transformer'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsBoolean, IsIn, IsOptional, IsString, Matches } from 'class-validator'
 
 const REFRESH_TOKEN_REGEX = /^[0-9a-fA-F-]{36}\.[0-9a-fA-F-]{36}$/
@@ -17,12 +17,7 @@ export class LogoutDto {
   refreshToken: string
 
   @ApiProperty({ description: 'Logout from all active sessions', default: false, required: false })
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) return false
-    if (typeof value === 'boolean') return value
-    const normalized = value.toString().toLowerCase()
-    return ['true', '1', 'yes'].includes(normalized)
-  })
+  @ToBoolean()
   @IsBoolean()
   logoutAll = false
 

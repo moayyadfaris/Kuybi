@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   IsBoolean,
   IsInt,
@@ -48,6 +49,7 @@ export class CreateTagDto {
     example: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isSystem?: boolean
 

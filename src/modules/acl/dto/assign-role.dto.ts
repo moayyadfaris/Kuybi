@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsBoolean, IsDateString, IsInt, IsOptional } from 'class-validator'
 
 export class AssignRoleDto {
@@ -23,6 +24,7 @@ export class AssignRoleDto {
     default: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 }

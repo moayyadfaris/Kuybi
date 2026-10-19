@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { PaginationQueryDto } from '@shared/dto/pagination-query.dto'
 import { Transform } from 'class-transformer'
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator'
@@ -19,15 +20,7 @@ export class ListCountriesQueryDto extends PaginationQueryDto {
 
   @ApiPropertyOptional({ description: 'Filter active countries only', type: Boolean })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'boolean') return value
-    if (typeof value === 'string') {
-      const normalized = value.toLowerCase()
-      if (['true', '1', 'yes'].includes(normalized)) return true
-      if (['false', '0', 'no'].includes(normalized)) return false
-    }
-    return undefined
-  })
+  @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 
