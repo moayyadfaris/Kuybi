@@ -1,3 +1,5 @@
+> **Note (2026-10-19):** the `@AuditLog` decorator and `AuditLogInterceptor` described below were never applied to any route and have been removed. Audit entries are written explicitly through `AuditService` (e.g. `logAction`, `logLoginFromRequest`).
+
 # Audit Logging System - Implementation Summary
 
 ## 🎉 **STATUS: Core System Complete - Ready for Integration**
@@ -5,6 +7,7 @@
 ### ✅ What We've Built
 
 #### 1. **Database Layer** ✅
+
 - **AuditLog Entity**: 28 comprehensive fields covering:
   - User context (userId, username, email)
   - Action details (action, entityType, entityId)
@@ -21,6 +24,7 @@
   - ✅ **Successfully executed**
 
 #### 2. **Repository Layer** ✅
+
 - **AuditLogRepository**: Extends BaseRepository with 15+ specialized methods:
   - `findByUserId()` - User activity with date ranges
   - `findByAction()` - Filter by action type(s)
@@ -35,6 +39,7 @@
   - All methods include built-in caching (60s-600s TTL)
 
 #### 3. **Service Layer** ✅
+
 - **AuditService**: 20+ logging methods covering all scenarios:
   - **CRUD Operations**: logCreate(), logUpdate(), logDelete(), logRestore(), logHardDelete()
   - **Authentication**: logLogin(), logLogout(), logLogoutAll()
@@ -60,13 +65,15 @@
   - `detectSuspiciousActivity()` - Behavioral analysis with threat detection
 
 #### 4. **Decorator & Interceptor** ✅
+
 - **@AuditLog Decorator**: Declarative audit logging
+
   ```typescript
-  @AuditLog({ 
-    action: AuditAction.CREATE, 
+  @AuditLog({
+    action: AuditAction.CREATE,
     entityType: 'Story',
     description: 'Create new story',
-    includeBody: true 
+    includeBody: true
   })
   async createStory(@Body() dto: CreateStoryDto) { }
   ```
@@ -80,6 +87,7 @@
   - Non-blocking (doesn't fail requests if logging fails)
 
 #### 5. **API Layer** ✅
+
 - **AuditController**: 12 admin-only REST endpoints:
   - `GET /api/audit/search` - Advanced search
   - `GET /api/audit/statistics` - Aggregate stats
@@ -102,6 +110,7 @@
   - All with Swagger documentation
 
 #### 6. **Module Registration** ✅
+
 - AuditModule registered in AppModule
 - AuditLog entity added to DataSource
 - All dependencies wired correctly
@@ -114,6 +123,7 @@
 ### Quick Integration Example
 
 #### 1. **Import AuditService in any module:**
+
 ```typescript
 import { AuditService, AuditAction } from '@modules/audit'
 
@@ -127,12 +137,13 @@ export class StoriesService {
 ```
 
 #### 2. **Manual Logging:**
+
 ```typescript
 async createStory(dto: CreateStoryDto, req: Request) {
   const context = this.auditService.extractContextFromRequest(req)
-  
+
   const story = await this.storyRepository.save(dto)
-  
+
   // Log the creation
   await this.auditService.logCreate(
     context,
@@ -140,19 +151,20 @@ async createStory(dto: CreateStoryDto, req: Request) {
     story.id,
     { title: story.title, status: story.status }
   )
-  
+
   return story
 }
 ```
 
 #### 3. **Automatic Logging with Decorator:**
+
 ```typescript
 @Post()
 @UseInterceptors(AuditLogInterceptor)
-@AuditLog({ 
-  action: AuditAction.CREATE, 
+@AuditLog({
+  action: AuditAction.CREATE,
   entityType: 'Story',
-  includeBody: true 
+  includeBody: true
 })
 async createStory(@Body() dto: CreateStoryDto) {
   return this.storiesService.create(dto)
@@ -161,20 +173,21 @@ async createStory(@Body() dto: CreateStoryDto) {
 ```
 
 #### 4. **Auth Integration (login example):**
+
 ```typescript
 // In auth.service.ts
 async login(loginDto: LoginDto, req: Request) {
   const context = this.auditService.extractContextFromRequest(req)
-  
+
   try {
     const result = await this.validateUser(loginDto)
-    
+
     // Log successful login
     await this.auditService.logLogin(context, {
       deviceType: context.userAgent,
       location: context.ipAddress
     })
-    
+
     return result
   } catch (error) {
     // Log failed login attempt
@@ -194,7 +207,9 @@ async login(loginDto: LoginDto, req: Request) {
 ## 🎯 Next Steps (Remaining Tasks)
 
 ### 1. **Integration into Existing Modules** (2-3 hours)
+
 Add audit logging to:
+
 - [ ] Auth: login, logout, logout-all, refresh-token, register
 - [ ] Auth: password-change, password-reset, verify-email
 - [ ] Users: admin password management (already has audit logs in service)
@@ -204,12 +219,15 @@ Add audit logging to:
 - [ ] ACL: role assignment, permission changes
 
 **Implementation Options:**
+
 - **Option A (Quick)**: Use @AuditLog decorator + interceptor on all controller methods
 - **Option B (Granular)**: Add manual logging in service layer for complete control
 - **Option C (Hybrid)**: Decorator for CRUD, manual for complex operations
 
 ### 2. **Integration Tests** (3-4 hours)
+
 Create `test/integration/audit/audit.integration.spec.ts`:
+
 - [ ] Test automatic logging via decorator
 - [ ] Test manual logging methods
 - [ ] Test query methods (search, filter, pagination)
@@ -219,7 +237,9 @@ Create `test/integration/audit/audit.integration.spec.ts`:
 - [ ] Test retention and archiving
 
 ### 3. **Documentation** (1-2 hours)
+
 Create `docs/features/audit/AUDIT_LOGGING.md`:
+
 - [ ] Architecture overview
 - [ ] API reference with examples
 - [ ] Compliance guidelines (GDPR, SOC 2, ISO 27001, PCI DSS)
@@ -229,6 +249,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 - [ ] Security best practices
 
 ### 4. **Optional Enhancements**
+
 - [ ] Scheduled job for log archiving (using @Cron)
 - [ ] Webhook notifications for critical events
 - [ ] Dashboard widget for real-time monitoring
@@ -240,6 +261,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 ## 📊 Performance Characteristics
 
 ### Caching Strategy
+
 - User activity: **5min TTL** (300s)
 - Entity history: **10min TTL** (600s)
 - Critical events: **1min TTL** (60s) - near real-time
@@ -247,7 +269,9 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 - Action/IP queries: **5min TTL** (300s)
 
 ### Database Indexes
+
 7 optimized indexes for fast queries:
+
 1. `userId + createdAt` - User activity timelines
 2. `action + createdAt` - Action-based reporting
 3. `entityType + entityId` - Entity history
@@ -257,6 +281,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 7. `requestId` - Distributed tracing
 
 ### Expected Query Performance
+
 - **Single log by ID**: < 5ms (primary key)
 - **User activity (100 logs)**: < 20ms (indexed + cached)
 - **Entity history**: < 15ms (indexed + cached)
@@ -269,6 +294,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 ## 🔒 Compliance Features
 
 ### GDPR Article 30
+
 - ✅ Complete records of processing activities
 - ✅ Purpose of processing (action types)
 - ✅ Categories of data subjects (user info)
@@ -277,6 +303,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 - ✅ Right to erasure (soft delete + archiving)
 
 ### SOC 2 Requirements
+
 - ✅ System monitoring and logging
 - ✅ Access control logging
 - ✅ Change tracking
@@ -284,6 +311,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 - ✅ Incident response data
 
 ### ISO 27001 A.12.4.1
+
 - ✅ Event logging
 - ✅ Protection of log information
 - ✅ Administrator and operator logs
@@ -291,6 +319,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 - ✅ Logging facility monitoring
 
 ### PCI DSS 10.x
+
 - ✅ Audit trail for all access to cardholder data
 - ✅ User identification
 - ✅ Event type, date/time, success/failure
@@ -320,16 +349,17 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 ## 💡 Usage Examples
 
 ### Example 1: Track Story Creation
+
 ```typescript
-await auditService.logCreate(
-  context,
-  'Story',
-  story.id,
-  { title: story.title, status: story.status, authorId: story.authorId }
-)
+await auditService.logCreate(context, 'Story', story.id, {
+  title: story.title,
+  status: story.status,
+  authorId: story.authorId
+})
 ```
 
 ### Example 2: Track Update with Changes
+
 ```typescript
 await auditService.logUpdate(
   context,
@@ -342,15 +372,13 @@ await auditService.logUpdate(
 ```
 
 ### Example 3: Security Event
+
 ```typescript
-await auditService.logUnauthorizedAccess(
-  context,
-  '/api/admin/users',
-  'Insufficient permissions'
-)
+await auditService.logUnauthorizedAccess(context, '/api/admin/users', 'Insufficient permissions')
 ```
 
 ### Example 4: Query User Activity
+
 ```typescript
 const activity = await auditQueryService.getUserActivity(
   userId,
@@ -362,6 +390,7 @@ const activity = await auditQueryService.getUserActivity(
 ```
 
 ### Example 5: Detect Threats
+
 ```typescript
 const threat = await auditQueryService.detectSuspiciousActivity(userId, 60)
 if (threat.isSuspicious) {
@@ -375,29 +404,36 @@ if (threat.isSuspicious) {
 ## 📁 Files Created
 
 ### Entities & DTOs
+
 - `src/modules/audit/entities/audit-log.entity.ts` (245 lines)
 - `src/modules/audit/dto/audit-query.dto.ts` (105 lines)
 
 ### Repository
+
 - `src/modules/audit/database/audit-log.repository.ts`
 
 ### Services
+
 - `src/modules/audit/services/audit.service.ts` (619 lines)
 - `src/modules/audit/services/audit-query.service.ts` (314 lines)
 
 ### Decorator & Interceptor
+
 - `src/modules/audit/decorators/audit-log.decorator.ts` (27 lines)
 - `src/modules/audit/interceptors/audit-log.interceptor.ts` (176 lines)
 
 ### Controller & Module
+
 - `src/modules/audit/controllers/audit.controller.ts` (228 lines)
 - `src/modules/audit/audit.module.ts` (21 lines)
 - `src/modules/audit/index.ts` (6 lines)
 
 ### Migration
+
 - `src/core/database/migrations/1730150000000-CreateAuditLogsTable.ts` (332 lines)
 
 ### Configuration Updates
+
 - `src/app.module.ts` (added AuditModule)
 - `src/core/database/data-source.ts` (added AuditLog entity)
 - `src/modules/acl/types/subjects.enum.ts` (added AuditLog subject)

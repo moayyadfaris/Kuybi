@@ -8,13 +8,13 @@ Successfully integrated audit logging into the **Auth module**, tracking all cri
 
 ### Integrated Endpoints
 
-| Endpoint | Action Logged | Details |
-|----------|--------------|---------|
-| `POST /api/v1/auth/register` | `CREATE` (User) | Captures new user registration with email |
-| `POST /api/v1/auth/login` | `LOGIN` | Logs successful login with device type and session info |
-| `POST /api/v1/auth/logout` | `LOGOUT` or `LOGOUT_ALL` | Tracks single device or all devices logout |
-| `POST /api/v1/auth/change-password` | `CHANGE_PASSWORD` | Records password changes (user-initiated) |
-| `POST /api/v1/auth/reset-password` | `RESET_PASSWORD` | Tracks password reset via token |
+| Endpoint                            | Action Logged            | Details                                                 |
+| ----------------------------------- | ------------------------ | ------------------------------------------------------- |
+| `POST /api/v1/auth/register`        | `CREATE` (User)          | Captures new user registration with email               |
+| `POST /api/v1/auth/login`           | `LOGIN`                  | Logs successful login with device type and session info |
+| `POST /api/v1/auth/logout`          | `LOGOUT` or `LOGOUT_ALL` | Tracks single device or all devices logout              |
+| `POST /api/v1/auth/change-password` | `CHANGE_PASSWORD`        | Records password changes (user-initiated)               |
+| `POST /api/v1/auth/reset-password`  | `RESET_PASSWORD`         | Tracks password reset via token                         |
 
 ### Code Changes
 
@@ -34,7 +34,7 @@ For each authentication event, the following data is logged:
 
 - ✅ **User Context**: userId, email (when available)
 - ✅ **Action**: login, logout, logout_all, change_password, reset_password, user creation
-- ✅ **Request Context**: 
+- ✅ **Request Context**:
   - IP address
   - User agent
   - HTTP method
@@ -130,7 +130,7 @@ This integration helps meet compliance requirements:
 1. **Add Failed Login Logging**: Track authentication failures for security monitoring
 2. **Integrate Stories Module**: Add CRUD audit logging
 3. **Integrate Categories Module**: Add CRUD audit logging
-4. **Add Decorator-based Logging**: Use `@AuditLog()` decorator for simpler integration
+4. ~~Decorator-based logging~~: removed (2026-10-19); log explicitly through `AuditService`
 5. **Create Integration Tests**: Comprehensive test coverage
 6. **Documentation**: Complete feature documentation
 
@@ -142,18 +142,21 @@ This integration helps meet compliance requirements:
 ### How to Use
 
 **Query recent authentication events:**
+
 ```bash
 curl -X GET "http://localhost:4040/api/audit/search?limit=10" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 **Get user activity:**
+
 ```bash
 curl -X GET "http://localhost:4040/api/audit/user/{userId}/activity" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 **Monitor failed logins (future):**
+
 ```bash
 curl -X GET "http://localhost:4040/api/audit/failed-operations" \
   -H "Authorization: Bearer $TOKEN"

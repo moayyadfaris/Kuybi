@@ -8,7 +8,6 @@ import { CacheConfigModule } from '@core/cache/cache.module'
 import { AuditController } from './controllers/audit.controller'
 import { AuditLogRepository } from './database/audit-log.repository'
 import { AuditLog } from './entities/audit-log.entity'
-import { AuditLogInterceptor } from './interceptors/audit-log.interceptor'
 import { AuditService } from './services/audit.service'
 import { AuditContextFactory } from './services/audit-context.factory'
 import { AuditQueryService } from './services/audit-query.service'
@@ -16,13 +15,7 @@ import { AuditQueryService } from './services/audit-query.service'
 @Module({
   imports: [TypeOrmModule.forFeature([AuditLog]), CacheConfigModule, AclModule],
   controllers: [AuditController],
-  providers: [
-    AuditContextFactory,
-    AuditLogRepository,
-    AuditService,
-    AuditQueryService,
-    AuditLogInterceptor
-  ],
-  exports: [AuditService, AuditQueryService, AuditLogInterceptor]
+  providers: [AuditContextFactory, AuditLogRepository, AuditService, AuditQueryService],
+  exports: [AuditService, AuditQueryService]
 })
 export class AuditModule {}
