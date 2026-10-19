@@ -123,6 +123,28 @@ export default tseslint.config(
     }
   },
   {
+    // acl is a base module: feature modules depend on it, never the reverse. It
+    // authorizes an AclPrincipal and string subjects instead of importing User or Story.
+    // Entities are the exception: UserRole has a real foreign key to users, and the
+    // relation must stay declared for the schema (entity graphs are not module deps).
+    files: ['src/modules/acl/**/*.ts'],
+    ignores: ['src/modules/acl/entities/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@modules/*', '!@modules/acl', '!@modules/acl/**'],
+              message:
+                'acl must not depend on feature modules; describe what it needs (see AclPrincipal) or invert the dependency.'
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
     // Data access rule: inside feature modules only repositories (and seeders) touch
     // TypeORM. Services, jobs, guards and controllers go through the owning module's
     // repository, whose writes invalidate its caches (see BaseRepository). Transactions:

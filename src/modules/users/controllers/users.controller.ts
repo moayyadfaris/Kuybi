@@ -11,10 +11,16 @@ import {
   UseGuards
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
-import { subject } from '@casl/ability'
 import { Request } from 'express'
 
-import { AbilityFactory, AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import {
+  AbilityFactory,
+  AbilityGuard,
+  Action,
+  asSubject,
+  CheckAbility,
+  Subject
+} from '@modules/acl'
 
 import { JwtAuthGuard } from '@core/auth'
 
@@ -41,8 +47,9 @@ export class UsersController {
    * "Read User" in general, which the 'user' role has for itself ({ id: own id }).
    */
   private canRead(caller: User, userId: string): boolean {
-    const target = subject(Subject.User, { id: userId }) as unknown as User
-    return this.abilityFactory.createForUser(caller).can(Action.Read, target)
+    return this.abilityFactory
+      .createForUser(caller)
+      .can(Action.Read, asSubject(Subject.User, { id: userId }))
   }
 
   /** Lists and statistics cover every user, so they need read access to other users */

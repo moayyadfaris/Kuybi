@@ -1,7 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common'
-import { subject } from '@casl/ability'
 
-import { AbilityFactory, Action, Subject } from '@modules/acl'
+import { AbilityFactory, Action, asSubject, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
 import { Story, StoryStatus } from '../entities/story.entity'
@@ -20,9 +19,7 @@ export class StoryAccessPolicy {
   constructor(private readonly abilityFactory: AbilityFactory) {}
 
   can(user: User, action: Action, story: Story): boolean {
-    return this.abilityFactory
-      .createForUser(user)
-      .can(action, subject(Subject.Story, story) as unknown as Story)
+    return this.abilityFactory.createForUser(user).can(action, asSubject(Subject.Story, story))
   }
 
   assertCan(user: User, action: Action, story: Story, message: string): void {

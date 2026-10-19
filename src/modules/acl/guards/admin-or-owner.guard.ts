@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 
-import { User } from '@modules/users/entities'
+import { AclPrincipal } from '../types/acl-principal'
 
 /**
  * Guard to allow access if user is admin OR owns the resource
@@ -21,7 +21,7 @@ export class AdminOrOwnerGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest()
-    const user: User = request.user
+    const user: AclPrincipal = request.user
 
     if (!user) {
       throw new ForbiddenException('Authentication required')
