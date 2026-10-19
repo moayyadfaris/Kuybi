@@ -87,18 +87,6 @@ export class TagsService {
   }
 
   /**
-   * Find or create tag by name
-   */
-  async findOrCreate(name: string, userId: string): Promise<Tag> {
-    const existing = await this.findByName(name)
-    if (existing) {
-      return existing
-    }
-
-    return this.create({ name: name.toLowerCase().trim() }, userId)
-  }
-
-  /**
    * Find system tags
    */
   async findSystemTags(): Promise<Tag[]> {

@@ -6,7 +6,6 @@ import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
 import { FieldDefinition } from '../entities/field-definition.entity'
-import { FieldType } from '../enums/field-type.enum'
 
 /**
  * FieldDefinition Repository
@@ -113,45 +112,6 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
 
     return this.repository.findOne({
       where: { postTypeId, name: fieldName, deletedAt: IsNull() }
-    })
-  }
-
-  /**
-   * Find fields by type
-   * @param postTypeId - Post type UUID
-   * @param fieldType - Field type enum value
-   */
-  async findByFieldType(postTypeId: string, fieldType: FieldType): Promise<FieldDefinition[]> {
-    return this.repository.find({
-      where: { postTypeId, fieldType, deletedAt: IsNull() },
-      order: { displayOrder: 'ASC' }
-    })
-  }
-
-  /**
-   * Find searchable fields for a post type
-   * Used for building search queries
-   * @param postTypeId - Post type UUID
-   */
-  async findSearchableFields(postTypeId: string): Promise<FieldDefinition[]> {
-    const cacheKey = this.buildCacheKey('searchable', postTypeId)
-
-    if (this.cacheService) {
-      return this.cached<FieldDefinition[]>(
-        cacheKey,
-        async () => {
-          return this.repository.find({
-            where: { postTypeId, isSearchable: true, deletedAt: IsNull() },
-            order: { displayOrder: 'ASC' }
-          })
-        },
-        this.defaultTTL
-      )
-    }
-
-    return this.repository.find({
-      where: { postTypeId, isSearchable: true, deletedAt: IsNull() },
-      order: { displayOrder: 'ASC' }
     })
   }
 

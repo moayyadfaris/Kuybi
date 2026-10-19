@@ -155,31 +155,6 @@ export class ExifProcessorService {
   }
 
   /**
-   * Get image orientation
-   */
-  async getOrientation(buffer: Buffer): Promise<number> {
-    try {
-      const metadata = await sharp(buffer).metadata()
-      return metadata.orientation || 1
-    } catch {
-      return 1
-    }
-  }
-
-  /**
-   * Correct image orientation based on EXIF
-   */
-  async correctOrientation(buffer: Buffer): Promise<Buffer> {
-    try {
-      // rotate() applies the EXIF orientation; the output carries no EXIF (only the ICC profile)
-      return await sharp(buffer).rotate().keepIccProfile().toBuffer()
-    } catch (error) {
-      this.logger.error({ error: errorMessage(error) }, 'Failed to correct orientation')
-      throw new BadRequestException('Failed to correct image orientation')
-    }
-  }
-
-  /**
    * Generate metadata summary for storage
    */
   async generateMetadataSummary(buffer: Buffer): Promise<Record<string, unknown>> {

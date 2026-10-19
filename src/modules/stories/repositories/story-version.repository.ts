@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { FindOptionsWhere, IsNull, LessThan, Not, Repository } from 'typeorm'
+import { IsNull, LessThan, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -259,33 +259,6 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   }
 
   /**
-   * Get all tagged versions for a story
-   */
-  async getTaggedVersions(
-    storyId: number,
-    options?: { ttl?: number; bypassCache?: boolean }
-  ): Promise<StoryVersion[]> {
-    const cacheKey = this.buildCacheKey('tagged', storyId)
-
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<StoryVersion[]>(cacheKey)
-      if (cached) return cached
-    }
-
-    const versions = await this.repository.find({
-      where: { storyId, tag: Not(IsNull()) } as unknown as FindOptionsWhere<StoryVersion>,
-      relations: { author: true },
-      order: { createdAt: 'DESC' }
-    })
-
-    if (this.cacheService && !options?.bypassCache) {
-      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
-    }
-
-    return versions
-  }
-
-  /**
    * Find a version by tag
    */
   async findByTag(
@@ -315,33 +288,6 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   }
 
   /**
-   * Find versions with the same content hash (duplicates)
-   */
-  async findByContentHash(
-    contentHash: string,
-    options?: { ttl?: number; bypassCache?: boolean }
-  ): Promise<StoryVersion[]> {
-    const cacheKey = this.buildCacheKey('contentHash', contentHash)
-
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<StoryVersion[]>(cacheKey)
-      if (cached) return cached
-    }
-
-    const versions = await this.repository.find({
-      where: { contentHash },
-      relations: { author: true },
-      order: { createdAt: 'DESC' }
-    })
-
-    if (this.cacheService && !options?.bypassCache) {
-      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
-    }
-
-    return versions
-  }
-
-  /**
    * Get the next version number for a story
    */
   async getNextVersionNumber(storyId: number): Promise<number> {
@@ -352,35 +298,6 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
       .getRawOne()
 
     return (result?.maxVersion ?? 0) + 1
-  }
-
-  /**
-   * Count versions for a story
-   */
-  async countVersions(
-    storyId: number,
-    branch?: string,
-    options?: { ttl?: number; bypassCache?: boolean }
-  ): Promise<number> {
-    const cacheKey = this.buildCacheKey('count', storyId, branch ?? 'all')
-
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<number>(cacheKey)
-      if (cached !== null && cached !== undefined) return cached
-    }
-
-    const where: FindOptionsWhere<StoryVersion> = { storyId }
-    if (branch) {
-      where.branchName = branch
-    }
-
-    const count = await this.repository.count({ where })
-
-    if (this.cacheService && !options?.bypassCache) {
-      await this.cacheSet(cacheKey, count, options?.ttl ?? 900) // 15 min TTL
-    }
-
-    return count
   }
 
   /**

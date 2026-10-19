@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config'
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
-  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectAclCommand,
@@ -241,37 +240,6 @@ export class S3Service {
     } catch (error) {
       this.logger.error(`Failed to delete file from S3: ${key}`, error)
       throw new InternalServerErrorException('Failed to delete file from storage')
-    }
-  }
-
-  /**
-   * Delete multiple files from S3
-   */
-  async deleteMultiple(keys: string[]): Promise<void> {
-    if (!keys || keys.length === 0) {
-      return
-    }
-
-    try {
-      const command = new DeleteObjectsCommand({
-        Bucket: this.bucket,
-        Delete: {
-          Objects: keys.map(key => ({ Key: key })),
-          Quiet: false
-        }
-      })
-
-      const result = await this.executeWithResilience('delete-multiple', signal =>
-        this.s3Client.send(command, { abortSignal: signal })
-      )
-      this.logger.info(`${keys.length} files deleted successfully from S3`)
-
-      if (result.Errors && result.Errors.length > 0) {
-        this.logger.warn(`Some files failed to delete:`, result.Errors)
-      }
-    } catch (error) {
-      this.logger.error(`Failed to delete multiple files from S3`, error)
-      throw new InternalServerErrorException('Failed to delete files from storage')
     }
   }
 

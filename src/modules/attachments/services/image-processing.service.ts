@@ -251,20 +251,6 @@ export class ImageProcessingService {
   }
 
   /**
-   * Extract dominant colors from image
-   */
-  async extractDominantColors(buffer: Buffer, _numColors = 5): Promise<string[]> {
-    try {
-      await sharp(buffer).resize(100, 100, { fit: 'cover' }).stats()
-
-      // Return a placeholder color - in production use a proper color quantization library
-      return ['#808080']
-    } catch {
-      throw new InternalServerErrorException('Failed to extract dominant colors')
-    }
-  }
-
-  /**
    * Crop image
    */
   async crop(buffer: Buffer, x: number, y: number, width: number, height: number): Promise<Buffer> {
@@ -305,80 +291,6 @@ export class ImageProcessingService {
       return await sharp(buffer).grayscale().toBuffer()
     } catch {
       throw new InternalServerErrorException('Failed to convert to grayscale')
-    }
-  }
-
-  /**
-   * Add watermark to image
-   */
-  async addWatermark(
-    buffer: Buffer,
-    watermarkBuffer: Buffer,
-    position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center' = 'bottom-right',
-    opacity = 0.5
-  ): Promise<Buffer> {
-    try {
-      const image = sharp(buffer)
-      const metadata = await image.metadata()
-
-      // Resize watermark to 20% of image width
-      const watermarkWidth = Math.floor((metadata.width || 1000) * 0.2)
-      const resizedWatermark = await sharp(watermarkBuffer)
-        .resize({ width: watermarkWidth })
-        .toBuffer()
-
-      const watermarkMetadata = await sharp(resizedWatermark).metadata()
-
-      // Calculate position
-      let left = 0
-      let top = 0
-
-      switch (position) {
-        case 'top-left':
-          left = 10
-          top = 10
-          break
-        case 'top-right':
-          left = (metadata.width || 0) - (watermarkMetadata.width || 0) - 10
-          top = 10
-          break
-        case 'bottom-left':
-          left = 10
-          top = (metadata.height || 0) - (watermarkMetadata.height || 0) - 10
-          break
-        case 'bottom-right':
-          left = (metadata.width || 0) - (watermarkMetadata.width || 0) - 10
-          top = (metadata.height || 0) - (watermarkMetadata.height || 0) - 10
-          break
-        case 'center':
-          left = Math.floor(((metadata.width || 0) - (watermarkMetadata.width || 0)) / 2)
-          top = Math.floor(((metadata.height || 0) - (watermarkMetadata.height || 0)) / 2)
-          break
-      }
-
-      return await image
-        .composite([
-          {
-            input: await sharp(resizedWatermark).ensureAlpha(opacity).toBuffer(),
-            left,
-            top
-          }
-        ])
-        .toBuffer()
-    } catch {
-      throw new InternalServerErrorException('Failed to add watermark')
-    }
-  }
-
-  /**
-   * Check if buffer is a valid image
-   */
-  async isValidImage(buffer: Buffer): Promise<boolean> {
-    try {
-      await sharp(buffer).metadata()
-      return true
-    } catch {
-      return false
     }
   }
 

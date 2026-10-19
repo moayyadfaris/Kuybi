@@ -106,20 +106,6 @@ export class UsersService {
     return this.userRepository.update(id, data)
   }
 
-  async deleteUser(id: string, currentUser?: User): Promise<boolean> {
-    // Check if current user can manage target user (role hierarchy)
-    if (currentUser && !currentUser.isSuperAdmin()) {
-      const targetUser = await this.userRepository.findById(id, { bypassCache: true })
-      if (targetUser && !currentUser.canManageUser(targetUser)) {
-        throw new ForbiddenException(
-          'Cannot delete user with equal or higher role priority. Contact a super-admin.'
-        )
-      }
-    }
-
-    return this.userRepository.delete(id)
-  }
-
   async searchUsers(query: {
     search?: string
     role?: string

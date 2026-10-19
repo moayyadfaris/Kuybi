@@ -2,30 +2,13 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import sharp, { type Metadata, type Sharp } from 'sharp'
+import sharp, { type Sharp } from 'sharp'
 
 export interface ImageFormat {
   format: 'jpeg' | 'png' | 'webp' | 'avif'
   quality: number
   progressive?: boolean
   compressionLevel?: number
-}
-
-export interface ResponsiveImageSet {
-  original: Buffer
-  webp: Buffer
-  avif?: Buffer
-  sizes: {
-    [key: string]: {
-      jpeg: Buffer
-      webp?: Buffer
-      avif?: Buffer
-      width: number
-      height: number
-    }
-  }
-  placeholder: Buffer // Tiny blurred image for lazy loading
-  metadata: Metadata
 }
 
 export interface OptimizationOptions {
@@ -57,21 +40,6 @@ export interface OptimizationResult {
 export class ImageOptimizationService {
   private readonly defaultQuality = 85
   private readonly placeholderWidth = 20
-  private readonly defaultFormats: ImageFormat[] = [
-    { format: 'jpeg', quality: 85, progressive: true },
-    { format: 'webp', quality: 80 },
-    { format: 'avif', quality: 75 }
-  ]
-
-  // Responsive breakpoints for different devices
-  private readonly responsiveBreakpoints = [
-    { name: 'thumbnail', width: 150, height: 150 },
-    { name: 'small', width: 320 },
-    { name: 'medium', width: 640 },
-    { name: 'large', width: 1024 },
-    { name: 'xlarge', width: 1920 }
-  ]
-
   constructor(
     private readonly configService: ConfigService,
     @InjectPinoLogger(ImageOptimizationService.name)
@@ -189,119 +157,6 @@ export class ImageOptimizationService {
   }
 
   /**
-   * Generate responsive image set for different screen sizes
-   */
-  async generateResponsiveSet(
-    buffer: Buffer,
-    options: {
-      breakpoints?: Array<{ name: string; width: number; height?: number }>
-      generateWebP?: boolean
-      generateAVIF?: boolean
-      quality?: number
-    } = {}
-  ): Promise<ResponsiveImageSet> {
-    try {
-      const metadata = await sharp(buffer).metadata()
-      const breakpoints = options.breakpoints || this.responsiveBreakpoints
-      const quality = options.quality || this.defaultQuality
-
-      const result: ResponsiveImageSet = {
-        original: buffer,
-        webp: await sharp(buffer).webp({ quality }).toBuffer(),
-        sizes: {},
-        placeholder: await this.generatePlaceholder(buffer),
-        metadata
-      }
-
-      // Generate AVIF for original if enabled
-      if (options.generateAVIF) {
-        try {
-          result.avif = await sharp(buffer)
-            .avif({ quality: quality - 10 })
-            .toBuffer()
-        } catch {
-          this.logger.warn('AVIF generation failed for original')
-        }
-      }
-
-      // Generate all breakpoint sizes
-      for (const breakpoint of breakpoints) {
-        const sizeResult: {
-          jpeg: Buffer
-          webp?: Buffer
-          avif?: Buffer
-          width: number
-          height: number
-        } = {
-          jpeg: Buffer.from([]),
-          width: 0,
-          height: 0
-        }
-
-        // JPEG version
-        sizeResult.jpeg = await sharp(buffer)
-          .rotate()
-          .resize({
-            width: breakpoint.width,
-            height: breakpoint.height,
-            fit: breakpoint.height ? 'cover' : 'inside',
-            withoutEnlargement: true
-          })
-          .jpeg({ quality, progressive: true })
-          .toBuffer()
-
-        // WebP version
-        if (options.generateWebP !== false) {
-          sizeResult.webp = await sharp(buffer)
-            .rotate()
-            .resize({
-              width: breakpoint.width,
-              height: breakpoint.height,
-              fit: breakpoint.height ? 'cover' : 'inside',
-              withoutEnlargement: true
-            })
-            .webp({ quality: quality - 5 })
-            .toBuffer()
-        }
-
-        // AVIF version
-        if (options.generateAVIF) {
-          try {
-            sizeResult.avif = await sharp(buffer)
-              .rotate()
-              .resize({
-                width: breakpoint.width,
-                height: breakpoint.height,
-                fit: breakpoint.height ? 'cover' : 'inside',
-                withoutEnlargement: true
-              })
-              .avif({ quality: quality - 10 })
-              .toBuffer()
-          } catch {
-            this.logger.warn(`AVIF generation failed for ${breakpoint.name}`)
-          }
-        }
-
-        const sizeMetadata = await sharp(sizeResult.jpeg).metadata()
-        sizeResult.width = sizeMetadata.width || breakpoint.width
-        sizeResult.height = sizeMetadata.height || 0
-
-        result.sizes[breakpoint.name] = sizeResult
-      }
-
-      this.logger.info(
-        { breakpointsGenerated: Object.keys(result.sizes).length },
-        'Responsive image set generated'
-      )
-
-      return result
-    } catch (error) {
-      this.logger.error({ error: errorMessage(error) }, 'Failed to generate responsive set')
-      throw new BadRequestException('Failed to generate responsive image set')
-    }
-  }
-
-  /**
    * Generate tiny blurred placeholder for lazy loading (LQIP - Low Quality Image Placeholder)
    */
   async generatePlaceholder(buffer: Buffer): Promise<Buffer> {
@@ -407,31 +262,6 @@ export class ImageOptimizationService {
   }
 
   /**
-   * Batch optimize multiple images
-   */
-  async batchOptimize(
-    images: Array<{ buffer: Buffer; name: string }>,
-    options: OptimizationOptions = {}
-  ): Promise<Array<{ name: string; result: OptimizationResult }>> {
-    const results = []
-
-    for (const image of images) {
-      try {
-        const result = await this.optimizeImage(image.buffer, options)
-        results.push({ name: image.name, result })
-      } catch (error) {
-        this.logger.error(
-          { name: image.name, error: errorMessage(error) },
-          'Batch optimization failed'
-        )
-        // Continue with next image
-      }
-    }
-
-    return results
-  }
-
-  /**
    * Get image dimensions without loading full image
    */
   async getDimensions(buffer: Buffer): Promise<{ width: number; height: number }> {
@@ -440,27 +270,5 @@ export class ImageOptimizationService {
       width: metadata.width || 0,
       height: metadata.height || 0
     }
-  }
-
-  /**
-   * Check if image needs optimization
-   */
-  async needsOptimization(
-    buffer: Buffer,
-    maxSize: number = 1024 * 1024 // 1MB default
-  ): Promise<boolean> {
-    if (buffer.length > maxSize) return true
-
-    const metadata = await sharp(buffer).metadata()
-
-    // Check if dimensions are too large
-    if (metadata.width && metadata.width > 2048) return true
-    if (metadata.height && metadata.height > 2048) return true
-
-    // Check if format can be improved (convert string to avoid type errors)
-    const format = String(metadata.format)
-    if (format === 'bmp' || format === 'tiff') return true
-
-    return false
   }
 }

@@ -395,38 +395,10 @@ export class FileValidationService {
   }
 
   /**
-   * Get maximum allowed size for a MIME type
-   */
-  getMaxSizeForMimeType(mimeType: string): number {
-    const category = this.getFileCategory(mimeType)
-    return this.maxSizes[category] || this.maxSizes.default
-  }
-
-  /**
-   * Check if MIME type is allowed
-   */
-  isMimeTypeAllowed(mimeType: string): boolean {
-    const allAllowedTypes = [
-      ...this.allowedMimeTypes.images,
-      ...this.allowedMimeTypes.videos,
-      ...this.allowedMimeTypes.documents,
-      ...this.allowedMimeTypes.archives
-    ]
-    return allAllowedTypes.includes(mimeType)
-  }
-
-  /**
    * Check if file is an image
    */
   isImage(mimeType: string): boolean {
     return this.allowedMimeTypes.images.includes(mimeType)
-  }
-
-  /**
-   * Check if file is a video
-   */
-  isVideo(mimeType: string): boolean {
-    return this.allowedMimeTypes.videos.includes(mimeType)
   }
 
   /**
@@ -458,18 +430,6 @@ export class FileValidationService {
     }
 
     return sanitized.toLowerCase()
-  }
-
-  /**
-   * Get all allowed MIME types
-   */
-  getAllAllowedMimeTypes(): string[] {
-    return [
-      ...this.allowedMimeTypes.images,
-      ...this.allowedMimeTypes.videos,
-      ...this.allowedMimeTypes.documents,
-      ...this.allowedMimeTypes.archives
-    ]
   }
 }
 
