@@ -18,7 +18,7 @@
 > | SEC-05 Bull Board credentials         | ✅ Fixed: refuses to start without `BULL_BOARD_PASSWORD`; checked outside dev/test                                                                                           |
 > | SEC-06 86 production vulnerabilities  | ✅ Fixed: `npm audit --omit=dev` reports 0; CI audits every PR                                                                                                               |
 > | SEC-07 password hashing               | ❌ Open: bcrypt cost hard-coded to 10 at 9 call sites; no shared hasher or rehash-on-login                                                                                   |
-> | SEC-08 repo hygiene                   | 🟡 Partly: `.dockerignore` fixed; `integration_test_output.txt` still tracked                                                                                                |
+> | SEC-08 repo hygiene                   | ✅ Fixed: `.dockerignore` extended; `integration_test_output.txt` removed and `*_output.txt` ignored                                                                         |
 > | Dependencies (majors)                 | ✅ Mostly: CASL 7, Nodemailer 10, bcrypt 6, Jest 30, ESLint 10 (flat config), BullMQ 6, Bull Board 9, TypeORM 1.1. Blocked: ioredis 6 (TypeORM peer), TypeScript 7 (tooling) |
 > | Dead / misplaced dependencies         | ❌ Open: `morgan`, `ajv`, `ajv-formats`, `rimraf` unused; 3 `@types/*` in `dependencies`                                                                                     |
 > | Manifest metadata                     | 🟡 Partly: `LICENSE`, `license`, `engines`, `.nvmrc` exist; no `SECURITY.md`                                                                                                 |

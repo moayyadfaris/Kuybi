@@ -96,3 +96,6 @@ docker-compose.override.yml
 # Ignore coverage/lint/temp files from CI tools
 reports/
 artifacts/
+
+# Captured command output (test runs, logs)
+*_output.txt

@@ -1,3 +1,5 @@
+> **Status (2026-10-19):** suggestions from December 2025. Since built: content versioning with branches, merge and rollback (#11), per-user rate limiting with shared Redis storage (#10, partly). Business framing is in [business opportunities](./BUSINESS_OPPORTUNITIES.md).
+
 # 🚀 Feature Suggestions for Kuybi
 
 **Last Updated:** December 2024  
