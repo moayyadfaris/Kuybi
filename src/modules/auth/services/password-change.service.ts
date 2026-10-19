@@ -237,7 +237,6 @@ export class PasswordChangeService {
           ? 'Password changed successfully. Other sessions have been logged out.'
           : 'Password changed successfully. Please login with your new password.'
         : 'Password changed successfully. All sessions remain active.',
-      success: true,
       sessionsRevoked: sessionsRevoked.count,
       notificationSent: options.sendNotificationEmail !== false
     }

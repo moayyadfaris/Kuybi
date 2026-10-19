@@ -212,7 +212,8 @@ describe('Session Management Integration Tests', () => {
         .set('Authorization', `Bearer ${superAdminToken}`)
         .expect(200)
 
-      expect(response.body.data).toHaveProperty('success', true)
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).not.toHaveProperty('success')
       expect(response.body.data).toHaveProperty('userId', regularUser.id)
       expect(response.body.data).toHaveProperty('sessions')
       expect(Array.isArray(response.body.data.sessions)).toBe(true)
@@ -258,7 +259,8 @@ describe('Session Management Integration Tests', () => {
         .send({ reason: 'admin_action', notes: 'Security test' })
         .expect(200)
 
-      expect(response.body.data).toHaveProperty('success', true)
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).not.toHaveProperty('success')
       expect(response.body.data).toHaveProperty('sessionId', freshSessionId)
       expect(response.body.data).toHaveProperty('userId', regularUser.id)
 
@@ -339,7 +341,8 @@ describe('Session Management Integration Tests', () => {
         .send({ reason: 'admin_action', notes: 'Force logout all sessions' })
         .expect(200)
 
-      expect(response.body.data).toHaveProperty('success', true)
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).not.toHaveProperty('success')
       expect(response.body.data).toHaveProperty('userId', regularUser.id)
       expect(response.body.data).toHaveProperty('sessionsRevoked')
       expect(response.body.data.sessionsRevoked).toBeGreaterThan(0)

@@ -267,16 +267,19 @@ export class SessionsController {
       throw new ForbiddenException('Access denied')
     }
 
-    const success = await this.sessionsService.revokeSession(sessionId, dto.reason || 'user_logout')
-    this.logger.info({ userId, sessionId, success }, 'Session revoked')
+    const revoked = await this.sessionsService.revokeSession(sessionId, dto.reason || 'user_logout')
+    if (!revoked) {
+      // Revoked by another request since the check above
+      throw new NotFoundException('Session not found or already revoked')
+    }
+    this.logger.info({ userId, sessionId }, 'Session revoked')
 
     return {
-      success,
-      sessionsRevoked: success ? 1 : 0,
+      sessionsRevoked: 1,
       logoutType: 'current_device' as const,
-      revokedSessionIds: success ? [sessionId] : [],
+      revokedSessionIds: [sessionId],
       cacheCleared: true,
-      message: success ? `Session revoked (${dto.reason || 'user_logout'})` : 'Failed to revoke'
+      message: `Session revoked (${dto.reason || 'user_logout'})`
     }
   }
 
@@ -297,7 +300,6 @@ export class SessionsController {
     this.logger.info({ userId, count }, 'All sessions revoked')
 
     return {
-      success: true,
       sessionsRevoked: count,
       logoutType: 'all_devices',
       message: `Revoked ${count} session(s)`
@@ -343,7 +345,6 @@ export class SessionsController {
     this.logger.info({ userId, deviceType, count: revokedCount }, 'Device sessions revoked')
 
     return {
-      success: revokedCount > 0,
       sessionsRevoked: revokedCount,
       logoutType: 'by_device_type' as const,
       revokedSessionIds: revokedIds,
@@ -393,7 +394,6 @@ export class SessionsController {
     )
 
     return {
-      success: true,
       sessionId,
       oldExpiresAt: currentExpiry,
       newExpiresAt,
@@ -476,7 +476,6 @@ export class SessionsController {
     )
 
     return {
-      success: true,
       userId,
       sessions: filtered,
       total: allSessions.length,
@@ -524,28 +523,25 @@ export class SessionsController {
       throw new BadRequestException('Session does not belong to specified user')
     }
 
-    const success = await this.sessionsService.revokeSession(
+    const revoked = await this.sessionsService.revokeSession(
       sessionId,
       body.notes || body.reason || 'Revoked by super-admin'
     )
+    if (!revoked) {
+      throw new NotFoundException('Session not found or already revoked')
+    }
 
     this.logger.info(
       {
         adminUserId: adminUser.id,
         targetUserId: userId,
         sessionId,
-        success,
         action: 'admin_revoke_user_session_success'
       },
       'Super-admin revoked user session'
     )
 
-    return {
-      success,
-      sessionId,
-      userId,
-      message: success ? 'Session revoked successfully' : 'Session not found or already revoked'
-    }
+    return { sessionId, userId, message: 'Session revoked successfully' }
   }
 
   @Delete('users/:userId/sessions')
@@ -589,7 +585,6 @@ export class SessionsController {
     )
 
     return {
-      success: true,
       userId,
       sessionsRevoked: count,
       message: `Successfully revoked ${count} session(s)`
@@ -626,7 +621,6 @@ export class SessionsController {
     this.logger.info({ adminUserId: user.id, deletedCount, duration }, 'Cleanup completed')
 
     return {
-      success: true,
       sessionsDeleted: deletedCount,
       olderThanDays,
       duration,

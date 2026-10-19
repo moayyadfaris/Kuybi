@@ -108,14 +108,6 @@ export class RevokeByDeviceDto {
  */
 export class RevokeSessionResponseDto {
   @ApiProperty({
-    description: 'Whether the revocation was successful',
-    example: true
-  })
-  @ToBoolean()
-  @IsBoolean()
-  success: boolean
-
-  @ApiProperty({
     description: 'Number of sessions revoked',
     example: 3
   })
