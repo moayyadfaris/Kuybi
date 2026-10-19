@@ -7,6 +7,12 @@ import { AttachmentMetadata, shouldForcePublic } from '../utils/attachment-image
 import { S3Service } from './s3.service'
 
 /**
+ * States in which the stored object is still the raw upload (metadata not stripped, or
+ * processing failed). Making it public would publish its GPS location and camera data.
+ */
+const UNPROCESSED = new Set(['pending_upload', 'verifying', 'processing', 'failed', 'rejected'])
+
+/**
  * Public/private visibility of an attachment. The flag in the database and the ACL of
  * every stored object (original, thumbnail, size variants, placeholder) must change
  * together: changing only the flag left "private" files publicly downloadable, and
@@ -40,6 +46,12 @@ export class AttachmentVisibilityService {
     }
     if (attachment.isPublic === isPublic) {
       return attachment
+    }
+
+    if (isPublic && UNPROCESSED.has(attachment.securityStatus)) {
+      // Record the choice only; the processor publishes the processed copy
+      const updated = await this.attachmentRepository.update(attachment.id, { isPublic })
+      return updated ?? { ...attachment, isPublic }
     }
 
     await Promise.all(storageKeys(attachment).map(key => this.s3Service.setAcl(key, isPublic)))
