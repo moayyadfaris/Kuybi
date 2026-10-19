@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Between, Brackets, FindOptionsRelations, IsNull, Repository } from 'typeorm'
+import { Brackets, FindOptionsRelations, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -43,9 +43,8 @@ export class StoryRepository extends BaseRepository<Story> {
     const cacheKey = this.buildCacheKey('id', id)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrapWithTags<Story | null>(
+      return this.cached<Story | null>(
         cacheKey,
-        ['stories', `story:${id}`],
         async () => {
           return this.findByIdQuery(id)
         },
@@ -82,9 +81,8 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey('user', userId, JSON.stringify(options || {}))
 
-    return this.cacheService.wrapWithTags<Story[]>(
+    return this.cached<Story[]>(
       cacheKey,
-      ['stories', `user:${userId}:stories`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -127,9 +125,8 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey('status', status, JSON.stringify(options || {}))
 
-    return this.cacheService.wrapWithTags<Story[]>(
+    return this.cached<Story[]>(
       cacheKey,
-      ['stories', `story:status:${status}`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -169,9 +166,8 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story[]> {
     const cacheKey = this.buildCacheKey('type', type, JSON.stringify(options || {}))
 
-    return this.cacheService.wrapWithTags<Story[]>(
+    return this.cached<Story[]>(
       cacheKey,
-      ['stories', `story:type:${type}`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -199,51 +195,10 @@ export class StoryRepository extends BaseRepository<Story> {
   }
 
   /**
-   * Find stories by priority with caching
-   * Includes mainImage and user to prevent N+1 queries
-   */
-  async findByPriority(
-    priority: StoryPriority,
-    options?: {
-      limit?: number
-      offset?: number
-    }
-  ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey('priority', priority, JSON.stringify(options || {}))
-
-    return this.cacheService.wrapWithTags<Story[]>(
-      cacheKey,
-      ['stories', `story:priority:${priority}`],
-      async () => {
-        const query = this.repository
-          .createQueryBuilder('story')
-          .leftJoinAndSelect('story.tags', 'tags')
-          .leftJoinAndSelect('story.categories', 'categories')
-          .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoin('story.user', 'user')
-          .addSelect(STORY_AUTHOR_COLUMNS)
-          .where('story.priority = :priority', { priority })
-          .andWhere('story.deletedAt IS NULL')
-          .orderBy('story.createdAt', 'DESC')
-
-        if (options?.limit) {
-          query.take(options.limit)
-        }
-
-        if (options?.offset) {
-          query.skip(options.offset)
-        }
-
-        return query.getMany()
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
    * Find child stories (by parent ID)
    * Includes mainImage and user to prevent N+1 queries
    */
+
   async findChildren(
     parentId: number,
     options?: {
@@ -256,9 +211,8 @@ export class StoryRepository extends BaseRepository<Story> {
       JSON.stringify(options || {})
     )
 
-    return this.cacheService.wrapWithTags<Story[]>(
+    return this.cached<Story[]>(
       cacheKey,
-      ['stories', `story:${parentId}:children`],
       async () => {
         const query = this.repository
           .createQueryBuilder('story')
@@ -442,252 +396,88 @@ export class StoryRepository extends BaseRepository<Story> {
     drafts: number
     deleted: number
   }> {
-    const cacheKey = this.buildCacheKey('stats')
-
-    return this.cacheService.wrapWithTags(
-      cacheKey,
-      ['stories', 'stats'],
+    return this.cached(
+      this.buildCacheKey('stats'),
       async () => {
         const now = new Date()
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const month = new Date(now.getFullYear(), now.getMonth(), 1)
 
-        const [
-          total,
-          byStatus,
-          byType,
-          byPriority,
-          createdToday,
-          createdThisWeek,
-          createdThisMonth,
-          published,
-          drafts,
-          deleted
-        ] = await Promise.all([
-          // Total stories
-          this.repository.count({ where: { deletedAt: IsNull() } }),
-
-          // By status
+        // One pass for the scalar counts (FILTER), one GROUP BY per breakdown
+        const [counts, byStatus, byType, byPriority] = await Promise.all([
           this.repository
             .createQueryBuilder('story')
-            .select('story.status', 'status')
-            .addSelect('COUNT(*)', 'count')
-            .where('story.deletedAt IS NULL')
-            .groupBy('story.status')
-            .getRawMany()
-            .then(rows =>
-              rows.reduce(
-                (acc, row) => {
-                  acc[row.status as StoryStatus] = parseInt(row.count)
-                  return acc
-                },
-                {} as Record<StoryStatus, number>
-              )
-            ),
-
-          // By type
-          this.repository
-            .createQueryBuilder('story')
-            .select('story.type', 'type')
-            .addSelect('COUNT(*)', 'count')
-            .where('story.deletedAt IS NULL')
-            .groupBy('story.type')
-            .getRawMany()
-            .then(rows =>
-              rows.reduce(
-                (acc, row) => {
-                  acc[row.type as StoryType] = parseInt(row.count)
-                  return acc
-                },
-                {} as Record<StoryType, number>
-              )
-            ),
-
-          // By priority
-          this.repository
-            .createQueryBuilder('story')
-            .select('story.priority', 'priority')
-            .addSelect('COUNT(*)', 'count')
-            .where('story.deletedAt IS NULL')
-            .groupBy('story.priority')
-            .getRawMany()
-            .then(rows =>
-              rows.reduce(
-                (acc, row) => {
-                  acc[row.priority as StoryPriority] = parseInt(row.count)
-                  return acc
-                },
-                {} as Record<StoryPriority, number>
-              )
-            ),
-
-          // Created today
-          this.repository.count({
-            where: {
-              createdAt: Between(startOfToday, now),
-              deletedAt: IsNull()
-            }
-          }),
-
-          // Created this week
-          this.repository.count({
-            where: {
-              createdAt: Between(startOfWeek, now),
-              deletedAt: IsNull()
-            }
-          }),
-
-          // Created this month
-          this.repository.count({
-            where: {
-              createdAt: Between(startOfMonth, now),
-              deletedAt: IsNull()
-            }
-          }),
-
-          // Published
-          this.repository.count({
-            where: {
-              status: StoryStatus.PUBLISHED,
-              deletedAt: IsNull()
-            }
-          }),
-
-          // Drafts
-          this.repository.count({
-            where: {
-              status: StoryStatus.DRAFT,
-              deletedAt: IsNull()
-            }
-          }),
-
-          // Deleted
-          this.repository.count({
-            where: {
-              deletedAt: Between(new Date(0), now)
-            }
-          })
+            .select('COUNT(*) FILTER (WHERE story.deletedAt IS NULL)', 'total')
+            .addSelect(
+              'COUNT(*) FILTER (WHERE story.deletedAt IS NULL AND story.createdAt >= :today)',
+              'createdToday'
+            )
+            .addSelect(
+              'COUNT(*) FILTER (WHERE story.deletedAt IS NULL AND story.createdAt >= :week)',
+              'createdThisWeek'
+            )
+            .addSelect(
+              'COUNT(*) FILTER (WHERE story.deletedAt IS NULL AND story.createdAt >= :month)',
+              'createdThisMonth'
+            )
+            .addSelect('COUNT(*) FILTER (WHERE story.deletedAt IS NOT NULL)', 'deleted')
+            .setParameters({ today, week, month })
+            .getRawOne<Record<string, string>>(),
+          this.countLiveBy<StoryStatus>('status'),
+          this.countLiveBy<StoryType>('type'),
+          this.countLiveBy<StoryPriority>('priority')
         ])
 
+        const count = (key: string) => Number(counts?.[key] ?? 0)
         return {
-          total,
+          total: count('total'),
           byStatus,
           byType,
           byPriority,
-          createdToday,
-          createdThisWeek,
-          createdThisMonth,
-          published,
-          drafts,
-          deleted
+          createdToday: count('createdToday'),
+          createdThisWeek: count('createdThisWeek'),
+          createdThisMonth: count('createdThisMonth'),
+          published: byStatus[StoryStatus.PUBLISHED] ?? 0,
+          drafts: byStatus[StoryStatus.DRAFT] ?? 0,
+          deleted: count('deleted')
         }
       },
-      300 // 5 minutes cache for stats
+      300 // 5 minutes
     )
   }
 
-  /**
-   * Override create to invalidate caches
-   */
-  async create(data: Partial<Story>): Promise<Story> {
-    const story = await super.create(data)
-
-    // Invalidate relevant caches using tags
-    const tagsToInvalidate = ['stories', 'stats']
-    if (data.userId) tagsToInvalidate.push(`user:${data.userId}:stories`)
-    if (data.status) tagsToInvalidate.push(`story:status:${data.status}`)
-    if (data.type) tagsToInvalidate.push(`story:type:${data.type}`)
-    if (data.priority) tagsToInvalidate.push(`story:priority:${data.priority}`)
-
-    await this.cacheService.invalidateTags(tagsToInvalidate)
-
-    return story
+  /** Live (not soft-deleted) stories per value of a column */
+  private async countLiveBy<K extends string>(
+    column: 'status' | 'type' | 'priority'
+  ): Promise<Record<K, number>> {
+    const rows = await this.repository
+      .createQueryBuilder('story')
+      .select(`story.${column}`, 'value')
+      .addSelect('COUNT(*)', 'count')
+      .where('story.deletedAt IS NULL')
+      .groupBy(`story.${column}`)
+      .getRawMany<{ value: K; count: string }>()
+    return Object.fromEntries(rows.map(row => [row.value, Number(row.count)])) as Record<K, number>
   }
 
   /**
-   * Override update to invalidate caches
-   */
-  async update(id: number, data: Partial<Story>): Promise<Story | null> {
-    const story = await super.update(id, data)
-
-    // Invalidate relevant caches using tags
-    const tagsToInvalidate = ['stories', 'stats', `story:${id}`]
-    if (!story) {
-      await this.cacheService.invalidateTags(tagsToInvalidate)
-      return null
-    }
-
-    if (story.userId) tagsToInvalidate.push(`user:${story.userId}:stories`)
-
-    // Invalidate both old and new status/type/priority
-    if (story.status) tagsToInvalidate.push(`story:status:${story.status}`)
-    if (data.status && data.status !== story.status)
-      tagsToInvalidate.push(`story:status:${data.status}`)
-
-    if (story.type) tagsToInvalidate.push(`story:type:${story.type}`)
-    if (data.type && data.type !== story.type) tagsToInvalidate.push(`story:type:${data.type}`)
-
-    await this.cacheService.invalidateTags(tagsToInvalidate)
-
-    return story
-  }
-
-  /**
-   * Override delete to invalidate caches
-   */
-  async delete(id: number): Promise<boolean> {
-    const story = await this.findById(id)
-    if (!story) return false
-
-    const result = await super.delete(id)
-
-    // Invalidate relevant caches using tags
-    const tagsToInvalidate = ['stories', 'stats', `story:${id}`]
-    if (story.userId) tagsToInvalidate.push(`user:${story.userId}:stories`)
-    if (story.status) tagsToInvalidate.push(`story:status:${story.status}`)
-    if (story.type) tagsToInvalidate.push(`story:type:${story.type}`)
-
-    await this.cacheService.invalidateTags(tagsToInvalidate)
-
-    return result
-  }
-
-  /**
-   * Clears every cache a write to this story can affect: the story, list/stats caches and
-   * the owner/status/type/priority lists of each given state (pass the state before and
-   * after an update). Call it after the transaction that wrote the story commits.
+   * Clears the caches a write to these stories can affect (each story's row tag and the
+   * list tag: lists, per-owner/status/type lists, stats). Call it after the transaction
+   * that wrote them commits; writes through save()/update()/delete() need no call.
    */
   async invalidateAfterWrite(
     ...states: Pick<Story, 'id' | 'userId' | 'status' | 'type' | 'priority'>[]
   ): Promise<void> {
-    const tags = new Set(['stories', 'stats'])
-    for (const state of states) {
-      tags.add(`story:${state.id}`)
-      if (state.userId) tags.add(`user:${state.userId}:stories`)
-      if (state.status) tags.add(`story:status:${state.status}`)
-      if (state.type) tags.add(`story:type:${state.type}`)
-      if (state.priority) tags.add(`story:priority:${state.priority}`)
-      await this.invalidateCacheByEntityId(state.id)
+    // Row tag of each story plus the list tag, which covers every cached list and the
+    // stats (per user, status, type, priority...)
+    for (const state of new Set(states.map(s => s.id))) {
+      await this.invalidateCacheByEntityId(state)
     }
-    await this.invalidateCacheByTag()
-    await this.cacheService.invalidateTags([...tags])
   }
 
   /** Uncached read with the given relations, for read-modify-save of relation arrays */
   findWithRelations(id: number, relations: FindOptionsRelations<Story>): Promise<Story | null> {
     return this.repository.findOne({ where: { id }, relations })
-  }
-
-  /**
-   * Manually invalidate cache for a story
-   * Used by other services that modify story relationships directy
-   */
-  async invalidateStoryCache(id: number, userId?: string): Promise<void> {
-    const tagsToInvalidate = ['stories', `story:${id}`]
-    if (userId) {
-      tagsToInvalidate.push(`user:${userId}:stories`)
-    }
-    await this.cacheService.invalidateTags(tagsToInvalidate)
   }
 }

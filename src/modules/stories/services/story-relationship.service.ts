@@ -179,8 +179,6 @@ export class StoryRelationshipService {
 
       await this.storyRepository.save(story)
 
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
-
       this.logger.info(
         { action: 'attach_attachments', storyId, userId, attached: newAttachments.length },
         'Attachments attached successfully'
@@ -235,8 +233,6 @@ export class StoryRelationshipService {
 
       if (story.attachments.length !== originalCount) {
         await this.storyRepository.save(story)
-
-        await this.storyRepository.invalidateStoryCache(storyId, userId)
       }
 
       this.logger.info(
@@ -302,8 +298,6 @@ export class StoryRelationshipService {
 
       await this.storyRepository.save(story)
 
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
-
       this.logger.info(
         { action: 'attach_tags', storyId, userId, attached: newTags.length },
         'Tags attached successfully'
@@ -359,8 +353,6 @@ export class StoryRelationshipService {
       story.updatedBy = userId
 
       await this.storyRepository.save(story)
-
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
 
       this.logger.info(
         { action: 'detach_tags', storyId, userId, detached: detachIds.length },
@@ -424,8 +416,6 @@ export class StoryRelationshipService {
 
       await this.storyRepository.save(story)
 
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
-
       this.logger.info(
         { action: 'attach_categories', storyId, userId, attached: newCategories.length },
         'Categories attached successfully'
@@ -480,8 +470,6 @@ export class StoryRelationshipService {
 
       if (story.categories.length !== originalCount) {
         await this.storyRepository.save(story)
-
-        await this.storyRepository.invalidateStoryCache(storyId, userId)
       }
 
       this.logger.info(
