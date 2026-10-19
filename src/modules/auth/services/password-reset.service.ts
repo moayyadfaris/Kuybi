@@ -1,13 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { EmailQueueService } from '@infrastructure/email'
-import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { EntityManager, LessThan } from 'typeorm'
 
 import { UserRepository } from '@modules/users'
 import { User } from '@modules/users/entities'
+
+import { PasswordHasher } from '@core/security'
 
 import {
   ForgotPasswordDto,
@@ -35,6 +36,7 @@ export class PasswordResetService {
   private readonly appUrl: string
 
   constructor(
+    private readonly passwordHasher: PasswordHasher,
     private readonly userRepository: UserRepository,
     private readonly passwordResetRepository: PasswordResetRepository,
     private readonly emailQueueService: EmailQueueService,
@@ -212,8 +214,7 @@ export class PasswordResetService {
     await this.passwordPolicy.assertAcceptable(user.id, newPassword, currentHash ?? undefined)
 
     // Hash new password
-    const salt = await bcrypt.genSalt(10)
-    const passwordHash = await bcrypt.hash(newPassword, salt)
+    const passwordHash = await this.passwordHasher.hash(newPassword)
 
     // Writes the user's password hash: run through UserRepository so the cached user is
     // dropped once the reset commits

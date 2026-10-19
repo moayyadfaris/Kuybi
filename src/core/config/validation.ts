@@ -1,6 +1,6 @@
 import { ENVIRONMENTS, isLocalEnvironment } from '@shared/utils/environment'
 import { plainToInstance } from 'class-transformer'
-import { IsIn, IsInt, IsOptional, IsString, validateSync } from 'class-validator'
+import { IsIn, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator'
 
 class EnvironmentVariables {
   // A typo such as "prod" must not boot with the development defaults
@@ -58,6 +58,13 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   JWT_REFRESH_EXPIRES_IN?: string
+
+  // bcrypt cost; 4 is only for fast tests (see assertProductionSecrets)
+  @IsInt()
+  @Min(4)
+  @Max(15)
+  @IsOptional()
+  BCRYPT_ROUNDS?: number
 
   @IsString()
   @IsOptional()
@@ -232,6 +239,7 @@ export function validate(config: Record<string, unknown>) {
 }
 
 const MIN_SECRET_LENGTH = 32
+const MIN_DEPLOYED_BCRYPT_ROUNDS = 10
 const PLACEHOLDER_PATTERN = /change-me|changeme|admin123|^secret$|^password$/i
 
 /**
@@ -264,6 +272,11 @@ export function assertProductionSecrets(
 
   // Only when validating the app's own config (custom key lists check just those keys)
   if (required.includes('JWT_SECRET')) {
+    const rounds = config.BCRYPT_ROUNDS
+    if (typeof rounds === 'number' && rounds < MIN_DEPLOYED_BCRYPT_ROUNDS) {
+      problems.push(`BCRYPT_ROUNDS must be at least ${MIN_DEPLOYED_BCRYPT_ROUNDS} in ${env}`)
+    }
+
     const corsOrigin = config.CORS_ORIGIN
     if (typeof corsOrigin !== 'string' || corsOrigin.split(',').some(o => o.trim() === '*')) {
       problems.push(`CORS_ORIGIN must list the allowed origins in ${env} (no "*")`)

@@ -1,8 +1,11 @@
 import { UnauthorizedException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import * as bcrypt from 'bcrypt'
 import { PinoLogger } from 'nestjs-pino'
 
 import { AuthService } from '@modules/auth/services/auth.service'
+
+import { PasswordHasher } from '@core/security'
 
 // Pass-through mock so calls can be counted (bcrypt's exports are not spy-able)
 jest.mock('bcrypt', () => {
@@ -12,7 +15,9 @@ jest.mock('bcrypt', () => {
 
 const EMAIL = 'Someone.Private@example.com'
 
-function setup(overrides: { user?: unknown; passwordHash?: string; lockInfo?: object } = {}) {
+function setup(
+  overrides: { user?: unknown; passwordHash?: string; lockInfo?: object; rounds?: number } = {}
+) {
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
   const sentry = { captureMessage: jest.fn(), captureException: jest.fn() }
   const metrics = { incrementFailedLogin: jest.fn(), incrementUserLogin: jest.fn() }
@@ -26,7 +31,8 @@ function setup(overrides: { user?: unknown; passwordHash?: string; lockInfo?: ob
   }
   const users = {
     findByEmail: jest.fn().mockResolvedValue(overrides.user ?? null),
-    getPasswordHash: jest.fn().mockResolvedValue(overrides.passwordHash ?? null)
+    getPasswordHash: jest.fn().mockResolvedValue(overrides.passwordHash ?? null),
+    storePasswordHash: jest.fn()
   }
 
   const service = new AuthService(
@@ -37,9 +43,10 @@ function setup(overrides: { user?: unknown; passwordHash?: string; lockInfo?: ob
     lockout as never,
     {} as never, // access tokens
     sentry as never,
-    metrics as never
+    metrics as never,
+    new PasswordHasher({ get: () => overrides.rounds ?? 4 } as unknown as ConfigService)
   )
-  return { service, logger, sentry, metrics }
+  return { service, logger, sentry, metrics, users }
 }
 
 describe('AuthService failed logins', () => {
@@ -88,5 +95,39 @@ describe('AuthService failed logins', () => {
 
     expect(sentry.captureMessage).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(sentry.captureMessage.mock.calls)).not.toContain(EMAIL)
+  })
+
+  describe('password hash upgrade on login', () => {
+    const user = { id: 'u1', email: EMAIL, isActive: true }
+
+    it('re-hashes a password stored below the configured cost', async () => {
+      const { service, users } = setup({
+        user,
+        passwordHash: await bcrypt.hash('correct-password', 4),
+        rounds: 5
+      })
+
+      await service.validateUser(EMAIL, 'correct-password')
+
+      expect(users.storePasswordHash).toHaveBeenCalledTimes(1)
+      const [userId, upgraded] = users.storePasswordHash.mock.calls[0]
+      expect(userId).toBe('u1')
+      expect(bcrypt.getRounds(upgraded)).toBe(5)
+      expect(await bcrypt.compare('correct-password', upgraded)).toBe(true)
+    })
+
+    it('leaves a hash at the configured cost alone, and never blocks the login', async () => {
+      const current = setup({ user, passwordHash: await bcrypt.hash('correct-password', 4) })
+      await current.service.validateUser(EMAIL, 'correct-password')
+      expect(current.users.storePasswordHash).not.toHaveBeenCalled()
+
+      const failing = setup({
+        user,
+        passwordHash: await bcrypt.hash('correct-password', 4),
+        rounds: 5
+      })
+      failing.users.storePasswordHash.mockRejectedValue(new Error('db down'))
+      await expect(failing.service.validateUser(EMAIL, 'correct-password')).resolves.toBe(user)
+    })
   })
 })

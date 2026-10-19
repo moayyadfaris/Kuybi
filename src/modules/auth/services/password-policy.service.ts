@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import * as bcrypt from 'bcrypt'
+
+import { PasswordHasher } from '@core/security'
 
 import { PasswordHistoryRepository } from '../repositories/password-history.repository'
 import type { SessionContext } from '../types/session-context'
@@ -16,6 +17,7 @@ export const PASSWORD_HISTORY_DEPTH = 5
 @Injectable()
 export class PasswordPolicyService {
   constructor(
+    private readonly passwordHasher: PasswordHasher,
     private readonly passwordStrengthService: PasswordStrengthService,
     private readonly passwordHistoryRepository: PasswordHistoryRepository
   ) {}
@@ -42,7 +44,7 @@ export class PasswordPolicyService {
       (hash): hash is string => !!hash
     )
     for (const hash of hashes) {
-      if (await bcrypt.compare(newPassword, hash)) {
+      if (await this.passwordHasher.verify(newPassword, hash)) {
         throw new BadRequestException(
           'Password has been used recently. Please choose a different password.'
         )

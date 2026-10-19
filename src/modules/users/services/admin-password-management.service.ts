@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { EmailQueueService } from '@infrastructure/email'
-import * as bcrypt from 'bcrypt'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { EventBus } from '@core/events'
+import { PasswordHasher } from '@core/security'
 
 import {
   AdminPasswordResetResponseDto,
@@ -27,6 +27,7 @@ import { UserRepository } from '../repositories/user.repository'
 @Injectable()
 export class AdminPasswordManagementService {
   constructor(
+    private readonly passwordHasher: PasswordHasher,
     private readonly userRepository: UserRepository,
     private readonly eventBus: EventBus,
     private readonly emailQueueService: EmailQueueService,
@@ -100,8 +101,7 @@ export class AdminPasswordManagementService {
     const temporaryPassword = this.generateSecurePassword()
 
     // Hash password
-    const salt = await bcrypt.genSalt(10)
-    const passwordHash = await bcrypt.hash(temporaryPassword, salt)
+    const passwordHash = await this.passwordHasher.hash(temporaryPassword)
 
     // Update user
     await this.userRepository.update(userId, { passwordHash, forcePasswordChange })
@@ -176,8 +176,7 @@ export class AdminPasswordManagementService {
     // }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10)
-    const passwordHash = await bcrypt.hash(newPassword, salt)
+    const passwordHash = await this.passwordHasher.hash(newPassword)
 
     // Update user
     await this.userRepository.update(userId, { passwordHash, forcePasswordChange })

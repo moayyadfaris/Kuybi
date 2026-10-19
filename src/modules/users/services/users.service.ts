@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
-import * as bcrypt from 'bcrypt'
 
 import { RoleRepository } from '@modules/acl'
 import {
@@ -14,6 +13,8 @@ import {
   S3Service
 } from '@modules/attachments'
 
+import { PasswordHasher } from '@core/security'
+
 import { UserProfileDto } from '../dto/user-profile.dto'
 import { User } from '../entities/user.entity'
 import { UserRepository } from '../repositories/user.repository'
@@ -21,6 +22,7 @@ import { UserRepository } from '../repositories/user.repository'
 @Injectable()
 export class UsersService {
   constructor(
+    private readonly passwordHasher: PasswordHasher,
     private readonly userRepository: UserRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly s3Service: S3Service,
@@ -78,7 +80,7 @@ export class UsersService {
     primaryRoleId?: number
     isVerified?: boolean
   }): Promise<User> {
-    const passwordHash = await bcrypt.hash(payload.password, 10)
+    const passwordHash = await this.passwordHasher.hash(payload.password)
 
     const primaryRoleId = payload.primaryRoleId ?? (await this.roleRepository.findDefaultRoleId())
 
@@ -125,8 +127,8 @@ export class UsersService {
     return this.userRepository.updateVerification(id, isVerified)
   }
 
-  async updatePassword(id: string, newPassword: string): Promise<void> {
-    const passwordHash = await bcrypt.hash(newPassword, 10)
+  /** Stores a hash made by PasswordHasher (e.g. the same password re-hashed at a higher cost) */
+  async storePasswordHash(id: string, passwordHash: string): Promise<void> {
     return this.userRepository.updatePassword(id, passwordHash)
   }
 

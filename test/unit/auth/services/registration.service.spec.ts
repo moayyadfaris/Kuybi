@@ -8,6 +8,8 @@ import { User } from '@modules/users/entities/user.entity'
 import { EmailVerificationRepository } from '@modules/users/repositories/email-verification.repository'
 import { UserRepository } from '@modules/users/repositories/user.repository'
 
+import { PasswordHasher } from '@core/security'
+
 describe('RegistrationService.register', () => {
   const dto = {
     email: 'new@example.com',
@@ -31,6 +33,7 @@ describe('RegistrationService.register', () => {
     }
     const roleRepository = { findDefaultRoleId: jest.fn().mockResolvedValue(userRoleId) }
     const service = new RegistrationService(
+      new PasswordHasher({ get: () => 4 } as unknown as ConfigService),
       userRepository as unknown as UserRepository,
       {} as EmailVerificationRepository,
       roleRepository as unknown as RoleRepository,

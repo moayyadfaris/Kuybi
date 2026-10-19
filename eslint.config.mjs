@@ -46,6 +46,11 @@ const MODULES = readdirSync(join(import.meta.dirname, 'src/modules'), { withFile
   .filter(entry => entry.isDirectory())
   .map(entry => entry.name)
 
+const BCRYPT_IMPORT = {
+  name: 'bcrypt',
+  message: "Use PasswordHasher (or hashTokenSecret/verifyTokenSecret) from '@core/security'."
+}
+
 export default tseslint.config(
   {
     ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.mjs']
@@ -156,6 +161,15 @@ export default tseslint.config(
     }
   },
   {
+    // Passwords are hashed and checked in one place, at the configured cost
+    // (PasswordHasher); token secrets through hashTokenSecret/verifyTokenSecret
+    files: ['src/**/*.ts'],
+    ignores: ['src/core/security/**'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [BCRYPT_IMPORT] }]
+    }
+  },
+  {
     // acl is a base module: feature modules depend on it, never the reverse. It
     // authorizes an AclPrincipal and string subjects instead of importing User or Story.
     // Entities are the exception: UserRole has a real foreign key to users, and the
@@ -166,6 +180,7 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
+          paths: [BCRYPT_IMPORT],
           patterns: [
             {
               group: ['@modules/*', '!@modules/acl', '!@modules/acl/**'],
