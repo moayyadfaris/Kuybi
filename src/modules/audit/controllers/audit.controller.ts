@@ -1,4 +1,14 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Query, UseGuards } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards
+} from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 
 import { SuperAdminGuard } from '@modules/acl'
@@ -196,16 +206,11 @@ export class AuditController {
   @ApiResponse({ status: 200, description: 'Audit log retrieved' })
   @ApiResponse({ status: 404, description: 'Audit log not found' })
   @HttpCode(HttpStatus.OK)
-  async getById(@Param('id') id: string) {
+  async getById(@Param('id', ParseUUIDPipe) id: string) {
     const log = await this.auditQueryService.getById(id)
-
     if (!log) {
-      return {
-        statusCode: HttpStatus.NOT_FOUND,
-        message: 'Audit log not found'
-      }
+      throw new NotFoundException('Audit log not found')
     }
-
     return log
   }
 }
