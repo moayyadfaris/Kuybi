@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   IsBoolean,
   IsEnum,
@@ -82,6 +83,7 @@ export class CreateFieldDefinitionDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isRequired?: boolean
 
@@ -91,6 +93,7 @@ export class CreateFieldDefinitionDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isUnique?: boolean
 
@@ -100,6 +103,7 @@ export class CreateFieldDefinitionDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isSearchable?: boolean
 
@@ -109,6 +113,7 @@ export class CreateFieldDefinitionDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isFilterable?: boolean
 
@@ -118,6 +123,7 @@ export class CreateFieldDefinitionDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isSortable?: boolean
 

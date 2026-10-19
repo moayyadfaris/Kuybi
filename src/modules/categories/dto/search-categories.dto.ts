@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Type } from 'class-transformer'
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
@@ -17,6 +18,7 @@ export class SearchCategoriesDto {
   })
   @IsOptional()
   @Type(() => Boolean)
+  @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 
@@ -27,6 +29,7 @@ export class SearchCategoriesDto {
   })
   @IsOptional()
   @Type(() => Boolean)
+  @ToBoolean()
   @IsBoolean()
   includeDeleted?: boolean
 
@@ -37,6 +40,7 @@ export class SearchCategoriesDto {
   })
   @IsOptional()
   @Type(() => Boolean)
+  @ToBoolean()
   @IsBoolean()
   includeCounts?: boolean
 

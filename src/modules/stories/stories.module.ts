@@ -26,6 +26,7 @@ import { StoryLifecycleService } from './services/story-lifecycle.service'
 import { StoryMediaService } from './services/story-media.service'
 import { StoryRelationshipService } from './services/story-relationship.service'
 import { StoryVersionService } from './services/story-version.service'
+import { StoryVersionBranchService } from './services/versioning/story-version-branch.service'
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { StoryVersionService } from './services/story-version.service'
     StoryAccessPolicy,
     StoriesService,
     StoryVersionService,
+    StoryVersionBranchService,
     StoryRepository,
     StoryVersionRepository,
     StoriesSeeder,

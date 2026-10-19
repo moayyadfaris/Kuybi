@@ -56,6 +56,8 @@ const PDF = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer 
 class FakeStorage {
   readonly objects = new Map<string, Buffer>()
   readonly publicKeys = new Set<string>()
+  /** isPublic of each multipart upload, by key */
+  readonly uploads = new Map<string, boolean | undefined>()
 
   install(s3: S3Service) {
     jest.spyOn(s3, 'createPresignedUpload').mockImplementation(async ({ key, contentType }) => ({
@@ -72,6 +74,10 @@ class FakeStorage {
       .mockImplementation(async (key, bytes) => this.objects.get(key)!.subarray(0, bytes))
     jest.spyOn(s3, 'delete').mockImplementation(async key => {
       this.objects.delete(key)
+    })
+    jest.spyOn(s3, 'upload').mockImplementation(async options => {
+      this.uploads.set(options.key, options.isPublic)
+      return { key: options.key, bucket: 'bucket', location: `https://storage.test/${options.key}` }
     })
     jest.spyOn(s3, 'makePublic').mockImplementation(async key => {
       this.publicKeys.add(key)
@@ -270,5 +276,35 @@ describe('Direct uploads', () => {
     await app.get(DirectUploadService).removeAbandonedUploads()
 
     expect(await dataSource.getRepository(Attachment).findOneBy({ id })).toBeNull()
+  })
+
+  describe('multipart upload (POST /attachments)', () => {
+    // Unique bytes per upload: identical content is deduplicated to the existing row
+    let n = 0
+    const upload = (fields: Record<string, string>) => {
+      const body = Buffer.concat([PDF, Buffer.from(`% ${Date.now()}-${++n}\n`)])
+      const req = http()
+        .post('/api/v1/attachments')
+        .set(as(owner.token))
+        .attach('file', body, { filename: 'payslip.pdf', contentType: 'application/pdf' })
+      for (const [name, value] of Object.entries(fields)) req.field(name, value)
+      return req
+    }
+
+    // Form fields are strings: implicit conversion used to turn "false" into true
+    it('stores a file sent with isPublic=false as private', async () => {
+      const res = await upload({ isPublic: 'false', async: 'false' }).expect(201)
+
+      const attachment = await stored(res.body.data.attachment.id)
+      expect(attachment.isPublic).toBe(false)
+      expect(storage.uploads.get(attachment.path)).toBe(false)
+      expect(res.body.data.processing).toBe('sync')
+    })
+
+    it('honours isPublic=true', async () => {
+      const res = await upload({ isPublic: 'true' }).expect(201)
+
+      expect((await stored(res.body.data.attachment.id)).isPublic).toBe(true)
+    })
   })
 })

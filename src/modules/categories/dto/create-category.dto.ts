@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   IsBoolean,
   IsObject,
@@ -53,6 +54,7 @@ export class CreateCategoryDto {
     default: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 

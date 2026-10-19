@@ -37,6 +37,8 @@ import { RollbackVersionDto } from '../dto/version/rollback-version.dto'
 import { StoriesService } from '../services/stories.service'
 import { StoryAccessPolicy } from '../services/story-access.policy'
 import { StoryVersionService } from '../services/story-version.service'
+import { StoryVersionBranchService } from '../services/versioning/story-version-branch.service'
+import { toVersionResponseDto } from '../services/versioning/version-response.mapper'
 
 interface AuthenticatedRequest extends Request {
   user?: User
@@ -49,6 +51,7 @@ interface AuthenticatedRequest extends Request {
 export class StoryVersionController {
   constructor(
     private readonly versionService: StoryVersionService,
+    private readonly branchService: StoryVersionBranchService,
     private readonly storiesService: StoriesService,
     private readonly accessPolicy: StoryAccessPolicy
   ) {}
@@ -116,7 +119,7 @@ export class StoryVersionController {
     @Query('branchName') branchName?: string
   ): Promise<VersionResponseDto[]> {
     const versions = await this.versionService.getVersionHistory(storyId, branchName, limit, offset)
-    return versions.map(v => this.versionService.toResponseDto(v))
+    return versions.map(toVersionResponseDto)
   }
 
   /**
@@ -141,7 +144,7 @@ export class StoryVersionController {
     @Param('versionNumber', ParseIntPipe) versionNumber: number
   ): Promise<VersionResponseDto> {
     const version = await this.versionService.getVersion(storyId, versionNumber)
-    return this.versionService.toResponseDto(version)
+    return toVersionResponseDto(version)
   }
 
   /**
@@ -169,7 +172,7 @@ export class StoryVersionController {
     const userId = this.getUserId(req)
     const story = await this.storiesService.findOne(storyId)
     const version = await this.versionService.createVersion(story, dto, userId)
-    return this.versionService.toResponseDto(version)
+    return toVersionResponseDto(version)
   }
 
   /**
@@ -230,7 +233,7 @@ export class StoryVersionController {
     }
     await this.storiesService.update(storyId, updateDto, req.user)
 
-    return this.versionService.toResponseDto(version)
+    return toVersionResponseDto(version)
   }
 
   /**
@@ -257,14 +260,14 @@ export class StoryVersionController {
   ): Promise<VersionResponseDto> {
     await this.assertCanEditStory(storyId, req)
     const userId = this.getUserId(req)
-    const version = await this.versionService.createBranch(
+    const version = await this.branchService.createBranch(
       storyId,
       dto.branchName,
       dto.fromVersionNumber,
       userId,
       dto.commitMessage
     )
-    return this.versionService.toResponseDto(version)
+    return toVersionResponseDto(version)
   }
 
   /**
@@ -295,7 +298,7 @@ export class StoryVersionController {
   ): Promise<VersionResponseDto> {
     await this.assertCanEditStory(storyId, req)
     const userId = this.getUserId(req)
-    const version = await this.versionService.mergeVersion(
+    const version = await this.branchService.mergeVersion(
       storyId,
       dto.fromBranch,
       dto.fromVersionNumber,
@@ -304,7 +307,7 @@ export class StoryVersionController {
       dto.commitMessage,
       dto.resolveConflicts
     )
-    return this.versionService.toResponseDto(version)
+    return toVersionResponseDto(version)
   }
 
   /**
@@ -328,11 +331,11 @@ export class StoryVersionController {
     @Param('storyId', ParseIntPipe) storyId: number,
     @Body() dto: CompareVersionsDto
   ): Promise<VersionComparisonDto> {
-    const result = await this.versionService.compareVersions(storyId, dto.versionA, dto.versionB)
+    const result = await this.branchService.compareVersions(storyId, dto.versionA, dto.versionB)
 
     return {
-      versionA: this.versionService.toResponseDto(result.versionA),
-      versionB: this.versionService.toResponseDto(result.versionB),
+      versionA: toVersionResponseDto(result.versionA),
+      versionB: toVersionResponseDto(result.versionB),
       diff: result.diff,
       changesCount: result.changesCount,
       changedFields: result.changedFields
@@ -355,7 +358,7 @@ export class StoryVersionController {
     type: [BranchInfoDto]
   })
   async getBranchInfo(@Param('storyId', ParseIntPipe) storyId: number): Promise<BranchInfoDto[]> {
-    return this.versionService.getBranchInfo(storyId)
+    return this.branchService.getBranchInfo(storyId)
   }
 
   /**
@@ -385,6 +388,6 @@ export class StoryVersionController {
   ): Promise<VersionResponseDto> {
     await this.assertCanEditStory(storyId, req)
     const version = await this.versionService.tagVersion(storyId, versionNumber, tag)
-    return this.versionService.toResponseDto(version)
+    return toVersionResponseDto(version)
   }
 }

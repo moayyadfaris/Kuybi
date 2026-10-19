@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsArray, IsBoolean, IsEnum, IsObject, IsOptional, IsString } from 'class-validator'
 
 import { Action } from '../types/actions.enum'
@@ -47,6 +48,7 @@ export class CreatePermissionDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   inverted?: boolean
 

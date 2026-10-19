@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Transform, Type } from 'class-transformer'
 import {
   IsArray,
@@ -121,6 +122,7 @@ export class StoryFilterDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   @Type(() => Boolean)
   includeDeleted?: boolean

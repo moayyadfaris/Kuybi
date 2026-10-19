@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   IsBoolean,
   IsInt,
@@ -36,6 +37,7 @@ export class CreateRoleDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isSystem?: boolean
 
@@ -45,6 +47,7 @@ export class CreateRoleDto {
     default: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 
