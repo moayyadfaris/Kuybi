@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   ArrayMaxSize,
   IsArray,
@@ -50,13 +51,15 @@ export class InitiateUploadDto {
   @IsString({ each: true })
   tags?: string[]
 
-  @ApiPropertyOptional({ default: false, description: 'Private unless requested' })
+  @ApiPropertyOptional({ default: true, description: 'Public unless false is sent' })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isPublic?: boolean
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   generateThumbnails?: boolean
 }

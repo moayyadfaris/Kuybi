@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { Transform } from 'class-transformer'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsArray, IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator'
 
 import { DeviceType } from './create-session.dto'
@@ -30,7 +30,7 @@ export class RevokeSessionDto {
     default: false
   })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @ToBoolean()
   @IsBoolean()
   logoutAll?: boolean = false
 
@@ -61,7 +61,7 @@ export class RevokeSessionDto {
     default: true
   })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @ToBoolean()
   @IsBoolean()
   softDelete?: boolean = true
 }
@@ -108,13 +108,6 @@ export class RevokeByDeviceDto {
  */
 export class RevokeSessionResponseDto {
   @ApiProperty({
-    description: 'Whether the revocation was successful',
-    example: true
-  })
-  @IsBoolean()
-  success: boolean
-
-  @ApiProperty({
     description: 'Number of sessions revoked',
     example: 3
   })
@@ -139,6 +132,7 @@ export class RevokeSessionResponseDto {
     description: 'Whether cache was cleared',
     example: true
   })
+  @ToBoolean()
   @IsBoolean()
   cacheCleared: boolean
 

@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { AclModule } from '@modules/acl'
 import { AttachmentsModule } from '@modules/attachments'
-import { Attachment } from '@modules/attachments/entities'
 import { CategoriesModule } from '@modules/categories'
 import { CountriesModule } from '@modules/countries'
 import { TagsModule } from '@modules/tags'
@@ -27,11 +26,12 @@ import { StoryLifecycleService } from './services/story-lifecycle.service'
 import { StoryMediaService } from './services/story-media.service'
 import { StoryRelationshipService } from './services/story-relationship.service'
 import { StoryVersionService } from './services/story-version.service'
+import { StoryVersionBranchService } from './services/versioning/story-version-branch.service'
 
 @Module({
   imports: [
     IdempotencyModule,
-    TypeOrmModule.forFeature([Story, StoryVersion, Attachment]),
+    TypeOrmModule.forFeature([Story, StoryVersion]),
     CacheConfigModule,
     MetricsModule,
     AclModule,
@@ -49,6 +49,7 @@ import { StoryVersionService } from './services/story-version.service'
     StoryAccessPolicy,
     StoriesService,
     StoryVersionService,
+    StoryVersionBranchService,
     StoryRepository,
     StoryVersionRepository,
     StoriesSeeder,

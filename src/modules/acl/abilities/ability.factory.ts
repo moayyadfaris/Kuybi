@@ -1,19 +1,39 @@
 import { Injectable } from '@nestjs/common'
-import { AbilityBuilder, createMongoAbility, InferSubjects, MongoAbility } from '@casl/ability'
-
-import { Story } from '@modules/stories/entities'
-import { User } from '@modules/users/entities'
+import {
+  AbilityBuilder,
+  createMongoAbility,
+  ForcedSubject,
+  MongoAbility,
+  MongoQuery,
+  RawRuleOf,
+  subject as tagSubject
+} from '@casl/ability'
 
 import { Role } from '../entities/role.entity'
+import { AclPrincipal } from '../types/acl-principal'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
 
+/** An object tagged with its subject type, for checks against conditional rules */
+export type SubjectInstance = Record<PropertyKey, unknown> & ForcedSubject<Subject>
+
 /**
- * Type definition for application abilities
- * Represents what actions can be performed on which subjects
+ * What abilities are checked against: a subject type (route-level checks) or a tagged
+ * object (per-record checks). Subjects are strings, so acl needs no feature-module
+ * classes.
  */
-export type Subjects = InferSubjects<typeof Story | typeof User> | Subject
-export type AppAbility = MongoAbility<[Action, Subjects]>
+export type Subjects = Subject | SubjectInstance
+// Conditions come from the permissions table, so they are untyped Mongo queries
+export type AppAbility = MongoAbility<[Action, Subjects], MongoQuery>
+
+/**
+ * Tags a record with its subject type for a per-record check. Always tag explicitly:
+ * records served from the cache are plain objects, which CASL would see as "Object"
+ * and deny every conditional rule.
+ */
+export function asSubject(type: Subject, record: object): SubjectInstance {
+  return tagSubject(type, { ...record } as Record<PropertyKey, unknown>)
+}
 
 /**
  * Factory for creating user-specific CASL abilities
@@ -26,19 +46,15 @@ export class AbilityFactory {
    * @param user - User with loaded roles and permissions
    * @returns AppAbility instance with all user permissions
    */
-  createForUser(user: User): AppAbility {
-    const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility)
-
+  createForUser(user: AclPrincipal | null | undefined): AppAbility {
     if (!user) {
       // Guest user - no permissions by default
-      return build()
+      return createMongoAbility<AppAbility>([])
     }
 
     // Super-admin gets unrestricted access to everything
-    // Use User entity method (JWT strategy now returns full User entity)
-    if (user.isSuperAdmin && user.isSuperAdmin()) {
-      can(Action.Manage, Subject.All)
-      return build()
+    if (user.isSuperAdmin?.()) {
+      return createMongoAbility<AppAbility>([{ action: Action.Manage, subject: Subject.All }])
     }
 
     // The primary role always applies; additional roles apply while active and unexpired
@@ -58,6 +74,7 @@ export class AbilityFactory {
     }
 
     // Collect all permissions from all active roles
+    const rules: RawRuleOf<AppAbility>[] = []
     for (const role of rolesById.values()) {
       if (!role.rolePermissions) {
         continue
@@ -74,18 +91,18 @@ export class AbilityFactory {
             : undefined
         const fields = permission.fields?.length ? permission.fields : undefined
 
-        // Define ability based on permission
-        if (permission.inverted) {
-          // Cannot permission
-          cannot(permission.action, permission.subject, fields, conditions)
-        } else {
-          // Can permission
-          can(permission.action, permission.subject, fields, conditions)
-        }
+        // A permission row is a raw CASL rule; `inverted` makes it a "cannot"
+        rules.push({
+          action: permission.action,
+          subject: permission.subject,
+          fields,
+          conditions: conditions as MongoQuery | undefined,
+          inverted: permission.inverted
+        })
       }
     }
 
-    return build()
+    return createMongoAbility<AppAbility>(rules)
   }
 
   /**

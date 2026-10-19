@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsBoolean, IsEnum, IsOptional, IsString, Length } from 'class-validator'
 
 import { VersionType } from '../../entities/story-version.entity'
@@ -41,6 +42,7 @@ export class CreateVersionDto {
 
   @ApiPropertyOptional({ description: 'Pin this version to prevent auto-cleanup', default: false })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isPinned?: boolean
 }

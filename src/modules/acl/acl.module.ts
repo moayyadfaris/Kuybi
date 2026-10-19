@@ -22,6 +22,7 @@ import { SuperAdminGuard } from './guards/super-admin.guard'
 import { PermissionRepository } from './repositories/permission.repository'
 // Repositories
 import { RoleRepository } from './repositories/role.repository'
+import { UserRoleRepository } from './repositories/user-role.repository'
 // Seeders
 import { AclSeeder } from './seeders/acl.seeder'
 import { PermissionsService } from './services/permissions.service'
@@ -36,6 +37,7 @@ import { RolesService } from './services/roles.service'
   providers: [
     RoleRepository,
     PermissionRepository,
+    UserRoleRepository,
     RolesService,
     PermissionsService,
     AbilityFactory,
@@ -56,7 +58,7 @@ import { RolesService } from './services/roles.service'
     PermissionsService,
     RoleRepository,
     PermissionRepository,
-    TypeOrmModule
+    UserRoleRepository
   ]
 })
 export class AclModule {}

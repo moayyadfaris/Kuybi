@@ -1,4 +1,5 @@
 import { isLocalEnvironment } from '@shared/utils/environment'
+import { parseTrustProxy } from '@shared/utils/request.util'
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (value === undefined) {
@@ -36,6 +37,8 @@ export default () => {
       host: process.env.APP_HOST || '0.0.0.0',
       port: parseInt(process.env.APP_PORT || '4040', 10),
       corsOrigin: process.env.CORS_ORIGIN || '*',
+      // Proxies whose X-Forwarded-For may set req.ip (none by default; see parseTrustProxy)
+      trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
       // Opt-in outside development/test (SWAGGER_ENABLED=true)
       swaggerEnabled: parseBoolean(process.env.SWAGGER_ENABLED, isLocalEnvironment(env)),
       // Raw error messages and stack traces in responses: development/test only, no override

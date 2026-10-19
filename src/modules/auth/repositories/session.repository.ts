@@ -64,7 +64,7 @@ export class SessionRepository extends BaseRepository<Session> {
   async findByUserId(userId: string, includeInactive = false): Promise<Session[]> {
     const cacheKey = this.buildCacheKey('user', userId, includeInactive ? 'all' : 'active')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const query = this.repository
@@ -100,7 +100,7 @@ export class SessionRepository extends BaseRepository<Session> {
   async findByRefreshTokenHash(refreshTokenHash: string): Promise<Session | null> {
     const cacheKey = this.buildCacheKey('token', refreshTokenHash)
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -318,7 +318,7 @@ export class SessionRepository extends BaseRepository<Session> {
   async getActiveSessionCount(userId: string): Promise<number> {
     const cacheKey = this.buildCacheKey('count', 'active', userId)
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         return this.repository.count({
@@ -352,7 +352,7 @@ export class SessionRepository extends BaseRepository<Session> {
   }> {
     const cacheKey = this.buildCacheKey('stats', 'user', userId)
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const sessions = await this.repository.find({
@@ -498,7 +498,7 @@ export class SessionRepository extends BaseRepository<Session> {
   }> {
     const cacheKey = this.buildCacheKey('stats', 'devices', 'all')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const sessions = await this.repository.find({
@@ -555,7 +555,7 @@ export class SessionRepository extends BaseRepository<Session> {
         active: !!session && session.userId === userId && session.isActive && !session.deletedAt,
         expiresAt: session?.expiresAt.getTime() ?? 0
       }
-      await this.cacheService.set(key, status, ACCESS_STATUS_TTL)
+      await this.cacheSet(key, status, ACCESS_STATUS_TTL)
     }
 
     return status.active && status.expiresAt > Date.now()

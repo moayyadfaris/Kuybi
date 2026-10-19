@@ -10,11 +10,12 @@ import {
   UpdateDateColumn
 } from 'typeorm'
 
+import type { AclPrincipal } from '@modules/acl'
 import { Role, UserRole } from '@modules/acl/entities'
 import { Attachment } from '@modules/attachments/entities'
 
 @Entity({ name: 'users' })
-export class User {
+export class User implements AclPrincipal {
   @PrimaryGeneratedColumn('uuid')
   id: string
 

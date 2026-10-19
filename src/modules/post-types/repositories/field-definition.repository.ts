@@ -47,7 +47,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     const cacheKey = this.buildCacheKey('postType', postTypeId)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<FieldDefinition[]>(
+      return this.cached<FieldDefinition[]>(
         cacheKey,
         async () => {
           return this.repository.find({
@@ -73,7 +73,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     const cacheKey = this.buildCacheKey('required', postTypeId)
 
     if (this.cacheService) {
-      return this.cacheService.wrap<FieldDefinition[]>(
+      return this.cached<FieldDefinition[]>(
         cacheKey,
         async () => {
           return this.repository.find({
@@ -100,7 +100,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     const cacheKey = this.buildCacheKey('name', postTypeId, fieldName)
 
     if (this.cacheService) {
-      return this.cacheService.wrap<FieldDefinition | null>(
+      return this.cached<FieldDefinition | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
@@ -137,7 +137,7 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     const cacheKey = this.buildCacheKey('searchable', postTypeId)
 
     if (this.cacheService) {
-      return this.cacheService.wrap<FieldDefinition[]>(
+      return this.cached<FieldDefinition[]>(
         cacheKey,
         async () => {
           return this.repository.find({

@@ -31,7 +31,7 @@ export class TagRepository extends BaseRepository<Tag> {
   async findByName(name: string): Promise<Tag | null> {
     const cacheKey = this.buildCacheKey('name', name.toLowerCase())
 
-    return this.cacheService.wrap<Tag | null>(
+    return this.cached<Tag | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -54,7 +54,7 @@ export class TagRepository extends BaseRepository<Tag> {
   }): Promise<Tag[]> {
     const cacheKey = this.buildCacheKey('all-active', JSON.stringify(options || {}))
 
-    return this.cacheService.wrap<Tag[]>(
+    return this.cached<Tag[]>(
       cacheKey,
       async () => {
         const sortBy = options?.sortBy || 'sortOrder'
@@ -75,7 +75,7 @@ export class TagRepository extends BaseRepository<Tag> {
   async findSystemTags(): Promise<Tag[]> {
     const cacheKey = this.buildCacheKey('system-tags')
 
-    return this.cacheService.wrap<Tag[]>(
+    return this.cached<Tag[]>(
       cacheKey,
       async () => {
         return this.repository.find({

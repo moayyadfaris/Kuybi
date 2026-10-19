@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { Transform, Type } from 'class-transformer'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
+import { Type } from 'class-transformer'
 import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
 import { DeviceType, SessionType } from './create-session.dto'
@@ -60,7 +61,7 @@ export class SessionFilterDto {
     default: false
   })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @ToBoolean()
   @IsBoolean()
   includeExpired?: boolean = false
 
@@ -70,7 +71,7 @@ export class SessionFilterDto {
     default: false
   })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @ToBoolean()
   @IsBoolean()
   includeDeleted?: boolean = false
 
@@ -80,7 +81,7 @@ export class SessionFilterDto {
     default: false
   })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @ToBoolean()
   @IsBoolean()
   includeRiskAssessment?: boolean = false
 

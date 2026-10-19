@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { FindOptionsWhere, IsNull, Not, Repository } from 'typeorm'
+import { FindOptionsWhere, IsNull, LessThan, Not, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
-import { StoryVersion } from '../entities/story-version.entity'
+import { StoryVersion, VersionStatus } from '../entities/story-version.entity'
 
 /**
  * Story Version Repository
@@ -24,6 +24,29 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     cacheService: CacheService
   ) {
     super(repository, cacheService)
+  }
+
+  // ---- Retention (version-cleanup jobs) ----
+
+  /** Archived, unpinned versions whose expiry has passed */
+  findExpiredArchived(now: Date): Promise<StoryVersion[]> {
+    return this.repository.find({
+      where: { expiresAt: LessThan(now), isPinned: false, status: VersionStatus.ARCHIVED },
+      select: { id: true, storyId: true, versionNumber: true, expiresAt: true }
+    })
+  }
+
+  /** Active, unpinned versions without an explicit expiry, created before the cutoff */
+  findActiveCreatedBefore(cutoff: Date): Promise<StoryVersion[]> {
+    return this.repository.find({
+      where: {
+        createdAt: LessThan(cutoff),
+        status: VersionStatus.ACTIVE,
+        isPinned: false,
+        expiresAt: IsNull()
+      },
+      select: { id: true, storyId: true, versionNumber: true, createdAt: true }
+    })
   }
 
   /**
@@ -74,7 +97,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const versions = await queryBuilder.getMany()
 
     if (this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, versions, options?.ttl ?? this.defaultTTL)
+      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
     }
 
     return versions
@@ -91,7 +114,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const cacheKey = this.buildCacheKey('version', storyId, versionNumber)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<StoryVersion | null>(
+      return this.cached<StoryVersion | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
@@ -120,7 +143,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const cacheKey = this.buildCacheKey('latest', storyId, branch)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<StoryVersion | null>(
+      return this.cached<StoryVersion | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
@@ -172,7 +195,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     }
 
     if (this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, chain, options?.ttl ?? 1800) // 30 min TTL
+      await this.cacheSet(cacheKey, chain, options?.ttl ?? 1800) // 30 min TTL
     }
 
     return chain
@@ -201,7 +224,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const branches = result.map(r => r.branchName)
 
     if (this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, branches, options?.ttl ?? this.defaultTTL)
+      await this.cacheSet(cacheKey, branches, options?.ttl ?? this.defaultTTL)
     }
 
     return branches
@@ -229,7 +252,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     })
 
     if (this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, versions, options?.ttl ?? this.defaultTTL)
+      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
     }
 
     return versions
@@ -256,7 +279,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     })
 
     if (this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, versions, options?.ttl ?? this.defaultTTL)
+      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
     }
 
     return versions
@@ -273,7 +296,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const cacheKey = this.buildCacheKey('tag', storyId, tag)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<StoryVersion | null>(
+      return this.cached<StoryVersion | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
@@ -312,7 +335,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     })
 
     if (this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, versions, options?.ttl ?? this.defaultTTL)
+      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
     }
 
     return versions
@@ -354,7 +377,7 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const count = await this.repository.count({ where })
 
     if (this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, count, options?.ttl ?? 900) // 15 min TTL
+      await this.cacheSet(cacheKey, count, options?.ttl ?? 900) // 15 min TTL
     }
 
     return count

@@ -25,6 +25,10 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  TRUST_PROXY?: string
+
+  @IsString()
+  @IsOptional()
   DB_HOST?: string
 
   @IsInt()

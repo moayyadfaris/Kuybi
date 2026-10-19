@@ -3,6 +3,7 @@
  * (or from @modules/users/entities); everything else is internal.
  */
 export { UserCredentialsResetEvent } from './events/user-credentials-reset.event'
+export { EmailVerificationRepository } from './repositories/email-verification.repository'
 export { UserRepository } from './repositories/user.repository'
 export { UsersSeeder } from './seeders/users.seeder'
 export { UserAvailabilityService } from './services/user-availability.service'

@@ -31,11 +31,11 @@ import {
   extractFormatFromMime,
   mapFormatToContentType,
   resolveExtensionFromFormat,
-  shouldForcePublic,
   ThumbnailMetadata
 } from '../utils/attachment-image.util'
 
 import { AttachmentAccessPolicy } from './attachment-access.policy'
+import { AttachmentVisibilityService } from './attachment-visibility.service'
 import { ExifProcessorService } from './exif-processor.service'
 import { FileValidationService, MulterFile } from './file-validation.service'
 import { ImageOptimizationService } from './image-optimization.service'
@@ -56,7 +56,8 @@ export class AttachmentService {
     private readonly accessPolicy: AttachmentAccessPolicy,
     private readonly configService: ConfigService,
     private readonly logger: PinoLogger,
-    private readonly outbox: OutboxService
+    private readonly outbox: OutboxService,
+    private readonly visibility: AttachmentVisibilityService
   ) {
     this.logger.setContext(AttachmentService.name)
     // Enable async processing via environment variable
@@ -76,7 +77,7 @@ export class AttachmentService {
     // From here on use the content-verified type, never the client-declared one
     file.mimetype = validationResult.verifiedMimeType ?? file.mimetype
 
-    const isPublic = shouldForcePublic(dto.category) || dto.isPublic
+    const isPublic = this.visibility.resolveRequested(dto.category, dto.isPublic)
     const isImage = file.mimetype.startsWith('image/')
 
     let processedBuffer = file.buffer
@@ -164,18 +165,8 @@ export class AttachmentService {
 
     const checksum = crypto.createHash('sha256').update(processedBuffer).digest('hex')
 
-    // Check for duplicate uploads (same checksum, same user)
-    if (!dto.allowDuplicates) {
-      const existing = await this.attachmentRepository.findByChecksum(userId, checksum)
-
-      if (existing && !existing.deletedAt) {
-        this.logger.info(
-          { checksum, userId, existingId: existing.id },
-          'Duplicate upload detected, returning existing attachment'
-        )
-        return this.formatAttachmentResponse(existing)
-      }
-    }
+    const duplicate = await this.findDuplicate(userId, checksum, dto, isPublic)
+    if (duplicate) return duplicate
 
     const storageExtension = resolveExtensionFromFormat(
       processedFormat,
@@ -261,7 +252,7 @@ export class AttachmentService {
     // From here on use the content-verified type, never the client-declared one
     file.mimetype = validationResult.verifiedMimeType ?? file.mimetype
 
-    const isPublic = shouldForcePublic(dto.category) || dto.isPublic
+    const isPublic = this.visibility.resolveRequested(dto.category, dto.isPublic)
     const isImage = file.mimetype.startsWith('image/')
     const processedFormat = isImage ? extractFormatFromMime(file.mimetype) : undefined
     const storageExtension = resolveExtensionFromFormat(
@@ -274,6 +265,9 @@ export class AttachmentService {
     })
 
     const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex')
+    const duplicate = await this.findDuplicate(userId, checksum, dto, isPublic)
+    if (duplicate) return duplicate
+
     const storedMimeType = isImage ? mapFormatToContentType(processedFormat) : file.mimetype
 
     // Upload original file to S3 first
@@ -299,8 +293,9 @@ export class AttachmentService {
           tags: dto.tags || [],
           isPublic,
           checksum,
-          securityStatus: 'processing',
-          metadata: { processingStatus: 'queued' }
+          // Only images have background processing; anything else is done now
+          securityStatus: isImage ? 'processing' : 'completed',
+          metadata: { processingStatus: isImage ? 'queued' : 'completed' }
         } as Partial<Attachment>)
       )
       if (isImage) {
@@ -333,6 +328,27 @@ export class AttachmentService {
     }
 
     return this.formatAttachmentResponse(attachment)
+  }
+
+  /**
+   * The user's existing upload with the same content, if duplicates are not allowed.
+   * The uploader decides visibility again, so the existing file takes the requested one.
+   */
+  private async findDuplicate(
+    userId: string,
+    checksum: string,
+    dto: UploadAttachmentDto,
+    isPublic: boolean
+  ): Promise<AttachmentResponseDto | null> {
+    if (dto.allowDuplicates) return null
+    const existing = await this.attachmentRepository.findByChecksum(userId, checksum)
+    if (!existing || existing.deletedAt) return null
+
+    this.logger.info(
+      { checksum, userId, existingId: existing.id },
+      'Duplicate upload detected, returning existing attachment'
+    )
+    return this.formatAttachmentResponse(await this.visibility.setVisibility(existing, isPublic))
   }
 
   async getById(id: string, currentUser: User): Promise<AttachmentResponseDto> {
@@ -402,7 +418,16 @@ export class AttachmentService {
     if (!attachment) throw new NotFoundException('Attachment not found')
     this.accessPolicy.assertCan(currentUser, Action.Update, attachment, 'Access denied')
 
-    const updated = await this.attachmentRepository.update(id, dto as Partial<Attachment>)
+    // Visibility changes the stored objects' ACLs too, not just the flag
+    const { isPublic, ...fields } = dto
+    let current = attachment
+    if (isPublic !== undefined) {
+      current = await this.visibility.setVisibility(attachment, isPublic)
+    }
+    const updated =
+      Object.keys(fields).length > 0
+        ? await this.attachmentRepository.update(id, fields as Partial<Attachment>)
+        : current
     return this.formatAttachmentResponse(updated!)
   }
 

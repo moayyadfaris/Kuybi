@@ -19,6 +19,9 @@ import { SentryModule } from '@core/sentry'
 import { CacheService } from '../../../src/core/cache/services/cache.service'
 import { AuthModule } from '../../../src/modules/auth/auth.module'
 import { User } from '../../../src/modules/users/entities/user.entity'
+import { UserAvailabilityService } from '../../../src/modules/users/services/user-availability.service'
+import { UserRolesService } from '../../../src/modules/users/services/user-roles.service'
+import { UsersService } from '../../../src/modules/users/services/users.service'
 import { UsersModule } from '../../../src/modules/users/users.module'
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
@@ -163,28 +166,18 @@ describe('User Profile Integration Tests', () => {
         .expect(401)
     })
 
-    it('should cache user profile and serve from cache on second request', async () => {
-      // First request - should hit database
-      const response1 = await request(app.getHttpServer())
+    it('serves the same profile on repeated requests', async () => {
+      const first = await request(app.getHttpServer())
+        .get('/api/v1/users/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
+      const second = await request(app.getHttpServer())
         .get('/api/v1/users/me')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
-      expect(response1.body.data.id).toBe(testUser.id)
-
-      // Verify cache was populated
-      const cacheKey = `user:profile:safe:${testUser.id}`
-      const cachedData = (await cacheStub.get(cacheKey)) as { id: string } | undefined
-      expect(cachedData).toBeDefined()
-      expect(cachedData?.id).toBe(testUser.id)
-
-      // Second request - should serve from cache
-      const response2 = await request(app.getHttpServer())
-        .get('/api/v1/users/me')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200)
-
-      expect(response2.body.data).toEqual(response1.body.data)
+      expect(second.body.data).toEqual(first.body.data)
+      expect(first.body.data.id).toBe(testUser.id)
     })
 
     it('should include all safe user fields in response', async () => {
@@ -242,6 +235,39 @@ describe('User Profile Integration Tests', () => {
 
       expect(response.body.data.emailVerifiedAt).toBeNull()
       expect(response.body.data.isEmailVerified).toBe(false)
+    })
+  })
+
+  describe('cache coherence', () => {
+    it('shows a role change in the cached role listing', async () => {
+      const userRoles = app.get(UserRolesService)
+      const before = await userRoles.getUserRoles(testUser.id) // warms the user cache
+      expect(before.roles.map(r => r.name)).not.toContain('moderator')
+
+      await userRoles.assignRole(testUser.id, { roleId: roles['moderator'].id })
+
+      const after = await userRoles.getUserRoles(testUser.id)
+      expect(after.roles.map(r => r.name)).toContain('moderator')
+
+      await userRoles.revokeRole(testUser.id, roles['moderator'].id)
+      expect((await userRoles.getUserRoles(testUser.id)).roles.map(r => r.name)).not.toContain(
+        'moderator'
+      )
+    })
+
+    it('reports an email as taken once an account uses it', async () => {
+      const availability = app.get(UserAvailabilityService)
+      const email = `fresh-${Date.now()}@example.com`
+      expect((await availability.isEmailAvailable(email)).available).toBe(true) // cached
+
+      await app.get(UsersService).createUser({
+        name: 'Fresh User',
+        email,
+        mobileNumber: `+9627${Date.now().toString().slice(-8)}`,
+        password: 'Str0ng!Passw0rd'
+      })
+
+      expect((await availability.isEmailAvailable(email)).available).toBe(false)
     })
   })
 })

@@ -187,14 +187,9 @@ describe('PostTypesService', () => {
     it('should soft delete a post type', async () => {
       const postType = PostTypeFactory.create({ id: 'test-id', isSystem: false })
       repository.findById.mockResolvedValue(postType as PostType)
-      const mockTypeOrmRepo = {
-        softDelete: jest.fn()
-      }
-      repository.getRepository = jest.fn().mockReturnValue(mockTypeOrmRepo)
-
       await service.remove('test-id')
 
-      expect(mockTypeOrmRepo.softDelete).toHaveBeenCalledWith('test-id')
+      expect(repository.softDelete).toHaveBeenCalledWith('test-id')
       expect(repository.invalidateCache).toHaveBeenCalled()
     })
 

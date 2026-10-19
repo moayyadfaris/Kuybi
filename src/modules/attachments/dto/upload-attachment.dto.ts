@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Transform } from 'class-transformer'
 import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator'
 
@@ -39,35 +40,17 @@ export class UploadAttachmentDto {
   tags: string[] = []
 
   @ApiPropertyOptional({ description: 'Generate thumbnails for images/videos', default: true })
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) return true
-    if (typeof value === 'boolean') return value
-    const normalized = value.toString().toLowerCase()
-    if (['false', '0', 'no'].includes(normalized)) return false
-    return true
-  })
+  @ToBoolean()
   @IsBoolean()
   generateThumbnails: boolean = true
 
   @ApiPropertyOptional({ description: 'Mark attachment as public', default: true })
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) return true
-    if (typeof value === 'boolean') return value
-    const normalized = value.toString().toLowerCase()
-    if (['false', '0', 'no'].includes(normalized)) return false
-    return true
-  })
+  @ToBoolean()
   @IsBoolean()
   isPublic: boolean = true
 
   @ApiPropertyOptional({ description: 'Allow storing duplicate files', default: false })
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) return false
-    if (typeof value === 'boolean') return value
-    const normalized = value.toString().toLowerCase()
-    if (['true', '1', 'yes'].includes(normalized)) return true
-    return false
-  })
+  @ToBoolean()
   @IsBoolean()
   allowDuplicates: boolean = false
 
@@ -75,13 +58,7 @@ export class UploadAttachmentDto {
     description: 'Process image asynchronously in background queue',
     default: false
   })
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) return false
-    if (typeof value === 'boolean') return value
-    const normalized = value.toString().toLowerCase()
-    if (['true', '1', 'yes'].includes(normalized)) return true
-    return false
-  })
+  @ToBoolean()
   @IsBoolean()
   @IsOptional()
   async?: boolean

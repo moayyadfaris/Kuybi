@@ -1,9 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import { EmailQueueService } from '@infrastructure/email'
 import * as bcrypt from 'bcrypt'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
 
 import { EventBus } from '@core/events'
 
@@ -12,8 +10,8 @@ import {
   AdminResetPasswordDto,
   AdminSetPasswordDto
 } from '../dto/admin-password-management.dto'
-import { User } from '../entities/user.entity'
 import { UserCredentialsResetEvent } from '../events/user-credentials-reset.event'
+import { UserRepository } from '../repositories/user.repository'
 
 /**
  * Admin Password Management Service
@@ -29,8 +27,7 @@ import { UserCredentialsResetEvent } from '../events/user-credentials-reset.even
 @Injectable()
 export class AdminPasswordManagementService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly userRepository: UserRepository,
     private readonly eventBus: EventBus,
     private readonly emailQueueService: EmailQueueService,
     @InjectPinoLogger(AdminPasswordManagementService.name)
@@ -89,9 +86,7 @@ export class AdminPasswordManagementService {
     const { userId, forcePasswordChange = true, reason } = dto
 
     // Find user
-    const user = await this.userRepository.findOne({
-      where: { id: userId }
-    })
+    const user = await this.userRepository.findById(userId, { bypassCache: true })
 
     if (!user) {
       throw new NotFoundException('User not found')
@@ -109,9 +104,7 @@ export class AdminPasswordManagementService {
     const passwordHash = await bcrypt.hash(temporaryPassword, salt)
 
     // Update user
-    user.passwordHash = passwordHash
-    user.forcePasswordChange = forcePasswordChange
-    await this.userRepository.save(user)
+    await this.userRepository.update(userId, { passwordHash, forcePasswordChange })
 
     // Invalidate all user sessions (force re-login); fails the request if revocation fails
     await this.eventBus.publish(
@@ -166,9 +159,7 @@ export class AdminPasswordManagementService {
     } = dto
 
     // Find user
-    const user = await this.userRepository.findOne({
-      where: { id: userId }
-    })
+    const user = await this.userRepository.findById(userId, { bypassCache: true })
 
     if (!user) {
       throw new NotFoundException('User not found')
@@ -189,9 +180,7 @@ export class AdminPasswordManagementService {
     const passwordHash = await bcrypt.hash(newPassword, salt)
 
     // Update user
-    user.passwordHash = passwordHash
-    user.forcePasswordChange = forcePasswordChange
-    await this.userRepository.save(user)
+    await this.userRepository.update(userId, { passwordHash, forcePasswordChange })
 
     // Invalidate all user sessions (force re-login); fails the request if revocation fails
     await this.eventBus.publish(

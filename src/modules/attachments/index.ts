@@ -5,6 +5,7 @@
 export { AttachmentsModule } from './attachments.module'
 export { AttachmentsJobsModule } from './jobs/attachments-jobs.module'
 export { AttachmentRepository } from './repositories/attachment.repository'
+export { AttachmentVisibilityService } from './services/attachment-visibility.service'
 export { S3Service } from './services/s3.service'
 export { AttachmentMetadata } from './utils/attachment-image.util'
 export { toAttachmentResponse } from './utils/attachment-url.util'

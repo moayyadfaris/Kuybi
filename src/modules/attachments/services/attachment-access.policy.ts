@@ -1,13 +1,11 @@
 import { ForbiddenException, Injectable } from '@nestjs/common'
-import { subject } from '@casl/ability'
 
-import { AbilityFactory, Action, Subject } from '@modules/acl'
+import { AbilityFactory, Action, asSubject, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
 import { Attachment } from '../entities/attachment.entity'
 
 type AttachmentFacts = Pick<Attachment, 'userId' | 'isPublic'>
-type AbilitySubject = Parameters<ReturnType<AbilityFactory['createForUser']>['can']>[1]
 
 /**
  * Per-file authorization. Regular users may read their own files and public ones;
@@ -23,7 +21,7 @@ export class AttachmentAccessPolicy {
   can(user: User, action: Action, attachment: AttachmentFacts): boolean {
     return this.abilityFactory
       .createForUser(user)
-      .can(action, subject(Subject.Attachment, { ...attachment }) as unknown as AbilitySubject)
+      .can(action, asSubject(Subject.Attachment, attachment))
   }
 
   assertCan(user: User, action: Action, attachment: AttachmentFacts, message: string): void {

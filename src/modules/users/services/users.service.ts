@@ -4,21 +4,15 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import * as bcrypt from 'bcrypt'
-import { Repository } from 'typeorm'
 
-import { findDefaultRoleId } from '@modules/acl'
-import { Role } from '@modules/acl/entities'
+import { RoleRepository } from '@modules/acl'
 import {
   assertAttachmentUsable,
-  AttachmentMetadata,
   AttachmentRepository,
+  AttachmentVisibilityService,
   S3Service
 } from '@modules/attachments'
-import { Attachment } from '@modules/attachments/entities'
-
-import { CacheService } from '@core/cache/services/cache.service'
 
 import { UserProfileDto } from '../dto/user-profile.dto'
 import { User } from '../entities/user.entity'
@@ -30,9 +24,8 @@ export class UsersService {
     private readonly userRepository: UserRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly s3Service: S3Service,
-    private readonly cacheService: CacheService,
-    @InjectRepository(Role)
-    private readonly roleRepository: Repository<Role>
+    private readonly attachmentVisibility: AttachmentVisibilityService,
+    private readonly roleRepository: RoleRepository
   ) {}
 
   /** Password hash for credential checks only; never returned by regular lookups. */
@@ -44,45 +37,37 @@ export class UsersService {
     return this.userRepository.findByEmail(email, bypassCache)
   }
 
-  async findById(id: string): Promise<User | null> {
-    const cacheKey = `user:profile:${id}`
-    return this.cacheService.wrap<User | null>(
-      cacheKey,
-      async () => this.userRepository.findById(id, { bypassCache: true }),
-      900 // 15 min TTL
-    )
+  /**
+   * Fresh read: callers use User methods (isSuperAdmin, canManageUser...), and a cache
+   * hit is a plain JSON object without them
+   */
+  findById(id: string): Promise<User | null> {
+    return this.userRepository.findById(id, { bypassCache: true })
   }
 
   /**
    * Get user profile (safe DTO without sensitive fields)
    */
   async getUserProfile(id: string): Promise<UserProfileDto | null> {
-    const cacheKey = `user:profile:safe:${id}`
-    return this.cacheService.wrap<UserProfileDto | null>(
-      cacheKey,
-      async () => {
-        const user = await this.userRepository.findById(id, { bypassCache: true })
-        if (!user) return null
+    // Fresh read (the DTO mapping calls User methods; a cache hit is plain JSON). The
+    // profile is not cached either: presigning the image URL is a local HMAC.
+    const user = await this.userRepository.findById(id, { bypassCache: true })
+    if (!user) return null
 
-        const profile = UserProfileDto.fromEntity(user)
+    const profile = UserProfileDto.fromEntity(user)
 
-        // Generate presigned URL for profile image if exists
-        if (user.profileImage?.path) {
-          try {
-            profile.profileImageUrl = user.profileImage.isPublic
-              ? this.s3Service.getPublicUrl(user.profileImage.path)
-              : await this.s3Service.getPresignedUrl(user.profileImage.path, 86400)
-          } catch (error) {
-            // Log error but don't fail the request
-            console.error('Failed to generate profile image URL:', error)
-            profile.profileImageUrl = null
-          }
-        }
+    if (user.profileImage?.path) {
+      try {
+        profile.profileImageUrl = user.profileImage.isPublic
+          ? this.s3Service.getPublicUrl(user.profileImage.path)
+          : await this.s3Service.getPresignedUrl(user.profileImage.path, 86400)
+      } catch {
+        // A broken image link must not fail the profile request
+        profile.profileImageUrl = null
+      }
+    }
 
-        return profile
-      },
-      900 // 15 min TTL
-    )
+    return profile
   }
 
   async createUser(payload: {
@@ -95,7 +80,7 @@ export class UsersService {
   }): Promise<User> {
     const passwordHash = await bcrypt.hash(payload.password, 10)
 
-    const primaryRoleId = payload.primaryRoleId ?? (await findDefaultRoleId(this.roleRepository))
+    const primaryRoleId = payload.primaryRoleId ?? (await this.roleRepository.findDefaultRoleId())
 
     return this.userRepository.create({
       name: payload.name,
@@ -118,11 +103,7 @@ export class UsersService {
       }
     }
 
-    const updated = await this.userRepository.update(id, data)
-    // Invalidate both internal and safe profile caches
-    await this.cacheService.del(`user:profile:${id}`)
-    await this.cacheService.del(`user:profile:safe:${id}`)
-    return updated
+    return this.userRepository.update(id, data)
   }
 
   async deleteUser(id: string, currentUser?: User): Promise<boolean> {
@@ -183,15 +164,11 @@ export class UsersService {
       throw new BadRequestException('Attachment must be an image')
     }
 
-    await this.ensureAttachmentPublic(attachment)
+    // Profile images are public: every stored object's ACL, not just the flag
+    await this.attachmentVisibility.setVisibility(attachment, true)
 
     // Update user with the profile image
     const updated = await this.userRepository.update(userId, { profileImageId: attachmentId })
-
-    // Invalidate caches
-    await this.cacheService.del(`user:profile:${userId}`)
-    await this.cacheService.del(`user:profile:safe:${userId}`)
-
     return updated
   }
 
@@ -200,55 +177,6 @@ export class UsersService {
    */
   async removeProfileImage(userId: string): Promise<User | null> {
     const updated = await this.userRepository.update(userId, { profileImageId: null })
-
-    // Invalidate caches
-    await this.cacheService.del(`user:profile:${userId}`)
-    await this.cacheService.del(`user:profile:safe:${userId}`)
-
     return updated
-  }
-
-  private async ensureAttachmentPublic(attachment: Attachment): Promise<void> {
-    if (attachment.isPublic) {
-      return
-    }
-
-    await this.s3Service.makePublic(attachment.path)
-
-    if (attachment.thumbnailPath) {
-      await this.s3Service.makePublic(attachment.thumbnailPath)
-    }
-
-    const metadata = (attachment.metadata || {}) as AttachmentMetadata
-
-    const thumbnails = metadata.thumbnails
-    if (thumbnails) {
-      const thumbnailKeys = Object.values(thumbnails)
-        .map(thumb => thumb?.key)
-        .filter((key): key is string => Boolean(key))
-
-      await Promise.all(thumbnailKeys.map(key => this.s3Service.makePublic(key)))
-    }
-
-    const optimization = metadata.optimization
-    const placeholderKey = optimization?.placeholderKey
-    if (placeholderKey) {
-      await this.s3Service.makePublic(placeholderKey)
-    }
-
-    if (optimization || placeholderKey) {
-      metadata.optimization = {
-        ...(optimization || {}),
-        placeholderKey
-      }
-    }
-
-    attachment.isPublic = true
-    attachment.metadata = metadata
-
-    await this.attachmentRepository.update(attachment.id, {
-      isPublic: true,
-      metadata
-    })
   }
 }

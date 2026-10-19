@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { FindOptionsRelations, Repository } from 'typeorm'
+import { FindOptionsRelations, LessThan, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -51,7 +51,7 @@ export class UserRepository extends BaseRepository<User> {
       })
     }
 
-    return this.cacheService.wrap<User | null>(
+    return this.cached<User | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -76,7 +76,7 @@ export class UserRepository extends BaseRepository<User> {
       })
     }
 
-    return this.cacheService.wrap<User | null>(
+    return this.cached<User | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -89,12 +89,30 @@ export class UserRepository extends BaseRepository<User> {
   }
 
   /**
+   * Whether an account uses this email (normalised). Cached under the list tag, so
+   * any user write (a signup, an email change) clears it.
+   */
+  isEmailTaken(email: string): Promise<boolean> {
+    const normalized = email.toLowerCase().trim()
+    return this.cached(this.buildCacheKey('email-taken', normalized), () =>
+      this.repository.exists({ where: { email: normalized } })
+    )
+  }
+
+  /** Whether an account uses this mobile number (see isEmailTaken) */
+  isMobileTaken(mobileNumber: string): Promise<boolean> {
+    return this.cached(this.buildCacheKey('mobile-taken', mobileNumber), () =>
+      this.repository.exists({ where: { mobileNumber } })
+    )
+  }
+
+  /**
    * Find user by mobile number with caching
    */
   async findByMobile(mobileNumber: string): Promise<User | null> {
     const cacheKey = this.buildCacheKey('mobile', mobileNumber)
 
-    return this.cacheService.wrap<User | null>(
+    return this.cached<User | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({ where: { mobileNumber } })
@@ -117,7 +135,7 @@ export class UserRepository extends BaseRepository<User> {
       `offset:${options?.offset ?? 0}`
     )
 
-    return this.cacheService.wrap<User[]>(
+    return this.cached<User[]>(
       cacheKey,
       async () => {
         return this.repository
@@ -185,7 +203,7 @@ export class UserRepository extends BaseRepository<User> {
       `offset:${options?.offset ?? 0}`
     )
 
-    return this.cacheService.wrap<User[]>(
+    return this.cached<User[]>(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -242,6 +260,58 @@ export class UserRepository extends BaseRepository<User> {
     return row?.passwordHash ?? null
   }
 
+  // ---- Account lockout (auth module). Fresh reads only: lock state decides logins. ----
+
+  /**
+   * Adds one failed login attempt atomically and returns the new count (null when the
+   * user does not exist). Read-and-save lost increments under concurrent logins.
+   */
+  async incrementFailedLoginAttempts(id: string): Promise<number | null> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(User)
+      .set({ failedLoginAttempts: () => '"failedLoginAttempts" + 1' })
+      .where('id = :id', { id })
+      .returning(['failedLoginAttempts'])
+      .execute()
+    await this.invalidateCacheByEntityId(id)
+    const rows = result.raw as Array<{ failedLoginAttempts: number }>
+    return rows[0]?.failedLoginAttempts ?? null
+  }
+
+  findLockState(
+    id: string
+  ): Promise<Pick<
+    User,
+    'id' | 'isLocked' | 'failedLoginAttempts' | 'lockedAt' | 'lockedUntil' | 'lockReason'
+  > | null> {
+    return this.repository.findOne({
+      where: { id },
+      select: {
+        id: true,
+        isLocked: true,
+        failedLoginAttempts: true,
+        lockedAt: true,
+        lockedUntil: true,
+        lockReason: true
+      }
+    })
+  }
+
+  findLocked(limit: number, offset: number): Promise<[User[], number]> {
+    return this.repository.findAndCount({
+      where: { isLocked: true },
+      take: limit,
+      skip: offset,
+      order: { lockedAt: 'DESC' }
+    })
+  }
+
+  /** Locked users whose lock period is over */
+  findExpiredLocks(): Promise<User[]> {
+    return this.repository.find({ where: { isLocked: true, lockedUntil: LessThan(new Date()) } })
+  }
+
   async updatePassword(id: string, passwordHash: string): Promise<void> {
     await this.repository.update(id, { passwordHash })
 
@@ -282,7 +352,7 @@ export class UserRepository extends BaseRepository<User> {
   }> {
     const cacheKey = this.buildCacheKey('stats')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const [total, active, verified] = await Promise.all([

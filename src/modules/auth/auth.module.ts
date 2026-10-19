@@ -7,22 +7,24 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { EmailModule } from '@infrastructure/email'
 import type { StringValue } from 'ms'
 
-import { Role } from '@modules/acl/entities'
+import { AclModule } from '@modules/acl'
 import { AuditModule } from '@modules/audit'
 import { UsersModule } from '@modules/users'
-import { EmailVerification, User } from '@modules/users/entities'
 
 import { MetricsModule } from '@core/observability/metrics.module'
 import { QueueName } from '@core/queues/jobs/types'
 
 import { AuthController } from './controllers/auth.controller'
 import { CleanupStatsController } from './controllers/cleanup-stats.controller'
+import { PasswordController } from './controllers/password.controller'
+import { RegistrationController } from './controllers/registration.controller'
 import { SessionsController } from './controllers/sessions.controller'
 import { PasswordHistory } from './entities/password-history.entity'
 import { PasswordReset } from './entities/password-reset.entity'
 import { Session } from './entities/session.entity'
 import { UserCredentialsResetListener } from './listeners/user-credentials-reset.listener'
 import { PasswordHistoryRepository } from './repositories/password-history.repository'
+import { PasswordResetRepository } from './repositories/password-reset.repository'
 import { SessionRepository } from './repositories/session.repository'
 import { PasswordPolicyService } from './services/password-policy.service'
 import { PasswordResetService } from './services/password-reset.service'
@@ -42,18 +44,12 @@ import {
 
 @Module({
   imports: [
+    AclModule,
     UsersModule,
     EmailModule,
     MetricsModule,
     AuditModule,
-    TypeOrmModule.forFeature([
-      Session,
-      PasswordReset,
-      PasswordHistory,
-      User,
-      EmailVerification,
-      Role
-    ]),
+    TypeOrmModule.forFeature([Session, PasswordReset, PasswordHistory]),
     BullModule.registerQueue({
       name: QueueName.ACCOUNT_SECURITY
     }),
@@ -69,7 +65,13 @@ import {
       })
     })
   ],
-  controllers: [AuthController, SessionsController, CleanupStatsController],
+  controllers: [
+    AuthController,
+    RegistrationController,
+    PasswordController,
+    SessionsController,
+    CleanupStatsController
+  ],
   providers: [
     AuthService,
     PasswordPolicyService,
@@ -86,6 +88,7 @@ import {
     JwtStrategy,
     UserCredentialsResetListener,
     SessionRepository,
+    PasswordResetRepository,
     PasswordHistoryRepository
   ],
   exports: [

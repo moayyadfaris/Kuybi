@@ -1,26 +1,31 @@
 # Kuybi NestJS - AI Coding Assistant Guide
 
 ## Project Overview
+
 Enterprise-grade NestJS backend for Kuybi platform with sophisticated authentication, ACL, caching, and content management. Built using Domain-Driven Design principles with repository pattern and extensive Redis caching.
 
 ## Architecture Patterns
 
 ### Repository Pattern with Caching
+
 All data access uses `BaseRepository<T>` extending TypeORM with built-in Redis caching:
+
 ```typescript
 // Example: CategoryRepository extends BaseRepository<Category>
 const category = await categoryRepository.findById(id, { ttl: 3600 })
 await categoryRepository.invalidateListCaches() // After mutations
 ```
-- **Cache keys**: `{entityName}:{operation}:{params}` 
+
+- **Cache keys**: `{entityName}:{operation}:{params}`
 - **TTL**: 1 hour default, customizable per operation
 - **Auto-invalidation**: List caches cleared on create/update/delete
 
 ### Module Structure Standard
+
 ```
 src/{module}/
 ├── {module}.module.ts
-├── controllers/          # REST endpoints  
+├── controllers/          # REST endpoints
 ├── services/            # Business logic (REQUIRED)
 ├── dto/                 # Data transfer objects
 ├── entities/            # TypeORM entities
@@ -29,14 +34,16 @@ src/{module}/
 ```
 
 ### ACL & Authentication Flow
+
 1. **JWT tokens** via `@nestjs/jwt` with refresh token rotation
 2. **CASL abilities** for fine-grained permissions (`src/acl/abilities/`)
 3. **Session management** with Redis storage and cleanup jobs
 4. **Token blacklisting** for immediate logout enforcement
 
 Example ACL usage:
+
 ```typescript
-@CheckAbilities({ action: Action.Create, subject: 'Category' })
+@CheckAbility({ action: Action.Create, subject: Subject.Category })
 @UseGuards(JwtAuthGuard, AbilityGuard)
 async createCategory() { }
 ```
@@ -44,11 +51,12 @@ async createCategory() { }
 ## Development Workflows
 
 ### Database Operations
+
 ```bash
 # Run migrations
 npm run migration:run
 
-# Seed data  
+# Seed data
 npm run db:seed:countries
 npm run db:seed:users     # Creates admin@kuybi.dev / Admin@123
 npm run db:seed:acl       # Sets up roles/permissions
@@ -58,28 +66,36 @@ npm run migration:revert
 ```
 
 ### Testing ACL Guards
+
 Use provided shell scripts for comprehensive ACL testing:
+
 ```bash
 ./test/scripts/quick-acl-test.sh       # Fast validation of core ACL functionality
 ./test/scripts/test-acl-guards.sh      # Full guard validation with edge cases
 ```
+
 Tests use pre-configured admin token and validate authentication, authorization, and CRUD operations.
 
 ### Cache Management
-Redis caching is integral to performance (25-80x improvements documented):
-```typescript
-// Repository-level caching
-await repository.findById(id, { bypassCache: true }) // Skip cache
-await repository.invalidateAllCaches() // Clear all entity caches
 
-// Service-level caching  
-await cacheService.wrap(key, expensiveOperation, ttl)
+Redis caching is integral to performance (25-80x improvements documented):
+
+```typescript
+// Entity data is cached only in repositories (BaseRepository cache contract, docs/adr/0003)
+await repository.findById(id) // cached; any write through the repository invalidates it
+await repository.findById(id, { bypassCache: true }) // fresh read: security decisions, or when you need entity methods
+// (a cache hit is plain JSON, not an entity instance)
+
+// Inside a repository: this.cached(key, load, ttl) / this.cacheSet(key, value) - never cacheService.wrap/set
+// Transactions: await repository.transaction(async manager => { ... }, { touched: [id] })
 ```
 
 ### Logging with Pino
+
 Structured logging with correlation IDs:
+
 ```typescript
-@InjectPinoLogger(ServiceName.name) 
+@InjectPinoLogger(ServiceName.name)
 private readonly logger: PinoLogger
 
 this.logger.info({ userId, action: 'login' }, 'User authentication successful')
@@ -88,18 +104,21 @@ this.logger.info({ userId, action: 'login' }, 'User authentication successful')
 ## Service Patterns
 
 ### Authentication Services
+
 - **AuthService**: Login/logout, token management
-- **SessionsService**: Multi-device session tracking, risk assessment  
+- **SessionsService**: Multi-device session tracking, risk assessment
 - **TokenBlacklistService**: Immediate token invalidation via Redis
 - **SessionCleanupService**: Automated session pruning with @Cron
 
 ### Repository Service Pattern
+
 Each entity has dedicated repository extending `BaseRepository<T>`:
+
 ```typescript
 @Injectable()
 export class CategoryRepository extends BaseRepository<Category> {
   protected entityName = 'category'
-  
+
   async findBySlug(slug: string) {
     return this.findOne({ slug }, { ttl: 7200 })
   }
@@ -107,13 +126,18 @@ export class CategoryRepository extends BaseRepository<Category> {
 ```
 
 ### DTO Validation
+
 Comprehensive validation using `class-validator`:
+
 ```typescript
 export class CreateStoryDto {
-  @IsString() @Length(1, 200)
+  @IsString()
+  @Length(1, 200)
   title: string
-  
-  @IsOptional() @IsArray() @IsUUID(4, { each: true })
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID(4, { each: true })
   tagIds?: string[]
 }
 ```
@@ -121,53 +145,72 @@ export class CreateStoryDto {
 ## Integration Points
 
 ### AWS S3 Attachments
+
 File uploads handled by `AttachmentsService` with S3 presigned URLs:
+
 ```typescript
-POST /api/attachments 
+POST /api/attachments
 # Form-data: file, category?, description?, tags?, generateThumbnails?
 # Returns: { url, downloadUrl, metadata }
 ```
 
 ### Cross-Module Communication
+
 - **Entities reference by ID only** (no direct imports)
 - **Domain events** for async communication (planned)
 - **Repository facades** for cross-module data access
 
 ### Configuration Management
+
 Environment-based config in `src/config/configuration.ts`:
+
 ```typescript
 // Access via ConfigService injection
-database: { host, port, username, password, name }
-redis: { host, port, password, db }
-auth: { jwtSecret, refreshSecret, accessTokenTtl }
+database: {
+  ;(host, port, username, password, name)
+}
+redis: {
+  ;(host, port, password, db)
+}
+auth: {
+  ;(jwtSecret, refreshSecret, accessTokenTtl)
+}
 ```
 
 ## Common Gotchas
 
 ### Cache Invalidation
+
 Always invalidate caches after mutations:
+
 ```typescript
 // ❌ Don't do this
 await repository.save(entity)
 return entity
 
-// ✅ Do this  
+// ✅ Do this
 const saved = await repository.save(entity) // Auto-invalidates
 return saved
 ```
 
 ### ACL Implementation
+
 Use proper ability checks, not role-based hardcoding:
+
 ```typescript
 // ❌ Avoid
 if (user.role === 'admin') { }
 
 // ✅ Prefer
-@CheckAbilities({ action: Action.Update, subject: Category })
+@CheckAbility({ action: Action.Update, subject: Subject.Category })
+// Per-record checks in services: ability.can(action, asSubject(Subject.Story, story))
 ```
 
 ### Repository vs Direct TypeORM
-Always use repository layer, never inject Repository<T> directly:
+
+Only repositories touch TypeORM (lint-enforced). Never inject Repository<T>, DataSource or
+EntityManager in services, jobs, guards or controllers; use the owning module's repository:
+
 ```typescript
 // ❌ Avoid
 @InjectRepository(Category) private categoryRepo: Repository<Category>
@@ -177,20 +220,25 @@ constructor(private categoryRepository: CategoryRepository)
 ```
 
 ### Testing with ACL
+
 Use shell scripts for comprehensive testing - they include proper token handling and cover authentication flows that unit tests might miss.
 
 ## Key Files for Context
+
 - `src/app.module.ts` - Module registration and global providers
 - `src/database/data-source.ts` - Entity registration and DB config
-- `src/database/repositories/base.repository.ts` - Core data access patterns
-- `docs/architecture/ARCHITECTURE_STANDARDIZATION.md` - Detailed structure guide
+- `src/core/database/repositories/base.repository.ts` - Data access and the cache contract
+- `src/app.setup.ts` - The HTTP pipeline (used by main.ts and the integration tests)
+- `docs/architecture/README.md` - Architecture overview, rules and how they are enforced
+- `docs/adr/` - Decision records (read before changing data access, events, config or the HTTP pipeline)
 - `docs/README.md` - Comprehensive feature documentation index
 
 ## Development Server
+
 ```bash
-npm run start:dev  # Runs on http://localhost:4000/api
-# API docs at http://localhost:4000/api/docs
-# Health check at http://localhost:4000/api/health
+npm run start:dev  # Runs on http://localhost:4040/api
+# API docs at http://localhost:4040/api/docs
+# Health check at http://localhost:4040/api/health
 ```
 
 Default admin: `admin@kuybi.dev` / `Admin@123`

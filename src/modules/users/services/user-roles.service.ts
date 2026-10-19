@@ -4,28 +4,23 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
 
-import { AssignRoleDto } from '@modules/acl'
-import { Role, UserRole } from '@modules/acl/entities'
+import { AssignRoleDto, RoleRepository, UserRoleRepository } from '@modules/acl'
 import { AuditService } from '@modules/audit'
 import { AuditAction, AuditSeverity } from '@modules/audit/entities'
 
 import { User } from '../entities/user.entity'
+import { UserRepository } from '../repositories/user.repository'
 
 @Injectable()
 export class UserRolesService {
   constructor(
     @InjectPinoLogger(UserRolesService.name)
     private readonly logger: PinoLogger,
-    @InjectRepository(UserRole)
-    private readonly userRoleRepository: Repository<UserRole>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Role)
-    private readonly roleRepository: Repository<Role>,
+    private readonly userRoleRepository: UserRoleRepository,
+    private readonly userRepository: UserRepository,
+    private readonly roleRepository: RoleRepository,
     private readonly auditService: AuditService
   ) {}
 
@@ -33,10 +28,8 @@ export class UserRolesService {
    * Get all roles assigned to a user
    */
   async getUserRoles(userId: string) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: { userRoles: { role: true } }
-    })
+    // Loaded with its role assignments (UserRepository relations)
+    const user = await this.userRepository.findById(userId)
 
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`)
@@ -63,27 +56,21 @@ export class UserRolesService {
    */
   async assignRole(userId: string, assignRoleDto: AssignRoleDto, assignedBy?: User) {
     // Verify user exists
-    const user = await this.userRepository.findOne({
-      where: { id: userId }
-    })
+    const user = await this.userRepository.findById(userId)
 
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`)
     }
 
     // Verify role exists
-    const role = await this.roleRepository.findOne({
-      where: { id: assignRoleDto.roleId }
-    })
+    const role = await this.roleRepository.findById(assignRoleDto.roleId)
 
     if (!role) {
       throw new NotFoundException(`Role with ID ${assignRoleDto.roleId} not found`)
     }
 
     // Check if role is already assigned
-    const existing = await this.userRoleRepository.findOne({
-      where: { userId, roleId: assignRoleDto.roleId }
-    })
+    const existing = await this.userRoleRepository.findAssignment(userId, assignRoleDto.roleId)
 
     if (existing) {
       throw new ConflictException('Role is already assigned to this user')
@@ -98,15 +85,15 @@ export class UserRolesService {
     }
 
     // Create role assignment
-    const userRole = this.userRoleRepository.create({
+    const saved = await this.userRoleRepository.create({
       userId,
       roleId: assignRoleDto.roleId,
       assignedBy: assignedBy?.id,
       isActive: assignRoleDto.isActive ?? true,
       expiresAt: assignRoleDto.expiresAt ? new Date(assignRoleDto.expiresAt) : null
     })
-
-    const saved = await this.userRoleRepository.save(userRole)
+    // The cached user embeds its roles
+    await this.userRepository.invalidateCacheByEntityId(userId)
 
     // Log role assignment
     this.logger.info(
@@ -169,9 +156,9 @@ export class UserRolesService {
    * Revoke a role from a user
    */
   async revokeRole(userId: string, roleId: number, revokedBy?: User): Promise<void> {
-    const userRole = await this.userRoleRepository.findOne({
-      where: { userId, roleId },
-      relations: { role: true, user: true }
+    const userRole = await this.userRoleRepository.findAssignment(userId, roleId, {
+      role: true,
+      user: true
     })
 
     if (!userRole) {
@@ -179,6 +166,7 @@ export class UserRolesService {
     }
 
     await this.userRoleRepository.remove(userRole)
+    await this.userRepository.invalidateCacheByEntityId(userId)
 
     // Log role revocation
     this.logger.info(
@@ -226,10 +214,7 @@ export class UserRolesService {
    * Activate a user role assignment
    */
   async activateRole(userId: string, roleId: number) {
-    const userRole = await this.userRoleRepository.findOne({
-      where: { userId, roleId },
-      relations: { role: true }
-    })
+    const userRole = await this.userRoleRepository.findAssignment(userId, roleId, { role: true })
 
     if (!userRole) {
       throw new NotFoundException('User role assignment not found')
@@ -237,6 +222,7 @@ export class UserRolesService {
 
     userRole.isActive = true
     const updated = await this.userRoleRepository.save(userRole)
+    await this.userRepository.invalidateCacheByEntityId(userId)
 
     return {
       message: 'Role activated successfully',
@@ -255,10 +241,7 @@ export class UserRolesService {
    * Deactivate a user role assignment
    */
   async deactivateRole(userId: string, roleId: number) {
-    const userRole = await this.userRoleRepository.findOne({
-      where: { userId, roleId },
-      relations: { role: true }
-    })
+    const userRole = await this.userRoleRepository.findAssignment(userId, roleId, { role: true })
 
     if (!userRole) {
       throw new NotFoundException('User role assignment not found')
@@ -266,6 +249,7 @@ export class UserRolesService {
 
     userRole.isActive = false
     const updated = await this.userRoleRepository.save(userRole)
+    await this.userRepository.invalidateCacheByEntityId(userId)
 
     return {
       message: 'Role deactivated successfully',

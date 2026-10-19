@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   IsBoolean,
   IsInt,
@@ -93,6 +94,7 @@ export class CreatePostTypeDto {
     default: false
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   isHierarchical?: boolean
 
@@ -102,6 +104,7 @@ export class CreatePostTypeDto {
     default: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   supportsComments?: boolean
 
@@ -111,6 +114,7 @@ export class CreatePostTypeDto {
     default: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   supportsRevisions?: boolean
 
@@ -120,6 +124,7 @@ export class CreatePostTypeDto {
     default: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
   showInRest?: boolean
 

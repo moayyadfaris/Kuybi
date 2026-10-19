@@ -1,13 +1,12 @@
 import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectRepository } from '@nestjs/typeorm'
 import { EmailQueueService } from '@infrastructure/email'
 import { errorMessage } from '@shared/utils/error.util'
 import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { LessThan, Repository } from 'typeorm'
 
+import { UserRepository } from '@modules/users'
 import { User } from '@modules/users/entities'
 
 import {
@@ -48,8 +47,7 @@ export class AccountLockoutService {
   private readonly config: AccountLockoutConfig
 
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly userRepository: UserRepository,
     @InjectQueue(QueueName.ACCOUNT_SECURITY)
     private readonly accountSecurityQueue: Queue,
     private readonly configService: ConfigService,
@@ -78,18 +76,10 @@ export class AccountLockoutService {
 
     // Atomic increment: concurrent failures (a parallel brute force) must all count.
     // Reading the counter and saving it back lost most of them.
-    const result = await this.userRepository
-      .createQueryBuilder()
-      .update(User)
-      .set({ failedLoginAttempts: () => '"failedLoginAttempts" + 1' })
-      .where('id = :userId', { userId })
-      .returning(['failedLoginAttempts'])
-      .execute()
-    const rows = result.raw as Array<{ failedLoginAttempts: number }>
-    if (rows.length === 0) {
+    const failedAttempts = await this.userRepository.incrementFailedLoginAttempts(userId)
+    if (failedAttempts === null) {
       throw new NotFoundException(`User ${userId} not found`)
     }
-    const failedAttempts = rows[0].failedLoginAttempts
 
     this.logger.info(
       {
@@ -105,7 +95,8 @@ export class AccountLockoutService {
     // Exactly one attempt reaches the threshold, so the account is locked (and the
     // unlock job and email sent) once, however many requests race past it
     if (failedAttempts === this.config.maxAttempts) {
-      const user = await this.userRepository.findOneOrFail({ where: { id: userId } })
+      const user = await this.userRepository.findById(userId, { bypassCache: true })
+      if (!user) throw new NotFoundException(`User ${userId} not found`)
       await this.lockAccount(user, LockReason.FAILED_ATTEMPTS)
     } else if (failedAttempts < this.config.maxAttempts) {
       // Schedule reset of failed attempts after reset period
@@ -232,7 +223,7 @@ export class AccountLockoutService {
    * Unlock an account
    */
   async unlockAccount(userId: string, reason: 'AUTO_UNLOCK' | 'ADMIN_UNLOCK'): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id: userId } })
+    const user = await this.userRepository.findById(userId, { bypassCache: true })
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`)
     }
@@ -244,13 +235,13 @@ export class AccountLockoutService {
 
     const previousAttempts = user.failedLoginAttempts
 
-    user.isLocked = false
-    user.failedLoginAttempts = 0
-    user.lockedAt = null
-    user.lockedUntil = null
-    user.lockReason = null
-
-    await this.userRepository.save(user)
+    await this.userRepository.update(userId, {
+      isLocked: false,
+      failedLoginAttempts: 0,
+      lockedAt: null,
+      lockedUntil: null,
+      lockReason: null
+    })
 
     this.logger.info(
       {
@@ -287,10 +278,7 @@ export class AccountLockoutService {
    * Check if an account is currently locked
    */
   async isAccountLocked(userId: string): Promise<boolean> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: { id: true, isLocked: true, lockedUntil: true }
-    })
+    const user = await this.userRepository.findLockState(userId)
 
     if (!user) {
       return false
@@ -321,17 +309,7 @@ export class AccountLockoutService {
    * Get account lockout information
    */
   async getAccountLockInfo(userId: string): Promise<LockoutInfo> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: {
-        id: true,
-        isLocked: true,
-        failedLoginAttempts: true,
-        lockedAt: true,
-        lockedUntil: true,
-        lockReason: true
-      }
-    })
+    const user = await this.userRepository.findLockState(userId)
 
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`)
@@ -352,12 +330,7 @@ export class AccountLockoutService {
    * Get all locked accounts (for admin)
    */
   async getLockedAccounts(limit = 50, offset = 0): Promise<{ users: User[]; total: number }> {
-    const [users, total] = await this.userRepository.findAndCount({
-      where: { isLocked: true },
-      take: limit,
-      skip: offset,
-      order: { lockedAt: 'DESC' }
-    })
+    const [users, total] = await this.userRepository.findLocked(limit, offset)
 
     return { users, total }
   }
@@ -366,12 +339,7 @@ export class AccountLockoutService {
    * Check and unlock expired locks (periodic cleanup job)
    */
   async unlockExpiredAccounts(): Promise<number> {
-    const expiredUsers = await this.userRepository.find({
-      where: {
-        isLocked: true,
-        lockedUntil: LessThan(new Date())
-      }
-    })
+    const expiredUsers = await this.userRepository.findExpiredLocks()
 
     let unlockedCount = 0
     for (const user of expiredUsers) {
@@ -390,7 +358,7 @@ export class AccountLockoutService {
    * Admin manual unlock
    */
   async adminUnlockAccount(userId: string, adminId: string): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id: userId } })
+    const user = await this.userRepository.findById(userId, { bypassCache: true })
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`)
     }

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
+import { TrustProxySetting } from '@shared/utils/request.util'
 import compression from 'compression'
 import helmet from 'helmet'
 import { Logger, PinoLogger } from 'nestjs-pino'
@@ -13,6 +14,7 @@ import { SentryInterceptor, SentryService } from '@core/sentry'
 
 interface HttpConfig {
   corsOrigin: string
+  trustProxy: TrustProxySetting
 }
 
 interface CompressionConfig {
@@ -40,9 +42,17 @@ export function configureApp(app: INestApplication): void {
     }
   }
 
+  // req.ip (rate limiting, sessions, audit) comes from X-Forwarded-For only through
+  // these proxies; without it every client behind a load balancer shares one IP
+  const httpConfig = configService.get<HttpConfig>('http')
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set('trust proxy', httpConfig?.trustProxy ?? false)
+
   app.use(helmet())
 
-  const corsOrigin = configService.get<HttpConfig>('http')?.corsOrigin ?? '*'
+  const corsOrigin = httpConfig?.corsOrigin ?? '*'
   app.enableCors({
     origin: corsOrigin.includes(',') ? corsOrigin.split(',').map(o => o.trim()) : corsOrigin,
     credentials: true,

@@ -13,6 +13,7 @@ import { Attachment } from './entities/attachment.entity'
 import { AttachmentRepository } from './repositories/attachment.repository'
 import { AttachmentService } from './services/attachment.service'
 import { AttachmentAccessPolicy } from './services/attachment-access.policy'
+import { AttachmentVisibilityService } from './services/attachment-visibility.service'
 import { DirectUploadService } from './services/direct-upload.service'
 import { ExifProcessorService } from './services/exif-processor.service'
 import { FileValidationService } from './services/file-validation.service'
@@ -33,6 +34,7 @@ import { S3Service } from './services/s3.service'
   controllers: [AttachmentsController],
   providers: [
     AttachmentService,
+    AttachmentVisibilityService,
     AttachmentAccessPolicy,
     DirectUploadService,
     AttachmentRepository,
@@ -44,6 +46,7 @@ import { S3Service } from './services/s3.service'
   ],
   exports: [
     AttachmentService,
+    AttachmentVisibilityService,
     AttachmentRepository,
     ImageProcessingService,
     ImageOptimizationService,

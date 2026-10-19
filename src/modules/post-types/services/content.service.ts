@@ -271,9 +271,7 @@ export class ContentService {
 
     // Save the status change
     await this.postContentRepository.save(content)
-
-    // Use TypeORM's softDelete to set deletedAt timestamp
-    await this.postContentRepository.getRepository().softDelete(id)
+    await this.postContentRepository.softDelete(id)
     await this.postContentRepository.invalidateCacheForContent(content)
   }
 

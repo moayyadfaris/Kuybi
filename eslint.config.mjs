@@ -11,6 +11,37 @@ import tseslint from 'typescript-eslint'
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
+/** Shared: a later block's no-restricted-syntax replaces earlier ones instead of merging */
+const NO_ANY_CAST = {
+  selector: 'TSAsExpression > TSAnyKeyword',
+  message: 'Do not cast to `any`; use a precise type or `as unknown as T`.'
+}
+
+/** Data access rule (see the feature-module block below) */
+const DATA_ACCESS_SELECTORS = [
+  {
+    selector:
+      'Decorator > CallExpression[callee.name=/^Inject(Repository|DataSource|EntityManager)$/]',
+    message:
+      "Use the owning module's repository (writes through it invalidate its caches), not a TypeORM repository, DataSource or EntityManager."
+  },
+  {
+    selector:
+      'TSParameterProperty TSTypeReference > Identifier[name=/^(DataSource|EntityManager)$/]',
+    message:
+      'Do not inject a DataSource or EntityManager; run transactions with <repository>.transaction(work).'
+  }
+]
+
+/** Controllers return the payload; TransformInterceptor adds the envelope */
+const SELF_WRAPPED_RESPONSE = {
+  // TransformInterceptor wraps every response in { success, data }; a handler
+  // that adds its own produced { success, data: { success, data } }
+  selector:
+    "MethodDefinition > FunctionExpression > BlockStatement > ReturnStatement > ObjectExpression > Property[key.name='success']",
+  message: 'Return the payload only: TransformInterceptor adds { success, data } to every response.'
+}
+
 const MODULES = readdirSync(join(import.meta.dirname, 'src/modules'), { withFileTypes: true })
   .filter(entry => entry.isDirectory())
   .map(entry => entry.name)
@@ -113,11 +144,72 @@ export default tseslint.config(
     rules: {
       // src has no explicit `any` left (Oct 2026); keep it that way. Tests may use it.
       '@typescript-eslint/no-explicit-any': 'error',
-      'no-restricted-syntax': [
+      'no-restricted-syntax': ['error', NO_ANY_CAST]
+    }
+  },
+  {
+    // acl is a base module: feature modules depend on it, never the reverse. It
+    // authorizes an AclPrincipal and string subjects instead of importing User or Story.
+    // Entities are the exception: UserRole has a real foreign key to users, and the
+    // relation must stay declared for the schema (entity graphs are not module deps).
+    files: ['src/modules/acl/**/*.ts'],
+    ignores: ['src/modules/acl/entities/**'],
+    rules: {
+      'no-restricted-imports': [
         'error',
         {
-          selector: 'TSAsExpression > TSAnyKeyword',
-          message: 'Do not cast to `any`; use a precise type or `as unknown as T`.'
+          patterns: [
+            {
+              group: ['@modules/*', '!@modules/acl', '!@modules/acl/**'],
+              message:
+                'acl must not depend on feature modules; describe what it needs (see AclPrincipal) or invert the dependency.'
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    // Data access rule: inside feature modules only repositories (and seeders) touch
+    // TypeORM. Services, jobs, guards and controllers go through the owning module's
+    // repository, whose writes invalidate its caches (see BaseRepository). Transactions:
+    // <repository>.transaction(work), never an injected DataSource or EntityManager.
+    files: ['src/modules/**/*.ts'],
+    ignores: [
+      'src/modules/*/repositories/**',
+      'src/modules/*/database/**',
+      'src/modules/*/seeders/**'
+    ],
+    rules: {
+      'no-restricted-syntax': ['error', NO_ANY_CAST, ...DATA_ACCESS_SELECTORS]
+    }
+  },
+  {
+    // TransformInterceptor wraps every response in { success, data }; a handler that
+    // adds its own produced { success, data: { success, data } }
+    files: ['src/modules/*/controllers/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        NO_ANY_CAST,
+        ...DATA_ACCESS_SELECTORS,
+        SELF_WRAPPED_RESPONSE
+      ]
+    }
+  },
+  {
+    // Repositories cache only through BaseRepository.cached()/cacheSet(), which tag
+    // entries so that every write through the repository invalidates them
+    files: ['src/modules/*/repositories/**/*.ts', 'src/modules/*/database/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        NO_ANY_CAST,
+        {
+          selector:
+            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(wrap|set)$/]",
+          message:
+            'Cache with this.cached() / this.cacheSet(): untagged entries are not invalidated by writes.'
         }
       ]
     }

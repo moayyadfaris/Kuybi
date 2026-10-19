@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, SelectQueryBuilder } from 'typeorm'
+import { DeepPartial, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -42,6 +42,15 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     cacheService: CacheService
   ) {
     super(repository, cacheService)
+  }
+
+  /**
+   * Inserts a log row. Audit logs are append-only and only findById is cached, so a new
+   * row cannot make any cached read stale: no invalidation (this runs on every audited
+   * request).
+   */
+  async append(data: DeepPartial<AuditLog>): Promise<AuditLog> {
+    return this.repository.save(this.repository.create(data))
   }
 
   async findByUserId(

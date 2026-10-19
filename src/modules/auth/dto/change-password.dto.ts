@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { Transform } from 'class-transformer'
+import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsBoolean, IsOptional, IsString, Matches, MinLength } from 'class-validator'
 
 /**
@@ -48,14 +48,8 @@ export class ChangePasswordDto {
     example: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
-  @Transform(({ value }) => {
-    // Handle string 'true'/'false' from query params
-    if (typeof value === 'string') {
-      return value === 'true'
-    }
-    return value !== false // Default to true if not specified
-  })
   invalidateAllSessions?: boolean = true
 
   @ApiPropertyOptional({
@@ -66,12 +60,7 @@ export class ChangePasswordDto {
     example: true
   })
   @IsOptional()
+  @ToBoolean()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value === 'true'
-    }
-    return value !== false // Default to true
-  })
   sendNotificationEmail?: boolean = true
 }
