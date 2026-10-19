@@ -81,9 +81,10 @@ export class StoriesSeeder {
 
       for (const storyData of stories) {
         // Check if story with same title exists to avoid duplicates
-        const existing = await this.storyRepository.getRepository().findOne({
-          where: { title: storyData.title }
-        })
+        const existing = await this.storyRepository.findOne(
+          { title: storyData.title },
+          { bypassCache: true }
+        )
 
         if (existing) {
           this.logger.debug(`Story "${storyData.title}" already exists`)

@@ -43,7 +43,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
     const cacheKey = this.buildCacheKey('slug', slug)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<PostType | null>(
+      return this.cached<PostType | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({
@@ -69,7 +69,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
     const cacheKey = this.buildCacheKey('active')
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<PostType[]>(
+      return this.cached<PostType[]>(
         cacheKey,
         async () => {
           return this.repository.find({
@@ -95,7 +95,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
     const cacheKey = this.buildCacheKey('system')
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<PostType[]>(
+      return this.cached<PostType[]>(
         cacheKey,
         async () => {
           return this.repository.find({
@@ -119,7 +119,7 @@ export class PostTypeRepository extends BaseRepository<PostType> {
     const cacheKey = this.buildCacheKey('name', name)
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<PostType | null>(
+      return this.cached<PostType | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({ where: { name } })

@@ -6,10 +6,8 @@ import {
   UnprocessableEntityException
 } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { InjectRepository } from '@nestjs/typeorm'
 import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
-import { LessThan, Repository } from 'typeorm'
 
 import { User } from '@modules/users/entities'
 
@@ -54,8 +52,6 @@ interface DirectUploadMetadata {
 @Injectable()
 export class DirectUploadService {
   constructor(
-    @InjectRepository(Attachment)
-    private readonly attachments: Repository<Attachment>,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly attachmentService: AttachmentService,
     private readonly fileValidation: FileValidationService,
@@ -115,17 +111,14 @@ export class DirectUploadService {
   }
 
   async complete(id: string, user: User): Promise<AttachmentResponseDto> {
-    const attachment = await this.attachments.findOneBy({ id })
+    const attachment = await this.attachmentRepository.findFresh(id)
     if (!attachment || attachment.userId !== user.id) {
       throw new NotFoundException('Upload not found')
     }
 
     // Claim it: of two concurrent completions only one verifies the file
-    const claim = await this.attachments.update(
-      { id, securityStatus: PENDING },
-      { securityStatus: VERIFYING }
-    )
-    if (!claim.affected) {
+    const claimed = await this.attachmentRepository.transitionSecurityStatus(id, PENDING, VERIFYING)
+    if (!claimed) {
       throw new ConflictException('This upload has already been completed')
     }
 
@@ -134,7 +127,7 @@ export class DirectUploadService {
       stored = await this.s3Service.getMetadata(attachment.path)
     } catch {
       // Not uploaded (yet): let the client upload and complete again
-      await this.attachments.update(id, { securityStatus: PENDING })
+      await this.attachmentRepository.update(id, { securityStatus: PENDING })
       throw new ConflictException('The file has not been uploaded yet')
     }
 
@@ -198,10 +191,7 @@ export class DirectUploadService {
     } catch (error) {
       if (!(error instanceof UnprocessableEntityException)) {
         // Unexpected failure while verifying: allow another completion attempt
-        await this.attachments.update(
-          { id, securityStatus: VERIFYING },
-          { securityStatus: PENDING }
-        )
+        await this.attachmentRepository.transitionSecurityStatus(id, VERIFYING, PENDING)
       }
       throw error
     }
@@ -235,16 +225,14 @@ export class DirectUploadService {
   /** Deletes uploads that were initiated but never completed */
   @Cron(CronExpression.EVERY_HOUR)
   async removeAbandonedUploads(): Promise<number> {
-    const abandoned = await this.attachments.find({
-      where: {
-        securityStatus: PENDING,
-        createdAt: LessThan(new Date(Date.now() - ABANDONED_UPLOAD_MS))
-      },
-      take: 500
-    })
+    const abandoned = await this.attachmentRepository.findStaleByStatus(
+      PENDING,
+      new Date(Date.now() - ABANDONED_UPLOAD_MS),
+      500
+    )
     for (const attachment of abandoned) {
       await this.s3Service.delete(attachment.path).catch(() => undefined) // may never have been uploaded
-      await this.attachments.delete({ id: attachment.id, securityStatus: PENDING })
+      await this.attachmentRepository.deleteIfStatus(attachment.id, PENDING)
     }
     if (abandoned.length > 0) {
       this.logger.info({ count: abandoned.length }, 'Removed abandoned direct uploads')

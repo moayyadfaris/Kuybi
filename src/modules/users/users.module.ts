@@ -3,9 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { EmailModule } from '@infrastructure/email'
 
 import { AclModule } from '@modules/acl'
-import { Role, UserRole } from '@modules/acl/entities'
 import { AttachmentsModule } from '@modules/attachments'
-import { Attachment } from '@modules/attachments/entities'
 import { AuditModule } from '@modules/audit'
 
 import { AdminUsersController } from './controllers/admin-users.controller'
@@ -14,6 +12,7 @@ import { UserRolesController } from './controllers/user-roles.controller'
 import { UsersController } from './controllers/users.controller'
 import { EmailVerification } from './entities/email-verification.entity'
 import { User } from './entities/user.entity'
+import { EmailVerificationRepository } from './repositories/email-verification.repository'
 import { UserRepository } from './repositories/user.repository'
 import { UsersSeeder } from './seeders/users.seeder'
 import { AdminPasswordManagementService } from './services/admin-password-management.service'
@@ -24,7 +23,7 @@ import { UsersService } from './services/users.service'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserRole, Role, EmailVerification, Attachment]),
+    TypeOrmModule.forFeature([User, EmailVerification]),
     AclModule,
     AuditModule,
     EmailModule,
@@ -38,9 +37,9 @@ import { UsersService } from './services/users.service'
     AdminPasswordManagementService,
     AdminUserManagementService,
     UserRepository,
+    EmailVerificationRepository,
     UsersSeeder
   ],
-
-  exports: [UsersService, UserAvailabilityService, UserRepository]
+  exports: [UsersService, UserAvailabilityService, UserRepository, EmailVerificationRepository]
 })
 export class UsersModule {}

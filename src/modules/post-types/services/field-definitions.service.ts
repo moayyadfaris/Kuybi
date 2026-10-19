@@ -195,9 +195,7 @@ export class FieldDefinitionsService {
     if (!fieldDefinition) {
       throw new NotFoundException(`Field definition with ID ${id} not found`)
     }
-
-    // Use TypeORM's softDelete directly
-    await this.fieldDefinitionRepository.getRepository().softDelete(id)
+    await this.fieldDefinitionRepository.softDelete(id)
 
     // Invalidate the per-id/per-name caches as well as the post type lists,
     // otherwise findOne keeps serving the deleted field from cache

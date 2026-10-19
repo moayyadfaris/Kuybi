@@ -1,8 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
-import { In, Repository } from 'typeorm'
+import { In } from 'typeorm'
 
 import { Action } from '@modules/acl'
 import {
@@ -37,8 +36,6 @@ export class StoryRelationshipService {
     private readonly tagRepository: TagRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly attachmentRepository: AttachmentRepository,
-    @InjectRepository(Story)
-    private readonly storyEntityRepository: Repository<Story>,
     private readonly logger: PinoLogger,
     private readonly accessPolicy: StoryAccessPolicy
   ) {
@@ -143,10 +140,7 @@ export class StoryRelationshipService {
     )
 
     try {
-      const story = await this.storyEntityRepository.findOne({
-        where: { id: storyId },
-        relations: { attachments: true }
-      })
+      const story = await this.storyRepository.findWithRelations(storyId, { attachments: true })
 
       if (!story || story.deletedAt) {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -183,7 +177,7 @@ export class StoryRelationshipService {
       story.attachments = [...(story.attachments || []), ...newAttachments]
       story.updatedBy = userId
 
-      await this.storyEntityRepository.save(story)
+      await this.storyRepository.save(story)
 
       await this.storyRepository.invalidateStoryCache(storyId, userId)
 
@@ -217,10 +211,7 @@ export class StoryRelationshipService {
     )
 
     try {
-      const story = await this.storyEntityRepository.findOne({
-        where: { id: storyId },
-        relations: { attachments: true }
-      })
+      const story = await this.storyRepository.findWithRelations(storyId, { attachments: true })
 
       if (!story || story.deletedAt) {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -243,7 +234,7 @@ export class StoryRelationshipService {
       story.updatedBy = userId
 
       if (story.attachments.length !== originalCount) {
-        await this.storyEntityRepository.save(story)
+        await this.storyRepository.save(story)
 
         await this.storyRepository.invalidateStoryCache(storyId, userId)
       }
@@ -280,10 +271,7 @@ export class StoryRelationshipService {
     )
 
     try {
-      const story = await this.storyEntityRepository.findOne({
-        where: { id: storyId },
-        relations: { tags: true }
-      })
+      const story = await this.storyRepository.findWithRelations(storyId, { tags: true })
 
       if (!story || story.deletedAt) {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -312,7 +300,7 @@ export class StoryRelationshipService {
       story.tags = [...(story.tags || []), ...newTags]
       story.updatedBy = userId
 
-      await this.storyEntityRepository.save(story)
+      await this.storyRepository.save(story)
 
       await this.storyRepository.invalidateStoryCache(storyId, userId)
 
@@ -343,10 +331,7 @@ export class StoryRelationshipService {
     )
 
     try {
-      const story = await this.storyEntityRepository.findOne({
-        where: { id: storyId },
-        relations: { tags: true }
-      })
+      const story = await this.storyRepository.findWithRelations(storyId, { tags: true })
 
       if (!story || story.deletedAt) {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -373,7 +358,7 @@ export class StoryRelationshipService {
       story.tags = story.tags?.filter(t => !detachIds.includes(t.id)) || []
       story.updatedBy = userId
 
-      await this.storyEntityRepository.save(story)
+      await this.storyRepository.save(story)
 
       await this.storyRepository.invalidateStoryCache(storyId, userId)
 
@@ -407,10 +392,7 @@ export class StoryRelationshipService {
     )
 
     try {
-      const story = await this.storyEntityRepository.findOne({
-        where: { id: storyId },
-        relations: { categories: true }
-      })
+      const story = await this.storyRepository.findWithRelations(storyId, { categories: true })
 
       if (!story || story.deletedAt) {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -440,7 +422,7 @@ export class StoryRelationshipService {
       story.categories = [...(story.categories || []), ...newCategories]
       story.updatedBy = userId
 
-      await this.storyEntityRepository.save(story)
+      await this.storyRepository.save(story)
 
       await this.storyRepository.invalidateStoryCache(storyId, userId)
 
@@ -474,10 +456,7 @@ export class StoryRelationshipService {
     )
 
     try {
-      const story = await this.storyEntityRepository.findOne({
-        where: { id: storyId },
-        relations: { categories: true }
-      })
+      const story = await this.storyRepository.findWithRelations(storyId, { categories: true })
 
       if (!story || story.deletedAt) {
         throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -500,7 +479,7 @@ export class StoryRelationshipService {
       story.updatedBy = userId
 
       if (story.categories.length !== originalCount) {
-        await this.storyEntityRepository.save(story)
+        await this.storyRepository.save(story)
 
         await this.storyRepository.invalidateStoryCache(storyId, userId)
       }
@@ -529,10 +508,7 @@ export class StoryRelationshipService {
    * Get story attachments
    */
   async getAttachments(storyId: number): Promise<Attachment[]> {
-    const story = await this.storyEntityRepository.findOne({
-      where: { id: storyId },
-      relations: { attachments: true }
-    })
+    const story = await this.storyRepository.findWithRelations(storyId, { attachments: true })
 
     if (!story) {
       throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -552,10 +528,7 @@ export class StoryRelationshipService {
    * Get story tags
    */
   async getTags(storyId: number): Promise<Tag[]> {
-    const story = await this.storyEntityRepository.findOne({
-      where: { id: storyId },
-      relations: { tags: true }
-    })
+    const story = await this.storyRepository.findWithRelations(storyId, { tags: true })
 
     if (!story) {
       throw new NotFoundException(`Story with ID ${storyId} not found`)
@@ -568,10 +541,7 @@ export class StoryRelationshipService {
    * Get story categories
    */
   async getCategories(storyId: number): Promise<Category[]> {
-    const story = await this.storyEntityRepository.findOne({
-      where: { id: storyId },
-      relations: { categories: true }
-    })
+    const story = await this.storyRepository.findWithRelations(storyId, { categories: true })
 
     if (!story) {
       throw new NotFoundException(`Story with ID ${storyId} not found`)

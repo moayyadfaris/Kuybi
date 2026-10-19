@@ -8,6 +8,10 @@
  * `undefined` while the barrels load. Entity imports are excluded: entities may
  * reference each other (TypeORM relations are lazy).
  *
+ * Also fails when a module registers another module's entity with
+ * TypeOrmModule.forFeature: that is only needed to inject a raw TypeORM repository for
+ * it, which bypasses the owning repository (and its cache invalidation).
+ *
  * Usage: node scripts/check-module-graph.js
  */
 const fs = require('fs')
@@ -58,6 +62,29 @@ function visit(name, stack) {
   state.set(name, 2)
 }
 for (const name of modules) if (!state.has(name)) visit(name, [name])
+
+// forFeature entities must come from the module's own folder
+const ownership = []
+for (const name of modules) {
+  const file = path.join(MODULES_DIR, name, `${name}.module.ts`)
+  if (!fs.existsSync(file)) continue
+  const source = fs.readFileSync(file, 'utf8')
+  const imported = new Map()
+  for (const [, names, from] of source.matchAll(/import\s+\{([^}]+)\}\s+from\s+'([^']+)'/g)) {
+    for (const id of names.split(',').map(n => n.trim()).filter(Boolean)) imported.set(id, from)
+  }
+  for (const [, list] of source.matchAll(/TypeOrmModule\.forFeature\(\[([^\]]*)\]/g)) {
+    for (const entity of list.split(',').map(e => e.trim()).filter(Boolean)) {
+      const from = imported.get(entity) ?? ''
+      if (from.startsWith('@modules/')) ownership.push(`${name}: ${entity} (from ${from})`)
+    }
+  }
+}
+if (ownership.length > 0) {
+  console.error("Modules registering another module's entities (use its repository instead):")
+  for (const line of ownership) console.error(`  ${line}`)
+  process.exit(1)
+}
 
 if (cycles.length > 0) {
   console.error('Module dependency cycles (break one edge, e.g. with a domain event):')

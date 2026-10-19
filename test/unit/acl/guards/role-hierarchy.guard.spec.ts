@@ -1,14 +1,14 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common'
-import { Repository } from 'typeorm'
 
 import { Role } from '@modules/acl/entities/role.entity'
 import { RoleHierarchyGuard } from '@modules/acl/guards/role-hierarchy.guard'
+import { RoleRepository } from '@modules/acl/repositories/role.repository'
 import { User } from '@modules/users/entities/user.entity'
 
 describe('RoleHierarchyGuard', () => {
   let guard: RoleHierarchyGuard
   let mockLogger: jest.Mocked<any>
-  let mockRoleRepository: jest.Mocked<Partial<Repository<Role>>>
+  let mockRoleRepository: { findById: jest.Mock }
   let mockExecutionContext: ExecutionContext
 
   const superAdminRole: Role = { id: 1, name: 'super-admin', priority: 100 } as Role
@@ -24,10 +24,10 @@ describe('RoleHierarchyGuard', () => {
     }
 
     mockRoleRepository = {
-      findOne: jest.fn()
+      findById: jest.fn()
     }
 
-    guard = new RoleHierarchyGuard(mockLogger, mockRoleRepository as Repository<Role>)
+    guard = new RoleHierarchyGuard(mockLogger, mockRoleRepository as unknown as RoleRepository)
 
     mockExecutionContext = {
       switchToHttp: jest.fn().mockReturnValue({
@@ -61,7 +61,7 @@ describe('RoleHierarchyGuard', () => {
         { userId: superAdmin.id },
         'RoleHierarchyGuard: Super-admin bypass'
       )
-      expect(mockRoleRepository.findOne).not.toHaveBeenCalled()
+      expect(mockRoleRepository.findById).not.toHaveBeenCalled()
     })
 
     it('should throw ForbiddenException when no user in request', async () => {
@@ -98,7 +98,7 @@ describe('RoleHierarchyGuard', () => {
       const result = await guard.canActivate(mockExecutionContext)
 
       expect(result).toBe(true)
-      expect(mockRoleRepository.findOne).not.toHaveBeenCalled()
+      expect(mockRoleRepository.findById).not.toHaveBeenCalled()
     })
 
     it('should allow when target role not found', async () => {
@@ -115,7 +115,7 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(null)
+      mockRoleRepository.findById.mockResolvedValue(null)
 
       const result = await guard.canActivate(mockExecutionContext)
 
@@ -136,7 +136,7 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(superAdminRole)
+      mockRoleRepository.findById.mockResolvedValue(superAdminRole)
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException)
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
@@ -166,7 +166,7 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(userRole)
+      mockRoleRepository.findById.mockResolvedValue(userRole)
 
       const result = await guard.canActivate(mockExecutionContext)
 
@@ -196,7 +196,7 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(adminRole)
+      mockRoleRepository.findById.mockResolvedValue(adminRole)
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException)
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
@@ -228,7 +228,7 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(adminRole)
+      mockRoleRepository.findById.mockResolvedValue(adminRole)
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException)
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
@@ -250,11 +250,11 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(userRole)
+      mockRoleRepository.findById.mockResolvedValue(userRole)
 
       await guard.canActivate(mockExecutionContext)
 
-      expect(mockRoleRepository.findOne).toHaveBeenCalledWith({ where: { id: 4 } })
+      expect(mockRoleRepository.findById).toHaveBeenCalledWith(4, { bypassCache: true })
     })
 
     it('should read roleId from params.id', async () => {
@@ -271,11 +271,11 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(userRole)
+      mockRoleRepository.findById.mockResolvedValue(userRole)
 
       await guard.canActivate(mockExecutionContext)
 
-      expect(mockRoleRepository.findOne).toHaveBeenCalledWith({ where: { id: 4 } })
+      expect(mockRoleRepository.findById).toHaveBeenCalledWith(4, { bypassCache: true })
     })
 
     it('should read roleId from params.roleId', async () => {
@@ -292,11 +292,11 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(userRole)
+      mockRoleRepository.findById.mockResolvedValue(userRole)
 
       await guard.canActivate(mockExecutionContext)
 
-      expect(mockRoleRepository.findOne).toHaveBeenCalledWith({ where: { id: 4 } })
+      expect(mockRoleRepository.findById).toHaveBeenCalledWith(4, { bypassCache: true })
     })
 
     it('should use highest priority role from user roles', async () => {
@@ -319,7 +319,7 @@ describe('RoleHierarchyGuard', () => {
       }
 
       ;(mockExecutionContext.switchToHttp().getRequest as jest.Mock).mockReturnValue(mockRequest)
-      ;(mockRoleRepository.findOne as jest.Mock).mockResolvedValue(moderatorRole)
+      mockRoleRepository.findById.mockResolvedValue(moderatorRole)
 
       const result = await guard.canActivate(mockExecutionContext)
 

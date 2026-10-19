@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DeepPartial, EntityManager, Repository, SelectQueryBuilder } from 'typeorm'
+import { DeepPartial, EntityManager, LessThan, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -45,7 +45,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     ttl?: number
   ): Promise<T> {
     if (this.cacheService) {
-      return this.cacheService.wrap(cacheKey, factory, ttl || this.defaultTTL)
+      return this.cached(cacheKey, factory, ttl || this.defaultTTL)
     }
     return factory()
   }
@@ -396,6 +396,42 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   /**
    * Override create to invalidate list caches on new uploads
    */
+  // ---- Direct upload lifecycle: fresh reads and compare-and-set status changes ----
+
+  /** Uncached read, for state machines that must not act on a stale status */
+  findFresh(id: string): Promise<Attachment | null> {
+    return this.repository.findOneBy({ id })
+  }
+
+  /**
+   * Moves the security status from `from` to `to` only if it is still `from` (a claim:
+   * of two concurrent callers exactly one wins). Returns whether this call won.
+   */
+  async transitionSecurityStatus(id: string, from: string, to: string): Promise<boolean> {
+    const result = await this.repository.update(
+      { id, securityStatus: from },
+      { securityStatus: to }
+    )
+    await this.invalidateCacheByEntityId(id)
+    return (result.affected ?? 0) > 0
+  }
+
+  /** Uploads still in `status` that were created before `before` */
+  findStaleByStatus(status: string, before: Date, limit: number): Promise<Attachment[]> {
+    return this.repository.find({
+      where: { securityStatus: status, createdAt: LessThan(before) },
+      take: limit
+    })
+  }
+
+  /** Deletes the row only if it is still in `status`; returns whether it did */
+  async deleteIfStatus(id: string, status: string): Promise<boolean> {
+    const result = await this.repository.delete({ id, securityStatus: status })
+    await this.invalidateCacheByEntityId(id)
+    await this.invalidateListCaches()
+    return (result.affected ?? 0) > 0
+  }
+
   /**
    * Runs work in a transaction and clears the list caches once it commits (for writes
    * that must be atomic with other rows, such as an outbox message)

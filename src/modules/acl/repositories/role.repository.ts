@@ -5,6 +5,7 @@ import { IsNull, Repository } from 'typeorm'
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
+import { findDefaultRoleId } from '../default-role'
 import { Role } from '../entities/role.entity'
 
 @Injectable()
@@ -23,10 +24,15 @@ export class RoleRepository extends BaseRepository<Role> {
   /**
    * Find role by name
    */
+  /** Id of the role given to new users unless one is specified (see default-role.ts) */
+  findDefaultRoleId(): Promise<number> {
+    return findDefaultRoleId(this.repository)
+  }
+
   async findByName(name: string): Promise<Role | null> {
     const cacheKey = this.buildCacheKey('name', name)
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -44,7 +50,7 @@ export class RoleRepository extends BaseRepository<Role> {
   async findActive(): Promise<Role[]> {
     const cacheKey = this.buildCacheKey('active')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -62,7 +68,7 @@ export class RoleRepository extends BaseRepository<Role> {
   async findSystemRoles(): Promise<Role[]> {
     const cacheKey = this.buildCacheKey('system')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -80,7 +86,7 @@ export class RoleRepository extends BaseRepository<Role> {
   async findAllWithPermissions(): Promise<Role[]> {
     const cacheKey = this.buildCacheKey('all-with-permissions')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -99,7 +105,7 @@ export class RoleRepository extends BaseRepository<Role> {
   async findByIdWithPermissions(id: number): Promise<Role | null> {
     const cacheKey = this.buildCacheKey('id-with-permissions', id.toString())
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         return this.repository.findOne({

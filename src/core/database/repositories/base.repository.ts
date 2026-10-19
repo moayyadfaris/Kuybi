@@ -2,6 +2,7 @@ import { SpanStatusCode, trace } from '@opentelemetry/api'
 import { errorMessage } from '@shared/utils/error.util'
 import {
   DeepPartial,
+  EntityManager,
   FindManyOptions,
   FindOptionsWhere,
   ObjectLiteral,
@@ -15,7 +16,20 @@ import { CacheService } from '../../cache/services/cache.service'
  * Base Repository Pattern
  *
  * Provides common data access operations with built-in caching support.
- * All entity repositories should extend this class.
+ * All entity repositories should extend this class, and services reach the database
+ * only through repositories (lint-enforced), so no write can skip cache invalidation.
+ *
+ * Cache contract
+ * - Every cached entry carries the entity tag plus either its row tag (`<entity>:<id>`,
+ *   when the value is a single row) or the list tag (`<entity>:list`: lists, counts and
+ *   booleans - anything a new or changed row can make wrong). Misses are not cached.
+ * - A write through this class invalidates the row tag of the row it touched and the
+ *   list tag. Other rows stay cached.
+ * - transaction() cannot know which rows the work touched, so it invalidates the
+ *   entity tag (everything for this entity) once the work commits.
+ * - Subclasses cache through cached() / cacheSet(), never cacheService.wrap/set
+ *   directly (lint-enforced). A cached row that embeds other entities (e.g. a user with
+ *   its roles) must be invalidated with invalidateCacheByEntityId() when those change.
  *
  * @template T - Entity type
  */
@@ -36,26 +50,47 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   }
 
   /**
+   * Read-through cache for subclass queries. The value is tagged per the cache
+   * contract, so writes through this repository invalidate it.
+   */
+  protected async cached<V>(key: string, load: () => Promise<V>, ttl?: number): Promise<V> {
+    if (!this.cacheService) return load()
+    const hit = await this.cacheService.get<V>(key)
+    if (hit !== undefined && hit !== null) return hit
+    const value = await load()
+    // A cached null would read back as a miss, so misses are not stored
+    if (value !== null) await this.cacheSet(key, value, ttl)
+    return value
+  }
+
+  /**
+   * Store a value under the cache contract (see cached())
+   */
+  protected async cacheSet<V>(key: string, value: V, ttl?: number): Promise<void> {
+    if (!this.cacheService || value === undefined) return
+    await this.cacheService.setWithTags(
+      key,
+      value,
+      this.getCacheTags(this.rowIdOf(value)),
+      ttl ?? this.defaultTTL
+    )
+  }
+
+  /**
    * Find one entity by conditions with caching
    */
   async findOne(
     where: FindOptionsWhere<T>,
     options?: { ttl?: number; bypassCache?: boolean }
   ): Promise<T | null> {
-    const cacheKey = this.buildCacheKey('findOne', JSON.stringify(where))
-
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<T>(cacheKey)
-      if (cached) return cached
+    if (options?.bypassCache) {
+      return this.repository.findOne({ where })
     }
-
-    const entity = await this.repository.findOne({ where })
-
-    if (entity && this.cacheService && !options?.bypassCache) {
-      await this.cacheService.set(cacheKey, entity, options?.ttl ?? this.defaultTTL)
-    }
-
-    return entity
+    return this.cached(
+      this.buildCacheKey('findOne', JSON.stringify(where)),
+      () => this.repository.findOne({ where }),
+      options?.ttl
+    )
   }
 
   /**
@@ -76,30 +111,13 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       })
 
       try {
-        const cacheKey = this.buildCacheKey('id', id)
-
-        if (!options?.bypassCache && this.cacheService) {
-          // Try to get from cache first
-          const cached = await this.cacheService.get<T>(cacheKey)
-          if (cached) {
-            span.setAttribute('cache.hit', true)
-            span.setStatus({ code: SpanStatusCode.OK })
-            return cached
-          }
-          span.setAttribute('cache.hit', false)
-        }
-
-        // Fetch from DB and cache with tags
         // Every entity has an id column; TypeScript cannot prove that for a generic T
-        const entity = await this.repository.findOne({
-          where: { id } as unknown as FindOptionsWhere<T>
-        })
+        const load = () =>
+          this.repository.findOne({ where: { id } as unknown as FindOptionsWhere<T> })
 
-        if (entity) {
-          if (!options?.bypassCache && this.cacheService) {
-            await this.setCacheWithTags(cacheKey, entity, id, options?.ttl)
-          }
-        }
+        const entity = options?.bypassCache
+          ? await load()
+          : await this.cached(this.buildCacheKey('id', id), load, options?.ttl)
 
         span.setStatus({ code: SpanStatusCode.OK })
         return entity
@@ -117,43 +135,23 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Find all entities with optional caching
    */
   async findAll(options?: { ttl?: number; bypassCache?: boolean }): Promise<T[]> {
-    const cacheKey = this.buildCacheKey('all')
-
-    if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<T[]>(
-        cacheKey,
-        async () => {
-          return this.repository.find()
-        },
-        options?.ttl ?? this.defaultTTL
-      )
+    if (options?.bypassCache) {
+      return this.repository.find()
     }
-
-    return this.repository.find()
+    return this.cached(this.buildCacheKey('all'), () => this.repository.find(), options?.ttl)
   }
 
   /**
-   * Find multiple entities with optional caching
+   * Find multiple entities; cached only when a cacheKey is given
    */
   async findMany(
     options?: FindManyOptions<T>,
     cacheOptions?: { ttl?: number; cacheKey?: string; bypassCache?: boolean }
   ): Promise<T[]> {
-    const cacheKey =
-      cacheOptions?.cacheKey ?? this.buildCacheKey('findMany', JSON.stringify(options ?? {}))
-
-    if (!cacheOptions?.bypassCache && this.cacheService && cacheOptions?.cacheKey) {
-      const cached = await this.cacheService.get<T[]>(cacheKey)
-      if (cached) return cached
+    if (!cacheOptions?.cacheKey || cacheOptions.bypassCache) {
+      return this.repository.find(options)
     }
-
-    const entities = await this.repository.find(options)
-
-    if (this.cacheService && !cacheOptions?.bypassCache && cacheOptions?.cacheKey) {
-      await this.cacheService.set(cacheKey, entities, cacheOptions?.ttl ?? this.defaultTTL)
-    }
-
-    return entities
+    return this.cached(cacheOptions.cacheKey, () => this.repository.find(options), cacheOptions.ttl)
   }
 
   /**
@@ -167,12 +165,8 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Create a new entity
    */
   async create(data: DeepPartial<T>): Promise<T> {
-    const entity = this.repository.create(data)
-    const saved = await this.repository.save(entity)
-
-    // Invalidate entity-wide cache tag (affects all lists, searches, etc.)
-    await this.invalidateCacheByTag()
-
+    const saved = await this.repository.save(this.repository.create(data))
+    await this.invalidateRowAndLists(this.idOf(saved))
     return saved
   }
 
@@ -181,11 +175,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    */
   async update(id: string | number, data: DeepPartial<T>): Promise<T | null> {
     await this.repository.update(id, data as QueryDeepPartialEntity<T>)
-
-    // Invalidate both entity-level and instance-level caches
-    await this.invalidateCacheByEntityId(id)
-    await this.invalidateCacheByTag()
-
+    await this.invalidateRowAndLists(id)
     return this.findById(id, { bypassCache: true })
   }
 
@@ -194,11 +184,17 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    */
   async delete(id: string | number): Promise<boolean> {
     const result = await this.repository.delete(id)
+    await this.invalidateRowAndLists(id)
+    return (result.affected ?? 0) > 0
+  }
 
-    // Invalidate both entity-level and instance-level caches
-    await this.invalidateCacheByEntityId(id)
-    await this.invalidateCacheByTag()
-
+  /**
+   * Soft-delete an entity by ID. Needs a @DeleteDateColumn on the entity; repositories
+   * whose entity keeps deletedAt in a plain column override this.
+   */
+  async softDelete(id: string | number): Promise<boolean> {
+    const result = await this.repository.softDelete(id)
+    await this.invalidateRowAndLists(id)
     return (result.affected ?? 0) > 0
   }
 
@@ -207,14 +203,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    */
   async save(entity: T | DeepPartial<T>): Promise<T> {
     const saved = await this.repository.save(entity as DeepPartial<T>)
-
-    // Invalidate caches
-    const savedId = (saved as { id?: string | number }).id
-    if (savedId) {
-      await this.invalidateCacheByEntityId(savedId)
-    }
-    await this.invalidateCacheByTag()
-
+    await this.invalidateRowAndLists(this.idOf(saved))
     return saved
   }
 
@@ -234,11 +223,53 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   }
 
   /**
-   * Get the underlying TypeORM repository
-   * Use this for complex queries that need QueryBuilder
+   * Runs work in a transaction and drops this entity's caches once it commits. Writes
+   * inside `work` go through the manager; invalidating only after the commit means no
+   * reader can re-cache the pre-commit row in between. A rollback leaves the cache as is.
+   *
+   * Pass `touched` (the ids of this entity's rows the work changed, `[]` when it only
+   * inserts) to invalidate just those rows and the lists; without it every cached entry
+   * of this entity is dropped. Writes to another repository's entity inside `work` must
+   * be followed by that repository's invalidation (or run through its own transaction()).
    */
-  getRepository(): Repository<T> {
-    return this.repository
+  async transaction<R>(
+    work: (manager: EntityManager) => Promise<R>,
+    options?: { touched?: (string | number)[] }
+  ): Promise<R> {
+    const result = await this.repository.manager.transaction(work)
+    if (options?.touched) {
+      await this.invalidateRowAndLists(undefined)
+      for (const id of options.touched) await this.invalidateRowAndLists(id)
+    } else {
+      await this.invalidateCacheByTag()
+    }
+    return result
+  }
+
+  private idOf(entity: T): string | number | undefined {
+    return (entity as { id?: string | number }).id
+  }
+
+  /** The row id when a cached value is a single row, otherwise undefined (list tag) */
+  private rowIdOf(value: unknown): string | number | undefined {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
+    const id = (value as { id?: unknown }).id
+    return typeof id === 'string' || typeof id === 'number' ? id : undefined
+  }
+
+  private async invalidateRowAndLists(id: string | number | undefined): Promise<void> {
+    if (!this.cacheService) return
+    const tags = [this.listTag()]
+    if (id !== undefined) tags.push(this.rowTag(id))
+    await this.cacheService.invalidateTags(tags)
+  }
+
+  private rowTag(id: string | number): string {
+    return `${this.entityName}:${id}`
+  }
+
+  private listTag(): string {
+    return `${this.entityName}:list`
   }
 
   /**
@@ -247,15 +278,8 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   protected async invalidateEntityCache(id: string | number): Promise<void> {
     if (!this.cacheService) return
 
-    const patterns = [this.buildCacheKey('id', id), this.buildCacheKey('findOne', '*')]
-
-    for (const pattern of patterns) {
-      if (pattern.includes('*')) {
-        await this.cacheService.delPattern(pattern)
-      } else {
-        await this.cacheService.del(pattern)
-      }
-    }
+    await this.invalidateCacheByEntityId(id)
+    await this.cacheService.delPattern(this.buildCacheKey('findOne', '*'))
   }
 
   /**
@@ -265,6 +289,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   protected async invalidateListCaches(): Promise<void> {
     if (!this.cacheService) return
 
+    await this.cacheService.invalidateTag(this.listTag())
     await this.cacheService.delPattern(`${this.entityName}:findMany:*`)
     await this.cacheService.delPattern(`${this.entityName}:list:*`)
     await this.cacheService.delPattern(`${this.entityName}:search:*`)
@@ -276,19 +301,15 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   async invalidateAllCaches(): Promise<void> {
     if (!this.cacheService) return
 
+    await this.invalidateCacheByTag()
     await this.cacheService.delPattern(`${this.entityName}:*`)
   }
 
   /**
-   * Get default cache tags for this entity
-   * Override in child repositories to add custom tags
+   * Cache tags for a value: entity tag plus the row tag (single row) or list tag
    */
   protected getCacheTags(id?: string | number): string[] {
-    const tags = [this.entityName]
-    if (id) {
-      tags.push(`${this.entityName}:${id}`)
-    }
-    return tags
+    return [this.entityName, id !== undefined ? this.rowTag(id) : this.listTag()]
   }
 
   /**
@@ -302,13 +323,11 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   ): Promise<void> {
     if (!this.cacheService) return
 
-    const tags = this.getCacheTags(id)
-    await this.cacheService.setWithTags(key, value, tags, ttl ?? this.defaultTTL)
+    await this.cacheService.setWithTags(key, value, this.getCacheTags(id), ttl ?? this.defaultTTL)
   }
 
   /**
-   * Invalidate cache by entity tag
-   * This clears all caches related to this entity type
+   * Invalidate every cached entry of this entity (entity tag)
    */
   async invalidateCacheByTag(): Promise<void> {
     if (!this.cacheService) return
@@ -317,12 +336,9 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   }
 
   /**
-   * Invalidate cache by specific entity instance
-   * This clears all caches related to a specific entity ID
+   * Invalidate the cached entries of one row (row tag) and the lists it may appear in
    */
   async invalidateCacheByEntityId(id: string | number): Promise<void> {
-    if (!this.cacheService) return
-
-    await this.cacheService.invalidateTag(`${this.entityName}:${id}`)
+    await this.invalidateRowAndLists(id)
   }
 }

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common'
 import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
-import { DataSource, In, IsNull } from 'typeorm'
+import { In, IsNull } from 'typeorm'
 
 import { Action } from '@modules/acl'
 import { CategoryRepository } from '@modules/categories'
@@ -36,7 +36,6 @@ import { StoryVersionService } from './story-version.service'
 @Injectable()
 export class StoriesService {
   constructor(
-    private readonly dataSource: DataSource,
     private readonly storyRepository: StoryRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly storyRelationshipService: StoryRelationshipService,
@@ -82,19 +81,22 @@ export class StoriesService {
           ? await this.storyRelationshipService.resolveAndCreateTags(tagIds, tags, userId)
           : []
 
-      const storyId = await this.dataSource.transaction(async manager => {
-        const story = manager.create(Story, {
-          ...storyData,
-          fromTime: storyData.fromTime ? new Date(storyData.fromTime) : undefined,
-          toTime: storyData.toTime ? new Date(storyData.toTime) : undefined,
-          userId,
-          createdBy: userId,
-          lastModifiedBy: userId,
-          categories,
-          tags: resolvedTags
-        })
-        return (await manager.save(story)).id
-      })
+      const storyId = await this.storyRepository.transaction(
+        async manager => {
+          const story = manager.create(Story, {
+            ...storyData,
+            fromTime: storyData.fromTime ? new Date(storyData.fromTime) : undefined,
+            toTime: storyData.toTime ? new Date(storyData.toTime) : undefined,
+            userId,
+            createdBy: userId,
+            lastModifiedBy: userId,
+            categories,
+            tags: resolvedTags
+          })
+          return (await manager.save(story)).id
+        },
+        { touched: [] }
+      )
 
       const created = await this.findOne(storyId, userId, { bypassCache: true })
       await this.storyRepository.invalidateAfterWrite(created)
@@ -296,32 +298,35 @@ export class StoriesService {
           ? await this.storyRelationshipService.resolveAndCreateTags(tagIds, tags, userId)
           : undefined
 
-      await this.dataSource.transaction(async manager => {
-        const entity = await manager.findOne(Story, {
-          where: { id },
-          relations: { categories: true, tags: true }
-        })
-        if (!entity || entity.deletedAt) {
-          // Removed between the existence check above and this write
-          throw new NotFoundException(`Story with ID ${id} not found`)
-        }
+      await this.storyRepository.transaction(
+        async manager => {
+          const entity = await manager.findOne(Story, {
+            where: { id },
+            relations: { categories: true, tags: true }
+          })
+          if (!entity || entity.deletedAt) {
+            // Removed between the existence check above and this write
+            throw new NotFoundException(`Story with ID ${id} not found`)
+          }
 
-        const changes = Object.fromEntries(
-          Object.entries({
-            ...updateData,
-            fromTime: updateData.fromTime ? new Date(updateData.fromTime) : undefined,
-            toTime: updateData.toTime ? new Date(updateData.toTime) : undefined
-          }).filter(([, value]) => value !== undefined)
-        )
-        manager.merge(Story, entity, changes)
-        entity.updatedBy = userId
-        entity.lastModifiedBy = userId
-        entity.version += 1
-        if (categories) entity.categories = categories
-        if (resolvedTags) entity.tags = resolvedTags
+          const changes = Object.fromEntries(
+            Object.entries({
+              ...updateData,
+              fromTime: updateData.fromTime ? new Date(updateData.fromTime) : undefined,
+              toTime: updateData.toTime ? new Date(updateData.toTime) : undefined
+            }).filter(([, value]) => value !== undefined)
+          )
+          manager.merge(Story, entity, changes)
+          entity.updatedBy = userId
+          entity.lastModifiedBy = userId
+          entity.version += 1
+          if (categories) entity.categories = categories
+          if (resolvedTags) entity.tags = resolvedTags
 
-        await manager.save(entity)
-      })
+          await manager.save(entity)
+        },
+        { touched: [id] }
+      )
 
       const updated = await this.findOne(id, userId, { bypassCache: true })
       await this.storyRepository.invalidateAfterWrite(story, updated)
