@@ -2,8 +2,8 @@
 export * from './create-session.dto'
 export * from './revoke-session.dto'
 export * from './session-filter.dto'
+export * from './session-queries.dto'
 export * from './session-stats.dto'
-export * from './update-session.dto'
 
 // Re-export enums for convenience
 export { DeviceType, SessionType } from './create-session.dto'

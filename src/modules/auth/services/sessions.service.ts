@@ -7,6 +7,10 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Session, SessionTypeValue } from '../entities/session.entity'
 import { SessionRepository } from '../repositories/session.repository'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+/** Furthest an extension may move a session's expiry, counted from now */
+export const MAX_EXTENDED_DAYS = 30
+
 export interface CreateSessionOptions {
   userId: string
   ipAddress?: string
@@ -228,6 +232,22 @@ export class SessionsService {
         refreshedAt: new Date().toISOString()
       }
     })
+  }
+
+  /**
+   * Pushes a session's expiry back by `days`, never past MAX_EXTENDED_DAYS from now
+   * (the refresh token is valid until the session expires)
+   * @returns the stored expiry
+   */
+  async extendSession(session: Session, days: number): Promise<Date> {
+    const extended = new Date(session.expiresAt).getTime() + days * DAY_MS
+    const expiresAt = new Date(Math.min(extended, Date.now() + MAX_EXTENDED_DAYS * DAY_MS))
+    await this.sessionRepository.update(session.id, { expiresAt })
+    this.logger.info(
+      { sessionId: session.id, userId: session.userId, expiresAt },
+      'Session extended'
+    )
+    return expiresAt
   }
 
   /**

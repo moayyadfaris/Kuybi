@@ -15,14 +15,7 @@ import {
   UnauthorizedException,
   UseGuards
 } from '@nestjs/common'
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags
-} from '@nestjs/swagger'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { seconds, Throttle } from '@nestjs/throttler'
 import { errorMessage } from '@shared/utils/error.util'
 import { Request } from 'express'
@@ -35,26 +28,21 @@ import { JwtAuthGuard } from '@core/auth'
 
 import {
   DeviceType,
+  ExtendSessionQueryDto,
   RevokeByDeviceDto,
   RevokeSessionDto,
   RevokeSessionResponseDto,
+  SessionCleanupQueryDto,
   SessionFilterDto,
   SessionStatsDto
 } from '../dto'
+import { Session } from '../entities/session.entity'
 import { SessionCleanupService, SessionsService } from '../services'
+import { filterAndSortSessions, shareOf } from '../utils/session-list.util'
 
 // The controller is guarded by JwtAuthGuard, so the user is always present
 interface AuthenticatedRequest extends Request {
   user: User
-}
-
-/** Sort helper: missing values sort last regardless of direction */
-function compareForSort(a: unknown, b: unknown, order: string): number {
-  if (a === b) return 0
-  if (a === undefined || a === null) return 1
-  if (b === undefined || b === null) return -1
-  const result = (a as number | string | Date) > (b as number | string | Date) ? 1 : -1
-  return order === 'asc' ? result : -result
 }
 
 /**
@@ -90,38 +78,10 @@ export class SessionsController {
 
     this.logger.info({ userId, filter, action: 'list_sessions' }, 'Listing user sessions')
 
-    const allSessions = await this.sessionsService.getActiveSessions(userId, filter.includeExpired)
-    let filtered = allSessions
-
-    // Apply filters
-    if (filter.filterByDevice) {
-      filtered = filtered.filter(
-        s => s.deviceType?.toLowerCase() === filter.filterByDevice?.toLowerCase()
-      )
-    }
-    if (filter.filterByType) {
-      filtered = filtered.filter(
-        s => s.sessionType?.toLowerCase() === filter.filterByType?.toLowerCase()
-      )
-    }
-    if (filter.filterBySecurityLevel) {
-      filtered = filtered.filter(s => s.securityLevel === filter.filterBySecurityLevel)
-    }
-    if (filter.searchByIp) {
-      filtered = filtered.filter(s => s.ipAddress?.includes(filter.searchByIp || ''))
-    }
-    if (filter.searchByFingerprint) {
-      filtered = filtered.filter(s => s.fingerprint?.includes(filter.searchByFingerprint || ''))
-    }
-
-    // Sort
-    const sortBy = filter.sortBy || 'createdAt'
-    const sortOrder = filter.sortOrder || 'desc'
-    filtered.sort((a, b) => {
-      const aVal = a[sortBy as keyof typeof a]
-      const bVal = b[sortBy as keyof typeof b]
-      return compareForSort(aVal, bVal, sortOrder)
-    })
+    const filtered = filterAndSortSessions(
+      await this.sessionsService.getActiveSessions(userId, filter.includeExpired),
+      filter
+    )
 
     // Paginate
     const page = filter.page || 1
@@ -188,21 +148,9 @@ export class SessionsController {
       revokedSessions: stats.revoked || 0,
       expiringSoon: 0,
       suspiciousSessions: 0,
-      deviceStats: Object.entries(stats.byDevice).map(([deviceType, count]) => ({
-        deviceType,
-        count: count as number,
-        percentage: ((count as number) / stats.total) * 100
-      })),
-      securityStats: Object.entries(stats.bySecurityLevel).map(([securityLevel, count]) => ({
-        securityLevel,
-        count: count as number,
-        percentage: ((count as number) / stats.total) * 100
-      })),
-      typeStats: Object.entries(stats.bySessionType).map(([sessionType, count]) => ({
-        sessionType,
-        count: count as number,
-        percentage: ((count as number) / stats.total) * 100
-      })),
+      deviceStats: shareOf('deviceType', stats.byDevice, stats.total),
+      securityStats: shareOf('securityLevel', stats.bySecurityLevel, stats.total),
+      typeStats: shareOf('sessionType', stats.bySessionType, stats.total),
       averageSessionAge: 0,
       mostRecentSession: stats.newestActive || null,
       oldestSession: stats.oldestActive || null,
@@ -225,20 +173,9 @@ export class SessionsController {
     const userId = this.getUserId(req)
     this.logger.info({ userId, sessionId, action: 'get_session' }, 'Fetching session')
 
-    const validation = await this.sessionsService.validateSession(sessionId)
-    if (!validation.valid || !validation.session) {
-      throw new NotFoundException('Session not found')
-    }
-    if (validation.session.userId !== userId) {
-      this.logger.warn(
-        { userId, sessionId, ownerId: validation.session.userId },
-        'Unauthorized access attempt'
-      )
-      throw new ForbiddenException('Access denied')
-    }
-
+    const session = await this.findOwnSession(sessionId, userId)
     const riskAssessment = await this.sessionsService.assessSessionRisk(sessionId)
-    return { ...validation.session, riskAssessment }
+    return { ...session, riskAssessment }
   }
 
   @Delete(':id')
@@ -258,15 +195,7 @@ export class SessionsController {
       'Revoking session'
     )
 
-    const validation = await this.sessionsService.validateSession(sessionId)
-    if (!validation.valid || !validation.session) {
-      throw new NotFoundException('Session not found')
-    }
-    if (validation.session.userId !== userId) {
-      this.logger.warn({ userId, sessionId }, 'Unauthorized revoke attempt')
-      throw new ForbiddenException('Access denied')
-    }
-
+    await this.findOwnSession(sessionId, userId)
     const revoked = await this.sessionsService.revokeSession(sessionId, dto.reason || 'user_logout')
     if (!revoked) {
       // Revoked by another request since the check above
@@ -358,44 +287,22 @@ export class SessionsController {
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Extend session expiration' })
   @ApiParam({ name: 'id', type: 'string' })
-  @ApiQuery({ name: 'days', required: false, type: Number })
   @ApiResponse({ status: 200 })
   async extendSession(
     @Param('id') sessionId: string,
-    @Query('days') days: number = 7,
+    @Query() { days }: ExtendSessionQueryDto,
     @Req() req: AuthenticatedRequest
   ) {
     const userId = this.getUserId(req)
     this.logger.info({ userId, sessionId, days, action: 'extend_session' }, 'Extending session')
 
-    const validation = await this.sessionsService.validateSession(sessionId)
-    if (!validation.valid || !validation.session) {
-      throw new NotFoundException('Session not found')
-    }
-    if (validation.session.userId !== userId) {
-      this.logger.warn({ userId, sessionId }, 'Unauthorized extend attempt')
-      throw new ForbiddenException('Access denied')
-    }
-    if (days < 1 || days > 30) {
-      throw new BadRequestException('Days must be 1-30')
-    }
-
-    const currentExpiry = new Date(validation.session.expiresAt)
-    const newExpiresAt = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000)
-
-    // Update session expiration (using repository save method)
-    validation.session.expiresAt = newExpiresAt
-    // Note: In production, you'd need to add an updateSession method to SessionsService
-    // For now, we'll just return the calculated values
-
-    this.logger.info(
-      { userId, sessionId, newExpiresAt: newExpiresAt.toISOString() },
-      'Session extended'
-    )
+    const session = await this.findOwnSession(sessionId, userId)
+    const oldExpiresAt = new Date(session.expiresAt)
+    const newExpiresAt = await this.sessionsService.extendSession(session, days)
 
     return {
       sessionId,
-      oldExpiresAt: currentExpiry,
+      oldExpiresAt,
       newExpiresAt,
       extensionDays: days,
       message: `Extended by ${days} day(s)`
@@ -429,37 +336,7 @@ export class SessionsController {
     )
 
     const allSessions = await this.sessionsService.getActiveSessions(userId, filter.includeExpired)
-    let filtered = allSessions
-
-    // Apply filters
-    if (filter.filterByDevice) {
-      filtered = filtered.filter(
-        s => s.deviceType?.toLowerCase() === filter.filterByDevice?.toLowerCase()
-      )
-    }
-    if (filter.filterByType) {
-      filtered = filtered.filter(
-        s => s.sessionType?.toLowerCase() === filter.filterByType?.toLowerCase()
-      )
-    }
-    if (filter.filterBySecurityLevel) {
-      filtered = filtered.filter(s => s.securityLevel === filter.filterBySecurityLevel)
-    }
-    if (filter.searchByIp) {
-      filtered = filtered.filter(s => s.ipAddress?.includes(filter.searchByIp || ''))
-    }
-    if (filter.searchByFingerprint) {
-      filtered = filtered.filter(s => s.fingerprint?.includes(filter.searchByFingerprint || ''))
-    }
-
-    // Sort
-    const sortBy = filter.sortBy || 'createdAt'
-    const sortOrder = filter.sortOrder || 'desc'
-    filtered.sort((a, b) => {
-      const aVal = a[sortBy as keyof typeof a]
-      const bVal = b[sortBy as keyof typeof b]
-      return compareForSort(aVal, bVal, sortOrder)
-    })
+    const filtered = filterAndSortSessions(allSessions, filter)
 
     const duration = Date.now() - startTime
 
@@ -596,11 +473,10 @@ export class SessionsController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: seconds(300) } })
   @ApiOperation({ summary: 'Manual cleanup (super-admin only)' })
-  @ApiQuery({ name: 'olderThanDays', required: false, type: Number })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
   async manualCleanup(
-    @Query('olderThanDays') olderThanDays: number = 30,
+    @Query() { olderThanDays }: SessionCleanupQueryDto,
     @Req() req: AuthenticatedRequest
   ) {
     const user = req.user
@@ -609,10 +485,6 @@ export class SessionsController {
       { adminUserId: user.id, olderThanDays, action: 'manual_cleanup' },
       'Starting cleanup'
     )
-
-    if (olderThanDays < 1 || olderThanDays > 365) {
-      throw new BadRequestException('olderThanDays must be 1-365')
-    }
 
     const startTime = Date.now()
     const deletedCount = await this.cleanupService.manualCleanup(olderThanDays)
@@ -626,6 +498,22 @@ export class SessionsController {
       duration,
       message: `Deleted ${deletedCount} session(s)`
     }
+  }
+
+  /** A live session of the caller: 404 when missing or ended, 403 when someone else's */
+  private async findOwnSession(sessionId: string, userId: string): Promise<Session> {
+    const validation = await this.sessionsService.validateSession(sessionId)
+    if (!validation.valid || !validation.session) {
+      throw new NotFoundException('Session not found')
+    }
+    if (validation.session.userId !== userId) {
+      this.logger.warn(
+        { userId, sessionId, ownerId: validation.session.userId },
+        "Access to another user's session denied"
+      )
+      throw new ForbiddenException('Access denied')
+    }
+    return validation.session
   }
 
   private getUserId(req: AuthenticatedRequest): string {
