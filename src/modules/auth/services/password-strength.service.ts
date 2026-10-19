@@ -281,16 +281,4 @@ export class PasswordStrengthService {
       return false
     }
   }
-
-  /**
-   * Validate password meets minimum requirements
-   */
-  async validatePassword(password: string): Promise<{ valid: boolean; errors: string[] }> {
-    const result = await this.calculateStrength(password)
-
-    return {
-      valid: result.passed,
-      errors: result.passed ? [] : result.feedback
-    }
-  }
 }

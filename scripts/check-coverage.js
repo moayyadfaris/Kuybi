@@ -14,7 +14,7 @@ const { createCoverageMap } = require('istanbul-lib-coverage')
 
 // About 2 points under the measurement on 2026-10-19 (lines 66.2, statements 66.7,
 // branches 50.8, functions 58.9). Raise it as coverage grows; never lower it to pass.
-const FLOOR = { lines: 64, statements: 64, branches: 48, functions: 56 }
+const FLOOR = { lines: 68, statements: 68, branches: 53, functions: 62 }
 const SOURCES = ['coverage/unit/coverage-final.json', 'coverage/integration/coverage-final.json']
 
 const map = createCoverageMap({})

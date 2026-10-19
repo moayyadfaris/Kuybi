@@ -28,6 +28,12 @@ export class SessionCleanupScheduler implements OnModuleInit {
       },
       { withinMinutes: 60 }
     )
+
+    await this.ensureRepeatableJob(
+      'password-reset-cleanup-daily',
+      SessionCleanupJobType.CLEANUP_RESET_TOKENS,
+      { pattern: '30 3 * * *' }
+    )
   }
 
   /**

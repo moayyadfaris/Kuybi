@@ -45,10 +45,15 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
           id: 'session-expiring-check',
           pattern: '*/30 * * * *',
           name: SessionCleanupJobType.CHECK_EXPIRING
+        },
+        {
+          id: 'password-reset-cleanup-daily',
+          pattern: '30 3 * * *',
+          name: SessionCleanupJobType.CLEANUP_RESET_TOKENS
         }
       ])
     )
-    expect(await sessionQueue.getJobSchedulersCount()).toBe(2)
+    expect(await sessionQueue.getJobSchedulersCount()).toBe(3)
   })
 
   it('schedules the version cleanup jobs with their payloads', async () => {

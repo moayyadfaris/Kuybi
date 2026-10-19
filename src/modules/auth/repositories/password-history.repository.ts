@@ -105,41 +105,4 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
       await this.cacheService.delPattern(pattern)
     }
   }
-
-  /**
-   * Get count of password changes for a user
-   */
-  async getPasswordChangeCount(userId: string): Promise<number> {
-    return this.repository.count({ where: { userId } })
-  }
-
-  /**
-   * Get password history within a date range
-   */
-  async findByDateRange(
-    userId: string,
-    startDate: Date,
-    endDate?: Date
-  ): Promise<PasswordHistory[]> {
-    const queryBuilder = this.repository
-      .createQueryBuilder('ph')
-      .where('ph.userId = :userId', { userId })
-      .andWhere('ph.createdAt >= :startDate', { startDate })
-
-    if (endDate) {
-      queryBuilder.andWhere('ph.createdAt <= :endDate', { endDate })
-    }
-
-    return queryBuilder.orderBy('ph.createdAt', 'DESC').getMany()
-  }
-
-  /**
-   * Delete all password history for a user
-   */
-  async deleteUserHistory(userId: string): Promise<void> {
-    await this.repository.delete({ userId })
-    await this.invalidateUserCache(userId)
-
-    this.logger.info({ userId }, 'Deleted all password history for user')
-  }
 }

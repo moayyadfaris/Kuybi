@@ -63,24 +63,6 @@ export class RoleRepository extends BaseRepository<Role> {
   }
 
   /**
-   * Find all system roles
-   */
-  async findSystemRoles(): Promise<Role[]> {
-    const cacheKey = this.buildCacheKey('system')
-
-    return this.cached(
-      cacheKey,
-      async () => {
-        return this.repository.find({
-          where: { isSystem: true, deletedAt: IsNull() },
-          order: { priority: 'DESC' }
-        })
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
    * Find all roles with permissions
    */
   async findAllWithPermissions(): Promise<Role[]> {

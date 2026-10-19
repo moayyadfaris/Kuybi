@@ -93,30 +93,6 @@ export class SessionRepository extends BaseRepository<Session> {
   }
 
   /**
-   * Find session by refresh token hash
-   * @param refreshTokenHash - Hashed refresh token
-   * @returns Promise<Session | null>
-   */
-  async findByRefreshTokenHash(refreshTokenHash: string): Promise<Session | null> {
-    const cacheKey = this.buildCacheKey('token', refreshTokenHash)
-
-    return this.cached(
-      cacheKey,
-      async () => {
-        return this.repository.findOne({
-          where: {
-            refreshTokenHash,
-            isActive: true,
-            deletedAt: IsNull(),
-            expiresAt: MoreThan(new Date())
-          }
-        })
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
    * Find sessions expiring soon (within specified minutes)
    * @param withinMinutes - Time window in minutes (default: 60)
    * @returns Promise<Session[]>
@@ -249,41 +225,6 @@ export class SessionRepository extends BaseRepository<Session> {
   }
 
   /**
-   * Revoke sessions by device type
-   * @param userId - User ID
-   * @param deviceType - Device type to revoke
-   * @returns Promise<number>
-   */
-  async revokeByDeviceType(userId: string, deviceType: string): Promise<number> {
-    const result = await this.repository
-      .createQueryBuilder('session')
-      .update(Session)
-      .set({
-        isActive: false,
-        deletedAt: new Date(),
-        metadata: () => REVOCATION_REASON_SQL
-      })
-      .setParameter('revocationReason', 'device_type_revocation')
-      .where('userId = :userId', { userId })
-      .andWhere('deviceType = :deviceType', { deviceType })
-      .andWhere('isActive = :isActive', { isActive: true })
-      .andWhere('deletedAt IS NULL')
-      .execute()
-
-    const count = result.affected || 0
-    this.logger.info(
-      { userId, deviceType, count, action: 'revoke_by_device_type' },
-      'Revoked sessions by device type in repository'
-    )
-
-    await this.invalidateUserSessionCache(userId)
-    await this.invalidateListCaches()
-    await this.invalidateAccessStatus(userId)
-
-    return count
-  }
-
-  /**
    * Cleanup expired sessions (hard delete)
    * @param olderThanDays - Delete sessions older than X days (default: 30)
    * @returns Promise<number> - Number of sessions deleted
@@ -394,24 +335,6 @@ export class SessionRepository extends BaseRepository<Session> {
       },
       900 // 15 minutes for stats
     )
-  }
-
-  /**
-   * Find suspicious sessions based on security criteria
-   * @returns Promise<Session[]>
-   */
-  async findSuspiciousSessions(): Promise<Session[]> {
-    return this.repository.find({
-      where: [
-        { securityLevel: 'critical', isActive: true, deletedAt: IsNull() },
-        { securityLevel: 'high', isActive: true, deletedAt: IsNull() },
-        { sessionType: 'suspicious', isActive: true, deletedAt: IsNull() }
-      ],
-      order: {
-        createdAt: 'DESC'
-      },
-      take: 100
-    })
   }
 
   /**

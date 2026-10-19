@@ -215,9 +215,9 @@ export default tseslint.config(
         NO_ANY_CAST,
         {
           selector:
-            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(wrap|set)$/]",
+            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(wrap|set|wrapWithTags|setWithTags)$/]",
           message:
-            'Cache with this.cached() / this.cacheSet(): untagged entries are not invalidated by writes.'
+            'Cache with this.cached() / this.cacheSet(): only their tags are invalidated by writes through the repository.'
         }
       ]
     }

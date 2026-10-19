@@ -232,19 +232,6 @@ export class UserRepository extends BaseRepository<User> {
   }
 
   /**
-   * Update user active status
-   */
-  async updateActiveStatus(id: string, isActive: boolean): Promise<User | null> {
-    await this.repository.update(id, { isActive })
-
-    // Invalidate caches
-    await this.invalidateEntityCache(id)
-    await this.invalidateListCaches()
-
-    return this.findById(id, { bypassCache: true })
-  }
-
-  /**
    * Update user password hash
    */
   /**
@@ -328,17 +315,6 @@ export class UserRepository extends BaseRepository<User> {
 
     await this.cacheService.delPattern(`${this.entityName}:email:*`)
     await this.cacheService.delPattern(`${this.entityName}:mobile:*`)
-  }
-
-  /**
-   * Count users by role
-   */
-  async countByRole(roleName: string): Promise<number> {
-    return this.repository
-      .createQueryBuilder('user')
-      .innerJoin('user.primaryRole', 'role')
-      .where('role.name = :roleName', { roleName })
-      .getCount()
   }
 
   /**

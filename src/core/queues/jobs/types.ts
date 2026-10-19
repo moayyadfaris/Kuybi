@@ -22,8 +22,7 @@ export enum QueueName {
 export enum SessionCleanupJobType {
   CLEANUP_EXPIRED = 'cleanup-expired-sessions',
   CHECK_EXPIRING = 'check-expiring-sessions',
-  CHECK_SUSPICIOUS = 'check-suspicious-sessions',
-  REMOVE_ORPHANED = 'remove-orphaned-sessions'
+  CLEANUP_RESET_TOKENS = 'cleanup-expired-reset-tokens'
 }
 
 /**

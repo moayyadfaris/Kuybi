@@ -4,20 +4,19 @@ This document captures the current iteration of the audit logging stack, the API
 
 ## Key Modules
 
-| Module | Purpose |
-| --- | --- |
-| `AuditModule` | Bundles controllers, services, interceptors, and database providers. |
-| `AuditContextFactory` | Builds `AuditContext` instances from Express requests or ad-hoc user metadata. |
-| `AuditService` | Facade for creating audit logs with helpers such as `logLoginFromRequest`, `logLogoutFromRequest`, etc. |
-| `AuditLogRepository` | Query/command abstraction over the `audit_logs` table with rich filtering helpers. |
-| `AuditQueryService` | Read side for dashboards and reports (search, statistics, suspicious activity). |
-| `AuditLogInterceptor` | Optional decorator-driven interceptor for automatic logging. |
+| Module                | Purpose                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| `AuditModule`         | Bundles controllers, services, interceptors, and database providers.                                    |
+| `AuditContextFactory` | Builds `AuditContext` instances from Express requests or ad-hoc user metadata.                          |
+| `AuditService`        | Facade for creating audit logs with helpers such as `logLoginFromRequest`, `logLogoutFromRequest`, etc. |
+| `AuditLogRepository`  | Query/command abstraction over the `audit_logs` table with rich filtering helpers.                      |
+| `AuditQueryService`   | Read side for dashboards and reports (search, statistics, suspicious activity).                         |
 
 ## Usage Guidelines
 
-1. **Prefer facade helpers** – in feature modules, call `auditService.log…FromRequest(req, user, metadata)` rather than composing contexts manually.  This guarantees consistent enrichment of user, request, and correlation metadata.
+1. **Prefer facade helpers** – in feature modules, call `auditService.log…FromRequest(req, user, metadata)` rather than composing contexts manually. This guarantees consistent enrichment of user, request, and correlation metadata.
 2. **Decorators for REST endpoints** – for CRUD-style endpoints that already use the `@AuditLog` decorator, ensure the interceptor is registered globally or at controller level.
-3. **Domain events (future)** – longer term, migrate auth and other modules to emit events (`LoginSucceeded`, `PasswordReset`) that the audit module subscribes to.  The current direct service usage is a stopgap.
+3. **Domain events (future)** – longer term, migrate auth and other modules to emit events (`LoginSucceeded`, `PasswordReset`) that the audit module subscribes to. The current direct service usage is a stopgap.
 4. **Retention & archiving** – the repository exposes `search` and statistics primitives; background cleanup and archiving jobs still need to be scheduled.
 
 ## Outstanding Tasks

@@ -29,6 +29,9 @@ import { StoryRepository } from '../repositories/story.repository'
 
 import { StoryAccessPolicy } from './story-access.policy'
 
+type Relation = 'attachments' | 'tags' | 'categories'
+type Linked = { id: string | number }
+
 @Injectable()
 export class StoryRelationshipService {
   constructor(
@@ -126,74 +129,30 @@ export class StoryRelationshipService {
   }
 
   /**
-   * Attach attachments to story
+   * Attach attachments to story: your own files, or public ones (linking a file shows it
+   * to everyone who can read the story)
    */
   async attachAttachments(
     storyId: number,
     dto: AttachAttachmentsDto,
     currentUser: User
   ): Promise<Story> {
-    const userId = currentUser.id
-    this.logger.info(
-      { action: 'attach_attachments', storyId, userId, count: dto.attachmentIds.length },
-      'Attaching attachments to story'
-    )
+    const story = await this.loadForUpdate(storyId, 'attachments', currentUser)
 
-    try {
-      const story = await this.storyRepository.findWithRelations(storyId, { attachments: true })
-
-      if (!story || story.deletedAt) {
-        throw new NotFoundException(`Story with ID ${storyId} not found`)
-      }
-
-      // Check permissions using CASL
-      this.accessPolicy.assertCan(
-        currentUser,
-        Action.Update,
-        story,
-        'You do not have permission to modify this story'
-      )
-
-      // Verify all attachments exist
-      const attachments = await this.attachmentRepository.findMany({
-        where: { id: In(dto.attachmentIds) }
-      })
-
-      if (attachments.length !== dto.attachmentIds.length) {
-        throw new BadRequestException('One or more attachments not found')
-      }
-      for (const attachment of attachments) {
-        // Linking a file to a story shows it to everyone who can read the story
-        if (attachment.userId !== userId && !attachment.isPublic) {
-          throw new BadRequestException(`Attachment ${attachment.id} does not belong to you`)
-        }
-        assertAttachmentUsable(attachment)
-      }
-
-      // Add new attachments (avoiding duplicates)
-      const existingIds = story.attachments?.map(a => a.id) || []
-      const newAttachments = attachments.filter(a => !existingIds.includes(a.id))
-
-      story.attachments = [...(story.attachments || []), ...newAttachments]
-      story.updatedBy = userId
-
-      await this.storyRepository.save(story)
-
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
-
-      this.logger.info(
-        { action: 'attach_attachments', storyId, userId, attached: newAttachments.length },
-        'Attachments attached successfully'
-      )
-
-      return story
-    } catch (error) {
-      this.logger.error(
-        { action: 'attach_attachments', storyId, userId, error: errorMessage(error) },
-        'Failed to attach attachments'
-      )
-      throw error
+    const attachments = await this.attachmentRepository.findMany({
+      where: { id: In(dto.attachmentIds) }
+    })
+    if (attachments.length !== dto.attachmentIds.length) {
+      throw new BadRequestException('One or more attachments not found')
     }
+    for (const attachment of attachments) {
+      if (attachment.userId !== currentUser.id && !attachment.isPublic) {
+        throw new BadRequestException(`Attachment ${attachment.id} does not belong to you`)
+      }
+      assertAttachmentUsable(attachment)
+    }
+
+    return this.link(story, 'attachments', attachments, currentUser)
   }
 
   /**
@@ -204,177 +163,34 @@ export class StoryRelationshipService {
     dto: DetachAttachmentsDto,
     currentUser: User
   ): Promise<Story> {
-    const userId = currentUser.id
-    this.logger.info(
-      { action: 'detach_attachments', storyId, userId, count: dto.attachmentIds.length },
-      'Detaching attachments from story'
-    )
-
-    try {
-      const story = await this.storyRepository.findWithRelations(storyId, { attachments: true })
-
-      if (!story || story.deletedAt) {
-        throw new NotFoundException(`Story with ID ${storyId} not found`)
-      }
-
-      // Check permissions using CASL
-      this.accessPolicy.assertCan(
-        currentUser,
-        Action.Update,
-        story,
-        'You do not have permission to modify this story'
-      )
-
-      if (!story.attachments || story.attachments.length === 0) {
-        return story
-      }
-
-      const originalCount = story.attachments.length
-      story.attachments = story.attachments.filter(a => !dto.attachmentIds.includes(a.id))
-      story.updatedBy = userId
-
-      if (story.attachments.length !== originalCount) {
-        await this.storyRepository.save(story)
-
-        await this.storyRepository.invalidateStoryCache(storyId, userId)
-      }
-
-      this.logger.info(
-        {
-          action: 'detach_attachments',
-          storyId,
-          userId,
-          detached: originalCount - story.attachments.length
-        },
-        'Attachments detached successfully'
-      )
-
-      return story
-    } catch (error) {
-      this.logger.error(
-        { action: 'detach_attachments', storyId, userId, error: errorMessage(error) },
-        'Failed to detach attachments'
-      )
-      throw error
-    }
+    const story = await this.loadForUpdate(storyId, 'attachments', currentUser)
+    return this.unlink(story, 'attachments', dto.attachmentIds, currentUser)
   }
 
   /**
-   * Attach tags to story
+   * Attach tags to story, by id or by name (missing names are created)
    */
   async attachTags(storyId: number, dto: AttachTagsDto, currentUser: User): Promise<Story> {
-    const userId = currentUser.id
-    const tagCount = (dto.tagIds?.length || 0) + (dto.tags?.length || 0)
-    this.logger.info(
-      { action: 'attach_tags', storyId, userId, count: tagCount },
-      'Attaching tags to story'
-    )
-
-    try {
-      const story = await this.storyRepository.findWithRelations(storyId, { tags: true })
-
-      if (!story || story.deletedAt) {
-        throw new NotFoundException(`Story with ID ${storyId} not found`)
-      }
-
-      // Check permissions using CASL
-      this.accessPolicy.assertCan(
-        currentUser,
-        Action.Update,
-        story,
-        'You do not have permission to modify this story'
-      )
-
-      // Validate that at least one type of tags is provided
-      if ((!dto.tagIds || dto.tagIds.length === 0) && (!dto.tags || dto.tags.length === 0)) {
-        throw new BadRequestException('At least one tag ID or tag name must be provided')
-      }
-
-      // Resolve tags by IDs and names
-      const tagsToAttach = await this.resolveAndCreateTags(dto.tagIds, dto.tags, userId)
-
-      // Add new tags (avoiding duplicates)
-      const existingIds = story.tags?.map(t => t.id) || []
-      const newTags = tagsToAttach.filter(t => !existingIds.includes(t.id))
-
-      story.tags = [...(story.tags || []), ...newTags]
-      story.updatedBy = userId
-
-      await this.storyRepository.save(story)
-
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
-
-      this.logger.info(
-        { action: 'attach_tags', storyId, userId, attached: newTags.length },
-        'Tags attached successfully'
-      )
-
-      return story
-    } catch (error) {
-      this.logger.error(
-        { action: 'attach_tags', storyId, userId, error: errorMessage(error) },
-        'Failed to attach tags'
-      )
-      throw error
-    }
+    const story = await this.loadForUpdate(storyId, 'tags', currentUser)
+    this.requireSomeTags(dto)
+    const tags = await this.resolveAndCreateTags(dto.tagIds, dto.tags, currentUser.id)
+    return this.link(story, 'tags', tags, currentUser)
   }
 
   /**
-   * Detach tags from story
+   * Detach tags from story, by id or by name
    */
   async detachTags(storyId: number, dto: DetachTagsDto, currentUser: User): Promise<Story> {
-    const userId = currentUser.id
-    const tagCount = (dto.tagIds?.length || 0) + (dto.tags?.length || 0)
-    this.logger.info(
-      { action: 'detach_tags', storyId, userId, count: tagCount },
-      'Detaching tags from story'
+    const story = await this.loadForUpdate(storyId, 'tags', currentUser)
+    this.requireSomeTags(dto)
+    // No user: names that do not exist are skipped, never created
+    const tags = await this.resolveAndCreateTags(dto.tagIds, dto.tags)
+    return this.unlink(
+      story,
+      'tags',
+      tags.map(tag => tag.id),
+      currentUser
     )
-
-    try {
-      const story = await this.storyRepository.findWithRelations(storyId, { tags: true })
-
-      if (!story || story.deletedAt) {
-        throw new NotFoundException(`Story with ID ${storyId} not found`)
-      }
-
-      // Check permissions using CASL
-      this.accessPolicy.assertCan(
-        currentUser,
-        Action.Update,
-        story,
-        'You do not have permission to modify this story'
-      )
-
-      // Validate that at least one type of tags is provided
-      if ((!dto.tagIds || dto.tagIds.length === 0) && (!dto.tags || dto.tags.length === 0)) {
-        throw new BadRequestException('At least one tag ID or tag name must be provided')
-      }
-
-      // Resolve tags to detach
-      const tagsToDetach = await this.resolveAndCreateTags(dto.tagIds, dto.tags)
-      const detachIds = tagsToDetach.map(t => t.id)
-
-      // Remove specified tags
-      story.tags = story.tags?.filter(t => !detachIds.includes(t.id)) || []
-      story.updatedBy = userId
-
-      await this.storyRepository.save(story)
-
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
-
-      this.logger.info(
-        { action: 'detach_tags', storyId, userId, detached: detachIds.length },
-        'Tags detached successfully'
-      )
-
-      return story
-    } catch (error) {
-      this.logger.error(
-        { action: 'detach_tags', storyId, userId, error: errorMessage(error) },
-        'Failed to detach tags'
-      )
-      throw error
-    }
   }
 
   /**
@@ -385,60 +201,16 @@ export class StoryRelationshipService {
     dto: AttachCategoriesDto,
     currentUser: User
   ): Promise<Story> {
-    const userId = currentUser.id
-    this.logger.info(
-      { action: 'attach_categories', storyId, userId, count: dto.categoryIds.length },
-      'Attaching categories to story'
-    )
+    const story = await this.loadForUpdate(storyId, 'categories', currentUser)
 
-    try {
-      const story = await this.storyRepository.findWithRelations(storyId, { categories: true })
-
-      if (!story || story.deletedAt) {
-        throw new NotFoundException(`Story with ID ${storyId} not found`)
-      }
-
-      // Check permissions using CASL
-      this.accessPolicy.assertCan(
-        currentUser,
-        Action.Update,
-        story,
-        'You do not have permission to modify this story'
-      )
-
-      // Verify all categories exist
-      const categories = await this.categoryRepository.findMany({
-        where: { id: In(dto.categoryIds) }
-      })
-
-      if (categories.length !== dto.categoryIds.length) {
-        throw new BadRequestException('One or more categories not found')
-      }
-
-      // Add new categories (avoiding duplicates)
-      const existingIds = story.categories?.map(c => c.id) || []
-      const newCategories = categories.filter(c => !existingIds.includes(c.id))
-
-      story.categories = [...(story.categories || []), ...newCategories]
-      story.updatedBy = userId
-
-      await this.storyRepository.save(story)
-
-      await this.storyRepository.invalidateStoryCache(storyId, userId)
-
-      this.logger.info(
-        { action: 'attach_categories', storyId, userId, attached: newCategories.length },
-        'Categories attached successfully'
-      )
-
-      return story
-    } catch (error) {
-      this.logger.error(
-        { action: 'attach_categories', storyId, userId, error: errorMessage(error) },
-        'Failed to attach categories'
-      )
-      throw error
+    const categories = await this.categoryRepository.findMany({
+      where: { id: In(dto.categoryIds) }
+    })
+    if (categories.length !== dto.categoryIds.length) {
+      throw new BadRequestException('One or more categories not found')
     }
+
+    return this.link(story, 'categories', categories, currentUser)
   }
 
   /**
@@ -449,104 +221,106 @@ export class StoryRelationshipService {
     dto: DetachCategoriesDto,
     currentUser: User
   ): Promise<Story> {
-    const userId = currentUser.id
-    this.logger.info(
-      { action: 'detach_categories', storyId, userId, count: dto.categoryIds.length },
-      'Detaching categories from story'
-    )
-
-    try {
-      const story = await this.storyRepository.findWithRelations(storyId, { categories: true })
-
-      if (!story || story.deletedAt) {
-        throw new NotFoundException(`Story with ID ${storyId} not found`)
-      }
-
-      // Check permissions using CASL
-      this.accessPolicy.assertCan(
-        currentUser,
-        Action.Update,
-        story,
-        'You do not have permission to modify this story'
-      )
-
-      if (!story.categories || story.categories.length === 0) {
-        return story
-      }
-
-      const originalCount = story.categories.length
-      story.categories = story.categories.filter(c => !dto.categoryIds.includes(c.id))
-      story.updatedBy = userId
-
-      if (story.categories.length !== originalCount) {
-        await this.storyRepository.save(story)
-
-        await this.storyRepository.invalidateStoryCache(storyId, userId)
-      }
-
-      this.logger.info(
-        {
-          action: 'detach_categories',
-          storyId,
-          userId,
-          detached: originalCount - story.categories.length
-        },
-        'Categories detached successfully'
-      )
-
-      return story
-    } catch (error) {
-      this.logger.error(
-        { action: 'detach_categories', storyId, userId, error: errorMessage(error) },
-        'Failed to detach categories'
-      )
-      throw error
-    }
+    const story = await this.loadForUpdate(storyId, 'categories', currentUser)
+    return this.unlink(story, 'categories', dto.categoryIds, currentUser)
   }
 
   /**
-   * Get story attachments
+   * Get story attachments (not the deleted ones)
    */
   async getAttachments(storyId: number): Promise<Attachment[]> {
-    const story = await this.storyRepository.findWithRelations(storyId, { attachments: true })
-
-    if (!story) {
-      throw new NotFoundException(`Story with ID ${storyId} not found`)
-    }
-
-    // Filter out soft deleted attachments if necessary, or check deletedAt
-    // The relation query might return them depending on global filter settings
-    // Explicitly filtering here just in case, assuming we want active ones
-    const activeAttachments = story.attachments?.filter(a => !a.deletedAt) || []
-
-    return activeAttachments.map(
-      attachment => toAttachmentResponse(attachment) as unknown as Attachment
-    )
+    const story = await this.loadStory(storyId, 'attachments')
+    return (story.attachments ?? [])
+      .filter(attachment => !attachment.deletedAt)
+      .map(attachment => toAttachmentResponse(attachment) as unknown as Attachment)
   }
 
   /**
    * Get story tags
    */
   async getTags(storyId: number): Promise<Tag[]> {
-    const story = await this.storyRepository.findWithRelations(storyId, { tags: true })
-
-    if (!story) {
-      throw new NotFoundException(`Story with ID ${storyId} not found`)
-    }
-
-    return story.tags || []
+    return (await this.loadStory(storyId, 'tags')).tags ?? []
   }
 
   /**
    * Get story categories
    */
   async getCategories(storyId: number): Promise<Category[]> {
-    const story = await this.storyRepository.findWithRelations(storyId, { categories: true })
+    return (await this.loadStory(storyId, 'categories')).categories ?? []
+  }
 
-    if (!story) {
+  /** The story with one relation loaded; 404 when missing or soft-deleted */
+  private async loadStory(storyId: number, relation: Relation): Promise<Story> {
+    const story = await this.storyRepository.findWithRelations(storyId, { [relation]: true })
+    if (!story || story.deletedAt) {
       throw new NotFoundException(`Story with ID ${storyId} not found`)
     }
+    return story
+  }
 
-    return story.categories || []
+  private async loadForUpdate(storyId: number, relation: Relation, user: User): Promise<Story> {
+    const story = await this.loadStory(storyId, relation)
+    this.accessPolicy.assertCan(
+      user,
+      Action.Update,
+      story,
+      'You do not have permission to modify this story'
+    )
+    return story
+  }
+
+  /** Adds the items not linked yet and saves when anything was added */
+  private async link(
+    story: Story,
+    relation: Relation,
+    items: Linked[],
+    user: User
+  ): Promise<Story> {
+    const current = (story[relation] ?? []) as Linked[]
+    const linkedIds = new Set(current.map(item => item.id))
+    const added = items.filter(item => !linkedIds.has(item.id))
+
+    if (added.length > 0) {
+      Object.assign(story, { [relation]: [...current, ...added], updatedBy: user.id })
+      await this.storyRepository.save(story)
+    }
+    this.logger.info(
+      { action: `attach_${relation}`, storyId: story.id, userId: user.id, attached: added.length },
+      'Story links added'
+    )
+    return story
+  }
+
+  /** Removes the given ids and saves when anything was removed */
+  private async unlink(
+    story: Story,
+    relation: Relation,
+    ids: Array<string | number>,
+    user: User
+  ): Promise<Story> {
+    const current = (story[relation] ?? []) as Linked[]
+    const remove = new Set(ids)
+    const kept = current.filter(item => !remove.has(item.id))
+
+    if (kept.length !== current.length) {
+      Object.assign(story, { [relation]: kept, updatedBy: user.id })
+      await this.storyRepository.save(story)
+    }
+    this.logger.info(
+      {
+        action: `detach_${relation}`,
+        storyId: story.id,
+        userId: user.id,
+        detached: current.length - kept.length
+      },
+      'Story links removed'
+    )
+    return story
+  }
+
+  private requireSomeTags(dto: { tagIds?: number[]; tags?: string[] }): void {
+    if (!dto.tagIds?.length && !dto.tags?.length) {
+      throw new BadRequestException('At least one tag ID or tag name must be provided')
+    }
   }
 }

@@ -151,36 +151,6 @@ export class PostContentRepository extends BaseRepository<PostContent> {
   }
 
   /**
-   * Check if content with specific field value exists
-   * Used for unique field validation
-   * @param postTypeId - Post type UUID
-   * @param fieldName - Field name in field_data
-   * @param fieldValue - Field value to check
-   * @param excludeId - Optional content ID to exclude (for updates)
-   */
-  async existsByFieldValue(
-    postTypeId: string,
-    fieldName: string,
-    fieldValue: unknown,
-    excludeId?: string
-  ): Promise<boolean> {
-    const query = this.repository
-      .createQueryBuilder('pc')
-      .where('pc.postTypeId = :postTypeId', { postTypeId })
-      .andWhere(`pc.fieldData @> :fieldData`, {
-        fieldData: JSON.stringify({ [fieldName]: fieldValue })
-      })
-      .andWhere('pc.deletedAt IS NULL')
-
-    if (excludeId) {
-      query.andWhere('pc.id != :excludeId', { excludeId })
-    }
-
-    const count = await query.getCount()
-    return count > 0
-  }
-
-  /**
    * Full-text search on title and excerpt
    * Uses PostgreSQL's full-text search with GIN index
    * @param postTypeId - Post type UUID (optional, searches all types if not provided)
@@ -234,91 +204,12 @@ export class PostContentRepository extends BaseRepository<PostContent> {
   }
 
   /**
-   * Query content by JSONB field values
-   * Uses GIN index for efficient JSONB queries
-   * @param postTypeId - Post type UUID
-   * @param fieldFilters - Object with field names and values { field_name: value }
-   * @param options - Query options
-   */
-  async queryByFieldData(
-    postTypeId: string,
-    fieldFilters: Record<string, unknown>,
-    options?: { status?: ContentStatus; limit?: number; offset?: number }
-  ): Promise<PostContent[]> {
-    const query = this.repository
-      .createQueryBuilder('pc')
-      .where('pc.postTypeId = :postTypeId', { postTypeId })
-      .andWhere(`pc.fieldData @> :fieldData`, { fieldData: JSON.stringify(fieldFilters) })
-      .andWhere('pc.deletedAt IS NULL')
-      .orderBy('pc.publishedAt', 'DESC')
-
-    if (options?.status) {
-      query.andWhere('pc.status = :status', { status: options.status })
-    }
-
-    if (options?.limit) {
-      query.take(options.limit)
-    }
-
-    if (options?.offset) {
-      query.skip(options.offset)
-    }
-
-    return query.getMany()
-  }
-
-  /**
-   * Find published content (convenience method)
-   * @param postTypeId - Post type UUID
-   * @param limit - Number of items to return
-   */
-  async findPublished(postTypeId: string, limit?: number): Promise<PostContent[]> {
-    return this.findByPostType(postTypeId, {
-      status: ContentStatus.PUBLISHED,
-      limit
-    })
-  }
-
-  /**
-   * Find featured content
-   * @param postTypeId - Post type UUID (optional)
-   * @param limit - Number of items to return
-   */
-  async findFeatured(postTypeId?: string, limit?: number): Promise<PostContent[]> {
-    const query = this.repository
-      .createQueryBuilder('pc')
-      .where('pc.isFeatured = :isFeatured', { isFeatured: true })
-      .andWhere('pc.status = :status', { status: ContentStatus.PUBLISHED })
-      .andWhere('pc.deletedAt IS NULL')
-      .orderBy('pc.publishedAt', 'DESC')
-
-    if (postTypeId) {
-      query.andWhere('pc.postTypeId = :postTypeId', { postTypeId })
-    }
-
-    if (limit) {
-      query.take(limit)
-    }
-
-    return query.getMany()
-  }
-
-  /**
    * Increment view count
    * @param contentId - Content UUID
    */
   async incrementViewCount(contentId: string): Promise<void> {
     await this.repository.increment({ id: contentId }, 'viewCount', 1)
     // Note: Don't invalidate cache here to avoid performance hit on every view
-  }
-
-  /**
-   * Increment like count
-   * @param contentId - Content UUID
-   */
-  async incrementLikeCount(contentId: string): Promise<void> {
-    await this.repository.increment({ id: contentId }, 'likeCount', 1)
-    await this.invalidateCacheForContent(contentId)
   }
 
   /**

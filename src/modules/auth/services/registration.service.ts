@@ -264,11 +264,4 @@ export class RegistrationService {
       'Verification email resent, new token stored in database'
     )
   }
-
-  /**
-   * Check if email is already registered
-   */
-  async isEmailRegistered(email: string): Promise<boolean> {
-    return this.userRepository.isEmailTaken(email)
-  }
 }

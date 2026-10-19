@@ -7,6 +7,10 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Session, SessionTypeValue } from '../entities/session.entity'
 import { SessionRepository } from '../repositories/session.repository'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+/** Furthest an extension may move a session's expiry, counted from now */
+export const MAX_EXTENDED_DAYS = 30
+
 export interface CreateSessionOptions {
   userId: string
   ipAddress?: string
@@ -231,6 +235,22 @@ export class SessionsService {
   }
 
   /**
+   * Pushes a session's expiry back by `days`, never past MAX_EXTENDED_DAYS from now
+   * (the refresh token is valid until the session expires)
+   * @returns the stored expiry
+   */
+  async extendSession(session: Session, days: number): Promise<Date> {
+    const extended = new Date(session.expiresAt).getTime() + days * DAY_MS
+    const expiresAt = new Date(Math.min(extended, Date.now() + MAX_EXTENDED_DAYS * DAY_MS))
+    await this.sessionRepository.update(session.id, { expiresAt })
+    this.logger.info(
+      { sessionId: session.id, userId: session.userId, expiresAt },
+      'Session extended'
+    )
+    return expiresAt
+  }
+
+  /**
    * Revoke a specific session
    * @param sessionId - Session ID
    * @param reason - Revocation reason
@@ -300,25 +320,6 @@ export class SessionsService {
   }
 
   /**
-   * Revoke sessions by device type
-   * @param filter - Device sessions filter
-   * @returns Promise<number>
-   */
-  async revokeDeviceSessions(filter: DeviceSessionsFilter): Promise<number> {
-    const count = await this.sessionRepository.revokeByDeviceType(filter.userId, filter.deviceType)
-    this.logger.info(
-      {
-        userId: filter.userId,
-        deviceType: filter.deviceType,
-        count,
-        action: 'revoke_device_sessions'
-      },
-      'Revoked device sessions'
-    )
-    return count
-  }
-
-  /**
    * Get active sessions for a user
    * @param userId - User ID
    * @param includeInactive - Include inactive sessions
@@ -365,45 +366,11 @@ export class SessionsService {
   }
 
   /**
-   * Handle concurrent session limit enforcement
-   * @param userId - User ID
-   * @returns Promise<void>
-   */
-  async handleConcurrentSessions(userId: string): Promise<void> {
-    const activeCount = await this.sessionRepository.getActiveSessionCount(userId)
-
-    if (activeCount > this.maxConcurrentSessions) {
-      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map(session =>
-        this.normalizeSessionDates(session)
-      )
-      const sortedSessions = sessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-
-      const toRevoke = sortedSessions.slice(0, activeCount - this.maxConcurrentSessions)
-
-      for (const session of toRevoke) {
-        await this.sessionRepository.revokeSession(session.id, 'concurrent_limit_enforcement')
-      }
-
-      this.logger.warn(
-        `Enforced concurrent session limit for user ${userId}: revoked ${toRevoke.length} oldest sessions`
-      )
-    }
-  }
-
-  /**
    * Get global device statistics
    * @returns Promise<object>
    */
   async getDeviceStats() {
     return this.sessionRepository.getDeviceStats()
-  }
-
-  /**
-   * Find suspicious sessions across the platform
-   * @returns Promise<Session[]>
-   */
-  async findSuspiciousSessions(): Promise<Session[]> {
-    return this.sessionRepository.findSuspiciousSessions()
   }
 
   /**

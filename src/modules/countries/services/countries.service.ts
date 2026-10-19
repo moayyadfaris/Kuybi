@@ -100,20 +100,6 @@ export class CountriesService {
   }
 
   /**
-   * Get countries grouped by continent
-   */
-  async getGroupedByContinent(): Promise<Record<string, Country[]>> {
-    return this.countryRepository.findGroupedByContinent()
-  }
-
-  /**
-   * Get countries grouped by region
-   */
-  async getGroupedByRegion(): Promise<Record<string, Country[]>> {
-    return this.countryRepository.findGroupedByRegion()
-  }
-
-  /**
    * Get country statistics
    */
   async getStats() {
