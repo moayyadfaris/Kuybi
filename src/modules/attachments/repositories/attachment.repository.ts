@@ -145,68 +145,6 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }
 
   /**
-   * Find attachments by category
-   */
-  async findByCategory(
-    category: string,
-    options: Partial<AttachmentQueryOptions> = {}
-  ): Promise<Attachment[]> {
-    const cacheKey = this.buildCacheKey('category', category, JSON.stringify(options))
-
-    return this.withCache(cacheKey, async () => {
-      const query = this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.category = :category', { category })
-        .leftJoinAndSelect('attachment.user', 'user')
-
-      this.applyFilters(query, options)
-
-      return query.orderBy('attachment.createdAt', 'DESC').getMany()
-    })
-  }
-
-  /**
-   * Find attachments by MIME type pattern
-   */
-  async findByMimeType(
-    mimeTypePattern: string,
-    options: Partial<AttachmentQueryOptions> = {}
-  ): Promise<Attachment[]> {
-    const cacheKey = this.buildCacheKey('mimetype', mimeTypePattern, JSON.stringify(options))
-
-    return this.withCache(cacheKey, async () => {
-      const query = this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.mimeType LIKE :pattern', { pattern: `${mimeTypePattern}%` })
-        .leftJoinAndSelect('attachment.user', 'user')
-
-      this.applyFilters(query, options)
-
-      return query.orderBy('attachment.createdAt', 'DESC').getMany()
-    })
-  }
-
-  /**
-   * Find public attachments
-   */
-  async findPublicAttachments(
-    options: Partial<AttachmentQueryOptions> = {}
-  ): Promise<Attachment[]> {
-    const cacheKey = this.buildCacheKey('public', JSON.stringify(options))
-
-    return this.withCache(cacheKey, async () => {
-      const query = this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.isPublic = :isPublic', { isPublic: true })
-        .leftJoinAndSelect('attachment.user', 'user')
-
-      this.applyFilters(query, options)
-
-      return query.orderBy('attachment.createdAt', 'DESC').getMany()
-    })
-  }
-
-  /**
    * Find orphaned attachments (not attached to any story)
    */
   async findOrphanedAttachments(olderThanDays = 7): Promise<Attachment[]> {
@@ -232,27 +170,6 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }
 
   /**
-   * Find attachments by security status
-   */
-  async findBySecurityStatus(
-    status: string,
-    options: Partial<AttachmentQueryOptions> = {}
-  ): Promise<Attachment[]> {
-    const cacheKey = this.buildCacheKey('security-status', status, JSON.stringify(options))
-
-    return this.withCache(cacheKey, async () => {
-      const query = this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.securityStatus = :status', { status })
-        .leftJoinAndSelect('attachment.user', 'user')
-
-      this.applyFilters(query, options)
-
-      return query.orderBy('attachment.createdAt', 'DESC').getMany()
-    })
-  }
-
-  /**
    * Find attachment by checksum for duplicate detection
    */
   async findByChecksum(userId: string, checksum: string): Promise<Attachment | null> {
@@ -267,49 +184,6 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
         .leftJoinAndSelect('attachment.user', 'user')
         .orderBy('attachment.createdAt', 'DESC')
         .getOne()
-    })
-  }
-
-  /**
-   * Find attachments by tags
-   */
-  async findByTags(tags: string[]): Promise<Attachment[]> {
-    if (!tags || tags.length === 0) {
-      return []
-    }
-
-    const cacheKey = this.buildCacheKey('tags', tags.join(','))
-
-    return this.withCache(cacheKey, async () => {
-      return this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.tags && :tags', { tags })
-        .andWhere('attachment.deletedAt IS NULL')
-        .leftJoinAndSelect('attachment.user', 'user')
-        .orderBy('attachment.createdAt', 'DESC')
-        .getMany()
-    })
-  }
-
-  /**
-   * Find attachments expiring soon
-   */
-  async findExpiringAttachments(withinDays = 7): Promise<Attachment[]> {
-    const now = new Date()
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + withinDays)
-
-    const cacheKey = this.buildCacheKey('expiring', withinDays.toString())
-
-    return this.withCache(cacheKey, async () => {
-      return this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.expiresAt IS NOT NULL')
-        .andWhere('attachment.expiresAt BETWEEN :now AND :futureDate', { now, futureDate })
-        .andWhere('attachment.deletedAt IS NULL')
-        .leftJoinAndSelect('attachment.user', 'user')
-        .orderBy('attachment.expiresAt', 'ASC')
-        .getMany()
     })
   }
 

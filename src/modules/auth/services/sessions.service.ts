@@ -300,25 +300,6 @@ export class SessionsService {
   }
 
   /**
-   * Revoke sessions by device type
-   * @param filter - Device sessions filter
-   * @returns Promise<number>
-   */
-  async revokeDeviceSessions(filter: DeviceSessionsFilter): Promise<number> {
-    const count = await this.sessionRepository.revokeByDeviceType(filter.userId, filter.deviceType)
-    this.logger.info(
-      {
-        userId: filter.userId,
-        deviceType: filter.deviceType,
-        count,
-        action: 'revoke_device_sessions'
-      },
-      'Revoked device sessions'
-    )
-    return count
-  }
-
-  /**
    * Get active sessions for a user
    * @param userId - User ID
    * @param includeInactive - Include inactive sessions
@@ -365,45 +346,11 @@ export class SessionsService {
   }
 
   /**
-   * Handle concurrent session limit enforcement
-   * @param userId - User ID
-   * @returns Promise<void>
-   */
-  async handleConcurrentSessions(userId: string): Promise<void> {
-    const activeCount = await this.sessionRepository.getActiveSessionCount(userId)
-
-    if (activeCount > this.maxConcurrentSessions) {
-      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map(session =>
-        this.normalizeSessionDates(session)
-      )
-      const sortedSessions = sessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-
-      const toRevoke = sortedSessions.slice(0, activeCount - this.maxConcurrentSessions)
-
-      for (const session of toRevoke) {
-        await this.sessionRepository.revokeSession(session.id, 'concurrent_limit_enforcement')
-      }
-
-      this.logger.warn(
-        `Enforced concurrent session limit for user ${userId}: revoked ${toRevoke.length} oldest sessions`
-      )
-    }
-  }
-
-  /**
    * Get global device statistics
    * @returns Promise<object>
    */
   async getDeviceStats() {
     return this.sessionRepository.getDeviceStats()
-  }
-
-  /**
-   * Find suspicious sessions across the platform
-   * @returns Promise<Session[]>
-   */
-  async findSuspiciousSessions(): Promise<Session[]> {
-    return this.sessionRepository.findSuspiciousSessions()
   }
 
   /**
