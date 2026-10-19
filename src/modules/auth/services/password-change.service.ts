@@ -8,11 +8,11 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { EmailQueueService } from '@infrastructure/email'
 import { errorMessage } from '@shared/utils/error.util'
-import * as bcrypt from 'bcrypt'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { UsersService } from '@modules/users'
 
+import { PasswordHasher } from '@core/security'
 import { SentryService } from '@core/sentry'
 
 import { PasswordHistoryRepository } from '../repositories/password-history.repository'
@@ -25,6 +25,7 @@ import { SessionsService } from './sessions.service'
 @Injectable()
 export class PasswordChangeService {
   constructor(
+    private readonly passwordHasher: PasswordHasher,
     @InjectPinoLogger(PasswordChangeService.name)
     private readonly logger: PinoLogger,
     private readonly usersService: UsersService,
@@ -72,14 +73,14 @@ export class PasswordChangeService {
 
     // Verify current password
     const currentHash = await this.usersService.getPasswordHash(userId)
-    const passwordValid = !!currentHash && (await bcrypt.compare(currentPassword, currentHash))
+    const passwordValid = await this.passwordHasher.verify(currentPassword, currentHash)
     if (!passwordValid) {
       // 400, not 401: the caller is authenticated, and clients treat 401 as "log out"
       throw new BadRequestException('Current password is incorrect')
     }
 
     // Prevent reusing the same password
-    const samePassword = await bcrypt.compare(newPassword, currentHash)
+    const samePassword = await this.passwordHasher.verify(newPassword, currentHash)
     if (samePassword) {
       throw new BadRequestException('New password must be different from current password')
     }
@@ -130,8 +131,7 @@ export class PasswordChangeService {
     }
 
     // Hash new password
-    const salt = await bcrypt.genSalt(10)
-    const passwordHash = await bcrypt.hash(newPassword, salt)
+    const passwordHash = await this.passwordHasher.hash(newPassword)
 
     // Update user password and clear forcePasswordChange flag
     user.passwordHash = passwordHash

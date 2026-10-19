@@ -6,13 +6,14 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { EmailQueueService } from '@infrastructure/email'
-import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { RoleRepository } from '@modules/acl'
 import { EmailVerificationRepository, UserRepository } from '@modules/users'
 import { EmailVerification, User } from '@modules/users/entities'
+
+import { PasswordHasher } from '@core/security'
 
 import { RegisterUserDto } from '../dto/register.dto'
 
@@ -27,6 +28,7 @@ export class RegistrationService {
   private readonly appUrl: string
 
   constructor(
+    private readonly passwordHasher: PasswordHasher,
     private readonly userRepository: UserRepository,
     private readonly emailVerificationRepository: EmailVerificationRepository,
     private readonly roleRepository: RoleRepository,
@@ -57,8 +59,7 @@ export class RegistrationService {
     }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10)
-    const passwordHash = await bcrypt.hash(password, salt)
+    const passwordHash = await this.passwordHasher.hash(password)
 
     // Generate email verification token
     const emailVerificationToken = randomUUID()

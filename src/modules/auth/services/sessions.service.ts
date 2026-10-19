@@ -1,8 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
+import { hashTokenSecret } from '@core/security'
 
 import { Session, SessionTypeValue } from '../entities/session.entity'
 import { SessionRepository } from '../repositories/session.repository'
@@ -115,7 +116,7 @@ export class SessionsService {
     const tokenId = randomUUID()
     const tokenSecret = randomUUID()
     const refreshToken = `${tokenId}.${tokenSecret}`
-    const refreshTokenHash = await bcrypt.hash(tokenSecret, 10)
+    const refreshTokenHash = hashTokenSecret(tokenSecret)
 
     // Assess security risk
     const securityLevel = this.assessSecurityLevel({

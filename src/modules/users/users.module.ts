@@ -6,6 +6,8 @@ import { AclModule } from '@modules/acl'
 import { AttachmentsModule } from '@modules/attachments'
 import { AuditModule } from '@modules/audit'
 
+import { SecurityModule } from '@core/security'
+
 import { AdminUsersController } from './controllers/admin-users.controller'
 import { CurrentUserController } from './controllers/current-user.controller'
 import { UserRolesController } from './controllers/user-roles.controller'
@@ -26,6 +28,7 @@ import { UsersService } from './services/users.service'
     TypeOrmModule.forFeature([User, EmailVerification]),
     AclModule,
     AuditModule,
+    SecurityModule,
     EmailModule,
     AttachmentsModule
   ],

@@ -1,13 +1,13 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common'
 import { errorMessage } from '@shared/utils/error.util'
-import * as bcrypt from 'bcrypt'
-import { createHash, randomBytes } from 'crypto'
+import { createHash } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { UsersService } from '@modules/users'
 import { User } from '@modules/users/entities'
 
 import { MetricsService } from '@core/observability/metrics.service'
+import { PasswordHasher, verifyTokenSecret } from '@core/security'
 import { SentryService } from '@core/sentry'
 
 import type { SessionContext } from '../types/session-context'
@@ -16,12 +16,6 @@ import { AccessTokenService } from './access-token.service'
 import { AccountLockoutService } from './account-lockout.service'
 import { SessionsService } from './sessions.service'
 import { TokenBlacklistService } from './token-blacklist.service'
-
-/**
- * Hash of a random secret, compared against when the email is unknown. Same cost (10) as
- * the stored user passwords, so both failure paths take the same time.
- */
-const DUMMY_PASSWORD_HASH = bcrypt.hashSync(randomBytes(16).toString('hex'), 10)
 
 function hashEmail(email: string): string {
   return createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16)
@@ -47,16 +41,17 @@ export class AuthService {
     private readonly accountLockoutService: AccountLockoutService,
     private readonly accessTokenService: AccessTokenService,
     private readonly sentryService: SentryService,
-    private readonly metricsService: MetricsService
+    private readonly metricsService: MetricsService,
+    private readonly passwordHasher: PasswordHasher
   ) {}
 
   async validateUser(email: string, password: string, context?: SessionContext): Promise<User> {
     // Bypass cache to ensure we get User entity with methods (not plain object from cache)
     const user = await this.usersService.findByEmail(email, true)
     if (!user) {
-      // Spend the same bcrypt time as a wrong password, so response timing does not
+      // Spend the same hashing time as a wrong password, so response timing does not
       // reveal which emails are registered
-      await bcrypt.compare(password, DUMMY_PASSWORD_HASH)
+      await this.passwordHasher.verify(password, null)
       this.recordFailedLogin('user_not_found', { emailHash: hashEmail(email) }, context)
       throw new UnauthorizedException('Invalid credentials')
     }
@@ -74,7 +69,7 @@ export class AuthService {
     }
 
     const passwordHash = await this.usersService.getPasswordHash(user.id)
-    const passwordValid = !!passwordHash && (await bcrypt.compare(password, passwordHash))
+    const passwordValid = await this.passwordHasher.verify(password, passwordHash)
     if (!passwordValid) {
       // Record failed attempt and potentially lock account
       await this.accountLockoutService.recordFailedAttempt(user.id, context?.ipAddress)
@@ -108,8 +103,27 @@ export class AuthService {
 
     // Successful login - reset failed attempts counter
     await this.accountLockoutService.resetFailedAttempts(user.id)
+    await this.upgradePasswordHash(user.id, password, passwordHash)
 
     return user
+  }
+
+  /**
+   * Re-hashes a password stored at a lower cost than configured, while the plain password
+   * is at hand (the only moment it is). Best effort: a failure must not block the login.
+   */
+  private async upgradePasswordHash(
+    userId: string,
+    password: string,
+    passwordHash: string | null | undefined
+  ): Promise<void> {
+    if (!passwordHash || !this.passwordHasher.needsRehash(passwordHash)) return
+    try {
+      await this.usersService.storePasswordHash(userId, await this.passwordHasher.hash(password))
+      this.logger.info({ userId, rounds: this.passwordHasher.rounds }, 'Password hash upgraded')
+    } catch (error) {
+      this.logger.warn({ userId, error: errorMessage(error) }, 'Password hash upgrade failed')
+    }
   }
 
   /**
@@ -207,7 +221,7 @@ export class AuthService {
     const session = validationResult.session
 
     // Verify refresh token secret
-    const isValid = await bcrypt.compare(tokenSecret, session.refreshTokenHash)
+    const isValid = await verifyTokenSecret(tokenSecret, session.refreshTokenHash)
     if (!isValid) {
       await this.sessionsService.revokeSession(tokenId, 'invalid_token_secret')
       throw new UnauthorizedException('Invalid refresh token')
@@ -277,7 +291,7 @@ export class AuthService {
     }
 
     // Verify refresh token secret
-    const isValid = await bcrypt.compare(tokenSecret, session.refreshTokenHash)
+    const isValid = await verifyTokenSecret(tokenSecret, session.refreshTokenHash)
     if (!isValid) {
       await this.sessionsService.revokeSession(tokenId, 'invalid_token_secret')
       throw new UnauthorizedException('Invalid refresh token')

@@ -1,6 +1,8 @@
 import { isLocalEnvironment } from '@shared/utils/environment'
 import { parseTrustProxy } from '@shared/utils/request.util'
 
+import { DEFAULT_BCRYPT_ROUNDS } from '../security/password-hasher'
+
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (value === undefined) {
     return fallback
@@ -102,6 +104,7 @@ export default () => {
       enableBreachDetection: parseBoolean(process.env.ENABLE_BREACH_DETECTION, true)
     },
     security: {
+      bcryptRounds: parseNumber(process.env.BCRYPT_ROUNDS, DEFAULT_BCRYPT_ROUNDS),
       accountLockout: {
         enabled: parseBoolean(process.env.ACCOUNT_LOCKOUT_ENABLED, true),
         maxAttempts: parseNumber(process.env.ACCOUNT_LOCKOUT_MAX_ATTEMPTS, 5),

@@ -13,6 +13,7 @@ import { UsersModule } from '@modules/users'
 
 import { MetricsModule } from '@core/observability/metrics.module'
 import { QueueName } from '@core/queues/jobs/types'
+import { SecurityModule } from '@core/security'
 
 import { AuthController } from './controllers/auth.controller'
 import { CleanupStatsController } from './controllers/cleanup-stats.controller'
@@ -45,6 +46,7 @@ import {
   imports: [
     AclModule,
     UsersModule,
+    SecurityModule,
     EmailModule,
     MetricsModule,
     AuditModule,

@@ -27,6 +27,8 @@ export const testConfig = {
     port: parseInt(process.env.TEST_REDIS_PORT || '6379', 10),
     db: parseInt(process.env.TEST_REDIS_DB || '15', 10) // Use DB 15 for tests
   },
+  // Lowest bcrypt cost: hashing speed is not under test here
+  security: { bcryptRounds: 4 },
   auth: {
     jwtSecret: 'test-secret-key-do-not-use-in-production',
     jwtRefreshSecret: 'test-refresh-secret-key',

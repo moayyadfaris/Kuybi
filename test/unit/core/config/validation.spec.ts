@@ -19,6 +19,16 @@ describe('assertProductionSecrets', () => {
     expect(() => assertProductionSecrets({ NODE_ENV: 'production', ...deployed })).not.toThrow()
   })
 
+  it('rejects a bcrypt cost below 10 outside development/test', () => {
+    expect(() =>
+      assertProductionSecrets({ NODE_ENV: 'production', ...deployed, BCRYPT_ROUNDS: 8 })
+    ).toThrow(/BCRYPT_ROUNDS must be at least 10/)
+    expect(() =>
+      assertProductionSecrets({ NODE_ENV: 'production', ...deployed, BCRYPT_ROUNDS: 12 })
+    ).not.toThrow()
+    expect(() => assertProductionSecrets({ NODE_ENV: 'test', BCRYPT_ROUNDS: 4 })).not.toThrow()
+  })
+
   it('applies to staging too, not only production', () => {
     expect(() => assertProductionSecrets({ NODE_ENV: 'staging' })).toThrow(
       /Insecure staging configuration[\s\S]*JWT_SECRET is required in staging/
