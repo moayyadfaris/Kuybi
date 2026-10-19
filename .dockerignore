@@ -3,7 +3,6 @@ dist
 coverage
 logs
 test
-todo-docs
 docs
 .git
 .github

@@ -22,11 +22,14 @@ Welcome to the Kuybi NestJS API documentation. This directory contains comprehen
 
 How the system is built and why.
 
-| Document                                          | Description                                                                                                 |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| [Architecture overview](./architecture/README.md) | **⭐ START HERE** - layers, modules, the rules and how CI enforces them                                     |
-| [Decision records](./adr/README.md)               | Why: modular monolith, data access and caching, outbox, idempotency, events, config, HTTP pipeline, uploads |
-| [Archive (2025)](./archive/2025/README.md)        | Earlier designs and completion reports; historical, not current                                             |
+| Document                                                     | Description                                                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| [Architecture overview](./architecture/README.md)            | **⭐ START HERE** - layers, modules, the rules and how CI enforces them                                     |
+| [Decision records](./adr/README.md)                          | Why: modular monolith, data access and caching, outbox, idempotency, events, config, HTTP pipeline, uploads |
+| [Enterprise audit (Aug 2026)](./ENTERPRISE_AUDIT_2026-08.md) | Security and architecture audit, with current status of each finding                                        |
+| [Go services analysis](./planning/GO_SERVICE_ANALYSIS.md)    | Which workloads belong in Go (only media processing; evaluate imgproxy first)                               |
+| [Product](./product/README.md)                               | Product strategy: opportunities, DAM, overview                                                              |
+| [Archive (2025)](./archive/2025/README.md)                   | Earlier designs and completion reports; historical, not current                                             |
 
 ---
 
