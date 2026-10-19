@@ -16,6 +16,8 @@ import { QueueName } from '@core/queues/jobs/types'
 
 import { AuthController } from './controllers/auth.controller'
 import { CleanupStatsController } from './controllers/cleanup-stats.controller'
+import { PasswordController } from './controllers/password.controller'
+import { RegistrationController } from './controllers/registration.controller'
 import { SessionsController } from './controllers/sessions.controller'
 import { PasswordHistory } from './entities/password-history.entity'
 import { PasswordReset } from './entities/password-reset.entity'
@@ -63,7 +65,13 @@ import {
       })
     })
   ],
-  controllers: [AuthController, SessionsController, CleanupStatsController],
+  controllers: [
+    AuthController,
+    RegistrationController,
+    PasswordController,
+    SessionsController,
+    CleanupStatsController
+  ],
   providers: [
     AuthService,
     PasswordPolicyService,

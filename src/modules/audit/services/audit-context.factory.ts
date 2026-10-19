@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { clientIp } from '@shared/utils/request.util'
 import { Request } from 'express'
 
 import { ContextUser } from '../types/context-user.interface'
@@ -111,16 +112,7 @@ export class AuditContextFactory {
   }
 
   private extractIpAddress(req: Request): string {
-    const forwardedFor = req.get('x-forwarded-for')
-    if (forwardedFor) {
-      return forwardedFor.split(',')[0].trim()
-    }
-
-    const realIp = req.get('x-real-ip')
-    if (realIp) {
-      return realIp
-    }
-
-    return req.ip || req.socket.remoteAddress || 'unknown'
+    // X-Forwarded-For only through trusted proxies (see clientIp)
+    return clientIp(req) ?? 'unknown'
   }
 }
