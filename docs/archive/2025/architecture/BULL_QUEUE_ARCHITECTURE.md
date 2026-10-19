@@ -7,6 +7,7 @@ This document outlines a comprehensive enterprise-grade architecture for impleme
 ### Current State Analysis
 
 **Identified Background Jobs:**
+
 1. **Session Cleanup** - Runs every hour (`@Cron(CronExpression.EVERY_HOUR)`)
 2. **Session Expiration Check** - Runs every 30 minutes
 3. **Log Rotation** - Runs daily at midnight + interval-based checks
@@ -18,28 +19,33 @@ This document outlines a comprehensive enterprise-grade architecture for impleme
 ### Proposed Architecture Benefits
 
 ✅ **Separation of Concerns**
+
 - Main app handles only HTTP requests/responses
 - Workers handle all time-consuming operations
 - Clear boundaries between services
 
 ✅ **Scalability**
+
 - Scale workers independently from API servers
 - Add more workers for high-load jobs
 - Different worker pools for different job types
 
 ✅ **Reliability**
+
 - Job persistence in Redis
 - Automatic retry with exponential backoff
 - Dead letter queue for failed jobs
 - Job priority and rate limiting
 
 ✅ **Observability**
+
 - Centralized Bull Board dashboard
 - Real-time job monitoring
 - Performance metrics and analytics
 - Failed job tracking and debugging
 
 ✅ **Resource Optimization**
+
 - CPU-intensive jobs don't block API responses
 - Better memory management
 - Configurable concurrency per job type
@@ -125,7 +131,7 @@ export enum QueueName {
   NOTIFICATION = 'notification-queue',
   SECURITY_SCAN = 'security-scan-queue',
   DATA_EXPORT = 'data-export-queue',
-  REPORT_GENERATION = 'report-generation-queue',
+  REPORT_GENERATION = 'report-generation-queue'
 }
 
 // Job types per queue
@@ -133,21 +139,21 @@ export enum SessionCleanupJobType {
   CLEANUP_EXPIRED = 'cleanup-expired-sessions',
   CHECK_EXPIRING = 'check-expiring-sessions',
   CHECK_SUSPICIOUS = 'check-suspicious-sessions',
-  REMOVE_ORPHANED = 'remove-orphaned-sessions',
+  REMOVE_ORPHANED = 'remove-orphaned-sessions'
 }
 
 export enum LogMaintenanceJobType {
   ROTATE_LOGS = 'rotate-logs',
   CLEANUP_ARCHIVES = 'cleanup-archives',
   SHIP_LOGS = 'ship-logs-remote',
-  CHECK_SIZE = 'check-log-size',
+  CHECK_SIZE = 'check-log-size'
 }
 
 export enum EmailJobType {
   SEND_WELCOME = 'send-welcome-email',
   SEND_PASSWORD_RESET = 'send-password-reset',
   SEND_NOTIFICATION = 'send-notification-email',
-  SEND_BULK = 'send-bulk-email',
+  SEND_BULK = 'send-bulk-email'
 }
 
 export enum AttachmentJobType {
@@ -155,7 +161,7 @@ export enum AttachmentJobType {
   GENERATE_THUMBNAILS = 'generate-thumbnails',
   VIRUS_SCAN = 'virus-scan',
   CLEANUP_ORPHANED = 'cleanup-orphaned-files',
-  EXTRACT_METADATA = 'extract-metadata',
+  EXTRACT_METADATA = 'extract-metadata'
 }
 ```
 
@@ -171,7 +177,7 @@ export const queueConfig = {
     password: process.env.REDIS_PASSWORD,
     db: parseInt(process.env.REDIS_QUEUE_DB || '1'), // Separate DB for queues
     maxRetriesPerRequest: null,
-    enableReadyCheck: false,
+    enableReadyCheck: false
   },
 
   // Default queue options
@@ -179,16 +185,16 @@ export const queueConfig = {
     attempts: 3,
     backoff: {
       type: 'exponential',
-      delay: 2000, // 2 seconds initial delay
+      delay: 2000 // 2 seconds initial delay
     },
     removeOnComplete: {
       age: 24 * 3600, // Keep completed jobs for 24 hours
-      count: 1000, // Keep last 1000 completed jobs
+      count: 1000 // Keep last 1000 completed jobs
     },
     removeOnFail: {
       age: 7 * 24 * 3600, // Keep failed jobs for 7 days
-      count: 5000, // Keep last 5000 failed jobs
-    },
+      count: 5000 // Keep last 5000 failed jobs
+    }
   },
 
   // Queue-specific configurations
@@ -196,42 +202,42 @@ export const queueConfig = {
     [QueueName.SESSION_CLEANUP]: {
       limiter: {
         max: 100, // Max 100 jobs
-        duration: 60000, // Per minute
+        duration: 60000 // Per minute
       },
       defaultJobOptions: {
-        priority: 5, // Medium-high priority
-      },
+        priority: 5 // Medium-high priority
+      }
     },
     [QueueName.LOG_MAINTENANCE]: {
       limiter: {
         max: 50,
-        duration: 60000,
+        duration: 60000
       },
       defaultJobOptions: {
-        priority: 3, // Medium priority
-      },
+        priority: 3 // Medium priority
+      }
     },
     [QueueName.EMAIL]: {
       limiter: {
         max: 500, // Higher throughput for emails
-        duration: 60000,
+        duration: 60000
       },
       defaultJobOptions: {
         priority: 7, // High priority
-        attempts: 5, // More retries for emails
-      },
+        attempts: 5 // More retries for emails
+      }
     },
     [QueueName.ATTACHMENT_PROCESSING]: {
       limiter: {
         max: 20, // CPU intensive, lower limit
-        duration: 60000,
+        duration: 60000
       },
       defaultJobOptions: {
         priority: 4,
-        timeout: 300000, // 5 minutes timeout
-      },
-    },
-  },
+        timeout: 300000 // 5 minutes timeout
+      }
+    }
+  }
 }
 ```
 
@@ -295,9 +301,9 @@ nest-app/
 {
   "dependencies": {
     "@nestjs/bull": "^10.2.1",
-    "@nestjs/bullmq": "^10.2.1",          // Modern Bull alternative
+    "@nestjs/bullmq": "^10.2.1", // Modern Bull alternative
     "bull": "^4.12.9",
-    "bullmq": "^5.15.0",                   // Modern Bull (recommended)
+    "bullmq": "^5.15.0", // Modern Bull (recommended)
     "@bull-board/api": "^6.3.0",
     "@bull-board/express": "^6.3.0",
     "@bull-board/nestjs": "^6.3.0"
@@ -345,10 +351,10 @@ const isWorkerMode = process.env.APP_MODE === 'worker'
           host: configService.get('redis.host'),
           port: configService.get('redis.port'),
           password: configService.get('redis.password'),
-          db: configService.get('redis.queueDb', 1),
-        },
+          db: configService.get('redis.queueDb', 1)
+        }
       }),
-      inject: [ConfigService],
+      inject: [ConfigService]
     }),
 
     // Register individual queues
@@ -356,8 +362,8 @@ const isWorkerMode = process.env.APP_MODE === 'worker'
       { name: QueueName.SESSION_CLEANUP },
       { name: QueueName.LOG_MAINTENANCE },
       { name: QueueName.EMAIL },
-      { name: QueueName.ATTACHMENT_PROCESSING },
-    ),
+      { name: QueueName.ATTACHMENT_PROCESSING }
+    )
   ],
   providers: [
     // Producers (always available for API to enqueue jobs)
@@ -372,15 +378,11 @@ const isWorkerMode = process.env.APP_MODE === 'worker'
           LogMaintenanceProcessor,
           EmailProcessor,
           SessionCleanupScheduler,
-          LogMaintenanceScheduler,
+          LogMaintenanceScheduler
         ]
-      : []),
+      : [])
   ],
-  exports: [
-    SessionCleanupProducer,
-    LogMaintenanceProducer,
-    EmailProducer,
-  ],
+  exports: [SessionCleanupProducer, LogMaintenanceProducer, EmailProducer]
 })
 export class QueuesModule {}
 ```
@@ -406,9 +408,9 @@ export class SessionCleanupProducer {
   constructor(
     @InjectQueue(QueueName.SESSION_CLEANUP)
     private readonly sessionCleanupQueue: Queue,
-    
+
     @InjectPinoLogger(SessionCleanupProducer.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {}
 
   /**
@@ -421,19 +423,15 @@ export class SessionCleanupProducer {
       'Enqueueing session cleanup job'
     )
 
-    const job = await this.sessionCleanupQueue.add(
-      SessionCleanupJobType.CLEANUP_EXPIRED,
-      data,
-      {
-        priority: 5,
-        removeOnComplete: { age: 3600, count: 100 },
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
+    const job = await this.sessionCleanupQueue.add(SessionCleanupJobType.CLEANUP_EXPIRED, data, {
+      priority: 5,
+      removeOnComplete: { age: 3600, count: 100 },
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000
       }
-    )
+    })
 
     this.logger.debug({ jobId: job.id }, 'Session cleanup job enqueued')
     return job
@@ -446,7 +444,7 @@ export class SessionCleanupProducer {
     return this.scheduleCleanupExpired({
       olderThanDays,
       triggeredBy: userId,
-      reason: 'manual',
+      reason: 'manual'
     })
   }
 
@@ -459,7 +457,7 @@ export class SessionCleanupProducer {
       { withinMinutes },
       {
         priority: 6,
-        removeOnComplete: { age: 1800 },
+        removeOnComplete: { age: 1800 }
       }
     )
 
@@ -485,30 +483,30 @@ import { QueueName, SessionCleanupJobType } from '../jobs/types'
   concurrency: 5, // Process 5 jobs concurrently
   limiter: {
     max: 100,
-    duration: 60000, // Max 100 jobs per minute
-  },
+    duration: 60000 // Max 100 jobs per minute
+  }
 })
 @Injectable()
 export class SessionCleanupProcessor extends WorkerHost {
   constructor(
     @InjectPinoLogger(SessionCleanupProcessor.name)
     private readonly logger: PinoLogger,
-    
+
     private readonly sessionsService: SessionsService,
-    private readonly sessionRepository: SessionRepository,
+    private readonly sessionRepository: SessionRepository
   ) {
     super()
   }
 
   async process(job: Job): Promise<any> {
     const startTime = Date.now()
-    
+
     this.logger.info(
       {
         jobId: job.id,
         jobName: job.name,
         attempt: job.attemptsMade + 1,
-        data: job.data,
+        data: job.data
       },
       'Processing session cleanup job'
     )
@@ -540,7 +538,7 @@ export class SessionCleanupProcessor extends WorkerHost {
           jobId: job.id,
           jobName: job.name,
           duration,
-          result,
+          result
         },
         'Session cleanup job completed'
       )
@@ -552,7 +550,7 @@ export class SessionCleanupProcessor extends WorkerHost {
           jobId: job.id,
           jobName: job.name,
           error: error.message,
-          stack: error.stack,
+          stack: error.stack
         },
         'Session cleanup job failed'
       )
@@ -562,10 +560,8 @@ export class SessionCleanupProcessor extends WorkerHost {
 
   private async handleCleanupExpired(job: Job) {
     const { olderThanDays } = job.data
-    
-    const result = await this.sessionsService.cleanupExpiredSessions(
-      olderThanDays
-    )
+
+    const result = await this.sessionsService.cleanupExpiredSessions(olderThanDays)
 
     // Update job progress
     await job.updateProgress(100)
@@ -575,16 +571,11 @@ export class SessionCleanupProcessor extends WorkerHost {
 
   private async handleCheckExpiring(job: Job) {
     const { withinMinutes } = job.data
-    
-    const expiringSoon = await this.sessionRepository.findExpiringSoon(
-      withinMinutes
-    )
+
+    const expiringSoon = await this.sessionRepository.findExpiringSoon(withinMinutes)
 
     if (expiringSoon.length > 0) {
-      this.logger.warn(
-        { count: expiringSoon.length, withinMinutes },
-        'Sessions expiring soon'
-      )
+      this.logger.warn({ count: expiringSoon.length, withinMinutes }, 'Sessions expiring soon')
     }
 
     return { checked: expiringSoon.length }
@@ -594,10 +585,7 @@ export class SessionCleanupProcessor extends WorkerHost {
     const suspicious = await this.sessionRepository.findSuspiciousSessions()
 
     if (suspicious.length > 0) {
-      this.logger.warn(
-        { count: suspicious.length },
-        'Suspicious sessions detected'
-      )
+      this.logger.warn({ count: suspicious.length }, 'Suspicious sessions detected')
     }
 
     return { suspicious: suspicious.length }
@@ -623,8 +611,8 @@ export class SessionCleanupScheduler {
   constructor(
     @InjectPinoLogger(SessionCleanupScheduler.name)
     private readonly logger: PinoLogger,
-    
-    private readonly sessionCleanupProducer: SessionCleanupProducer,
+
+    private readonly sessionCleanupProducer: SessionCleanupProducer
   ) {}
 
   /**
@@ -634,17 +622,14 @@ export class SessionCleanupScheduler {
   @Cron(CronExpression.EVERY_HOUR)
   async scheduleHourlyCleanup() {
     this.logger.info('Scheduling hourly session cleanup job')
-    
+
     try {
       await this.sessionCleanupProducer.scheduleCleanupExpired({
         olderThanDays: 30,
-        reason: 'scheduled_hourly',
+        reason: 'scheduled_hourly'
       })
     } catch (error) {
-      this.logger.error(
-        { error: error.message },
-        'Failed to schedule cleanup job'
-      )
+      this.logger.error({ error: error.message }, 'Failed to schedule cleanup job')
     }
   }
 
@@ -654,14 +639,11 @@ export class SessionCleanupScheduler {
   @Cron(CronExpression.EVERY_30_MINUTES)
   async scheduleExpiringCheck() {
     this.logger.info('Scheduling expiring sessions check')
-    
+
     try {
       await this.sessionCleanupProducer.scheduleCheckExpiring(60)
     } catch (error) {
-      this.logger.error(
-        { error: error.message },
-        'Failed to schedule expiring check'
-      )
+      this.logger.error({ error: error.message }, 'Failed to schedule expiring check')
     }
   }
 }
@@ -680,7 +662,7 @@ async function bootstrap() {
   process.env.APP_MODE = 'worker'
 
   const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
+    bufferLogs: true
   })
 
   const logger = app.get(PinoLogger)
@@ -723,14 +705,14 @@ async function bootstrap() {
     host: configService.get('redis.host'),
     port: configService.get('redis.port'),
     password: configService.get('redis.password'),
-    db: configService.get('redis.queueDb', 1),
+    db: configService.get('redis.queueDb', 1)
   }
 
   const queues = [
     new Queue('session-cleanup-queue', { connection }),
     new Queue('log-maintenance-queue', { connection }),
     new Queue('email-queue', { connection }),
-    new Queue('attachment-processing-queue', { connection }),
+    new Queue('attachment-processing-queue', { connection })
   ]
 
   // Create Bull Board
@@ -739,7 +721,7 @@ async function bootstrap() {
 
   createBullBoard({
     queues: queues.map(queue => new BullMQAdapter(queue)),
-    serverAdapter,
+    serverAdapter
   })
 
   const dashboardApp = express()
@@ -752,7 +734,7 @@ async function bootstrap() {
     '/admin/queues',
     basicAuth({
       users: { [username]: password },
-      challenge: true,
+      challenge: true
     })
   )
 
@@ -786,14 +768,14 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         APP_MODE: 'api',
-        PORT: 4040,
+        PORT: 4040
       },
       error_file: './logs/pm2/api-error.log',
       out_file: './logs/pm2/api-out.log',
       merge_logs: true,
       max_memory_restart: '1G',
       min_uptime: '10s',
-      max_restarts: 10,
+      max_restarts: 10
     },
 
     // ============================================
@@ -807,12 +789,12 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         APP_MODE: 'worker',
-        WORKER_TYPE: 'session-cleanup',
+        WORKER_TYPE: 'session-cleanup'
       },
       error_file: './logs/pm2/worker-session-error.log',
       out_file: './logs/pm2/worker-session-out.log',
       merge_logs: true,
-      max_memory_restart: '512M',
+      max_memory_restart: '512M'
     },
 
     {
@@ -823,11 +805,11 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         APP_MODE: 'worker',
-        WORKER_TYPE: 'log-maintenance',
+        WORKER_TYPE: 'log-maintenance'
       },
       error_file: './logs/pm2/worker-log-error.log',
       out_file: './logs/pm2/worker-log-out.log',
-      max_memory_restart: '512M',
+      max_memory_restart: '512M'
     },
 
     {
@@ -838,11 +820,11 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         APP_MODE: 'worker',
-        WORKER_TYPE: 'email',
+        WORKER_TYPE: 'email'
       },
       error_file: './logs/pm2/worker-email-error.log',
       out_file: './logs/pm2/worker-email-out.log',
-      max_memory_restart: '512M',
+      max_memory_restart: '512M'
     },
 
     {
@@ -853,11 +835,11 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         APP_MODE: 'worker',
-        WORKER_TYPE: 'attachment',
+        WORKER_TYPE: 'attachment'
       },
       error_file: './logs/pm2/worker-attachment-error.log',
       out_file: './logs/pm2/worker-attachment-out.log',
-      max_memory_restart: '1G', // Higher memory for image processing
+      max_memory_restart: '1G' // Higher memory for image processing
     },
 
     // ============================================
@@ -870,13 +852,13 @@ module.exports = {
       exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
-        PORT: 3001,
+        PORT: 3001
       },
       error_file: './logs/pm2/dashboard-error.log',
       out_file: './logs/pm2/dashboard-out.log',
-      max_memory_restart: '256M',
-    },
-  ],
+      max_memory_restart: '256M'
+    }
+  ]
 }
 ```
 
@@ -885,18 +867,21 @@ module.exports = {
 #### Phase 1: Infrastructure Setup (Week 1)
 
 **Day 1-2: Install Dependencies**
+
 ```bash
 npm install @nestjs/bullmq bullmq @bull-board/api @bull-board/express @bull-board/nestjs
 npm install --save-dev @types/bull
 ```
 
 **Day 3-4: Create Queue Module**
+
 - Create `src/queues/` directory structure
 - Implement `QueuesModule` with basic configuration
 - Set up Redis connection for queues (separate DB)
 - Create base producer and processor classes
 
 **Day 5: Bull Board Dashboard**
+
 - Implement `src/dashboard.ts`
 - Set up basic auth
 - Test with dummy queue
@@ -904,16 +889,19 @@ npm install --save-dev @types/bull
 #### Phase 2: Migrate Session Cleanup (Week 2)
 
 **Day 1-2: Create Queue Infrastructure**
+
 - Implement `SessionCleanupProducer`
 - Implement `SessionCleanupProcessor`
 - Create `SessionCleanupScheduler`
 
 **Day 3: Refactor Service**
+
 - Remove `@Cron` decorators from `SessionCleanupService`
 - Replace direct execution with producer calls
 - Update service to be queue-aware
 
 **Day 4-5: Testing**
+
 - Unit tests for producer/processor
 - Integration tests with Redis
 - Performance testing
@@ -922,6 +910,7 @@ npm install --save-dev @types/bull
 #### Phase 3: Migrate Log Maintenance (Week 3)
 
 Follow same pattern as Session Cleanup:
+
 - Create `LogMaintenanceProducer`
 - Create `LogMaintenanceProcessor`
 - Create `LogMaintenanceScheduler`
@@ -931,17 +920,20 @@ Follow same pattern as Session Cleanup:
 #### Phase 4: PM2 Setup (Week 4)
 
 **Day 1-2: Worker Entry Points**
+
 - Implement `src/worker.ts`
 - Implement worker selection logic
 - Test worker modes
 
 **Day 3-4: PM2 Configuration**
+
 - Create `ecosystem.config.js`
 - Configure all apps (API + workers + dashboard)
 - Set up log rotation for PM2
 - Configure auto-restart strategies
 
 **Day 5: Deployment Testing**
+
 - Test with PM2 locally
 - Verify all workers process jobs
 - Monitor dashboard
@@ -968,24 +960,18 @@ import { Queue } from 'bullmq'
 export class QueueMetricsService {
   constructor(
     @InjectQueue('session-cleanup-queue')
-    private readonly sessionQueue: Queue,
+    private readonly sessionQueue: Queue
   ) {}
 
   async getQueueMetrics(queueName: string) {
     const queue = this[`${queueName}Queue`]
-    
-    const [
-      waiting,
-      active,
-      completed,
-      failed,
-      delayed,
-    ] = await Promise.all([
+
+    const [waiting, active, completed, failed, delayed] = await Promise.all([
       queue.getWaitingCount(),
       queue.getActiveCount(),
       queue.getCompletedCount(),
       queue.getFailedCount(),
-      queue.getDelayedCount(),
+      queue.getDelayedCount()
     ])
 
     return {
@@ -996,9 +982,9 @@ export class QueueMetricsService {
         completed,
         failed,
         delayed,
-        total: waiting + active + completed + failed + delayed,
+        total: waiting + active + completed + failed + delayed
       },
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     }
   }
 
@@ -1014,11 +1000,7 @@ export class QueueMetricsService {
 ```typescript
 // src/health/queue-health.indicator.ts
 import { Injectable } from '@nestjs/common'
-import {
-  HealthIndicator,
-  HealthIndicatorResult,
-  HealthCheckError,
-} from '@nestjs/terminus'
+import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
 
@@ -1026,7 +1008,7 @@ import { Queue } from 'bullmq'
 export class QueueHealthIndicator extends HealthIndicator {
   constructor(
     @InjectQueue('session-cleanup-queue')
-    private readonly sessionQueue: Queue,
+    private readonly sessionQueue: Queue
   ) {
     super()
   }
@@ -1039,7 +1021,7 @@ export class QueueHealthIndicator extends HealthIndicator {
 
     const result = this.getStatus(key, isHealthy, {
       active: activeCount,
-      failed: failedCount,
+      failed: failedCount
     })
 
     if (isHealthy) {
@@ -1055,6 +1037,7 @@ export class QueueHealthIndicator extends HealthIndicator {
 #### 7.1 Job Design Principles
 
 ✅ **Idempotent Jobs**: Jobs should be safe to retry
+
 ```typescript
 // BAD: Not idempotent
 async cleanupSession(sessionId: string) {
@@ -1067,7 +1050,7 @@ async cleanupSession(sessionId: string) {
 async cleanupSession(sessionId: string) {
   const session = await this.sessionRepo.findById(sessionId)
   if (!session) return { alreadyDeleted: true }
-  
+
   await this.sessionRepo.delete(sessionId)
   await this.cacheService.delete(sessionId).catch(() => {})
   return { deleted: true }
@@ -1075,6 +1058,7 @@ async cleanupSession(sessionId: string) {
 ```
 
 ✅ **Small Job Payloads**: Keep data minimal
+
 ```typescript
 // BAD: Large payload
 await queue.add('process-image', {
@@ -1090,6 +1074,7 @@ await queue.add('process-image', {
 ```
 
 ✅ **Proper Error Handling**
+
 ```typescript
 async process(job: Job) {
   try {
@@ -1144,6 +1129,7 @@ async process(job: Job) {
 #### Current State (In-Process Crons)
 
 ❌ **Cons:**
+
 - API responses blocked by background jobs
 - No job persistence (data loss on crash)
 - Can't scale workers independently
@@ -1153,12 +1139,14 @@ async process(job: Job) {
 - Single point of failure
 
 ✅ **Pros:**
+
 - Simple to implement
 - No additional infrastructure
 
 #### Proposed State (Bull Queues + PM2)
 
 ✅ **Pros:**
+
 - **Performance**: API server only handles requests (< 50ms response time)
 - **Reliability**: Jobs persist in Redis, survive crashes
 - **Scalability**: Scale workers independently (10x email workers vs 2x log workers)
@@ -1168,6 +1156,7 @@ async process(job: Job) {
 - **Deployment Flexibility**: Deploy API and workers separately
 
 ❌ **Cons:**
+
 - Additional complexity (more moving parts)
 - Redis dependency (already have it)
 - More processes to monitor (PM2 handles this)
@@ -1219,14 +1208,14 @@ async process(job: Job) {
 
 **Total: 5-6 weeks**
 
-| Week | Focus | Deliverables |
-|------|-------|--------------|
-| 1 | Infrastructure | Queue module, Bull Board, basic tests |
-| 2 | Session Cleanup | Producer, processor, scheduler, tests |
-| 3 | Log Maintenance | Producer, processor, scheduler, tests |
-| 4 | PM2 Setup | Worker entry, ecosystem config, deployment |
-| 5 | New Queues | Email, attachments, notifications |
-| 6 | Polish & Docs | Monitoring, alerts, documentation |
+| Week | Focus           | Deliverables                               |
+| ---- | --------------- | ------------------------------------------ |
+| 1    | Infrastructure  | Queue module, Bull Board, basic tests      |
+| 2    | Session Cleanup | Producer, processor, scheduler, tests      |
+| 3    | Log Maintenance | Producer, processor, scheduler, tests      |
+| 4    | PM2 Setup       | Worker entry, ecosystem config, deployment |
+| 5    | New Queues      | Email, attachments, notifications          |
+| 6    | Polish & Docs   | Monitoring, alerts, documentation          |
 
 ---
 

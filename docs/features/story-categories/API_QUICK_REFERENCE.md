@@ -9,6 +9,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 Get your token by logging in:
+
 ```bash
 curl -X POST http://localhost:4040/api/v1/auth/login \
   -H "Content-Type: application/json" \
@@ -22,6 +23,7 @@ curl -X POST http://localhost:4040/api/v1/auth/login \
 ### 1. Create Story with Categories
 
 **Request:**
+
 ```bash
 POST /api/v1/stories
 Content-Type: application/json
@@ -41,6 +43,7 @@ Authorization: Bearer {token}
 ```
 
 **Response:** `201 Created`
+
 ```json
 {
   "id": 123,
@@ -60,6 +63,7 @@ Authorization: Bearer {token}
 ### 2. Update Story Categories
 
 **Request:**
+
 ```bash
 PATCH /api/v1/stories/123
 Content-Type: application/json
@@ -79,6 +83,7 @@ Authorization: Bearer {token}
 ### 3. Attach Categories to Story
 
 **Request:**
+
 ```bash
 POST /api/v1/stories/123/categories
 Content-Type: application/json
@@ -93,6 +98,7 @@ Authorization: Bearer {token}
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "id": 123,
@@ -105,6 +111,7 @@ Authorization: Bearer {token}
 ```
 
 **Features:**
+
 - Adds to existing categories (doesn't replace)
 - Automatically prevents duplicates
 - Returns updated story with all categories
@@ -114,6 +121,7 @@ Authorization: Bearer {token}
 ### 4. Detach Categories from Story
 
 **Request:**
+
 ```bash
 DELETE /api/v1/stories/123/categories
 Content-Type: application/json
@@ -127,13 +135,12 @@ Authorization: Bearer {token}
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "id": 123,
   "title": "Story Title",
-  "categories": [
-    { "id": "...", "name": "Science" }
-  ]
+  "categories": [{ "id": "...", "name": "Science" }]
 }
 ```
 
@@ -142,11 +149,13 @@ Authorization: Bearer {token}
 ### 5. Get Story Categories
 
 **Request:**
+
 ```bash
 GET /api/v1/stories/123/categories
 ```
 
 **Response:** `200 OK`
+
 ```json
 [
   {
@@ -167,6 +176,7 @@ GET /api/v1/stories/123/categories
 ## cURL Examples
 
 ### Create Story with Categories
+
 ```bash
 curl -X POST http://localhost:4040/api/v1/stories \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -184,6 +194,7 @@ curl -X POST http://localhost:4040/api/v1/stories \
 ```
 
 ### Attach Categories
+
 ```bash
 curl -X POST http://localhost:4040/api/v1/stories/123/categories \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -197,6 +208,7 @@ curl -X POST http://localhost:4040/api/v1/stories/123/categories \
 ```
 
 ### Detach Categories
+
 ```bash
 curl -X DELETE http://localhost:4040/api/v1/stories/123/categories \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -209,6 +221,7 @@ curl -X DELETE http://localhost:4040/api/v1/stories/123/categories \
 ```
 
 ### Get Story Categories
+
 ```bash
 curl -X GET http://localhost:4040/api/v1/stories/123/categories
 ```
@@ -222,6 +235,7 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 **Type:** `string[]` (array of UUID v4)
 
 **Constraints:**
+
 - Each UUID must be valid v4 format
 - Minimum: 1 item (for attach/detach operations)
 - Maximum: 20 items
@@ -231,20 +245,19 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 **Examples:**
 
 ✅ **Valid:**
+
 ```json
 {
-  "categoryIds": [
-    "550e8400-e29b-41d4-a716-446655440000",
-    "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-  ]
+  "categoryIds": ["550e8400-e29b-41d4-a716-446655440000", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"]
 }
 ```
 
 ❌ **Invalid:**
+
 ```json
 {
   "categoryIds": [
-    "invalid-uuid",  // Not UUID v4 format
+    "invalid-uuid", // Not UUID v4 format
     "550e8400-e29b-41d4-a716-446655440000"
   ]
 }
@@ -255,6 +268,7 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 ## Error Responses
 
 ### 400 Bad Request
+
 ```json
 {
   "statusCode": 400,
@@ -264,12 +278,14 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 ```
 
 **Causes:**
+
 - Invalid UUID format
 - Category doesn't exist
 - Category is inactive/deleted
 - Exceeds 20 categories limit
 
 ### 401 Unauthorized
+
 ```json
 {
   "statusCode": 401,
@@ -278,11 +294,13 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 ```
 
 **Causes:**
+
 - Missing JWT token
 - Invalid JWT token
 - Expired JWT token
 
 ### 403 Forbidden
+
 ```json
 {
   "statusCode": 403,
@@ -292,11 +310,13 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 ```
 
 **Causes:**
+
 - Not the story owner
 - Insufficient permissions
 - ACL check failed
 
 ### 404 Not Found
+
 ```json
 {
   "statusCode": 404,
@@ -306,6 +326,7 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 ```
 
 **Causes:**
+
 - Story doesn't exist
 - Story is soft-deleted
 
@@ -315,29 +336,30 @@ curl -X GET http://localhost:4040/api/v1/stories/123/categories
 
 ### Required Permissions
 
-| Endpoint | Permission |
-|----------|------------|
-| POST /stories | `Action.Create` on `Subject.Story` |
-| PATCH /stories/:id | `Action.Update` on `Subject.Story` |
-| POST /stories/:id/categories | `Action.Update` on `Subject.Story` |
+| Endpoint                       | Permission                         |
+| ------------------------------ | ---------------------------------- |
+| POST /stories                  | `Action.Create` on `Subject.Story` |
+| PATCH /stories/:id             | `Action.Update` on `Subject.Story` |
+| POST /stories/:id/categories   | `Action.Update` on `Subject.Story` |
 | DELETE /stories/:id/categories | `Action.Update` on `Subject.Story` |
-| GET /stories/:id/categories | None (public) |
+| GET /stories/:id/categories    | None (public)                      |
 
 ### Role Capabilities
 
-| Role | Can Create | Can Update | Can Attach | Can Detach | Can View |
-|------|-----------|------------|------------|------------|----------|
-| super-admin | ✅ | ✅ All | ✅ All | ✅ All | ✅ |
-| admin | ✅ | ✅ All | ✅ All | ✅ All | ✅ |
-| moderator | ✅ | ✅ All | ✅ All | ✅ All | ✅ |
-| user | ✅ | ✅ Own | ✅ Own | ✅ Own | ✅ |
-| guest | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Role        | Can Create | Can Update | Can Attach | Can Detach | Can View |
+| ----------- | ---------- | ---------- | ---------- | ---------- | -------- |
+| super-admin | ✅         | ✅ All     | ✅ All     | ✅ All     | ✅       |
+| admin       | ✅         | ✅ All     | ✅ All     | ✅ All     | ✅       |
+| moderator   | ✅         | ✅ All     | ✅ All     | ✅ All     | ✅       |
+| user        | ✅         | ✅ Own     | ✅ Own     | ✅ Own     | ✅       |
+| guest       | ❌         | ❌         | ❌         | ❌         | ✅       |
 
 ---
 
 ## Testing Workflow
 
 ### 1. Get Authentication Token
+
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:4040/api/v1/auth/login \
   -H "Content-Type: application/json" \
@@ -346,6 +368,7 @@ TOKEN=$(curl -s -X POST http://localhost:4040/api/v1/auth/login \
 ```
 
 ### 2. Create a Story with Categories
+
 ```bash
 STORY_ID=$(curl -s -X POST http://localhost:4040/api/v1/stories \
   -H "Authorization: Bearer $TOKEN" \
@@ -362,11 +385,13 @@ echo "Created story ID: $STORY_ID"
 ```
 
 ### 3. Get Story Categories
+
 ```bash
 curl -X GET http://localhost:4040/api/v1/stories/$STORY_ID/categories | jq
 ```
 
 ### 4. Attach More Categories
+
 ```bash
 curl -X POST http://localhost:4040/api/v1/stories/$STORY_ID/categories \
   -H "Authorization: Bearer $TOKEN" \
@@ -377,6 +402,7 @@ curl -X POST http://localhost:4040/api/v1/stories/$STORY_ID/categories \
 ```
 
 ### 5. Detach Categories
+
 ```bash
 curl -X DELETE http://localhost:4040/api/v1/stories/$STORY_ID/categories \
   -H "Authorization: Bearer $TOKEN" \
@@ -491,6 +517,7 @@ curl -X DELETE http://localhost:4040/api/v1/stories/$STORY_ID/categories \
 ## Common Use Cases
 
 ### 1. Multi-Category Story
+
 ```bash
 # Create a story in multiple categories
 curl -X POST http://localhost:4040/api/v1/stories \
@@ -510,6 +537,7 @@ curl -X POST http://localhost:4040/api/v1/stories \
 ```
 
 ### 2. Recategorize Story
+
 ```bash
 # Update story to different categories
 curl -X PATCH http://localhost:4040/api/v1/stories/123 \
@@ -524,6 +552,7 @@ curl -X PATCH http://localhost:4040/api/v1/stories/123 \
 ```
 
 ### 3. Add Category to Multiple Stories
+
 ```bash
 # Attach same category to multiple stories
 for id in 123 124 125; do
@@ -549,7 +578,7 @@ done
 
 - [Full API Documentation](./README.md)
 - [Implementation Summary](./IMPLEMENTATION_SUMMARY.md)
-- [Enterprise Database Guide](../../../docs/ENTERPRISE_DATABASE.md)
+- [Enterprise Database Guide](../../archive/2025/architecture/ENTERPRISE_DATABASE.md)
 - [ACL System Documentation](../acl/README.md)
 
 ---

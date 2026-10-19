@@ -3,6 +3,7 @@
 ## Research Summary
 
 ### Current State (v10.x)
+
 - **NestJS Core**: v10.4.20 → **Target**: v11.1.7 (latest)
 - **Node.js**: v22.12.0 ✅ (Compatible - v20+ required)
 - **Express**: v4.x → **Target**: v5.x (bundled with NestJS v11)
@@ -10,35 +11,42 @@
 ### Key Breaking Changes in NestJS v11
 
 #### 1. **Express v5 Integration** (CRITICAL)
+
 - Express v5 is now the default platform
 - **Impact**: Medium - affects route wildcards and query parsing
 - **Action Required**: Review wildcard routes and query parameter handling
 
 #### 2. **Node.js v20+ Required** ✅
+
 - v16 and v18 no longer supported
 - **Impact**: None - we're on v22.12.0
 
 #### 3. **Cache Module (cache-manager v7)** (HIGH IMPACT)
+
 - Migration to Keyv-based storage adapters
 - **Impact**: HIGH - we use CacheConfigModule with @keyv/redis
 - **Status**: ✅ Already using Keyv! (v3.0.1 → v5.1.3)
 
 #### 4. **Config Module v4** (MEDIUM IMPACT)
+
 - Configuration precedence changed
 - Internal config now overrides environment variables
 - **Impact**: Medium - review config loading order
 
 #### 5. **Module Resolution Algorithm**
+
 - Dynamic modules now use object references
 - **Impact**: Low-Medium - may affect integration tests
 
 #### 6. **Lifecycle Hooks Execution Order**
+
 - Termination hooks now execute in reverse order
 - **Impact**: Low - affects cleanup order
 
 ## Packages to Upgrade
 
 ### Critical NestJS Packages
+
 ```json
 {
   "@nestjs/common": "10.4.20" → "11.1.7",
@@ -55,6 +63,7 @@
 ```
 
 ### Dev Dependencies
+
 ```json
 {
   "@nestjs/cli": "10.4.9" → "11.0.10",
@@ -64,6 +73,7 @@
 ```
 
 ### Other Major Upgrades
+
 ```json
 {
   "@keyv/redis": "3.0.1" → "5.1.3",
@@ -78,6 +88,7 @@
 ## Migration Steps
 
 ### Phase 1: Pre-Migration Audit
+
 1. ✅ **Review Route Wildcards**
    - Search for wildcard routes: `@Get('*')`, `forRoutes('*')`
    - Update to named wildcards: `@Get('*splat')`, `forRoutes('{*splat}')`
@@ -95,6 +106,7 @@
    - Test config loading with new precedence
 
 ### Phase 2: Backup & Preparation
+
 ```bash
 # Create migration branch
 git checkout -b feature/nestjs-v11-migration
@@ -107,6 +119,7 @@ cp package-lock.json package-lock.json.v10.backup
 ```
 
 ### Phase 3: Update Dependencies
+
 ```bash
 # Install npm-check-updates
 npm install -g npm-check-updates
@@ -125,6 +138,7 @@ npm install
 ### Phase 4: Code Changes Required
 
 #### 4.1 Express v5 Route Wildcards
+
 **Search Pattern**: `@Get('*')`, `@Post('*')`, `.forRoutes('*')`
 
 ```typescript
@@ -140,52 +154,59 @@ fallback() { }
 // BEFORE
 .forRoutes('*')
 
-// AFTER  
+// AFTER
 .forRoutes('{*splat}')  // Braces = optional (matches root too)
 ```
 
 #### 4.2 Query Parameter Parsing (if using nested params)
+
 ```typescript
 // main.ts
-import { NestFactory } from '@nestjs/core';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { NestFactory } from '@nestjs/core'
+import { NestExpressApplication } from '@nestjs/platform-express'
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  
+  const app = await NestFactory.create<NestExpressApplication>(AppModule)
+
   // Add this if using nested query params
-  app.set('query parser', 'extended');
-  
+  app.set('query parser', 'extended')
+
   // ... rest of setup
 }
 ```
 
 #### 4.3 Cache Module (Already Compatible!)
+
 Our current `CacheConfigModule` already uses Keyv:
+
 ```typescript
 // src/cache/cache.module.ts - ALREADY CORRECT ✅
-const keyv = new Keyv(connectionString);
+const keyv = new Keyv(connectionString)
 return {
   stores: [keyv],
-  ttl: redisConfig.ttl * 1000,
+  ttl: redisConfig.ttl * 1000
 }
 ```
 
 Just upgrade `@keyv/redis` to v5.1.3.
 
 #### 4.4 Config Module (@nestjs/config v4)
+
 **New Precedence Order**:
+
 1. Internal configuration (config namespaces/files)
 2. Validated environment variables
 3. process.env
 
 **Changes**:
+
 - `ignoreEnvVars` deprecated → use `validatePredefined: false`
 - New `skipProcessEnv` option available
 
 **Review**: Check if any config relies on env vars overriding internal config.
 
 #### 4.5 Integration Tests (Module Resolution)
+
 ```typescript
 // If tests fail due to multiple dynamic module instances:
 
@@ -212,21 +233,27 @@ Test.createTestingModule(
 ### Phase 5: Testing Strategy
 
 #### 5.1 Unit Tests
+
 ```bash
 npm run test
 ```
+
 Expected: Minor adjustments for module resolution
 
 #### 5.2 Integration Tests
+
 ```bash
 npm run test:integration
 ```
+
 **Watch for**:
+
 - Dynamic module deduplication issues
 - Lifecycle hook order changes
 - Middleware execution order
 
 #### 5.3 Manual Testing
+
 1. Start application: `npm run start:dev`
 2. Test authentication flows
 3. Test file uploads (S3)
@@ -254,22 +281,26 @@ npm run test:integration
 ## Risk Assessment
 
 ### LOW RISK ✅
+
 - Node.js version (already v22)
 - Cache module (already using Keyv)
 - Most NestJS features (backward compatible)
 
 ### MEDIUM RISK ⚠️
+
 - Config module precedence changes
 - Module resolution in tests
 - Express v5 wildcards (if used)
 - Lifecycle hook order (if relied upon)
 
 ### HIGH RISK 🔴
+
 - None identified for this codebase
 
 ## Rollback Plan
 
 If migration fails:
+
 ```bash
 # Restore package.json
 cp package.json.v10.backup package.json
@@ -297,12 +328,14 @@ git checkout -- .
 ## Recommended Approach
 
 ### Option A: Incremental (RECOMMENDED)
+
 1. Update NestJS packages only first
 2. Test thoroughly
 3. Update other dependencies
 4. Test again
 
 ### Option B: All-at-once
+
 1. Update everything simultaneously
 2. Fix all issues at once
 3. Higher risk but faster if successful

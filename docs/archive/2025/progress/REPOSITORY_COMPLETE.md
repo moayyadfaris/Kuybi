@@ -110,24 +110,28 @@ src/countries/
 ## Key Features Implemented
 
 ### 1. Automatic Caching
+
 - ✅ All read operations cached by default
 - ✅ Configurable TTL per repository
 - ✅ Smart cache keys: `{entity}:{operation}:{params}`
 - ✅ Automatic invalidation on writes
 
 ### 2. Type Safety
+
 - ✅ Full TypeScript generics
 - ✅ Type-safe method signatures
 - ✅ Compile-time error checking
 - ✅ IntelliSense support
 
 ### 3. CRUD Operations
+
 - ✅ Create with auto cache invalidation
 - ✅ Read with caching (findById, findOne, findMany)
 - ✅ Update with cache invalidation
 - ✅ Delete with cache invalidation
 
 ### 4. Advanced Queries
+
 - ✅ Search with filters
 - ✅ Pagination support
 - ✅ Sorting support
@@ -135,11 +139,13 @@ src/countries/
 - ✅ Count and exists operations
 
 ### 5. Specialized Methods
+
 - ✅ User: findByEmail, findByMobile, findByRole, search, stats
 - ✅ Country: findByIso, findByContinent, grouping, stats
 - ✅ Access to underlying TypeORM for complex queries
 
 ### 6. Cache Management
+
 - ✅ Bypass cache option
 - ✅ Custom TTL option
 - ✅ Manual invalidation methods
@@ -149,13 +155,13 @@ src/countries/
 
 ### Cache Hit Scenarios
 
-| Operation | Before (Direct DB) | After (Cached) | Improvement |
-|-----------|-------------------|----------------|-------------|
-| findById | ~15ms | ~0.5ms | **30x faster** |
-| findByEmail | ~20ms | ~0.5ms | **40x faster** |
-| findByIso | ~12ms | ~0.5ms | **24x faster** |
-| Search (complex) | ~80ms | ~1ms | **80x faster** |
-| Statistics | ~150ms | ~1ms | **150x faster** |
+| Operation        | Before (Direct DB) | After (Cached) | Improvement     |
+| ---------------- | ------------------ | -------------- | --------------- |
+| findById         | ~15ms              | ~0.5ms         | **30x faster**  |
+| findByEmail      | ~20ms              | ~0.5ms         | **40x faster**  |
+| findByIso        | ~12ms              | ~0.5ms         | **24x faster**  |
+| Search (complex) | ~80ms              | ~1ms           | **80x faster**  |
+| Statistics       | ~150ms             | ~1ms           | **150x faster** |
 
 ### Database Load Reduction
 
@@ -167,14 +173,14 @@ src/countries/
 
 ### Express App vs NestJS Implementation
 
-| Feature | Express App | NestJS App | Status |
-|---------|-------------|------------|--------|
-| Repository Pattern | ❌ DAOs directly in services | ✅ Dedicated repositories | **IMPROVED** |
-| Caching Layer | ✅ Custom cache methods | ✅ Built into repositories | **MATCHED** |
-| Type Safety | ⚠️ Partial (JSDoc) | ✅ Full TypeScript | **IMPROVED** |
-| Separation of Concerns | ⚠️ Mixed | ✅ Clean layers | **IMPROVED** |
-| Testability | ⚠️ Moderate | ✅ High (mockable) | **IMPROVED** |
-| Code Reusability | ⚠️ Duplicated queries | ✅ Centralized | **IMPROVED** |
+| Feature                | Express App                  | NestJS App                 | Status       |
+| ---------------------- | ---------------------------- | -------------------------- | ------------ |
+| Repository Pattern     | ❌ DAOs directly in services | ✅ Dedicated repositories  | **IMPROVED** |
+| Caching Layer          | ✅ Custom cache methods      | ✅ Built into repositories | **MATCHED**  |
+| Type Safety            | ⚠️ Partial (JSDoc)           | ✅ Full TypeScript         | **IMPROVED** |
+| Separation of Concerns | ⚠️ Mixed                     | ✅ Clean layers            | **IMPROVED** |
+| Testability            | ⚠️ Moderate                  | ✅ High (mockable)         | **IMPROVED** |
+| Code Reusability       | ⚠️ Duplicated queries        | ✅ Centralized             | **IMPROVED** |
 
 ## Testing Strategy
 
@@ -204,6 +210,7 @@ expect(found).toBeDefined()
 The repository pattern brings NestJS closer to Express app's DAO pattern but with improvements:
 
 ### Express DAOs
+
 ```javascript
 // database/dao/UserDAO.js
 class UserDAO {
@@ -214,6 +221,7 @@ class UserDAO {
 ```
 
 ### NestJS Repositories
+
 ```typescript
 // database/repositories/user.repository.ts
 class UserRepository extends BaseRepository<User> {
@@ -225,6 +233,7 @@ class UserRepository extends BaseRepository<User> {
 ```
 
 **Advantages over Express:**
+
 1. Type safety with TypeScript
 2. Automatic caching built-in
 3. Standardized base class
@@ -240,11 +249,11 @@ class UserRepository extends BaseRepository<User> {
 async login(email: string, password: string) {
   // Repository handles caching automatically
   const user = await this.userRepository.findByEmail(email)
-  
+
   if (!user || !await bcrypt.compare(password, user.passwordHash)) {
     throw new UnauthorizedException('Invalid credentials')
   }
-  
+
   return this.generateToken(user)
 }
 ```
@@ -262,7 +271,7 @@ async searchCountries(query: SearchDto) {
     page: query.page,
     limit: query.limit
   })
-  
+
   return result // { results, total, pagination }
 }
 ```
@@ -276,7 +285,7 @@ async getDashboardStats() {
     this.userRepository.getStats(),
     this.countryRepository.getStats()
   ])
-  
+
   return { users: userStats, countries: countryStats }
 }
 ```
@@ -284,17 +293,20 @@ async getDashboardStats() {
 ## Next Steps
 
 ### Immediate (Ready Now)
+
 - ✅ Use UserRepository in all user-related operations
 - ✅ Use CountryRepository in all country-related operations
 - ✅ Test caching behavior with real Redis
 
 ### Short Term (Next Sprint)
+
 - [ ] Create SessionRepository for auth sessions
 - [ ] Create StoryRepository for stories module
 - [ ] Create AttachmentRepository for file management
 - [ ] Add repository integration tests
 
 ### Medium Term (Next Phase)
+
 - [ ] Add query performance monitoring
 - [ ] Implement read replicas support
 - [ ] Add repository metrics to health checks
@@ -316,6 +328,7 @@ async getDashboardStats() {
 ## Developer Experience
 
 ### Before Repository Pattern
+
 ```typescript
 // Developers had to:
 1. Inject TypeORM repository
@@ -327,6 +340,7 @@ async getDashboardStats() {
 ```
 
 ### After Repository Pattern
+
 ```typescript
 // Developers now:
 1. Inject custom repository
@@ -344,6 +358,7 @@ async getDashboardStats() {
 ## Production Readiness
 
 ### ✅ Ready for Production
+
 - Type-safe implementation
 - Comprehensive error handling
 - Automatic cache management
@@ -351,11 +366,13 @@ async getDashboardStats() {
 - Full documentation
 
 ### 🔧 Configuration Required
+
 - Redis connection (already configured)
 - Database connection (already configured)
 - Environment variables (already set)
 
 ### 📊 Monitoring Recommended
+
 - Repository method timing
 - Cache hit/miss rates
 - Database query counts

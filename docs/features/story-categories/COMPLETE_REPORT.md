@@ -15,32 +15,32 @@ Successfully implemented a production-ready many-to-many relationship between St
 
 ### Code Components: 10 Files
 
-| # | Component | File | Status |
-|---|-----------|------|--------|
-| 1 | Database Migration | `migrations/1712001500000-create-story-categories-table.ts` | ✅ Complete |
-| 2 | Story Entity | `stories/entities/story.entity.ts` | ✅ Updated |
-| 3 | Category Entity | `categories/entities/category.entity.ts` | ✅ Updated |
-| 4 | Attach DTO | `stories/dto/attach-categories.dto.ts` | ✅ Created |
-| 5 | Detach DTO | `stories/dto/detach-categories.dto.ts` | ✅ Created |
-| 6 | Create Story DTO | `stories/dto/create-story.dto.ts` | ✅ Updated |
-| 7 | DTO Index | `stories/dto/index.ts` | ✅ Updated |
-| 8 | Stories Service | `stories/stories.service.ts` | ✅ Updated |
-| 9 | Stories Controller | `stories/stories.controller.ts` | ✅ Updated |
-| 10 | Stories Module | `stories/stories.module.ts` | ✅ Updated |
+| #   | Component          | File                                                        | Status      |
+| --- | ------------------ | ----------------------------------------------------------- | ----------- |
+| 1   | Database Migration | `migrations/1712001500000-create-story-categories-table.ts` | ✅ Complete |
+| 2   | Story Entity       | `stories/entities/story.entity.ts`                          | ✅ Updated  |
+| 3   | Category Entity    | `categories/entities/category.entity.ts`                    | ✅ Updated  |
+| 4   | Attach DTO         | `stories/dto/attach-categories.dto.ts`                      | ✅ Created  |
+| 5   | Detach DTO         | `stories/dto/detach-categories.dto.ts`                      | ✅ Created  |
+| 6   | Create Story DTO   | `stories/dto/create-story.dto.ts`                           | ✅ Updated  |
+| 7   | DTO Index          | `stories/dto/index.ts`                                      | ✅ Updated  |
+| 8   | Stories Service    | `stories/stories.service.ts`                                | ✅ Updated  |
+| 9   | Stories Controller | `stories/stories.controller.ts`                             | ✅ Updated  |
+| 10  | Stories Module     | `stories/stories.module.ts`                                 | ✅ Updated  |
 
 ### Documentation: 3 Files
 
-| # | Document | Purpose | Status |
-|---|----------|---------|--------|
-| 1 | README.md | Complete API documentation | ✅ Complete |
-| 2 | IMPLEMENTATION_SUMMARY.md | Technical implementation details | ✅ Complete |
-| 3 | API_QUICK_REFERENCE.md | Quick start guide with examples | ✅ Complete |
+| #   | Document                  | Purpose                          | Status      |
+| --- | ------------------------- | -------------------------------- | ----------- |
+| 1   | README.md                 | Complete API documentation       | ✅ Complete |
+| 2   | IMPLEMENTATION_SUMMARY.md | Technical implementation details | ✅ Complete |
+| 3   | API_QUICK_REFERENCE.md    | Quick start guide with examples  | ✅ Complete |
 
 ### Updated Documentation: 1 File
 
-| # | Document | Updates | Status |
-|---|----------|---------|--------|
-| 1 | ENTERPRISE_DATABASE.md | Added Story-Category to implementation status | ✅ Updated |
+| #   | Document               | Updates                                       | Status     |
+| --- | ---------------------- | --------------------------------------------- | ---------- |
+| 1   | ENTERPRISE_DATABASE.md | Added Story-Category to implementation status | ✅ Updated |
 
 ---
 
@@ -49,6 +49,7 @@ Successfully implemented a production-ready many-to-many relationship between St
 ### Database Layer
 
 **Junction Table:** `story_categories`
+
 - **Columns:** 5 (id, storyId, categoryId, createdAt, createdBy)
 - **Constraints:** UNIQUE(storyId, categoryId), CASCADE DELETE on both FKs
 - **Indexes:** 3 (unique composite, storyId, categoryId)
@@ -57,11 +58,13 @@ Successfully implemented a production-ready many-to-many relationship between St
 ### Application Layer
 
 **Entity Relationships:**
+
 ```typescript
 Story ←→ [story_categories] ←→ Category
 ```
 
 **Design Patterns:**
+
 - Repository Pattern (TypeORM)
 - DTO Pattern (Input validation)
 - Guard Pattern (ACL protection)
@@ -114,21 +117,25 @@ Story ←→ [story_categories] ←→ Category
 ### ACL Integration
 
 **Protected Operations:**
+
 - Create story with categories ✅
 - Update story categories ✅
 - Attach categories ✅
 - Detach categories ✅
 
 **Public Operations:**
+
 - Get story categories (read-only)
 
 **Permission Model:**
+
 ```typescript
 @UseGuards(JwtAuthGuard, AbilityGuard)
 @CheckAbility({ action: Action.Update, subject: Subject.Story })
 ```
 
 **Ownership Validation:**
+
 - User must own story OR be admin
 - Verified in service layer
 - Logged for audit
@@ -139,12 +146,12 @@ Story ←→ [story_categories] ←→ Category
 
 ### Database Performance
 
-| Operation | Expected Time | Index Used | Cache Hit |
-|-----------|---------------|------------|-----------|
-| Attach Categories | < 50ms | idx_story_categories_story | No (invalidates) |
-| Detach Categories | < 50ms | idx_story_categories_story | No (invalidates) |
-| Get Categories | < 10ms | idx_story_categories_story | Yes (if story cached) |
-| Create with Categories | < 100ms | Multiple | No (new entity) |
+| Operation              | Expected Time | Index Used                 | Cache Hit             |
+| ---------------------- | ------------- | -------------------------- | --------------------- |
+| Attach Categories      | < 50ms        | idx_story_categories_story | No (invalidates)      |
+| Detach Categories      | < 50ms        | idx_story_categories_story | No (invalidates)      |
+| Get Categories         | < 10ms        | idx_story_categories_story | Yes (if story cached) |
+| Create with Categories | < 100ms       | Multiple                   | No (new entity)       |
 
 ### Optimization Features
 
@@ -161,12 +168,14 @@ Story ←→ [story_categories] ←→ Category
 ### Input Validation
 
 **DTO Level:**
+
 - `categoryIds`: Array of UUID v4, 1-20 items (attach/detach)
 - `categoryIds`: Array of UUID v4, 0-20 items (create/update)
 - UUID format validation
 - Array size validation
 
 **Service Level:**
+
 - Category existence check
 - Category active status check
 - Story existence check
@@ -174,13 +183,13 @@ Story ←→ [story_categories] ←→ Category
 
 ### Error Scenarios
 
-| Error | Code | Cause | Resolution |
-|-------|------|-------|------------|
-| Category Not Found | 400 | Invalid UUID or deleted category | Verify category exists and is active |
-| Story Not Found | 404 | Invalid story ID | Verify story exists and not deleted |
-| Forbidden | 403 | Not owner or insufficient permission | Check ownership or role permissions |
-| Unauthorized | 401 | Missing/invalid JWT | Login to get valid token |
-| Max Categories | 400 | Exceeds 20 categories | Reduce number of categories |
+| Error              | Code | Cause                                | Resolution                           |
+| ------------------ | ---- | ------------------------------------ | ------------------------------------ |
+| Category Not Found | 400  | Invalid UUID or deleted category     | Verify category exists and is active |
+| Story Not Found    | 404  | Invalid story ID                     | Verify story exists and not deleted  |
+| Forbidden          | 403  | Not owner or insufficient permission | Check ownership or role permissions  |
+| Unauthorized       | 401  | Missing/invalid JWT                  | Login to get valid token             |
+| Max Categories     | 400  | Exceeds 20 categories                | Reduce number of categories          |
 
 ---
 
@@ -206,16 +215,19 @@ Story ←→ [story_categories] ←→ Category
 ### Automated Testing (Pending)
 
 **Unit Tests Needed:**
+
 - Service method tests (6 methods)
 - Controller endpoint tests (3 endpoints)
 - DTO validation tests (2 DTOs)
 
 **Integration Tests Needed:**
+
 - Database relationship tests
 - Cache invalidation tests
 - ACL integration tests
 
 **E2E Tests Needed:**
+
 - Complete workflow tests
 - Error scenario tests
 - Performance tests
@@ -243,6 +255,7 @@ npm run migration:run
 ```
 
 **Expected Output:**
+
 ```
 query: CREATE TABLE "story_categories" ...
 Migration CreateStoryCategoriesTable1712001500000 has been executed successfully.
@@ -284,12 +297,14 @@ curl -X POST http://localhost:4040/api/v1/stories/1/categories \
 ### Logging
 
 **Log Events:**
+
 - `create_story` - Includes category count
 - `attach_categories` - Includes story ID, user, count
 - `detach_categories` - Includes story ID, user, count
 - Error events with stack traces
 
 **Log Format:**
+
 ```typescript
 {
   action: 'attach_categories',
@@ -408,9 +423,10 @@ The Story-Category relationship implementation is **COMPLETE and PRODUCTION READ
 ✅ **Security First** - ACL-protected with ownership validation  
 ✅ **Performance Optimized** - Indexed, cached, efficient queries  
 ✅ **Fully Documented** - 3 comprehensive guides created  
-✅ **Zero Errors** - Compiles cleanly, type-safe  
+✅ **Zero Errors** - Compiles cleanly, type-safe
 
 **Remaining Tasks (Non-Blocking):**
+
 1. Run database migration
 2. Manual testing verification
 3. Write automated tests (80% coverage target)
@@ -435,7 +451,7 @@ The Story-Category relationship implementation is **COMPLETE and PRODUCTION READ
 - [API Quick Reference](./API_QUICK_REFERENCE.md)
 - [Implementation Summary](./IMPLEMENTATION_SUMMARY.md)
 - [Complete API Guide](./README.md)
-- [Enterprise Database](../../../docs/ENTERPRISE_DATABASE.md)
+- [Enterprise Database](../../archive/2025/architecture/ENTERPRISE_DATABASE.md)
 - [ACL System](../acl/README.md)
 
 ---

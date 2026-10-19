@@ -295,9 +295,8 @@ More in [`docs/`](./docs):
 
 - **API:** [Endpoints](./docs/API_ENDPOINTS.md) · [Reference](./docs/API_REFERENCE.md) ·
   [Super admin access](./docs/SUPER_ADMIN_ACCESS.md)
-- **Architecture:** [Standards](./docs/architecture/ARCHITECTURE_STANDARDIZATION.md) ·
-  [Repository pattern](./docs/architecture/REPOSITORY_PATTERN.md) ·
-  [Queues](./docs/architecture/BULL_QUEUE_ARCHITECTURE.md)
+- **Architecture:** [Overview](./docs/architecture/README.md) ·
+  [Decision records](./docs/adr/README.md)
 - **Features:** [Auth](./docs/features/auth/) · [Access control](./docs/features/acl/README.md) ·
   [Audit](./docs/features/audit/README.md) · [Attachments](./docs/features/attachments/) ·
   [Post types](./docs/features/post-types/) · [Cache](./docs/features/cache/) ·

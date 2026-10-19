@@ -414,9 +414,10 @@ maxmemory-policy allkeys-lru  # For cache DB
 
 - [BullMQ Documentation](https://docs.bullmq.io/)
 - [Bull Board Documentation](https://github.com/felixmosh/bull-board)
-- [Queue Configuration](./src/queues/config/queue.config.ts)
-- [Worker Configuration](./src/queues/config/worker.config.ts)
-- [Architecture Document](./docs/architecture/BULL_QUEUE_ARCHITECTURE.md)
+- [Queue Configuration](./config/queue.config.ts)
+- [Worker Configuration](./config/worker.config.ts)
+- [Background work (architecture overview)](../../../docs/architecture/README.md#background-work)
+- [ADR 0004: transactional outbox](../../../docs/adr/0004-transactional-outbox.md)
 
 ## Phase 1 Complete! 🎉
 

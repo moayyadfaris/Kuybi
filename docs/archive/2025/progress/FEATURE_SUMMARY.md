@@ -1,6 +1,7 @@
 # Admin Password Management & Force Password Change - Feature Complete
 
 ## Branch Information
+
 - **Branch**: `feature/admin-password-management`
 - **Base**: `main`
 - **Status**: ✅ Complete and tested
@@ -12,11 +13,14 @@
 ## Features Implemented
 
 ### 1. Admin Password Management
+
 **Endpoints:**
+
 - `POST /v1/admin/users/reset-password` - System-generated password (recommended)
 - `POST /v1/admin/users/set-password` - Admin-defined password (emergency)
 
 **Security:**
+
 - Both require `update:User` permission (Super Admin)
 - JWT authentication required
 - Complete audit trail with reason field
@@ -24,6 +28,7 @@
 - Force password change flag (default: true)
 
 **Files Created:**
+
 - `src/modules/users/dto/admin-password-management.dto.ts` - DTOs
 - `src/modules/users/services/admin-password-management.service.ts` - Service
 - `src/modules/users/controllers/admin-users.controller.ts` - Controller
@@ -31,10 +36,13 @@
 - `test/scripts/test-admin-password.sh` - Integration test script
 
 **Files Modified:**
+
 - `src/modules/users/users.module.ts` - Register service & controller
 
 ### 2. Force Password Change
+
 **Implementation:**
+
 - Database field: `forcePasswordChange` boolean (users table)
 - Migration: `1730140000000-AddForcePasswordChangeToUsers.ts`
 - Enhanced login flow to check flag
@@ -43,12 +51,14 @@
 - Complete session invalidation
 
 **Files Created:**
+
 - `src/core/database/migrations/1730140000000-AddForcePasswordChangeToUsers.ts`
 - `src/modules/auth/dto/change-password.dto.ts`
 - `docs/features/auth/FORCE_PASSWORD_CHANGE.md`
 - `test/scripts/test-force-password-change.sh` - Integration test script
 
 **Files Modified:**
+
 - `src/modules/users/entities/user.entity.ts` - Add forcePasswordChange field
 - `src/modules/auth/services/auth.service.ts` - Login check & change password method
 - `src/modules/auth/auth.controller.ts` - Add change-password endpoint
@@ -57,6 +67,7 @@
 ## User Flow
 
 ### Complete Flow Diagram
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. Admin: Reset User Password                                   │
@@ -137,6 +148,7 @@
 ### Admin Password Management
 
 #### Reset Password (System-Generated)
+
 ```http
 POST /v1/admin/users/reset-password
 Authorization: Bearer <admin-token>
@@ -161,6 +173,7 @@ Response:
 ```
 
 #### Set Password (Admin-Defined)
+
 ```http
 POST /v1/admin/users/set-password
 Authorization: Bearer <admin-token>
@@ -189,6 +202,7 @@ Response:
 ### Force Password Change
 
 #### Login (When Password Change Required)
+
 ```http
 POST /v1/auth/login
 Content-Type: application/json
@@ -220,6 +234,7 @@ Response (when forcePasswordChange = false):
 ```
 
 #### Change Password
+
 ```http
 POST /v1/auth/change-password
 Authorization: Bearer <tempAccessToken or accessToken>
@@ -243,6 +258,7 @@ Response:
 ### Test Scripts
 
 **1. Admin Password Management:**
+
 ```bash
 # Ensure server is running on localhost:4000
 npm run start:dev
@@ -250,16 +266,19 @@ npm run start:dev
 # Run the test
 ./test/scripts/test-admin-password.sh
 ```
+
 Tests both reset and set password approaches, session invalidation, error handling.
 
 **2. Force Password Change:**
+
 ```bash
 # Ensure server is running on localhost:4000
 npm run start:dev
 
-# Run the test  
+# Run the test
 ./test/scripts/test-force-password-change.sh
 ```
+
 Tests complete flow: admin reset → login block → password change → success login.
 
 ### Manual Testing
@@ -275,33 +294,34 @@ Tests complete flow: admin reset → login block → password change → success
 
 ```sql
 -- Users table with new column
-ALTER TABLE users 
+ALTER TABLE users
 ADD COLUMN "forcePasswordChange" boolean DEFAULT false;
 
-COMMENT ON COLUMN users."forcePasswordChange" 
+COMMENT ON COLUMN users."forcePasswordChange"
 IS 'Requires user to change password on next login';
 
 -- Example queries
 
 -- Find users who must change password
-SELECT id, email, name, "forcePasswordChange" 
-FROM users 
+SELECT id, email, name, "forcePasswordChange"
+FROM users
 WHERE "forcePasswordChange" = true;
 
 -- Count of users requiring password change
-SELECT COUNT(*) 
-FROM users 
+SELECT COUNT(*)
+FROM users
 WHERE "forcePasswordChange" = true;
 
 -- Set flag for user (done automatically by admin endpoints)
-UPDATE users 
-SET "forcePasswordChange" = true 
+UPDATE users
+SET "forcePasswordChange" = true
 WHERE id = 'user-uuid';
 ```
 
 ## Security Features
 
 ### 1. Password Generation (System-Generated)
+
 - 4 uppercase letters (A-Z)
 - 4 lowercase letters (a-z)
 - 2 digits (0-9)
@@ -310,6 +330,7 @@ WHERE id = 'user-uuid';
 - Example: `aB3$cD4!eF5@gH6&`
 
 ### 2. Password Validation (Admin-Defined)
+
 - Minimum 8 characters
 - At least 1 uppercase letter
 - At least 1 lowercase letter
@@ -317,24 +338,29 @@ WHERE id = 'user-uuid';
 - At least 1 special character
 
 ### 3. Temporary Access Tokens
+
 - Expiry: 15 minutes
 - Payload flag: `tempPasswordChange: true`
 - Can only be used for password change endpoint
 - No session created until password changed
 
 ### 4. Session Management
+
 - All sessions invalidated when admin changes password
 - All sessions invalidated when user changes password
 - User must re-login after password change
 
 ### 5. Audit Trail
+
 Complete logging with PinoLogger:
+
 - Admin password reset/set actions
 - Login attempts with requiresPasswordChange
 - Password change attempts and results
 - Session invalidations
 
 ### 6. Rate Limiting
+
 - Change password: 5 attempts per 5 minutes
 - Reset password (admin): Standard API limits
 - Login: Standard auth limits
@@ -342,20 +368,23 @@ Complete logging with PinoLogger:
 ## Documentation
 
 ### User Documentation
-- [Admin Password Management](docs/features/users/ADMIN_PASSWORD_MANAGEMENT.md)
+
+- [Admin Password Management](../../../progress/docs/features/users/ADMIN_PASSWORD_MANAGEMENT.md)
   - Complete API reference
   - Use cases and best practices
   - Security recommendations
   - Testing guide
 
-- [Force Password Change](docs/features/auth/FORCE_PASSWORD_CHANGE.md)
+- [Force Password Change](../../../progress/docs/features/auth/FORCE_PASSWORD_CHANGE.md)
   - Implementation details
   - User flow diagrams
   - Frontend integration guide
   - Testing scenarios
 
 ### API Documentation
+
 All endpoints documented with Swagger/OpenAPI:
+
 - Visit: `http://localhost:4000/api/docs` when server is running
 - Includes request/response schemas
 - Example payloads
@@ -378,6 +407,7 @@ All endpoints documented with Swagger/OpenAPI:
 ## Files Summary
 
 ### Created (13 files)
+
 ```
 src/modules/users/dto/admin-password-management.dto.ts
 src/modules/users/services/admin-password-management.service.ts
@@ -393,6 +423,7 @@ FEATURE_SUMMARY.md
 ```
 
 ### Modified (5 files)
+
 ```
 src/modules/users/users.module.ts
 src/modules/users/entities/user.entity.ts
@@ -404,6 +435,7 @@ src/modules/users/services/admin-password-management.service.ts
 ## Next Steps
 
 ### For Merging to Main
+
 1. Run all tests to ensure nothing broken
 2. Update main README if needed
 3. Create pull request with this summary
@@ -411,6 +443,7 @@ src/modules/users/services/admin-password-management.service.ts
 5. Merge to main
 
 ### Future Enhancements (Optional)
+
 1. **Password History Table**
    - Prevent reusing last N passwords
    - Track all password changes with timestamps

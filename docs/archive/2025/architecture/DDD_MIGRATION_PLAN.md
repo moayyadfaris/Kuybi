@@ -15,6 +15,7 @@ This document provides a **practical, step-by-step plan** to migrate the Kuybi N
 ### Identified Issues
 
 1. **Cross-Module Dependencies**
+
    ```typescript
    // StoriesService imports from 3 different modules
    import { Attachment } from '../attachments/entities/attachment.entity'
@@ -57,11 +58,13 @@ Based on your codebase, we identify **4 main bounded contexts**:
 #### Tasks
 
 1. **Install Event Emitter**
+
    ```bash
    npm install @nestjs/event-emitter
    ```
 
 2. **Create Directory Structure**
+
    ```bash
    mkdir -p src/shared-kernel/{domain,application,infrastructure}
    mkdir -p src/bounded-contexts/{content,identity,media,infrastructure}
@@ -69,9 +72,10 @@ Based on your codebase, we identify **4 main bounded contexts**:
    ```
 
 3. **Update app.module.ts**
+
    ```typescript
    import { EventEmitterModule } from '@nestjs/event-emitter'
-   
+
    @Module({
      imports: [
        EventEmitterModule.forRoot({
@@ -235,7 +239,7 @@ export class DomainEventPublisher {
   }
 
   publishAll(events: DomainEvent[]): void {
-    events.forEach((event) => this.publish(event))
+    events.forEach(event => this.publish(event))
   }
 }
 ```
@@ -287,7 +291,7 @@ export class PaginatedResultDto<T> {
       limit,
       totalPages: Math.ceil(total / limit),
       hasNextPage: page < Math.ceil(total / limit),
-      hasPreviousPage: page > 1,
+      hasPreviousPage: page > 1
     }
   }
 }
@@ -425,13 +429,11 @@ export interface AttachmentInfo {
 
 @Injectable()
 export class MediaFacade {
-  constructor(
-    private readonly attachmentRepository: AttachmentRepository
-  ) {}
+  constructor(private readonly attachmentRepository: AttachmentRepository) {}
 
   async getAttachmentInfo(id: string): Promise<AttachmentInfo | null> {
     const attachment = await this.attachmentRepository.findById(id)
-    
+
     if (!attachment) {
       return null
     }
@@ -441,19 +443,19 @@ export class MediaFacade {
       url: attachment.fileUrl,
       mimeType: attachment.mimeType,
       size: attachment.size,
-      filename: attachment.filename,
+      filename: attachment.filename
     }
   }
 
   async getAttachmentsByIds(ids: string[]): Promise<AttachmentInfo[]> {
     const attachments = await this.attachmentRepository.findByIds(ids)
-    
+
     return attachments.map(a => ({
       id: a.id,
       url: a.fileUrl,
       mimeType: a.mimeType,
       size: a.size,
-      filename: a.filename,
+      filename: a.filename
     }))
   }
 
@@ -480,13 +482,11 @@ export interface UserInfo {
 
 @Injectable()
 export class IdentityFacade {
-  constructor(
-    private readonly userRepository: UserRepository
-  ) {}
+  constructor(private readonly userRepository: UserRepository) {}
 
   async getUserInfo(userId: string): Promise<UserInfo | null> {
     const user = await this.userRepository.findById(userId)
-    
+
     if (!user) {
       return null
     }
@@ -495,7 +495,7 @@ export class IdentityFacade {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: user.role
     }
   }
 
@@ -529,13 +529,11 @@ export interface StoryInfo {
 
 @Injectable()
 export class ContentFacade {
-  constructor(
-    private readonly storyRepository: StoryRepository
-  ) {}
+  constructor(private readonly storyRepository: StoryRepository) {}
 
   async getStoryInfo(storyId: string): Promise<StoryInfo | null> {
     const story = await this.storyRepository.findById(storyId)
-    
+
     if (!story) {
       return null
     }
@@ -545,19 +543,19 @@ export class ContentFacade {
       title: story.title,
       authorId: story.userId,
       status: story.status,
-      publishedAt: story.publishedAt,
+      publishedAt: story.publishedAt
     }
   }
 
   async getStoriesByAuthor(authorId: string): Promise<StoryInfo[]> {
     const stories = await this.storyRepository.findByUserId(authorId)
-    
+
     return stories.map(s => ({
       id: s.id,
       title: s.title,
       authorId: s.userId,
       status: s.status,
-      publishedAt: s.publishedAt,
+      publishedAt: s.publishedAt
     }))
   }
 }
@@ -576,7 +574,7 @@ import { DatabaseModule } from '../database/database.module'
 @Module({
   imports: [DatabaseModule],
   providers: [MediaFacade, IdentityFacade, ContentFacade],
-  exports: [MediaFacade, IdentityFacade, ContentFacade],
+  exports: [MediaFacade, IdentityFacade, ContentFacade]
 })
 export class IntegrationModule {}
 ```
@@ -596,7 +594,7 @@ export class StoriesService {
   constructor(
     private storyRepository: StoryRepository,
     @InjectRepository(Attachment) private attachmentRepo: Repository<Attachment>,
-    @InjectRepository(Tag) private tagRepo: Repository<Tag>,
+    @InjectRepository(Tag) private tagRepo: Repository<Tag>
   ) {}
 
   async attachMedia(storyId: string, attachmentIds: string[]): Promise<void> {
@@ -620,13 +618,13 @@ export class StoriesService {
     private storyRepository: StoryRepository,
     private mediaFacade: MediaFacade,
     private identityFacade: IdentityFacade,
-    private eventEmitter: EventEmitter2,
+    private eventEmitter: EventEmitter2
   ) {}
 
   async attachMedia(storyId: string, attachmentIds: string[], userId: string): Promise<void> {
     // ✅ Use facade instead of direct repository
     const attachments = await this.mediaFacade.getAttachmentsByIds(attachmentIds)
-    
+
     if (attachments.length !== attachmentIds.length) {
       throw new BadRequestException('Some attachments not found')
     }
@@ -646,7 +644,7 @@ export class StoriesService {
     this.eventEmitter.emit('story.media.attached', {
       storyId,
       attachmentIds,
-      userId,
+      userId
     })
   }
 
@@ -658,7 +656,7 @@ export class StoriesService {
     }
 
     // Create story
-    const story = await this.storyRepository.save({...dto, userId})
+    const story = await this.storyRepository.save({ ...dto, userId })
 
     // ✅ Emit event
     this.eventEmitter.emit(
@@ -680,12 +678,12 @@ import { IntegrationModule } from '../integration/integration.module'
 @Module({
   imports: [
     TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag]),
-    IntegrationModule,  // ✅ Import facades
-    CacheConfigModule,
+    IntegrationModule, // ✅ Import facades
+    CacheConfigModule
   ],
   providers: [StoriesService, StoryRepository],
   controllers: [StoriesController],
-  exports: [StoriesService],
+  exports: [StoriesService]
 })
 export class StoriesModule {}
 ```
@@ -710,21 +708,18 @@ import { PinoLogger } from 'nestjs-pino'
 export class StoryPublishedHandler {
   constructor(
     private readonly identityFacade: IdentityFacade,
-    private readonly logger: PinoLogger,
+    private readonly logger: PinoLogger
   ) {
     this.logger.setContext(StoryPublishedHandler.name)
   }
 
   @OnEvent('story.published')
   async handle(event: StoryPublishedEvent): Promise<void> {
-    this.logger.info(
-      { storyId: event.storyId, publishedBy: event.publishedBy },
-      'Story published'
-    )
+    this.logger.info({ storyId: event.storyId, publishedBy: event.publishedBy }, 'Story published')
 
     // Get author info
     const author = await this.identityFacade.getUserInfo(event.publishedBy)
-    
+
     if (author) {
       // Send notification (email, push, etc.)
       // Update statistics
@@ -754,9 +749,9 @@ import { AttachmentUploadedHandler } from './handlers/attachment-uploaded.handle
     ContentFacade,
     StoryPublishedHandler,
     UserRegisteredHandler,
-    AttachmentUploadedHandler,
+    AttachmentUploadedHandler
   ],
-  exports: [MediaFacade, IdentityFacade, ContentFacade],
+  exports: [MediaFacade, IdentityFacade, ContentFacade]
 })
 export class IntegrationModule {}
 ```
@@ -784,18 +779,18 @@ describe('StoriesService', () => {
           provide: MediaFacade,
           useValue: {
             getAttachmentsByIds: jest.fn(),
-            validateAttachmentAccess: jest.fn(),
-          },
+            validateAttachmentAccess: jest.fn()
+          }
         },
         {
           provide: IdentityFacade,
           useValue: {
             validateUserExists: jest.fn(),
-            getUserInfo: jest.fn(),
-          },
-        },
+            getUserInfo: jest.fn()
+          }
+        }
         // ... other mocks
-      ],
+      ]
     }).compile()
 
     service = module.get<StoriesService>(StoriesService)
@@ -822,10 +817,10 @@ describe('StoriesService', () => {
 ```typescript
 // test/stories.e2e-spec.ts
 describe('Stories (e2e)', () => {
-  it('should create story and emit event', async (done) => {
+  it('should create story and emit event', async done => {
     const eventEmitter = app.get(EventEmitter2)
-    
-    eventEmitter.on('story.created', (event) => {
+
+    eventEmitter.on('story.created', event => {
       expect(event.storyId).toBeDefined()
       expect(event.authorId).toBe('user-1')
       done()

@@ -20,12 +20,13 @@ Welcome to the Kuybi NestJS API documentation. This directory contains comprehen
 
 ## 🏗️ Architecture
 
-Architectural patterns, design decisions, and standardization guides.
+How the system is built and why.
 
-| Document | Description |
-|----------|-------------|
-| [Architecture Standardization](./architecture/ARCHITECTURE_STANDARDIZATION.md) | **⭐ START HERE** - Project structure standards, best practices |
-| [Repository Pattern](./architecture/REPOSITORY_PATTERN.md) | Data access layer pattern implementation |
+| Document                                          | Description                                                                                                 |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [Architecture overview](./architecture/README.md) | **⭐ START HERE** - layers, modules, the rules and how CI enforces them                                     |
+| [Decision records](./adr/README.md)               | Why: modular monolith, data access and caching, outbox, idempotency, events, config, HTTP pipeline, uploads |
+| [Archive (2025)](./archive/2025/README.md)        | Earlier designs and completion reports; historical, not current                                             |
 
 ---
 
@@ -35,22 +36,23 @@ Architectural patterns, design decisions, and standardization guides.
 
 Complete authentication, session management, and security features.
 
-| Document | Type | Description |
-|----------|------|-------------|
-| [Auth Service Refactor](./features/auth/AUTHSERVICE_REFACTOR.md) | Implementation | AuthService refactoring to use SessionsService |
-| [Session Management Complete](./features/auth/SESSION_MANAGEMENT_COMPLETE.md) | Feature Guide | **⭐ Complete session management system** |
-| [Session Implementation Summary](./features/auth/SESSION_IMPLEMENTATION_SUMMARY.md) | Summary | Quick overview of session features |
-| [Session Progress](./features/auth/SESSION_PROGRESS.md) | Progress | Session feature development timeline |
-| [Session DTOs Complete](./features/auth/SESSION_DTOS_COMPLETE.md) | Implementation | All session Data Transfer Objects |
-| [Sessions Controller Complete](./features/auth/SESSIONS_CONTROLLER_COMPLETE.md) | Implementation | REST API endpoints for sessions |
-| [Session Cleanup Tracking](./features/auth/SESSION_CLEANUP_TRACKING.md) | Feature Guide | **Automated session cleanup & monitoring** |
-| [Cleanup Tracking Implementation](./features/auth/CLEANUP_TRACKING_IMPLEMENTATION.md) | Implementation | Cleanup job tracking via REST API |
-| [Cleanup Tracking Quickstart](./features/auth/CLEANUP_TRACKING_QUICKSTART.md) | Quick Ref | Quick guide for cleanup monitoring |
-| [Token Blacklist Implementation](./features/auth/TOKEN_BLACKLIST_IMPLEMENTATION.md) | Feature Guide | **⭐ Redis-based token invalidation** |
-| [Token Blacklist Quick Ref](./features/auth/TOKEN_BLACKLIST_QUICKREF.md) | Quick Ref | Quick testing & troubleshooting guide |
-| [Token Blacklist Summary](./features/auth/TOKEN_BLACKLIST_SUMMARY.md) | Summary | Executive summary of token blacklist |
+| Document                                                                              | Type           | Description                                    |
+| ------------------------------------------------------------------------------------- | -------------- | ---------------------------------------------- |
+| [Auth Service Refactor](./features/auth/AUTHSERVICE_REFACTOR.md)                      | Implementation | AuthService refactoring to use SessionsService |
+| [Session Management Complete](./features/auth/SESSION_MANAGEMENT_COMPLETE.md)         | Feature Guide  | **⭐ Complete session management system**      |
+| [Session Implementation Summary](./features/auth/SESSION_IMPLEMENTATION_SUMMARY.md)   | Summary        | Quick overview of session features             |
+| [Session Progress](./features/auth/SESSION_PROGRESS.md)                               | Progress       | Session feature development timeline           |
+| [Session DTOs Complete](./features/auth/SESSION_DTOS_COMPLETE.md)                     | Implementation | All session Data Transfer Objects              |
+| [Sessions Controller Complete](./features/auth/SESSIONS_CONTROLLER_COMPLETE.md)       | Implementation | REST API endpoints for sessions                |
+| [Session Cleanup Tracking](./features/auth/SESSION_CLEANUP_TRACKING.md)               | Feature Guide  | **Automated session cleanup & monitoring**     |
+| [Cleanup Tracking Implementation](./features/auth/CLEANUP_TRACKING_IMPLEMENTATION.md) | Implementation | Cleanup job tracking via REST API              |
+| [Cleanup Tracking Quickstart](./features/auth/CLEANUP_TRACKING_QUICKSTART.md)         | Quick Ref      | Quick guide for cleanup monitoring             |
+| [Token Blacklist Implementation](./features/auth/TOKEN_BLACKLIST_IMPLEMENTATION.md)   | Feature Guide  | **⭐ Redis-based token invalidation**          |
+| [Token Blacklist Quick Ref](./features/auth/TOKEN_BLACKLIST_QUICKREF.md)              | Quick Ref      | Quick testing & troubleshooting guide          |
+| [Token Blacklist Summary](./features/auth/TOKEN_BLACKLIST_SUMMARY.md)                 | Summary        | Executive summary of token blacklist           |
 
 **Key Features:**
+
 - ✅ Enterprise session management
 - ✅ Multi-device support
 - ✅ Security risk assessment
@@ -65,11 +67,12 @@ Complete authentication, session management, and security features.
 
 Input sanitization, XSS prevention, and file upload validation.
 
-| Document | Type | Description |
-|----------|------|-------------|
+| Document                                                 | Type          | Description                               |
+| -------------------------------------------------------- | ------------- | ----------------------------------------- |
 | [Security Validation](./features/security/VALIDATION.md) | Feature Guide | **⭐ Complete security validation layer** |
 
 **Key Features:**
+
 - ✅ Custom class-validator decorators (no class-transformer dependency)
 - ✅ XSS prevention with DOMPurify
 - ✅ SQL injection protection
@@ -83,12 +86,13 @@ Input sanitization, XSS prevention, and file upload validation.
 
 Redis caching integration for performance optimization.
 
-| Document | Type | Description |
-|----------|------|-------------|
+| Document                                                             | Type          | Description                            |
+| -------------------------------------------------------------------- | ------------- | -------------------------------------- |
 | [Redis Caching Complete](./features/cache/REDIS_CACHING_COMPLETE.md) | Feature Guide | **⭐ Enterprise Redis caching system** |
-| [Cache Quickstart](./features/cache/CACHE_QUICKSTART.md) | Quick Ref | Quick setup and usage guide |
+| [Cache Quickstart](./features/cache/CACHE_QUICKSTART.md)             | Quick Ref     | Quick setup and usage guide            |
 
 **Key Features:**
+
 - ✅ Repository-level caching
 - ✅ 25-80x performance improvement
 - ✅ Automatic cache invalidation
@@ -100,13 +104,14 @@ Redis caching integration for performance optimization.
 
 Category management module with full CRUD operations.
 
-| Document | Type | Description |
-|----------|------|-------------|
+| Document                                                                          | Type          | Description                       |
+| --------------------------------------------------------------------------------- | ------------- | --------------------------------- |
 | [Categories Module Complete](./features/categories/CATEGORIES_MODULE_COMPLETE.md) | Feature Guide | **⭐ Complete categories system** |
-| [Categories Fix](./features/categories/CATEGORIES_FIX.md) | Fix Guide | TypeORM metadata issue resolution |
-| [Categories Quick Ref](./features/categories/CATEGORIES_QUICKREF.md) | Quick Ref | API endpoints and usage |
+| [Categories Fix](./features/categories/CATEGORIES_FIX.md)                         | Fix Guide     | TypeORM metadata issue resolution |
+| [Categories Quick Ref](./features/categories/CATEGORIES_QUICKREF.md)              | Quick Ref     | API endpoints and usage           |
 
 **Key Features:**
+
 - ✅ 11 repository methods
 - ✅ 10 REST endpoints
 - ✅ Auto-slug generation
@@ -119,13 +124,14 @@ Category management module with full CRUD operations.
 
 Structured logging with Pino for observability.
 
-| Document | Type | Description |
-|----------|------|-------------|
-| [Pino Logging Complete](./features/logging/PINO_LOGGING_COMPLETE.md) | Feature Guide | **⭐ Pino structured logging setup** |
-| [Pino Logging Expansion](./features/logging/PINO_LOGGING_EXPANSION.md) | Implementation | Expanded logging to all auth modules |
-| [Pino Logging Summary](./features/logging/PINO_LOGGING_SUMMARY.md) | Summary | Statistics and implementation summary |
+| Document                                                               | Type           | Description                           |
+| ---------------------------------------------------------------------- | -------------- | ------------------------------------- |
+| [Pino Logging Complete](./features/logging/PINO_LOGGING_COMPLETE.md)   | Feature Guide  | **⭐ Pino structured logging setup**  |
+| [Pino Logging Expansion](./features/logging/PINO_LOGGING_EXPANSION.md) | Implementation | Expanded logging to all auth modules  |
+| [Pino Logging Summary](./features/logging/PINO_LOGGING_SUMMARY.md)     | Summary        | Statistics and implementation summary |
 
 **Key Features:**
+
 - ✅ 5-10x faster than Winston
 - ✅ 24 structured logging points
 - ✅ Context-based logging
@@ -138,11 +144,12 @@ Structured logging with Pino for observability.
 
 Production-grade error monitoring and performance tracking with Sentry.
 
-| Document | Type | Description |
-|----------|------|-------------|
+| Document                                                          | Type          | Description                                 |
+| ----------------------------------------------------------------- | ------------- | ------------------------------------------- |
 | [Sentry Integration](./features/monitoring/SENTRY_INTEGRATION.md) | Feature Guide | **⭐ Complete Sentry error tracking setup** |
 
 **Key Features:**
+
 - ✅ Automatic error capture (500+ HTTP errors)
 - ✅ Performance monitoring with 10% sampling
 - ✅ User context tracking
@@ -157,11 +164,12 @@ Production-grade error monitoring and performance tracking with Sentry.
 
 Automatic gzip compression for bandwidth optimization.
 
-| Document | Type | Description |
-|----------|------|-------------|
+| Document                                                               | Type          | Description                                      |
+| ---------------------------------------------------------------------- | ------------- | ------------------------------------------------ |
 | [Response Compression](./features/compression/RESPONSE_COMPRESSION.md) | Feature Guide | **⭐ Gzip compression with client requirements** |
 
 **Key Features:**
+
 - ✅ 60-87% bandwidth reduction
 - ✅ Configurable threshold & level
 - ✅ Smart filtering (bypasses small responses)
@@ -174,11 +182,12 @@ Automatic gzip compression for bandwidth optimization.
 
 Database and Redis connection pooling for production efficiency.
 
-| Document | Type | Description |
-|----------|------|-------------|
+| Document                                                           | Type          | Description                                  |
+| ------------------------------------------------------------------ | ------------- | -------------------------------------------- |
 | [Connection Pooling](./features/performance/CONNECTION_POOLING.md) | Feature Guide | **⭐ PostgreSQL & Redis connection pooling** |
 
 **Key Features:**
+
 - ✅ 30-50% faster queries
 - ✅ Environment-aware (auto-enabled in production)
 - ✅ Configurable pool sizes
@@ -193,20 +202,21 @@ Quick references and how-to guides.
 
 ### Quick References
 
-| Document | Description |
-|----------|-------------|
+| Document                                                                 | Description                    |
+| ------------------------------------------------------------------------ | ------------------------------ |
 | [Repository Quick Ref](./guides/quick-references/REPOSITORY_QUICKREF.md) | Repository pattern cheat sheet |
 
 ---
 
 ## 📊 Progress Tracking
 
-Development progress and completion status.
+Progress reports from 2025 are archived and no longer maintained; current state is in the
+[architecture overview](./architecture/README.md) and the pull request history.
 
-| Document | Description |
-|----------|-------------|
-| [Enterprise Progress](./progress/ENTERPRISE_PROGRESS.md) | **⭐ Overall project progress (36% complete)** |
-| [Repository Complete](./progress/REPOSITORY_COMPLETE.md) | Repository pattern implementation status |
+| Document                                                                   | Description                                                                        |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [Enterprise Progress (2025)](archive/2025/progress/ENTERPRISE_PROGRESS.md) | Historical progress report                                                         |
+| [Repository Complete (2025)](archive/2025/progress/REPOSITORY_COMPLETE.md) | Historical; superseded by [ADR 0003](./adr/0003-data-access-and-cache-contract.md) |
 
 ---
 
@@ -214,20 +224,22 @@ Development progress and completion status.
 
 ### New to the Project?
 
-1. **Start here:** [Architecture Standardization](./architecture/ARCHITECTURE_STANDARDIZATION.md)
-2. **Understand the foundation:** [Repository Pattern](./architecture/REPOSITORY_PATTERN.md)
-3. **Check progress:** [Enterprise Progress](./progress/ENTERPRISE_PROGRESS.md)
+1. **Start here:** [Architecture overview](./architecture/README.md)
+2. **Understand the decisions:** [Decision records](./adr/README.md)
 
 ### Want to Implement a Feature?
 
 **Authentication:**
+
 - [Session Management Complete](./features/auth/SESSION_MANAGEMENT_COMPLETE.md)
 - [Token Blacklist Implementation](./features/auth/TOKEN_BLACKLIST_IMPLEMENTATION.md)
 
 **Performance:**
+
 - [Redis Caching Complete](./features/cache/REDIS_CACHING_COMPLETE.md)
 
 **Observability:**
+
 - [Pino Logging Complete](./features/logging/PINO_LOGGING_COMPLETE.md)
 
 ---
@@ -235,12 +247,14 @@ Development progress and completion status.
 ## 📈 Project Statistics
 
 ### Overall Progress
+
 - **Completion:** 36% (6/17 major tasks)
 - **Code Written:** ~2,600 lines
 - **Documentation:** 25+ comprehensive guides
 - **Test Coverage:** TBD
 
 ### Completed Features
+
 - ✅ **Repository Pattern** (100%)
 - ✅ **Redis Caching** (100%)
 - ✅ **Categories Module** (100%)
@@ -249,6 +263,7 @@ Development progress and completion status.
 - ✅ **Token Blacklist** (100%)
 
 ### In Progress
+
 - 🔄 **Stories Module** (0%)
 - 🔄 **Attachments Module** (0%)
 - 🔄 **ACL Module** (0%)
@@ -258,12 +273,14 @@ Development progress and completion status.
 ## 🎯 Quick Links
 
 ### Most Important Docs
-1. [Architecture Standardization](./architecture/ARCHITECTURE_STANDARDIZATION.md) - **Read this first**
-2. [Enterprise Progress](./progress/ENTERPRISE_PROGRESS.md) - Current status
+
+1. [Architecture overview](./architecture/README.md) - **Read this first**
+2. [Decision records](./adr/README.md) - Why things are the way they are
 3. [Session Management Complete](./features/auth/SESSION_MANAGEMENT_COMPLETE.md) - Core feature
 4. [Token Blacklist Implementation](./features/auth/TOKEN_BLACKLIST_IMPLEMENTATION.md) - Security critical
 
 ### Quick References
+
 - [Repository Quick Ref](./guides/quick-references/REPOSITORY_QUICKREF.md)
 - [Cache Quickstart](./features/cache/CACHE_QUICKSTART.md)
 - [Categories Quick Ref](./features/categories/CATEGORIES_QUICKREF.md)
@@ -274,13 +291,13 @@ Development progress and completion status.
 
 ## 📝 Document Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| **Feature Guide** | Complete feature documentation | SESSION_MANAGEMENT_COMPLETE.md |
-| **Implementation** | Detailed implementation guide | TOKEN_BLACKLIST_IMPLEMENTATION.md |
-| **Quick Ref** | Cheat sheet, quick commands | CATEGORIES_QUICKREF.md |
-| **Summary** | Executive summary | TOKEN_BLACKLIST_SUMMARY.md |
-| **Progress** | Development timeline | SESSION_PROGRESS.md |
+| Type               | Description                    | Example                           |
+| ------------------ | ------------------------------ | --------------------------------- |
+| **Feature Guide**  | Complete feature documentation | SESSION_MANAGEMENT_COMPLETE.md    |
+| **Implementation** | Detailed implementation guide  | TOKEN_BLACKLIST_IMPLEMENTATION.md |
+| **Quick Ref**      | Cheat sheet, quick commands    | CATEGORIES_QUICKREF.md            |
+| **Summary**        | Executive summary              | TOKEN_BLACKLIST_SUMMARY.md        |
+| **Progress**       | Development timeline           | SESSION_PROGRESS.md               |
 
 ---
 
@@ -306,8 +323,9 @@ When adding new documentation:
 ## 📞 Support
 
 **Need help?**
-- Check [Architecture Standardization](./architecture/ARCHITECTURE_STANDARDIZATION.md) for structure
-- Review [Enterprise Progress](./progress/ENTERPRISE_PROGRESS.md) for current status
+
+- Check the [Architecture overview](./architecture/README.md) for structure and rules
+- Check the [Decision records](./adr/README.md) for the reasoning
 - See feature-specific docs for implementation details
 
 ---

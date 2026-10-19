@@ -20,6 +20,7 @@ The Kuybi Enhanced Database Layer provides a comprehensive, production-ready enh
 The Access Control List (ACL) system provides enterprise-grade authorization using CASL (CASL Ability):
 
 #### Components
+
 - **AbilityFactory** - Generates user-specific permission abilities with super-admin bypass
 - **AbilityGuard** - NestJS guard for endpoint protection with JWT integration
 - **ACL Decorators** - `@CheckAbility` decorator for declarative permission checks
@@ -28,24 +29,28 @@ The Access Control List (ACL) system provides enterprise-grade authorization usi
 - **ACL Controllers** - 13 REST endpoints for ACL administration
 
 #### Database Schema
+
 - **roles** - Role definitions with priorities (super-admin: 100, admin: 90, moderator: 70, user: 50, guest: 10)
 - **permissions** - Permission definitions with actions and subjects
 - **role_permissions** - Many-to-many mapping with CASCADE delete
 - **user_roles** - User role assignments with optional expiration dates
 
 #### Performance Features
+
 - **Super-Admin Bypass** - Zero DB queries for super-admin users (instant authorization)
 - **15-Minute Cache TTL** - Cached role/permission lookups reduce DB load
 - **Efficient Queries** - Optimized JOIN queries with proper indexing
 - **Field Filtering** - Conditional field restrictions based on permissions
 
 #### Protected Resources (28 Endpoints)
+
 - **Stories Controller** - 10 endpoints (create, update, delete, restore, attach/detach tags/attachments, publish, hard delete)
 - **Attachments Controller** - 6 endpoints (create, update, delete, hard delete, bulk operations)
 - **Categories Controller** - 8 endpoints (create, update, delete, restore, hard delete, bulk operations)
 - **Tags Controller** - 4 endpoints (create, update, delete, hard delete)
 
 #### Validation Status
+
 - **Test Coverage** - 93% pass rate (14/15 tests)
 - **Authentication** - 100% working (401 without token)
 - **Authorization** - 100% working (permission-based access control)
@@ -53,6 +58,7 @@ The Access Control List (ACL) system provides enterprise-grade authorization usi
 - **Production Status** - ✅ READY FOR DEPLOYMENT
 
 #### ACL REST Endpoints
+
 ```
 GET    /api/v1/acl/roles                    # List all roles
 POST   /api/v1/acl/roles                    # Create new role
@@ -103,7 +109,7 @@ import { Subject } from '../acl/enums/subject.enum'
 @Controller('api/v1/stories')
 @UseGuards(JwtAuthGuard) // Require authentication
 export class StoriesController {
-  
+
   @Post()
   @UseGuards(AbilityGuard) // Require authorization
   @CheckAbility({ action: Action.Create, subject: Subject.Story })
@@ -112,7 +118,7 @@ export class StoriesController {
   async create(@Body() createDto: CreateStoryDto, @Request() req) {
     return await this.storiesService.create(createDto, req.user)
   }
-  
+
   @Delete(':id')
   @UseGuards(AbilityGuard)
   @CheckAbility({ action: Action.Delete, subject: Subject.Story })
@@ -128,26 +134,26 @@ import { AbilityFactory } from '../acl/factories/ability.factory'
 @Injectable()
 export class StoriesService {
   constructor(private abilityFactory: AbilityFactory) {}
-  
+
   async create(data: CreateStoryDto, user: User) {
     const ability = await this.abilityFactory.createForUser(user)
-    
+
     if (ability.cannot(Action.Create, Subject.Story)) {
       throw new ForbiddenException('Cannot create stories')
     }
-    
+
     // Proceed with creation
     return await this.storiesRepository.save(data)
   }
-  
+
   async findAll(user: User) {
     const ability = await this.abilityFactory.createForUser(user)
-    
+
     // Filter fields based on permissions
     const canReadSensitive = ability.can(Action.Read, Subject.Story, 'sensitiveField')
-    
+
     const query = this.storiesRepository.createQueryBuilder('story')
-    
+
     if (!canReadSensitive) {
       query.select([
         'story.id',
@@ -156,7 +162,7 @@ export class StoriesService {
         // Exclude sensitive fields
       ])
     }
-    
+
     return await query.getMany()
   }
 }
@@ -224,21 +230,17 @@ class UserDAO extends AuditableDAO {
   // Use read replica for performance
   static async getActiveUsers() {
     const readConnection = this.getReadConnection()
-    return await readConnection.table('users')
-      .where('deleted_at', null)
-      .where('is_active', true)
+    return await readConnection.table('users').where('deleted_at', null).where('is_active', true)
   }
 
   // Use write connection for updates
   static async updateUserStatus(id, status, userId) {
     const writeConnection = this.getWriteConnection()
-    return await writeConnection.table('users')
-      .where('id', id)
-      .update({
-        status,
-        updated_by: userId,
-        updated_at: new Date()
-      })
+    return await writeConnection.table('users').where('id', id).update({
+      status,
+      updated_by: userId,
+      updated_at: new Date()
+    })
   }
 }
 ```
@@ -280,21 +282,17 @@ class UserDAO extends AuditableDAO {
   // Use read replica for performance
   static async getActiveUsers() {
     const readConnection = this.getReadConnection()
-    return await readConnection.table('users')
-      .where('deleted_at', null)
-      .where('is_active', true)
+    return await readConnection.table('users').where('deleted_at', null).where('is_active', true)
   }
 
   // Use write connection for updates
   static async updateUserStatus(id, status, userId) {
     const writeConnection = this.getWriteConnection()
-    return await writeConnection.table('users')
-      .where('id', id)
-      .update({
-        status,
-        updated_by: userId,
-        updated_at: new Date()
-      })
+    return await writeConnection.table('users').where('id', id).update({
+      status,
+      updated_by: userId,
+      updated_at: new Date()
+    })
   }
 }
 ```
@@ -369,12 +367,16 @@ const cache = new CacheManager({
 })
 
 // Cache-aside pattern
-const user = await cache.getOrSet(`user:${id}`, async () => {
-  return await UserDAO.query().findById(id)
-}, 3600)
+const user = await cache.getOrSet(
+  `user:${id}`,
+  async () => {
+    return await UserDAO.query().findById(id)
+  },
+  3600
+)
 
 // Cache warming strategy
-cache.registerWarmingStrategy('popular_users', async (cacheService) => {
+cache.registerWarmingStrategy('popular_users', async cacheService => {
   const users = await UserDAO.getPopularUsers(100)
   for (const user of users) {
     await cacheService.set(`user:${user.id}`, user, 3600)
@@ -398,12 +400,16 @@ const cache = new CacheManager({
 })
 
 // Cache-aside pattern
-const user = await cache.getOrSet(`user:${id}`, async () => {
-  return await UserDAO.query().findById(id)
-}, 3600)
+const user = await cache.getOrSet(
+  `user:${id}`,
+  async () => {
+    return await UserDAO.query().findById(id)
+  },
+  3600
+)
 
 // Cache warming strategy
-cache.registerWarmingStrategy('popular_users', async (cacheService) => {
+cache.registerWarmingStrategy('popular_users', async cacheService => {
   const users = await UserDAO.getPopularUsers(100)
   for (const user of users) {
     await cacheService.set(`user:${user.id}`, user, 3600)
@@ -424,20 +430,20 @@ class UserModel extends ValidatedModel {
   static get schema() {
     return {
       email: new this.Rule({
-        validator: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
-        normalizer: (v) => v.toLowerCase().trim(),
-        sanitizer: (v) => v.replace(/[<>]/g, ''),
+        validator: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+        normalizer: v => v.toLowerCase().trim(),
+        sanitizer: v => v.replace(/[<>]/g, ''),
         pii: true,
         gdprCategory: 'contact_info',
         description: 'Valid email address'
       }),
-      
+
       password: new this.Rule({
-        validator: (v) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(v),
+        validator: v => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(v),
         encrypted: true,
         description: 'Strong password with mixed case, numbers, and special chars'
       }),
-      
+
       confirmPassword: new this.Rule({
         crossFieldValidator: (value, allData) => {
           return value === allData.password || 'Passwords do not match'
@@ -581,9 +587,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS metadata JSONB;
 
 -- Performance indexes
-CREATE INDEX CONCURRENTLY users_email_active_idx ON users (email) 
+CREATE INDEX CONCURRENTLY users_email_active_idx ON users (email)
   WHERE deleted_at IS NULL AND is_active = true;
-CREATE INDEX CONCURRENTLY users_mobile_active_idx ON users (mobile_number) 
+CREATE INDEX CONCURRENTLY users_mobile_active_idx ON users (mobile_number)
   WHERE deleted_at IS NULL AND is_active = true;
 ```
 
@@ -615,6 +621,7 @@ npm run seed:run
 ```
 
 **ACL Test Results:**
+
 - ✅ 14/15 tests passing (93% coverage)
 - ✅ Authentication: 100% working
 - ✅ Authorization: 100% working
@@ -623,6 +630,7 @@ npm run seed:run
 - ✅ Production-ready
 
 **ACL Documentation:**
+
 - `/nest-app/docs/features/acl/README.md` - Complete ACL guide
 - `/nest-app/docs/features/acl/IMPLEMENTATION_COMPLETE.md` - Implementation summary
 - `/nest-app/docs/features/acl/GUARD_INTEGRATION_SUMMARY.md` - Guard coverage details
@@ -636,7 +644,7 @@ npm run migrate:latest
 
 # Migrations included:
 # - 20251010193200_create_audit_tables.js
-# - 20251010193300_add_enterprise_fields.js  
+# - 20251010193300_add_enterprise_fields.js
 # - 20251010193400_add_performance_indexes.js
 ```
 
@@ -648,7 +656,7 @@ npm run migrate:latest
 
 # Migrations included:
 # - 20251010193200_create_audit_tables.js
-# - 20251010193300_add_enterprise_fields.js  
+# - 20251010193300_add_enterprise_fields.js
 # - 20251010193400_add_performance_indexes.js
 ```
 
@@ -659,8 +667,10 @@ npm run migrate:latest
 const { BaseDAO } = require('backend-core')
 
 class UserDAO extends BaseDAO {
-  static get tableName() { return 'users' }
-  
+  static get tableName() {
+    return 'users'
+  }
+
   static async create(data) {
     return this.query().insert(data)
   }
@@ -670,9 +680,13 @@ class UserDAO extends BaseDAO {
 const AuditableDAO = require('../core/lib/AuditableDAO')
 
 class UserDAO extends AuditableDAO {
-  static get tableName() { return 'users' }
-  static get piiFields() { return ['email', 'name', 'mobileNumber'] }
-  
+  static get tableName() {
+    return 'users'
+  }
+  static get piiFields() {
+    return ['email', 'name', 'mobileNumber']
+  }
+
   static async create(data, userId) {
     return this.createWithAudit(data, userId)
   }
@@ -686,8 +700,10 @@ class UserDAO extends AuditableDAO {
 const { BaseDAO } = require('backend-core')
 
 class UserDAO extends BaseDAO {
-  static get tableName() { return 'users' }
-  
+  static get tableName() {
+    return 'users'
+  }
+
   static async create(data) {
     return this.query().insert(data)
   }
@@ -697,9 +713,13 @@ class UserDAO extends BaseDAO {
 const AuditableDAO = require('../core/lib/AuditableDAO')
 
 class UserDAO extends AuditableDAO {
-  static get tableName() { return 'users' }
-  static get piiFields() { return ['email', 'name', 'mobileNumber'] }
-  
+  static get tableName() {
+    return 'users'
+  }
+  static get piiFields() {
+    return ['email', 'name', 'mobileNumber']
+  }
+
   static async create(data, userId) {
     return this.createWithAudit(data, userId)
   }
@@ -708,7 +728,7 @@ class UserDAO extends AuditableDAO {
 
 ### Step 3: Initialize Enterprise Services
 
-```javascript
+````javascript
 // In your application startup (main.js)
 const { ConnectionPool, AuditableDAO } = require('backend-core')
 
@@ -796,7 +816,7 @@ AuditableDAO.setConnectionPool(connectionPool)
 // Set up Objection.js with primary connection
 const knexInstance = connectionPool.getWriteConnection()
 Model.knex(knexInstance)
-```
+````
 
 ## Implementation Status & Roadmap
 
@@ -890,6 +910,7 @@ Model.knex(knexInstance)
 ### 📊 System Metrics
 
 **ACL Performance:**
+
 - Super-admin authorization: < 1ms (bypass)
 - Regular user authorization: ~5-10ms (cached)
 - Cache hit ratio: > 95% (15-min TTL)
@@ -897,6 +918,7 @@ Model.knex(knexInstance)
 - Database tables: 4 (roles, permissions, role_permissions, user_roles)
 
 **Story-Category Relationship:**
+
 - Junction table: `story_categories`
 - Cascade delete: Enabled on both foreign keys
 - Max categories per story: 20
@@ -905,17 +927,20 @@ Model.knex(knexInstance)
 - ACL protected: Yes (Action.Update on Subject.Story)
 
 **Test Coverage:**
+
 - ACL validation: 93% (14/15 tests passing)
 - Authentication: 100% working
 - Authorization: 100% working
 - System protection: 100% working
 
 **Documentation:**
+
 - ACL guides: 9 files
 - Story-Category guide: 1 file
 - Enterprise database: This file
 - Total documentation pages: 11+
-```
+
+````
 
 ## Performance Monitoring
 
@@ -934,7 +959,7 @@ Cache Performance:
 - Avg Response Time (Memory): ${metrics.avgResponseTime.memory}ms
 - Avg Response Time (Redis): ${metrics.avgResponseTime.redis}ms
 `)
-```
+````
 
 ### Database Metrics
 
@@ -1051,12 +1076,14 @@ const passwordRule = new EnterpriseBaseModel.Rule({
 ### Common Issues
 
 1. **Encryption Key Missing**
+
    ```
    Error: Master encryption key is required
    Solution: Set ENCRYPTION_MASTER_KEY environment variable
    ```
 
 2. **Cache Connection Failed**
+
    ```
    Error: Redis connection failed
    Solution: Check Redis server status and connection config
@@ -1073,9 +1100,9 @@ const passwordRule = new EnterpriseBaseModel.Rule({
 ```javascript
 // Enable debug logging
 const cache = new CacheManager({
-  monitoring: { 
-    enabled: true, 
-    logLevel: 'debug' 
+  monitoring: {
+    enabled: true,
+    logLevel: 'debug'
   }
 })
 
