@@ -37,6 +37,7 @@ The Repository Pattern has been implemented to provide a clean separation betwee
 An abstract base class that provides common data access operations with built-in caching support.
 
 **Features:**
+
 - Generic type support for any entity
 - Built-in caching with configurable TTL
 - Automatic cache invalidation on updates
@@ -123,15 +124,15 @@ Handles all database operations for Country entity with 1-hour cache TTL (rarely
 **Specialized Methods:**
 
 ```typescript
-findByIso(iso)                   // Find by 2-letter ISO code (cached)
-findByIso3(iso3)                 // Find by 3-letter ISO code (cached)
-findByContinent(continent)       // Find all countries in continent (cached)
-findByRegion(region)             // Find all countries in region (cached)
-findAllActive()                  // Find all active countries (cached)
-findGroupedByContinent()         // Get countries grouped by continent (cached)
-findGroupedByRegion()            // Get countries grouped by region (cached)
-search(query)                    // Advanced search with filters
-getStats()                       // Get country statistics (10-min cache)
+findByIso(iso) // Find by 2-letter ISO code (cached)
+findByIso3(iso3) // Find by 3-letter ISO code (cached)
+findByContinent(continent) // Find all countries in continent (cached)
+findByRegion(region) // Find all countries in region (cached)
+findAllActive() // Find all active countries (cached)
+findGroupedByContinent() // Get countries grouped by continent (cached)
+findGroupedByRegion() // Get countries grouped by region (cached)
+search(query) // Advanced search with filters
+getStats() // Get country statistics (10-min cache)
 ```
 
 **Example Usage:**
@@ -190,15 +191,13 @@ export class UsersService {
 // ✅ New approach
 @Injectable()
 export class UsersService {
-  constructor(
-    private readonly userRepository: UserRepository
-  ) {}
+  constructor(private readonly userRepository: UserRepository) {}
 
   async findByEmail(email: string) {
     // Automatic caching with 15-minute TTL
     return this.userRepository.findByEmail(email)
   }
-  
+
   async searchUsers(query) {
     // Advanced search with proper filtering
     return this.userRepository.search(query)
@@ -215,8 +214,8 @@ Repositories must be provided in the module along with CacheService:
   imports: [TypeOrmModule.forFeature([User])],
   providers: [
     UsersService,
-    UserRepository,    // ← Add repository
-    CacheService       // ← Required for caching
+    UserRepository, // ← Add repository
+    CacheService // ← Required for caching
   ],
   exports: [UsersService, UserRepository]
 })
@@ -226,36 +225,43 @@ export class UsersModule {}
 ## Benefits
 
 ### 1. **Separation of Concerns**
+
 - Services focus on business logic
 - Repositories handle data access
 - Clear boundaries and responsibilities
 
 ### 2. **Automatic Caching**
+
 - All read operations cached by default
 - Configurable TTL per repository
 - Automatic cache invalidation on writes
 
 ### 3. **Consistent Data Access Patterns**
+
 - Standard methods across all repositories
 - Predictable behavior
 - Easier for new developers to understand
 
 ### 4. **Improved Testability**
+
 - Easy to mock repositories in unit tests
 - No direct TypeORM dependency in services
 - Cleaner test setup
 
 ### 5. **Type Safety**
+
 - Full TypeScript support
 - Generic types for entities
 - Compile-time error checking
 
 ### 6. **Performance**
+
 - Reduced database load via caching
 - Smart cache invalidation strategies
 - Query optimization at repository level
 
 ### 7. **Maintainability**
+
 - Single place to update data access logic
 - Reusable query patterns
 - Easy to add new features
@@ -271,6 +277,7 @@ Repositories use structured cache keys:
 ```
 
 **Examples:**
+
 ```
 user:id:123-abc-456
 user:email:john@example.com
@@ -289,22 +296,24 @@ country:stats
 
 Different data types have different cache durations:
 
-| Data Type | TTL | Reason |
-|-----------|-----|--------|
-| User data | 15 minutes | Moderate update frequency |
-| Country data | 1 hour | Rarely changes |
-| Statistics | 5-10 minutes | Calculated data, acceptable lag |
-| Search results | 1 hour | Can be long if data stable |
+| Data Type      | TTL          | Reason                          |
+| -------------- | ------------ | ------------------------------- |
+| User data      | 15 minutes   | Moderate update frequency       |
+| Country data   | 1 hour       | Rarely changes                  |
+| Statistics     | 5-10 minutes | Calculated data, acceptable lag |
+| Search results | 1 hour       | Can be long if data stable      |
 
 ### Cache Invalidation
 
 **Automatic invalidation on:**
+
 - `create()` → Invalidates list caches
 - `update()` → Invalidates entity + list caches
 - `delete()` → Invalidates entity + list caches
 - `save()` → Invalidates entity + list caches
 
 **Manual invalidation:**
+
 ```typescript
 // Invalidate specific entity
 await repository.invalidateEntityCache(id)
@@ -390,7 +399,7 @@ describe('UsersService', () => {
     repository.findByEmail.mockResolvedValue(mockUser as any)
 
     const result = await service.findByEmail('test@example.com')
-    
+
     expect(result).toEqual(mockUser)
     expect(repository.findByEmail).toHaveBeenCalledWith('test@example.com')
   })
@@ -467,7 +476,7 @@ export class StoryRepository extends BaseRepository<Story> {
   constructor(
     @InjectRepository(Story)
     repository: Repository<Story>,
-    cacheService: CacheService,
+    cacheService: CacheService
   ) {
     super(repository, cacheService)
   }
@@ -481,7 +490,7 @@ export class StoryRepository extends BaseRepository<Story> {
       async () => {
         return this.repository.findOne({ where: { slug } })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 
@@ -489,7 +498,7 @@ export class StoryRepository extends BaseRepository<Story> {
     const cacheKey = this.buildCacheKey(
       'published',
       `limit:${options?.limit ?? 50}`,
-      `offset:${options?.offset ?? 0}`,
+      `offset:${options?.offset ?? 0}`
     )
 
     return this.cacheService.wrap<Story[]>(
@@ -499,10 +508,10 @@ export class StoryRepository extends BaseRepository<Story> {
           where: { isPublished: true },
           take: options?.limit ?? 50,
           skip: options?.offset ?? 0,
-          order: { createdAt: 'DESC' },
+          order: { createdAt: 'DESC' }
         })
       },
-      this.defaultTTL,
+      this.defaultTTL
     )
   }
 }
@@ -526,7 +535,7 @@ export { StoryRepository } from './story.repository' // Add new repository
   imports: [TypeOrmModule.forFeature([Story])],
   providers: [
     StoriesService,
-    StoryRepository,  // Add repository
+    StoryRepository, // Add repository
     CacheService
   ],
   exports: [StoriesService, StoryRepository]
@@ -540,9 +549,7 @@ export class StoriesModule {}
 // src/stories/stories.service.ts
 @Injectable()
 export class StoriesService {
-  constructor(
-    private readonly storyRepository: StoryRepository
-  ) {}
+  constructor(private readonly storyRepository: StoryRepository) {}
 
   async findBySlug(slug: string) {
     return this.storyRepository.findBySlug(slug)
@@ -647,7 +654,7 @@ redis-cli --stat
 ## Next Steps
 
 - [ ] Create StoryRepository for Stories module
-- [ ] Add SessionRepository for Auth module  
+- [ ] Add SessionRepository for Auth module
 - [ ] Implement repository pattern for remaining entities
 - [ ] Add query performance monitoring
 - [ ] Create repository integration tests

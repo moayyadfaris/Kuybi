@@ -17,6 +17,7 @@ Successfully implemented a many-to-many relationship between Stories and Categor
 **File:** `/nest-app/src/database/migrations/1712001500000-create-story-categories-table.ts`
 
 **Schema:**
+
 ```sql
 CREATE TABLE story_categories (
   id SERIAL PRIMARY KEY,
@@ -29,12 +30,14 @@ CREATE TABLE story_categories (
 ```
 
 **Features:**
+
 - CASCADE DELETE on both foreign keys
 - UNIQUE constraint on (storyId, categoryId) prevents duplicates
 - 3 performance indexes for fast queries
 - Timestamp tracking for audit purposes
 
 **Indexes Created:**
+
 - `idx_story_categories_unique` - Unique on (storyId, categoryId)
 - `idx_story_categories_story` - Fast story lookups
 - `idx_story_categories_category` - Fast category lookups
@@ -44,6 +47,7 @@ CREATE TABLE story_categories (
 ### 2. Entity Relationships ✅
 
 **Story Entity** (`/nest-app/src/stories/entities/story.entity.ts`):
+
 ```typescript
 @ManyToMany(() => Category, (category) => category.stories, { cascade: false })
 @JoinTable({
@@ -55,12 +59,14 @@ categories?: Category[]
 ```
 
 **Category Entity** (`/nest-app/src/categories/entities/category.entity.ts`):
+
 ```typescript
 @ManyToMany(() => Story, (story) => story.categories)
 stories?: Story[]
 ```
 
 **Changes:**
+
 - Added Category import to Story entity
 - Added Story import to Category entity
 - Configured bidirectional many-to-many relationship
@@ -71,15 +77,18 @@ stories?: Story[]
 ### 3. DTOs ✅
 
 **Created Files:**
+
 - `/nest-app/src/stories/dto/attach-categories.dto.ts`
 - `/nest-app/src/stories/dto/detach-categories.dto.ts`
 
 **Updated Files:**
+
 - `/nest-app/src/stories/dto/create-story.dto.ts` - Added optional `categoryIds` field
 - `/nest-app/src/stories/dto/update-story.dto.ts` - Inherits from CreateStoryDto (already updated)
 - `/nest-app/src/stories/dto/index.ts` - Export new DTOs
 
 **Validation Rules:**
+
 ```typescript
 // AttachCategoriesDto & DetachCategoriesDto
 categoryIds: string[]  // UUID v4 format, 1-20 items
@@ -95,14 +104,17 @@ categoryIds?: string[]  // Optional, UUID v4 format, max 20 items
 **File:** `/nest-app/src/stories/stories.service.ts`
 
 **New Methods:**
+
 1. `attachCategories(storyId, dto, userId)` - Attach categories to story
 2. `detachCategories(storyId, dto, userId)` - Remove categories from story
 3. `getCategories(storyId)` - Get all story categories
 
 **Updated Methods:**
+
 1. `create(createStoryDto, userId)` - Now handles optional `categoryIds` field
 
 **Business Logic:**
+
 - Validates category existence and active status
 - Checks story ownership or admin permission
 - Prevents duplicate category assignments
@@ -135,6 +147,7 @@ categoryIds?: string[]  // Optional, UUID v4 format, max 20 items
    - Returns: Array of category objects
 
 **Enhanced Endpoints:**
+
 - **POST** `/api/v1/stories` - Now accepts optional `categoryIds` array
 - **PATCH** `/api/v1/stories/:id` - Can update categories via `categoryIds`
 
@@ -145,6 +158,7 @@ categoryIds?: string[]  // Optional, UUID v4 format, max 20 items
 **File:** `/nest-app/src/stories/stories.module.ts`
 
 **Changes:**
+
 - Added `Category` entity to TypeORM imports
 - Injected `categoryRepository` into service
 
@@ -159,6 +173,7 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 **File:** `/nest-app/docs/features/story-categories/README.md`
 
 **Contents:**
+
 - Overview and features
 - Database schema details
 - Complete API reference for all endpoints
@@ -174,6 +189,7 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 - Future enhancements
 
 **Updated Files:**
+
 - `/docs/ENTERPRISE_DATABASE.md` - Added Story-Category section to implementation status
 
 ---
@@ -181,6 +197,7 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 ## Features & Capabilities
 
 ### Core Features
+
 - ✅ Many-to-many relationship between stories and categories
 - ✅ Create stories with categories in one operation
 - ✅ Update story categories
@@ -192,6 +209,7 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 - ✅ Performance indexed for fast queries
 
 ### Security Features
+
 - ✅ ACL protected operations (Action.Update on Subject.Story)
 - ✅ Ownership validation (user must own story or be admin)
 - ✅ JWT authentication required
@@ -199,6 +217,7 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 - ✅ Audit logging for all operations
 
 ### Performance Features
+
 - ✅ Indexed junction table
 - ✅ Cache invalidation on changes
 - ✅ Batch category validation
@@ -211,18 +230,18 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 
 ### Endpoints Added: 3
 
-| Method | Endpoint | Description | Auth | ACL |
-|--------|----------|-------------|------|-----|
-| POST | `/api/v1/stories/:id/categories` | Attach categories | Required | Action.Update |
-| DELETE | `/api/v1/stories/:id/categories` | Detach categories | Required | Action.Update |
-| GET | `/api/v1/stories/:id/categories` | Get categories | Not required | None |
+| Method | Endpoint                         | Description       | Auth         | ACL           |
+| ------ | -------------------------------- | ----------------- | ------------ | ------------- |
+| POST   | `/api/v1/stories/:id/categories` | Attach categories | Required     | Action.Update |
+| DELETE | `/api/v1/stories/:id/categories` | Detach categories | Required     | Action.Update |
+| GET    | `/api/v1/stories/:id/categories` | Get categories    | Not required | None          |
 
 ### Endpoints Enhanced: 2
 
-| Method | Endpoint | New Feature |
-|--------|----------|-------------|
-| POST | `/api/v1/stories` | Accept `categoryIds` array |
-| PATCH | `/api/v1/stories/:id` | Update `categoryIds` |
+| Method | Endpoint              | New Feature                |
+| ------ | --------------------- | -------------------------- |
+| POST   | `/api/v1/stories`     | Accept `categoryIds` array |
+| PATCH  | `/api/v1/stories/:id` | Update `categoryIds`       |
 
 ---
 
@@ -267,6 +286,7 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 **Coverage Target:** 80%
 
 **Test Files Needed:**
+
 - `stories.service.spec.ts` - Unit tests for service methods
 - `stories.controller.spec.ts` - Unit tests for controller endpoints
 - `stories.e2e.spec.ts` - E2E tests for API endpoints
@@ -276,11 +296,13 @@ TypeOrmModule.forFeature([Story, StoryAttachment, StoryTag, Attachment, Tag, Cat
 ## Performance Metrics
 
 ### Database Performance
+
 - **Indexes:** 3 total on junction table
 - **Query Complexity:** O(1) for lookup, O(n) for attach/detach
 - **Expected Response Time:** < 50ms for attach/detach, < 10ms for get
 
 ### Caching Strategy
+
 - **Cache Key:** `story:id:{storyId}`
 - **Invalidation:** On attach/detach categories
 - **TTL:** 15 minutes (inherited from story cache)
@@ -297,6 +319,7 @@ npm run migration:run
 ```
 
 **Expected Output:**
+
 ```
 query: CREATE TABLE "story_categories" ...
 query: CREATE INDEX "idx_story_categories_unique" ...
@@ -348,6 +371,7 @@ npm run migration:revert
 ```
 
 This will:
+
 1. Drop all indexes on `story_categories`
 2. Drop the `story_categories` table
 3. Remove foreign key constraints
@@ -365,18 +389,21 @@ This will:
 ## Future Enhancements
 
 ### Phase 2 (Planned)
+
 1. **Category Ordering** - Add `order` field to control display sequence
 2. **Primary Category** - Mark one category as primary/featured
 3. **Bulk Operations** - Update categories for multiple stories at once
 4. **Category History** - Track when categories were added/removed
 
 ### Phase 3 (Planned)
+
 1. **Filter Stories by Category** - `GET /api/v1/stories?categoryId=...`
 2. **Filter by Multiple Categories** - `GET /api/v1/stories?categoryIds[]=...`
 3. **Replace All Categories** - `PUT /api/v1/stories/:id/categories`
 4. **Get Category Stories** - `GET /api/v1/categories/:id/stories`
 
 ### Phase 4 (Planned)
+
 1. **Category Statistics** - Story count per category
 2. **ML-based Category Suggestions** - Auto-suggest categories based on content
 3. **Category Analytics** - Track popular categories, trending topics
@@ -387,10 +414,12 @@ This will:
 ## Dependencies
 
 ### New Dependencies: 0
+
 - No new npm packages required
 - Uses existing TypeORM, NestJS, and validation libraries
 
 ### Modified Dependencies: 0
+
 - No version changes
 
 ---
@@ -400,6 +429,7 @@ This will:
 ### API Breaking Changes: None
 
 All changes are additive:
+
 - New optional field in CreateStoryDto
 - New endpoints added
 - Existing endpoints unchanged
@@ -414,16 +444,19 @@ All changes are additive:
 ## Security Considerations
 
 ### Permission Model
+
 - Attaching categories requires story update permission
 - Detaching categories requires story update permission
 - Getting categories is public (no permission required)
 
 ### Ownership Model
+
 - Users can only modify categories on their own stories
 - Admins can modify categories on any story
 - Ownership validated in service layer
 
 ### Input Validation
+
 - Maximum 20 categories per story
 - UUID v4 format validation
 - Category existence validation
@@ -434,6 +467,7 @@ All changes are additive:
 ## Monitoring & Logging
 
 ### Logged Events
+
 - `create_story` - With category count
 - `attach_categories` - Story ID, user, count
 - `detach_categories` - Story ID, user, count
@@ -441,6 +475,7 @@ All changes are additive:
 - `detach_categories_error` - Failures
 
 ### Log Context
+
 ```typescript
 {
   action: 'attach_categories',
@@ -456,6 +491,7 @@ All changes are additive:
 ## Success Criteria
 
 ### Implementation Complete ✅
+
 - [x] Migration created and tested
 - [x] Entities updated with relationships
 - [x] DTOs created with validation
@@ -466,6 +502,7 @@ All changes are additive:
 - [x] Documentation written
 
 ### Production Ready ✅
+
 - [x] All code implemented
 - [x] API documented
 - [x] Error handling in place
@@ -474,6 +511,7 @@ All changes are additive:
 - [x] Performance optimized
 
 ### Pending
+
 - [ ] Migration executed in database
 - [ ] Manual testing completed
 - [ ] Automated tests written
@@ -488,13 +526,14 @@ All changes are additive:
 - [Stories API](../stories/README.md)
 - [Categories API](../categories/README.md)
 - [ACL System](../acl/README.md)
-- [Enterprise Database](../../../docs/ENTERPRISE_DATABASE.md)
+- [Enterprise Database](../../archive/2025/architecture/ENTERPRISE_DATABASE.md)
 
 ---
 
 ## Conclusion
 
 The Story-Category relationship has been successfully implemented with:
+
 - ✅ Complete database schema
 - ✅ Full CRUD operations
 - ✅ ACL protection
@@ -506,6 +545,7 @@ The Story-Category relationship has been successfully implemented with:
 All components are implemented and ready for testing and deployment. The feature adds significant value for content organization while maintaining security, performance, and code quality standards.
 
 **Next Steps:**
+
 1. Run migration: `npm run migration:run`
 2. Manual testing of all endpoints
 3. Write automated tests

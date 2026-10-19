@@ -51,12 +51,14 @@ jq 'select(.action | contains("cleanup"))' < app.log
 I've created a new controller for you: `CleanupStatsController`
 
 #### **Get Statistics**
+
 ```http
 GET /admin/cleanup/stats
 Authorization: Bearer <your-jwt-token>
 ```
 
 **Response:**
+
 ```json
 {
   "lastCleanupTime": "2025-10-24T11:00:00.000Z",
@@ -72,6 +74,7 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 **Fields:**
+
 - `lastCleanupTime`: When the last cleanup ran (null if never)
 - `totalCleaned`: Total sessions cleaned since app started
 - `isHealthy`: `true` if cleanup ran within last 2 hours
@@ -79,6 +82,7 @@ Authorization: Bearer <your-jwt-token>
 - `uptime`: Human-readable time since last run
 
 #### **Trigger Manual Cleanup**
+
 ```http
 POST /admin/cleanup/trigger
 Authorization: Bearer <your-jwt-token>
@@ -90,6 +94,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "deleted": 23,
@@ -189,7 +194,7 @@ import { SessionCleanupService } from '../auth/session-cleanup.service'
 @Get('health')
 async getHealth() {
   const cleanupStats = this.cleanupService.getCleanupStats()
-  
+
   return {
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -235,7 +240,7 @@ private readonly lastCleanupGauge = new Gauge({
 async handleSessionCleanup() {
   const startTime = Date.now()
   // ... existing code ...
-  
+
   this.cleanupCounter.inc(result.deleted)
   this.cleanupDuration.observe((Date.now() - startTime) / 1000)
   this.lastCleanupGauge.set(Date.now())
@@ -262,7 +267,7 @@ curl -H "Authorization: Bearer YOUR_JWT" \
 
 ```bash
 # Check logs for cleanup patterns
-jq 'select(.action == "scheduled_cleanup_complete") | 
+jq 'select(.action == "scheduled_cleanup_complete") |
     {time: .time, deleted: .deleted, duration: .duration}' app.log
 
 # Output shows cleanup trends:
@@ -275,7 +280,7 @@ jq 'select(.action == "scheduled_cleanup_complete") |
 
 ```bash
 # Monitor for suspicious sessions
-jq 'select(.action == "suspicious_sessions_detected") | 
+jq 'select(.action == "suspicious_sessions_detected") |
     {time: .time, count: .count}' app.log
 
 # Send alert if count > threshold
@@ -303,11 +308,11 @@ curl -H "Authorization: Bearer YOUR_JWT" \
   expr: time() - session_cleanup_last_run_timestamp > 7200
   annotations:
     summary: "Session cleanup hasn't run in 2 hours"
-    
+
 - alert: HighSuspiciousSessions
   expr: suspicious_sessions_count > 10
   annotations:
-    summary: "High number of suspicious sessions detected"
+    summary: 'High number of suspicious sessions detected'
 ```
 
 ### 2. **Dashboard Queries**
@@ -342,11 +347,13 @@ Ensure you're rotating logs to prevent disk space issues:
 ### Cleanup Not Running?
 
 **Check 1: Is @nestjs/schedule installed?**
+
 ```bash
 npm list @nestjs/schedule
 ```
 
 **Check 2: Is ScheduleModule imported?**
+
 ```typescript
 // app.module.ts should have:
 import { ScheduleModule } from '@nestjs/schedule'
@@ -360,6 +367,7 @@ import { ScheduleModule } from '@nestjs/schedule'
 ```
 
 **Check 3: Check logs for errors**
+
 ```bash
 # Look for cleanup failures
 jq 'select(.action == "cleanup_failed")' app.log
@@ -368,6 +376,7 @@ jq 'select(.action == "cleanup_failed")' app.log
 ### Cleanup Running Too Often?
 
 **Adjust cron schedule:**
+
 ```typescript
 // Change from EVERY_HOUR to custom schedule
 @Cron('0 2 * * *') // 2 AM daily
@@ -379,12 +388,13 @@ async handleSessionCleanup() {
 ### Need More Detailed Tracking?
 
 **Add event emitters:**
+
 ```typescript
 import { EventEmitter2 } from '@nestjs/event-emitter'
 
 async handleSessionCleanup() {
   // ... cleanup logic ...
-  
+
   this.eventEmitter.emit('cleanup.completed', {
     deleted: result.deleted,
     duration,
@@ -397,12 +407,12 @@ async handleSessionCleanup() {
 
 ## 📊 Quick Reference
 
-| Method | Use Case | Latency | Best For |
-|--------|----------|---------|----------|
-| **REST API** | On-demand checks | Real-time | Dashboards, manual checks |
-| **Logs** | Historical analysis | Batch | Production monitoring, debugging |
-| **Health Check** | Service health | Real-time | Load balancers, orchestrators |
-| **Metrics** | Time-series data | Real-time | Grafana, Prometheus |
+| Method           | Use Case            | Latency   | Best For                         |
+| ---------------- | ------------------- | --------- | -------------------------------- |
+| **REST API**     | On-demand checks    | Real-time | Dashboards, manual checks        |
+| **Logs**         | Historical analysis | Batch     | Production monitoring, debugging |
+| **Health Check** | Service health      | Real-time | Load balancers, orchestrators    |
+| **Metrics**      | Time-series data    | Real-time | Grafana, Prometheus              |
 
 ---
 
@@ -424,11 +434,13 @@ For a production environment, I recommend:
 ## 📝 Code Added
 
 I've created:
+
 - ✅ `CleanupStatsController` - REST API for cleanup tracking
 - ✅ Added to `AuthModule`
 - ✅ Ready to use immediately
 
 **Build and test:**
+
 ```bash
 npm run build
 npm run start:dev
@@ -444,6 +456,6 @@ curl -H "Authorization: Bearer YOUR_JWT" \
 
 - [PINO_LOGGING_EXPANSION.md](./PINO_LOGGING_EXPANSION.md) - Logging implementation
 - [SESSION_MANAGEMENT_COMPLETE.md](./SESSION_MANAGEMENT_COMPLETE.md) - Session module docs
-- [ENTERPRISE_PROGRESS.md](../ENTERPRISE_PROGRESS.md) - Overall progress
+- [ENTERPRISE_PROGRESS.md](../../archive/2025/progress/ENTERPRISE_PROGRESS.md) - Overall progress
 
 Your cleanup job is fully tracked and observable! 🎉

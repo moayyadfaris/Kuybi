@@ -26,6 +26,7 @@
 The Dynamic Post Types system provides WordPress + ACF-like flexibility for creating custom content types (Events, Products, Recipes, etc.) with custom fields.
 
 ### What You Can Build:
+
 - **Post Type Management:** Create/edit custom content types (Event, Product, Recipe)
 - **Field Builder:** Define custom fields for each post type (text, date, wysiwyg, etc.)
 - **Content Management:** Create content instances with dynamic fields
@@ -33,6 +34,7 @@ The Dynamic Post Types system provides WordPress + ACF-like flexibility for crea
 - **Search & Filter:** Full-text search + JSONB field queries
 
 ### Key Features:
+
 - ✅ 25 field types (text, number, date, wysiwyg, file, relation, etc.)
 - ✅ 6 content statuses (draft, pending_review, published, scheduled, archived, deleted)
 - ✅ JSONB storage for maximum flexibility
@@ -46,6 +48,7 @@ The Dynamic Post Types system provides WordPress + ACF-like flexibility for crea
 ## 🚧 Current Status
 
 ### ✅ Phase 1 Complete (Backend Infrastructure):
+
 - Database tables with JSONB columns
 - TypeORM entities with relationships
 - Repository layer with caching
@@ -53,6 +56,7 @@ The Dynamic Post Types system provides WordPress + ACF-like flexibility for crea
 - Seeded data: Story (system) + Event (custom) post types
 
 ### ⏳ Phase 2 In Progress (REST API):
+
 - Controllers with RESTful endpoints
 - DTOs with validation decorators
 - Swagger/OpenAPI documentation
@@ -172,46 +176,46 @@ post_content:
 ```typescript
 enum FieldType {
   // Text Fields
-  TEXT = 'text',           // Short text input (minLength, maxLength)
-  TEXTAREA = 'textarea',   // Multi-line text (rows, maxLength)
-  WYSIWYG = 'wysiwyg',    // Rich text editor (toolbar config)
-  EMAIL = 'email',         // Email validation
-  URL = 'url',            // URL validation
-  TEL = 'tel',            // Phone number validation
-  CODE = 'code',          // Code editor (language, theme)
-  
+  TEXT = 'text', // Short text input (minLength, maxLength)
+  TEXTAREA = 'textarea', // Multi-line text (rows, maxLength)
+  WYSIWYG = 'wysiwyg', // Rich text editor (toolbar config)
+  EMAIL = 'email', // Email validation
+  URL = 'url', // URL validation
+  TEL = 'tel', // Phone number validation
+  CODE = 'code', // Code editor (language, theme)
+
   // Number Fields
-  NUMBER = 'number',       // Integer or float (min, max, step)
-  CURRENCY = 'currency',   // Money (currency, decimals, prefix/suffix)
-  
+  NUMBER = 'number', // Integer or float (min, max, step)
+  CURRENCY = 'currency', // Money (currency, decimals, prefix/suffix)
+
   // Date/Time Fields
-  DATE = 'date',          // Date picker (format, min, max)
-  DATETIME = 'datetime',  // Date + time picker
-  TIME = 'time',          // Time picker
-  
+  DATE = 'date', // Date picker (format, min, max)
+  DATETIME = 'datetime', // Date + time picker
+  TIME = 'time', // Time picker
+
   // Choice Fields
-  CHECKBOX = 'checkbox',        // True/false
-  RADIO = 'radio',             // Single choice (choices array)
-  SELECT = 'select',           // Dropdown (choices, allowOther)
+  CHECKBOX = 'checkbox', // True/false
+  RADIO = 'radio', // Single choice (choices array)
+  SELECT = 'select', // Dropdown (choices, allowOther)
   MULTISELECT = 'multiselect', // Multiple choices
-  TOGGLE = 'toggle',           // On/off switch
-  
+  TOGGLE = 'toggle', // On/off switch
+
   // Media Fields
-  FILE = 'file',          // File upload (allowedTypes, maxSize)
-  IMAGE = 'image',        // Image upload (dimensions, crop)
-  GALLERY = 'gallery',    // Multiple images (min, max)
-  VIDEO = 'video',        // Video upload or embed
-  
+  FILE = 'file', // File upload (allowedTypes, maxSize)
+  IMAGE = 'image', // Image upload (dimensions, crop)
+  GALLERY = 'gallery', // Multiple images (min, max)
+  VIDEO = 'video', // Video upload or embed
+
   // Relational Fields
-  RELATION = 'relation',  // Link to other content (postTypeId, multiple)
-  USER = 'user',          // Link to users (multiple, roles)
-  TAXONOMY = 'taxonomy',  // Link to categories/tags
-  
+  RELATION = 'relation', // Link to other content (postTypeId, multiple)
+  USER = 'user', // Link to users (multiple, roles)
+  TAXONOMY = 'taxonomy', // Link to categories/tags
+
   // Advanced Fields
-  COLOR = 'color',        // Color picker (format: hex, rgb, hsl)
-  JSON = 'json',          // Raw JSON editor
-  REPEATER = 'repeater',  // Repeating sub-fields (Phase 2)
-  GROUP = 'group'         // Field group (Phase 2)
+  COLOR = 'color', // Color picker (format: hex, rgb, hsl)
+  JSON = 'json', // Raw JSON editor
+  REPEATER = 'repeater', // Repeating sub-fields (Phase 2)
+  GROUP = 'group' // Field group (Phase 2)
 }
 ```
 
@@ -219,12 +223,12 @@ enum FieldType {
 
 ```typescript
 enum ContentStatus {
-  DRAFT = 'draft',                 // Being edited, not visible
+  DRAFT = 'draft', // Being edited, not visible
   PENDING_REVIEW = 'pending_review', // Submitted for approval
-  PUBLISHED = 'published',         // Live and visible
-  SCHEDULED = 'scheduled',         // Will be published at scheduledFor
-  ARCHIVED = 'archived',           // Hidden but kept for history
-  DELETED = 'deleted'              // Soft deleted
+  PUBLISHED = 'published', // Live and visible
+  SCHEDULED = 'scheduled', // Will be published at scheduledFor
+  ARCHIVED = 'archived', // Hidden but kept for history
+  DELETED = 'deleted' // Soft deleted
 }
 ```
 
@@ -238,11 +242,12 @@ enum ContentStatus {
 ### Post Types Endpoints
 
 #### 1. Get All Post Types
+
 ```http
 GET /api/post-types
 Query Parameters:
   - includeInactive: boolean (default: false)
-  
+
 Response: 200 OK
 [
   {
@@ -276,6 +281,7 @@ Response: 200 OK
 ```
 
 #### 2. Get Single Post Type
+
 ```http
 GET /api/post-types/:id
 GET /api/post-types/slug/:slug
@@ -307,6 +313,7 @@ Response: 200 OK
 ```
 
 #### 3. Create Post Type
+
 ```http
 POST /api/post-types
 Authorization: Bearer <token>
@@ -340,6 +347,7 @@ Response: 201 Created
 ```
 
 #### 4. Update Post Type
+
 ```http
 PATCH /api/post-types/:id
 Authorization: Bearer <token>
@@ -356,6 +364,7 @@ Response: 200 OK
 ```
 
 #### 5. Delete Post Type
+
 ```http
 DELETE /api/post-types/:id
 Authorization: Bearer <token>
@@ -370,6 +379,7 @@ Note: Cannot delete system post types (isSystem: true)
 ### Field Definitions Endpoints
 
 #### 1. Get Fields for Post Type
+
 ```http
 GET /api/post-types/:postTypeId/fields
 
@@ -399,6 +409,7 @@ Response: 200 OK
 ```
 
 #### 2. Create Field Definition
+
 ```http
 POST /api/post-types/:postTypeId/fields
 Authorization: Bearer <token>
@@ -427,6 +438,7 @@ Response: 201 Created
 ```
 
 #### 3. Update Field Definition
+
 ```http
 PATCH /api/post-types/:postTypeId/fields/:id
 Authorization: Bearer <token>
@@ -442,6 +454,7 @@ Response: 200 OK
 ```
 
 #### 4. Reorder Fields
+
 ```http
 POST /api/post-types/:postTypeId/fields/reorder
 Authorization: Bearer <token>
@@ -461,6 +474,7 @@ Response: 200 OK
 ```
 
 #### 5. Delete Field Definition
+
 ```http
 DELETE /api/post-types/:postTypeId/fields/:id
 Authorization: Bearer <token>
@@ -473,6 +487,7 @@ Response: 204 No Content
 ### Content Endpoints
 
 #### 1. Get Content List
+
 ```http
 GET /api/content/:postTypeSlug
 Query Parameters:
@@ -521,6 +536,7 @@ Response: 200 OK
 ```
 
 #### 2. Get Single Content
+
 ```http
 GET /api/content/:postTypeSlug/:id
 GET /api/content/:postTypeSlug/slug/:slug
@@ -548,6 +564,7 @@ Response: 200 OK
 ```
 
 #### 3. Create Content
+
 ```http
 POST /api/content/:postTypeSlug
 Authorization: Bearer <token>
@@ -579,6 +596,7 @@ Response: 201 Created
 ```
 
 #### 4. Update Content
+
 ```http
 PATCH /api/content/:postTypeSlug/:id
 Authorization: Bearer <token>
@@ -597,6 +615,7 @@ Response: 200 OK
 ```
 
 #### 5. Publish Content
+
 ```http
 POST /api/content/:postTypeSlug/:id/publish
 Authorization: Bearer <token>
@@ -610,6 +629,7 @@ Response: 200 OK
 ```
 
 #### 6. Schedule Content
+
 ```http
 POST /api/content/:postTypeSlug/:id/schedule
 Authorization: Bearer <token>
@@ -629,6 +649,7 @@ Response: 200 OK
 ```
 
 #### 7. Delete Content
+
 ```http
 DELETE /api/content/:postTypeSlug/:id
 Authorization: Bearer <token>
@@ -643,12 +664,14 @@ Response: 204 No Content
 All write operations require JWT authentication.
 
 ### Headers Required:
+
 ```http
 Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
 
 ### Getting Access Token:
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -672,17 +695,17 @@ Response:
 
 ### Permission Requirements (ACL):
 
-| Operation | Required Permission |
-|-----------|-------------------|
-| View Post Types | `Action.Read` on `Subject.PostType` |
-| Create Post Type | `Action.Create` on `Subject.PostType` |
-| Update Post Type | `Action.Update` on `Subject.PostType` |
-| Delete Post Type | `Action.Delete` on `Subject.PostType` |
-| View Content | `Action.Read` on `Subject.Content` |
-| Create Content | `Action.Create` on `Subject.Content` |
+| Operation          | Required Permission                                              |
+| ------------------ | ---------------------------------------------------------------- |
+| View Post Types    | `Action.Read` on `Subject.PostType`                              |
+| Create Post Type   | `Action.Create` on `Subject.PostType`                            |
+| Update Post Type   | `Action.Update` on `Subject.PostType`                            |
+| Delete Post Type   | `Action.Delete` on `Subject.PostType`                            |
+| View Content       | `Action.Read` on `Subject.Content`                               |
+| Create Content     | `Action.Create` on `Subject.Content`                             |
 | Update Own Content | `Action.Update` on `Subject.Content` with `{ authorId: userId }` |
-| Update Any Content | `Action.Update` on `Subject.Content` |
-| Publish Content | `Action.Publish` on `Subject.Content` |
+| Update Any Content | `Action.Update` on `Subject.Content`                             |
+| Publish Content    | `Action.Publish` on `Subject.Content`                            |
 
 ---
 
@@ -808,17 +831,9 @@ export const postTypesService = {
           {{ field.label }}
           <span v-if="field.isRequired" class="required">*</span>
         </label>
-        <select
-          :id="field.name"
-          v-model="formData[field.name]"
-          :required="field.isRequired"
-        >
+        <select :id="field.name" v-model="formData[field.name]" :required="field.isRequired">
           <option value="">Select...</option>
-          <option
-            v-for="choice in field.fieldOptions?.choices"
-            :key="choice"
-            :value="choice"
-          >
+          <option v-for="choice in field.fieldOptions?.choices" :key="choice" :value="choice">
             {{ choice }}
           </option>
         </select>
@@ -830,10 +845,7 @@ export const postTypesService = {
           {{ field.label }}
           <span v-if="field.isRequired" class="required">*</span>
         </label>
-        <rich-text-editor
-          v-model="formData[field.name]"
-          :toolbar="field.fieldOptions?.toolbar"
-        />
+        <rich-text-editor v-model="formData[field.name]" :toolbar="field.fieldOptions?.toolbar" />
       </div>
 
       <!-- Add more field types as needed -->
@@ -878,13 +890,8 @@ const handleSubmit = async () => {
 <template>
   <div class="content-list">
     <div class="filters">
-      <input
-        v-model="searchQuery"
-        type="search"
-        placeholder="Search..."
-        @input="debouncedSearch"
-      />
-      
+      <input v-model="searchQuery" type="search" placeholder="Search..." @input="debouncedSearch" />
+
       <select v-model="statusFilter" @change="loadContent">
         <option value="">All Statuses</option>
         <option value="draft">Draft</option>
@@ -1020,14 +1027,11 @@ export const usePostTypesStore = defineStore('postTypes', {
   }),
 
   getters: {
-    activePostTypes: (state) => 
-      state.postTypes.filter(pt => pt.isActive),
-    
-    customPostTypes: (state) =>
-      state.postTypes.filter(pt => !pt.isSystem),
-    
-    getPostTypeBySlug: (state) => (slug: string) =>
-      state.postTypes.find(pt => pt.slug === slug)
+    activePostTypes: state => state.postTypes.filter(pt => pt.isActive),
+
+    customPostTypes: state => state.postTypes.filter(pt => !pt.isSystem),
+
+    getPostTypeBySlug: state => (slug: string) => state.postTypes.find(pt => pt.slug === slug)
   },
 
   actions: {
@@ -1102,15 +1106,15 @@ export const usePostTypesStore = defineStore('postTypes', {
 
 ### Common Error Codes
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| 400 | Bad Request | Invalid request data or validation failure |
-| 401 | Unauthorized | Missing or invalid authentication token |
-| 403 | Forbidden | Insufficient permissions for this action |
-| 404 | Not Found | Resource not found |
-| 409 | Conflict | Duplicate slug, name, or unique field violation |
-| 422 | Unprocessable Entity | Business logic validation failure |
-| 500 | Internal Server Error | Server-side error |
+| Status | Error                 | Description                                     |
+| ------ | --------------------- | ----------------------------------------------- |
+| 400    | Bad Request           | Invalid request data or validation failure      |
+| 401    | Unauthorized          | Missing or invalid authentication token         |
+| 403    | Forbidden             | Insufficient permissions for this action        |
+| 404    | Not Found             | Resource not found                              |
+| 409    | Conflict              | Duplicate slug, name, or unique field violation |
+| 422    | Unprocessable Entity  | Business logic validation failure               |
+| 500    | Internal Server Error | Server-side error                               |
 
 ### Error Handling Example
 
@@ -1132,11 +1136,7 @@ export class ApiError extends Error {
 export const handleApiError = (error: AxiosError): never => {
   if (error.response) {
     const { status, data } = error.response
-    throw new ApiError(
-      data.message || 'An error occurred',
-      status,
-      data.details
-    )
+    throw new ApiError(data.message || 'An error occurred', status, data.details)
   } else if (error.request) {
     throw new ApiError('No response from server', 0)
   } else {
@@ -1189,7 +1189,7 @@ const fieldComponentMap = {
   toggle: 'ToggleSwitch',
   file: 'FileUpload',
   image: 'ImageUpload',
-  color: 'ColorPicker',
+  color: 'ColorPicker'
   // ... etc
 }
 ```
@@ -1248,11 +1248,14 @@ Implement aggressive caching for post types and fields:
 ```typescript
 // Cache post types for 30 minutes (they rarely change)
 const cachePostTypes = (postTypes: PostType[]) => {
-  localStorage.setItem('postTypes', JSON.stringify({
-    data: postTypes,
-    timestamp: Date.now(),
-    ttl: 30 * 60 * 1000 // 30 minutes
-  }))
+  localStorage.setItem(
+    'postTypes',
+    JSON.stringify({
+      data: postTypes,
+      timestamp: Date.now(),
+      ttl: 30 * 60 * 1000 // 30 minutes
+    })
+  )
 }
 
 const getCachedPostTypes = (): PostType[] | null => {
@@ -1276,24 +1279,24 @@ Always store custom field values in `field_data` object:
 ```typescript
 // ✅ Correct
 const contentData = {
-  title: "My Event",
-  excerpt: "Event description",
-  status: "draft",
+  title: 'My Event',
+  excerpt: 'Event description',
+  status: 'draft',
   field_data: {
-    event_date: "2025-12-15",
-    location: "New York",
-    price: "299.00",
-    max_attendees: "500"
+    event_date: '2025-12-15',
+    location: 'New York',
+    price: '299.00',
+    max_attendees: '500'
   }
 }
 
 // ❌ Wrong - don't mix custom fields with content fields
 const contentData = {
-  title: "My Event",
-  excerpt: "Event description",
-  status: "draft",
-  event_date: "2025-12-15", // This won't work
-  location: "New York"      // This won't work
+  title: 'My Event',
+  excerpt: 'Event description',
+  status: 'draft',
+  event_date: '2025-12-15', // This won't work
+  location: 'New York' // This won't work
 }
 ```
 
@@ -1306,17 +1309,20 @@ const generateSlug = (text: string): string => {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '')      // Remove special characters
-    .replace(/[\s_-]+/g, '-')      // Replace spaces/underscores with hyphens
-    .replace(/^-+|-+$/g, '')       // Remove leading/trailing hyphens
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/[\s_-]+/g, '-') // Replace spaces/underscores with hyphens
+    .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
 }
 
 // Usage
-watch(() => formData.title, (newTitle) => {
-  if (!slugManuallyEdited.value) {
-    formData.slug = generateSlug(newTitle)
+watch(
+  () => formData.title,
+  newTitle => {
+    if (!slugManuallyEdited.value) {
+      formData.slug = generateSlug(newTitle)
+    }
   }
-})
+)
 ```
 
 ### 6. Optimistic Updates
@@ -1357,17 +1363,20 @@ const searchContent = debounce(async (query: string) => {
 ## 📞 Support & Questions
 
 **Backend Team Contact:**
+
 - Slack: #backend-team
 - Email: backend@kuybi.dev
 
 **Documentation Updates:**
+
 - This document will be updated as Phase 2 APIs become available
 - Check Swagger docs at `http://localhost:4000/api/docs` (available after Phase 2)
 
 **Useful Resources:**
+
 - [Kuybi Backend README](../../../README.md)
 - [Dynamic Post Types Plan](../../planning/DYNAMIC_POST_TYPES_PLAN.md)
-- [Architecture Overview](../../architecture/ARCHITECTURE_STANDARDIZATION.md)
+- [Architecture Overview](../../archive/2025/architecture/ARCHITECTURE_STANDARDIZATION.md)
 - [API Reference](../../API_REFERENCE.md)
 
 ---

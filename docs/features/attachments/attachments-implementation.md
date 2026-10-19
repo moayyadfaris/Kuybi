@@ -38,38 +38,39 @@ database/
 
 **Table**: `attachments`
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key (UUID v4) |
-| userId | uuid | Foreign key to users table |
-| path | varchar(1024) | S3 storage path |
-| mimeType | varchar(150) | File MIME type |
-| size | integer | File size in bytes |
-| originalName | varchar(255) | Original filename |
-| category | varchar(50) | File category (profile, story, document, etc.) |
-| isPublic | boolean | Public access flag (default: false) |
-| isEncrypted | boolean | Encryption flag (default: false) |
-| encryptionKey | varchar(255) | Encryption key (if encrypted) |
-| securityStatus | varchar(20) | Security scan status (pending/clean/malicious) |
-| checksum | varchar(128) | SHA-256 checksum for integrity |
-| downloadCount | integer | Number of downloads (default: 0) |
-| lastAccessedAt | timestamptz | Last access timestamp |
-| folder | varchar(100) | Organizational folder |
-| description | text | File description |
-| tags | jsonb | Array of tags |
-| metadata | jsonb | Additional metadata (dimensions, duration, etc.) |
-| scanResults | jsonb | Security scan results |
-| containsPII | boolean | PII detection flag (default: false) |
-| retentionPeriod | varchar(20) | Data retention period |
-| expiresAt | timestamptz | Expiration timestamp |
-| deletionScheduledAt | timestamptz | Scheduled deletion timestamp |
-| thumbnailPath | varchar(1024) | Thumbnail S3 path |
-| version | integer | Version number (default: 1) |
-| createdAt | timestamptz | Creation timestamp |
-| updatedAt | timestamptz | Last update timestamp |
-| deletedAt | timestamptz | Soft delete timestamp |
+| Column              | Type          | Description                                      |
+| ------------------- | ------------- | ------------------------------------------------ |
+| id                  | uuid          | Primary key (UUID v4)                            |
+| userId              | uuid          | Foreign key to users table                       |
+| path                | varchar(1024) | S3 storage path                                  |
+| mimeType            | varchar(150)  | File MIME type                                   |
+| size                | integer       | File size in bytes                               |
+| originalName        | varchar(255)  | Original filename                                |
+| category            | varchar(50)   | File category (profile, story, document, etc.)   |
+| isPublic            | boolean       | Public access flag (default: false)              |
+| isEncrypted         | boolean       | Encryption flag (default: false)                 |
+| encryptionKey       | varchar(255)  | Encryption key (if encrypted)                    |
+| securityStatus      | varchar(20)   | Security scan status (pending/clean/malicious)   |
+| checksum            | varchar(128)  | SHA-256 checksum for integrity                   |
+| downloadCount       | integer       | Number of downloads (default: 0)                 |
+| lastAccessedAt      | timestamptz   | Last access timestamp                            |
+| folder              | varchar(100)  | Organizational folder                            |
+| description         | text          | File description                                 |
+| tags                | jsonb         | Array of tags                                    |
+| metadata            | jsonb         | Additional metadata (dimensions, duration, etc.) |
+| scanResults         | jsonb         | Security scan results                            |
+| containsPII         | boolean       | PII detection flag (default: false)              |
+| retentionPeriod     | varchar(20)   | Data retention period                            |
+| expiresAt           | timestamptz   | Expiration timestamp                             |
+| deletionScheduledAt | timestamptz   | Scheduled deletion timestamp                     |
+| thumbnailPath       | varchar(1024) | Thumbnail S3 path                                |
+| version             | integer       | Version number (default: 1)                      |
+| createdAt           | timestamptz   | Creation timestamp                               |
+| updatedAt           | timestamptz   | Last update timestamp                            |
+| deletedAt           | timestamptz   | Soft delete timestamp                            |
 
 **Indexes**:
+
 - `idx_attachments_user` on `userId`
 - `idx_attachments_security_status` on `securityStatus`
 - `idx_attachments_is_public` on `isPublic`
@@ -77,6 +78,7 @@ database/
 - `idx_attachments_deleted_at` on `deletedAt`
 
 **Foreign Keys**:
+
 - `userId` → `users.id` (CASCADE on delete)
 
 ## API Endpoints
@@ -88,6 +90,7 @@ database/
 Upload a new file with optional image processing.
 
 **Request**:
+
 ```http
 POST /api/attachments HTTP/1.1
 Content-Type: multipart/form-data
@@ -114,6 +117,7 @@ false
 ```
 
 **Response**:
+
 ```json
 {
   "attachment": {
@@ -145,6 +149,7 @@ false
 Retrieve attachment details by ID.
 
 **Response**:
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -166,6 +171,7 @@ Retrieve attachment details by ID.
 Get all attachments for a specific user with filtering and pagination.
 
 **Query Parameters**:
+
 - `page` (number, default: 1)
 - `limit` (number, default: 20)
 - `category` (string, optional)
@@ -176,6 +182,7 @@ Get all attachments for a specific user with filtering and pagination.
 - `sortOrder` ('ASC' | 'DESC', default: 'DESC')
 
 **Response**:
+
 ```json
 {
   "data": [
@@ -199,6 +206,7 @@ Get all attachments for a specific user with filtering and pagination.
 Update attachment metadata (description, tags, category, etc.).
 
 **Request**:
+
 ```json
 {
   "description": "Updated description",
@@ -216,6 +224,7 @@ Update attachment metadata (description, tags, category, etc.).
 Soft delete an attachment (sets `deletedAt` timestamp).
 
 **Response**:
+
 ```json
 {
   "message": "Attachment deleted successfully"
@@ -229,6 +238,7 @@ Soft delete an attachment (sets `deletedAt` timestamp).
 Permanently delete attachment from database and S3.
 
 **Response**:
+
 ```json
 {
   "message": "Attachment permanently deleted"
@@ -250,6 +260,7 @@ Restore a soft-deleted attachment.
 Generate a temporary presigned URL for secure downloads.
 
 **Request**:
+
 ```json
 {
   "expiresIn": 3600
@@ -257,6 +268,7 @@ Generate a temporary presigned URL for secure downloads.
 ```
 
 **Response**:
+
 ```json
 {
   "url": "https://s3.amazonaws.com/bucket/path?X-Amz-Signature=...",
@@ -272,6 +284,7 @@ Generate a temporary presigned URL for secure downloads.
 Download attachment file with proper headers.
 
 **Response**: Binary file with headers:
+
 - `Content-Type`: Original MIME type
 - `Content-Disposition`: `attachment; filename="original.jpg"`
 - `Content-Length`: File size
@@ -283,6 +296,7 @@ Download attachment file with proper headers.
 Get attachment statistics across the system.
 
 **Response**:
+
 ```json
 {
   "totalAttachments": 1523,
@@ -309,9 +323,11 @@ Get attachment statistics across the system.
 Remove orphaned attachments (files without database references or vice versa).
 
 **Query Parameters**:
+
 - `olderThanDays` (number, default: 7)
 
 **Response**:
+
 ```json
 {
   "deleted": 23,
@@ -323,34 +339,35 @@ Remove orphaned attachments (files without database references or vice versa).
 
 ### AttachmentService
 
-| Method | Description |
-|--------|-------------|
-| `uploadAttachment()` | Upload file with validation, S3 storage, and optional image processing |
-| `getById()` | Get attachment by ID |
-| `getUserAttachments()` | Get user's attachments with filtering and pagination |
-| `updateMetadata()` | Update attachment metadata |
-| `softDelete()` | Soft delete attachment |
-| `hardDelete()` | Permanently delete attachment and S3 file |
-| `restore()` | Restore soft-deleted attachment |
-| `generatePresignedUrl()` | Generate temporary download URL |
-| `getStatistics()` | Get system-wide statistics |
-| `cleanupOrphaned()` | Remove orphaned files |
-| `downloadAttachment()` | Download file from S3 |
+| Method                   | Description                                                            |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `uploadAttachment()`     | Upload file with validation, S3 storage, and optional image processing |
+| `getById()`              | Get attachment by ID                                                   |
+| `getUserAttachments()`   | Get user's attachments with filtering and pagination                   |
+| `updateMetadata()`       | Update attachment metadata                                             |
+| `softDelete()`           | Soft delete attachment                                                 |
+| `hardDelete()`           | Permanently delete attachment and S3 file                              |
+| `restore()`              | Restore soft-deleted attachment                                        |
+| `generatePresignedUrl()` | Generate temporary download URL                                        |
+| `getStatistics()`        | Get system-wide statistics                                             |
+| `cleanupOrphaned()`      | Remove orphaned files                                                  |
+| `downloadAttachment()`   | Download file from S3                                                  |
 
 ### FileValidationService
 
-| Method | Description |
-|--------|-------------|
-| `validateFile()` | Comprehensive file validation (MIME, size, security) |
-| `validateMimeType()` | MIME type validation against whitelist |
-| `validateFileSize()` | Size validation with type-specific limits |
-| `validateExtension()` | Extension validation |
+| Method                   | Description                                            |
+| ------------------------ | ------------------------------------------------------ |
+| `validateFile()`         | Comprehensive file validation (MIME, size, security)   |
+| `validateMimeType()`     | MIME type validation against whitelist                 |
+| `validateFileSize()`     | Size validation with type-specific limits              |
+| `validateExtension()`    | Extension validation                                   |
 | `checkSecurityThreats()` | Security threat detection (path traversal, null bytes) |
-| `sanitizeFilename()` | Filename sanitization |
-| `getAllowedMimeTypes()` | Get allowed MIME types by category |
-| `getMaxFileSize()` | Get max file size by type |
+| `sanitizeFilename()`     | Filename sanitization                                  |
+| `getAllowedMimeTypes()`  | Get allowed MIME types by category                     |
+| `getMaxFileSize()`       | Get max file size by type                              |
 
 **File Size Limits**:
+
 - Images: 5 MB
 - Videos: 100 MB
 - Documents: 10 MB
@@ -358,20 +375,21 @@ Remove orphaned attachments (files without database references or vice versa).
 
 ### ImageProcessingService
 
-| Method | Description |
-|--------|-------------|
-| `resize()` | Resize image to specific dimensions |
+| Method                 | Description                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| `resize()`             | Resize image to specific dimensions                               |
 | `generateThumbnails()` | Generate multiple thumbnail sizes (small, medium, large, preview) |
-| `optimize()` | Optimize image quality and size |
-| `convertFormat()` | Convert image format (JPEG, PNG, WebP) |
-| `crop()` | Crop image to dimensions |
-| `rotate()` | Rotate image by degrees |
-| `blur()` | Apply blur effect |
-| `grayscale()` | Convert to grayscale |
-| `addWatermark()` | Add text/image watermark |
-| `getMetadata()` | Extract image metadata (dimensions, format, etc.) |
+| `optimize()`           | Optimize image quality and size                                   |
+| `convertFormat()`      | Convert image format (JPEG, PNG, WebP)                            |
+| `crop()`               | Crop image to dimensions                                          |
+| `rotate()`             | Rotate image by degrees                                           |
+| `blur()`               | Apply blur effect                                                 |
+| `grayscale()`          | Convert to grayscale                                              |
+| `addWatermark()`       | Add text/image watermark                                          |
+| `getMetadata()`        | Extract image metadata (dimensions, format, etc.)                 |
 
 **Thumbnail Sizes**:
+
 - Small: 150x150
 - Medium: 300x300
 - Large: 600x600
@@ -379,20 +397,21 @@ Remove orphaned attachments (files without database references or vice versa).
 
 ### S3Service
 
-| Method | Description |
-|--------|-------------|
-| `upload()` | Upload file to S3 |
-| `download()` | Download file from S3 |
-| `delete()` | Delete file from S3 |
-| `deleteMultiple()` | Batch delete files |
-| `exists()` | Check if file exists |
-| `copy()` | Copy file within S3 |
+| Method              | Description                     |
+| ------------------- | ------------------------------- |
+| `upload()`          | Upload file to S3               |
+| `download()`        | Download file from S3           |
+| `delete()`          | Delete file from S3             |
+| `deleteMultiple()`  | Batch delete files              |
+| `exists()`          | Check if file exists            |
+| `copy()`            | Copy file within S3             |
 | `getPresignedUrl()` | Generate presigned download URL |
-| `getMetadata()` | Get file metadata from S3 |
-| `generateKey()` | Generate organized S3 key path |
-| `getPublicUrl()` | Get public URL for public files |
+| `getMetadata()`     | Get file metadata from S3       |
+| `generateKey()`     | Generate organized S3 key path  |
+| `getPublicUrl()`    | Get public URL for public files |
 
 **S3 Key Structure**:
+
 ```
 {category}/{userId}/{year}/{month}/{filename}-{uuid}.{ext}
 ```
@@ -401,23 +420,23 @@ Example: `profile/abc-123/2025/10/avatar-def-456.jpg`
 
 ### AttachmentRepository
 
-| Method | Description |
-|--------|-------------|
-| `findByUserId()` | Find attachments by user ID with filtering |
-| `findByCategory()` | Find attachments by category |
-| `findByMimeType()` | Find attachments by MIME type |
-| `findByTags()` | Find attachments containing specific tags |
-| `findOrphanedAttachments()` | Find orphaned attachments |
-| `findBySecurityStatus()` | Find attachments by security status |
-| `findExpired()` | Find expired attachments |
-| `findScheduledForDeletion()` | Find attachments scheduled for deletion |
-| `incrementDownloadCount()` | Increment download counter |
-| `updateSecurityStatus()` | Update security scan status |
-| `getStatistics()` | Get repository statistics |
-| `softDelete()` | Soft delete attachment |
-| `hardDelete()` | Hard delete attachment |
-| `restore()` | Restore soft-deleted attachment |
-| `findByIdWithOptions()` | Find by ID with custom options (include deleted, etc.) |
+| Method                       | Description                                            |
+| ---------------------------- | ------------------------------------------------------ |
+| `findByUserId()`             | Find attachments by user ID with filtering             |
+| `findByCategory()`           | Find attachments by category                           |
+| `findByMimeType()`           | Find attachments by MIME type                          |
+| `findByTags()`               | Find attachments containing specific tags              |
+| `findOrphanedAttachments()`  | Find orphaned attachments                              |
+| `findBySecurityStatus()`     | Find attachments by security status                    |
+| `findExpired()`              | Find expired attachments                               |
+| `findScheduledForDeletion()` | Find attachments scheduled for deletion                |
+| `incrementDownloadCount()`   | Increment download counter                             |
+| `updateSecurityStatus()`     | Update security scan status                            |
+| `getStatistics()`            | Get repository statistics                              |
+| `softDelete()`               | Soft delete attachment                                 |
+| `hardDelete()`               | Hard delete attachment                                 |
+| `restore()`                  | Restore soft-deleted attachment                        |
+| `findByIdWithOptions()`      | Find by ID with custom options (include deleted, etc.) |
 
 **Caching**: 10-minute TTL via BaseRepository integration
 
@@ -460,7 +479,7 @@ import { AttachmentsModule } from './attachments/attachments.module'
 
 @Module({
   imports: [
-    AttachmentsModule,
+    AttachmentsModule
     // other modules...
   ]
 })
@@ -490,7 +509,7 @@ export class ProfileService {
       },
       userId
     )
-    
+
     return attachment
   }
 }
@@ -528,16 +547,13 @@ export class AttachmentCleanupService {
 ### Query User Attachments
 
 ```typescript
-const attachments = await this.attachmentService.getUserAttachments(
-  userId,
-  {
-    page: 1,
-    limit: 20,
-    category: 'story',
-    sortBy: 'createdAt',
-    sortOrder: 'DESC'
-  }
-)
+const attachments = await this.attachmentService.getUserAttachments(userId, {
+  page: 1,
+  limit: 20,
+  category: 'story',
+  sortBy: 'createdAt',
+  sortOrder: 'DESC'
+})
 
 console.log(`Found ${attachments.total} story attachments`)
 ```
@@ -545,6 +561,7 @@ console.log(`Found ${attachments.total} story attachments`)
 ## Security Features
 
 ### 1. File Validation
+
 - MIME type whitelist enforcement
 - File extension validation
 - Size limit enforcement by file type
@@ -552,18 +569,21 @@ console.log(`Found ${attachments.total} story attachments`)
 - Null byte injection prevention
 
 ### 2. Security Scanning
+
 - Security status tracking (pending/clean/malicious)
 - Checksum verification (SHA-256)
 - PII detection flag
 - Scan results stored in JSONB
 
 ### 3. Access Control
+
 - User ownership validation
 - Public/private access flags
 - Presigned URLs with expiration
 - Bearer token authentication required
 
 ### 4. Data Protection
+
 - Optional encryption support
 - Encryption key storage
 - Soft delete for data recovery
@@ -572,20 +592,24 @@ console.log(`Found ${attachments.total} story attachments`)
 ## Performance Optimizations
 
 ### 1. Caching
+
 - Repository-level caching (10-min TTL)
 - Cache invalidation on updates/deletes
 - Redis-backed via BaseRepository
 
 ### 2. Database Indexes
+
 - Indexed on userId, category, securityStatus, isPublic, deletedAt
 - Optimized for common query patterns
 
 ### 3. S3 Optimization
+
 - Multipart upload for large files
 - CloudFront CDN integration ready
 - Public URL caching for public files
 
 ### 4. Image Processing
+
 - Lazy thumbnail generation
 - Quality optimization (80% JPEG quality default)
 - Format conversion to WebP for smaller sizes
@@ -637,6 +661,7 @@ npm run test:integration
 ```
 
 Test coverage should include:
+
 - File upload with validation
 - Image processing operations
 - S3 upload/download
@@ -650,21 +675,25 @@ Test coverage should include:
 ### Common Issues
 
 **1. Upload fails with "File validation failed"**
+
 - Check MIME type is in allowed list
 - Verify file size is within limits
 - Check filename doesn't contain special characters
 
 **2. S3 upload fails**
+
 - Verify AWS credentials are correct
 - Check S3 bucket exists and has proper permissions
 - Ensure bucket region matches AWS_REGION
 
 **3. Thumbnails not generated**
+
 - Ensure Sharp is installed (`npm install sharp`)
 - Check file is a valid image format
 - Verify `generateThumbnails: true` in upload DTO
 
 **4. Cache not working**
+
 - Verify Redis is running
 - Check Redis connection configuration
 - Ensure CacheService is properly injected
@@ -684,7 +713,7 @@ Test coverage should include:
 
 ## Related Documentation
 
-- [Enterprise Database Schema](../../ENTERPRISE_DATABASE.md)
+- [Enterprise Database Schema](../../archive/2025/architecture/ENTERPRISE_DATABASE.md)
 - [Story Attachments](../stories/story-attachments.md)
 - [AWS S3 Integration](../../infrastructure/s3-integration.md)
 - [Image Processing Guide](../../guides/image-processing.md)

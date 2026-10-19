@@ -9,6 +9,7 @@ After analyzing the codebase, I've identified several inconsistencies that need 
 ## 📁 Issue 1: Documentation Files Location
 
 ### Current State (Inconsistent)
+
 ```
 nest-app/
 ├── README.md                                    ✅ Root (correct)
@@ -41,6 +42,7 @@ nest-app/
 ```
 
 ### Recommended Structure
+
 ```
 nest-app/
 ├── README.md                          # Project overview
@@ -94,6 +96,7 @@ nest-app/
 ## 📁 Issue 2: Service Files Location
 
 ### Current State (Inconsistent)
+
 ```
 src/auth/
 ├── auth.service.ts                    ❌ Root (should be in services/)
@@ -104,6 +107,7 @@ src/auth/
 ```
 
 ### Other Modules (Mixed Patterns)
+
 ```
 src/cache/
 └── services/
@@ -126,6 +130,7 @@ src/categories/
 ### Recommended Structure (Consistent)
 
 **Option A: Services in `services/` folder (Enterprise Pattern)**
+
 ```
 src/auth/
 ├── auth.module.ts
@@ -146,6 +151,7 @@ src/auth/
 ```
 
 **Option B: Services in module root (NestJS Default Pattern)**
+
 ```
 src/auth/
 ├── auth.module.ts
@@ -163,6 +169,7 @@ src/auth/
 ```
 
 **Recommendation:** Use **Option A (Enterprise Pattern)** for:
+
 - ✅ Better organization at scale
 - ✅ Consistent with `attachments` and `cache` modules
 - ✅ Easier to locate services
@@ -175,6 +182,7 @@ src/auth/
 ### Phase 1: Documentation Organization (Priority: High)
 
 #### 1.1 Create Documentation Structure
+
 ```bash
 mkdir -p docs/architecture
 mkdir -p docs/features/auth
@@ -187,6 +195,7 @@ mkdir -p docs/progress
 ```
 
 #### 1.2 Move Documentation Files
+
 ```bash
 # Move to docs/features/auth/
 mv AUTHSERVICE_REFACTOR.md docs/features/auth/
@@ -220,6 +229,7 @@ rm revise-main.md  # Or mv to docs/archive/
 ```
 
 #### 1.3 Create Documentation Index
+
 Create `docs/README.md` as central navigation hub.
 
 ---
@@ -227,6 +237,7 @@ Create `docs/README.md` as central navigation hub.
 ### Phase 2: Service Files Organization (Priority: High)
 
 #### 2.1 Standardize Auth Module
+
 ```bash
 # Create services directory
 mkdir -p src/auth/services
@@ -242,12 +253,14 @@ touch src/auth/services/index.ts
 ```
 
 **Update imports in:**
+
 - `src/auth/auth.module.ts`
 - `src/auth/auth.controller.ts`
 - `src/auth/sessions.controller.ts`
 - `src/auth/cleanup-stats.controller.ts`
 
 #### 2.2 Standardize Other Modules (Optional)
+
 ```bash
 # Users module
 mkdir -p src/users/services
@@ -267,6 +280,7 @@ mv src/categories/categories.service.ts src/categories/services/
 ### Phase 3: Controller Organization (Optional Enhancement)
 
 #### Current State
+
 ```
 src/auth/
 ├── auth.controller.ts
@@ -275,6 +289,7 @@ src/auth/
 ```
 
 #### Enterprise Pattern (Optional)
+
 ```
 src/auth/
 └── controllers/
@@ -291,6 +306,7 @@ src/auth/
 ## 🎯 Recommended Module Structure (Final)
 
 ### Standard Module Layout
+
 ```
 src/{module}/
 ├── {module}.module.ts              # Module definition
@@ -319,6 +335,7 @@ src/{module}/
 ```
 
 ### Example: Auth Module (Standardized)
+
 ```
 src/auth/
 ├── auth.module.ts
@@ -352,6 +369,7 @@ src/auth/
 ## 🔧 Implementation Steps
 
 ### Step 1: Documentation Migration (Low Risk)
+
 **Impact:** None on code  
 **Time:** 15 minutes  
 **Risk:** Low
@@ -362,6 +380,7 @@ src/auth/
 ```
 
 ### Step 2: Auth Module Services (Medium Risk)
+
 **Impact:** Import path changes  
 **Time:** 30 minutes  
 **Risk:** Medium (requires import updates)
@@ -385,6 +404,7 @@ EOF
 ```
 
 **Then update imports in all files:**
+
 ```typescript
 // Before
 import { AuthService } from './auth.service'
@@ -395,6 +415,7 @@ import { AuthService, SessionsService } from './services'
 ```
 
 ### Step 3: Other Modules Services (Optional)
+
 **Impact:** Import path changes  
 **Time:** 20 minutes per module  
 **Risk:** Medium
@@ -406,31 +427,34 @@ Only implement if you want full consistency.
 ## 📊 Impact Analysis
 
 ### Documentation Migration
-| Impact | Assessment |
-|--------|------------|
-| **Code Changes** | 0 files |
-| **Import Updates** | 0 |
-| **Build Impact** | None |
-| **Risk Level** | ✅ Very Low |
-| **Benefit** | High (better organization) |
+
+| Impact             | Assessment                 |
+| ------------------ | -------------------------- |
+| **Code Changes**   | 0 files                    |
+| **Import Updates** | 0                          |
+| **Build Impact**   | None                       |
+| **Risk Level**     | ✅ Very Low                |
+| **Benefit**        | High (better organization) |
 
 ### Service Files Migration (Auth Module)
-| Impact | Assessment |
-|--------|------------|
-| **Code Changes** | 4 service files moved |
-| **Import Updates** | ~10-15 files |
-| **Build Impact** | Requires recompile |
-| **Risk Level** | ⚠️ Medium |
-| **Benefit** | High (consistency) |
+
+| Impact             | Assessment            |
+| ------------------ | --------------------- |
+| **Code Changes**   | 4 service files moved |
+| **Import Updates** | ~10-15 files          |
+| **Build Impact**   | Requires recompile    |
+| **Risk Level**     | ⚠️ Medium             |
+| **Benefit**        | High (consistency)    |
 
 ### Service Files Migration (All Modules)
-| Impact | Assessment |
-|--------|------------|
-| **Code Changes** | ~10 service files moved |
-| **Import Updates** | ~30-40 files |
-| **Build Impact** | Requires recompile |
-| **Risk Level** | ⚠️ Medium-High |
-| **Benefit** | Very High (full consistency) |
+
+| Impact             | Assessment                   |
+| ------------------ | ---------------------------- |
+| **Code Changes**   | ~10 service files moved      |
+| **Import Updates** | ~30-40 files                 |
+| **Build Impact**   | Requires recompile           |
+| **Risk Level**     | ⚠️ Medium-High               |
+| **Benefit**        | Very High (full consistency) |
 
 ---
 
@@ -439,6 +463,7 @@ Only implement if you want full consistency.
 If you want **minimal risk** with **maximum benefit**, do this:
 
 ### 1. Documentation Only (5 minutes)
+
 ```bash
 # Move all MD files to docs/
 mv *.md docs/ 2>/dev/null || true
@@ -448,6 +473,7 @@ mv docs/README.md .
 ```
 
 ### 2. Auth Services Only (15 minutes)
+
 ```bash
 # Move auth services
 mkdir -p src/auth/services
@@ -460,6 +486,7 @@ mv src/auth/session-cleanup.service.ts src/auth/services/
 ```
 
 **This gives you:**
+
 - ✅ Clean documentation structure
 - ✅ Consistent auth module
 - ✅ Foundation for future modules
@@ -470,7 +497,9 @@ mv src/auth/session-cleanup.service.ts src/auth/services/
 ## 📚 Best Practices Going Forward
 
 ### 1. New Modules
+
 Always use this structure:
+
 ```
 src/{module}/
 ├── {module}.module.ts
@@ -482,7 +511,9 @@ src/{module}/
 ```
 
 ### 2. New Documentation
+
 Always place in:
+
 ```
 docs/
 ├── features/{module}/
@@ -492,6 +523,7 @@ docs/
 ```
 
 ### 3. Naming Conventions
+
 - **Services:** `{module}.service.ts`, `{feature}.service.ts`
 - **Controllers:** `{module}.controller.ts`, `{feature}.controller.ts`
 - **DTOs:** `create-{module}.dto.ts`, `update-{module}.dto.ts`
@@ -502,16 +534,19 @@ docs/
 ## 🎯 Recommendation Summary
 
 ### Priority 1: Do Now ✅
+
 1. **Move all MD files to `docs/`** (5 min, zero risk)
 2. **Create `docs/README.md` index** (10 min)
 3. **Move auth services to `services/` folder** (30 min, medium risk)
 
 ### Priority 2: Do Soon 🔄
+
 1. **Organize docs into subdirectories** (features/, guides/, progress/)
 2. **Standardize other modules** (users, countries, categories)
 3. **Create barrel exports** (index.ts files)
 
 ### Priority 3: Nice to Have 💡
+
 1. **Move controllers to `controllers/` folder** (if 5+ controllers)
 2. **Create module templates** for new features
 3. **Add architecture documentation** (ADRs - Architecture Decision Records)

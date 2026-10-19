@@ -10,12 +10,13 @@ This feedback is highlighting a **critical architectural concern** in our curren
 
 #### Current Problems Identified:
 
-1. **Cross-Module Coupling** 
+1. **Cross-Module Coupling**
+
    ```typescript
    // ❌ Stories module importing from Attachments module
    import { Attachment } from '../attachments/entities/attachment.entity'
    import { Tag } from '../tags/entities/tag.entity'
-   
+
    // ❌ Direct repository access across modules
    @InjectRepository(Attachment)
    private readonly attachmentRepository: Repository<Attachment>
@@ -76,12 +77,13 @@ export class StoriesService {
     private storyRepository: StoryRepository,
     @InjectRepository(Story) private storyRepo: Repository<Story>,
     @InjectRepository(Attachment) private attachmentRepo: Repository<Attachment>, // ❌ Cross-module!
-    @InjectRepository(Tag) private tagRepo: Repository<Tag>,                       // ❌ Cross-module!
+    @InjectRepository(Tag) private tagRepo: Repository<Tag> // ❌ Cross-module!
   ) {}
 }
 ```
 
 **Issues:**
+
 1. ❌ Stories module **directly depends** on Attachments and Tags modules
 2. ❌ No abstraction - can't change Attachments without affecting Stories
 3. ❌ Can't test Stories without mocking Attachments and Tags
@@ -348,8 +350,8 @@ export class Story extends BaseEntity {
   title: string
   content: string
   metadata: StoryMetadata
-  authorId: string  // ✅ Reference by ID only, not object!
-  
+  authorId: string // ✅ Reference by ID only, not object!
+
   // ✅ Domain methods (business logic)
   publish(): void {
     if (!this.canPublish()) {
@@ -430,7 +432,10 @@ export class CreateStoryCommand {
 // src/bounded-contexts/content/application/handlers/create-story.handler.ts
 import { Injectable, Inject } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { STORY_REPOSITORY, IStoryRepository } from '../../domain/repositories/story.repository.interface'
+import {
+  STORY_REPOSITORY,
+  IStoryRepository
+} from '../../domain/repositories/story.repository.interface'
 import { Story } from '../../domain/entities/story.entity'
 import { CreateStoryCommand } from '../commands/create-story.command'
 import { StoryCreatedEvent } from '../../../../integration/events/story-created.event'
@@ -446,16 +451,16 @@ export class CreateStoryHandler {
   async execute(command: CreateStoryCommand): Promise<Story> {
     // ✅ Business logic in domain
     const story = new Story(command.title, command.content, command.authorId)
-    
+
     // ✅ Persist
     const savedStory = await this.storyRepository.save(story)
-    
+
     // ✅ Emit event for other contexts
     this.eventEmitter.emit(
       'story.created',
       new StoryCreatedEvent(savedStory.id, savedStory.authorId)
     )
-    
+
     return savedStory
   }
 }
@@ -491,7 +496,10 @@ export class AttachmentUploadedEvent extends DomainEvent {
 import { Injectable, Inject } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { AttachmentUploadedEvent } from '../../../../integration/events/attachment-uploaded.event'
-import { STORY_REPOSITORY, IStoryRepository } from '../../domain/repositories/story.repository.interface'
+import {
+  STORY_REPOSITORY,
+  IStoryRepository
+} from '../../domain/repositories/story.repository.interface'
 
 @Injectable()
 export class AttachmentUploadedHandler {
@@ -545,20 +553,20 @@ import { MediaFacade } from '../../../../integration/facades/media.facade'
 @Injectable()
 export class AttachMediaHandler {
   constructor(
-    private readonly mediaFacade: MediaFacade  // ✅ Use facade, not direct import!
+    private readonly mediaFacade: MediaFacade // ✅ Use facade, not direct import!
   ) {}
 
   async execute(storyId: string, attachmentId: string, userId: string): Promise<void> {
     // ✅ Check attachment exists via facade
     const attachment = await this.mediaFacade.getAttachmentInfo(attachmentId)
-    
+
     // ✅ Check access via facade
     const hasAccess = await this.mediaFacade.validateAttachmentAccess(attachmentId, userId)
-    
+
     if (!hasAccess) {
       throw new Error('No access to attachment')
     }
-    
+
     // Attach to story
     // ...
   }
@@ -579,14 +587,15 @@ export class StoriesService {
     private storyRepo: StoryRepository,
     @InjectRepository(Attachment) private attachmentRepo: Repository<Attachment>,
     @InjectRepository(Tag) private tagRepo: Repository<Tag>,
-    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(User) private userRepo: Repository<User>
   ) {}
-  
+
   // 700 lines of mixed concerns...
 }
 ```
 
 **Problems:**
+
 - 4 different repositories injected
 - Can't test Stories without Attachments, Tags, Users
 - Changes in Attachment entity break Stories
@@ -600,22 +609,23 @@ export class StoriesService {
 export class CreateStoryHandler {
   constructor(
     @Inject(STORY_REPOSITORY) private storyRepo: IStoryRepository,
-    private mediaFacade: MediaFacade,  // Abstraction!
+    private mediaFacade: MediaFacade, // Abstraction!
     private eventEmitter: EventEmitter2
   ) {}
-  
+
   async execute(command: CreateStoryCommand): Promise<Story> {
     const story = new Story(command.title, command.content)
     const saved = await this.storyRepo.save(story)
-    
+
     this.eventEmitter.emit('story.created', new StoryCreatedEvent(saved.id))
-    
+
     return saved
   }
 }
 ```
 
 **Benefits:**
+
 - ✅ Single responsibility
 - ✅ Easy to test (mock facade)
 - ✅ Clear business logic
@@ -629,6 +639,7 @@ export class CreateStoryHandler {
 ### Option 1: Gradual Migration (Recommended)
 
 **Week 1-2**: Create parallel structure
+
 ```
 src/
 ├── stories/           # ⚠️ Keep existing
@@ -637,15 +648,18 @@ src/
 ```
 
 **Week 3-4**: Migrate one context at a time
+
 - Start with `Content` context (Stories, Categories, Tags)
 - Keep old code, add deprecation warnings
 - Update consumers gradually
 
 **Week 5-6**: Migrate another context
+
 - `Identity` context (Users, Auth, ACL)
 - Then `Media` context (Attachments)
 
 **Week 7**: Remove old code
+
 - Delete deprecated modules
 - Update documentation
 
@@ -675,7 +689,7 @@ export class Pagination {
     public readonly page: number = 1,
     public readonly limit: number = 20
   ) {}
-  
+
   get offset(): number {
     return (this.page - 1) * this.limit
   }
@@ -701,7 +715,7 @@ constructor(private storyRepository: StoryRepository) {}
 
 // Use:
 constructor(
-  @Inject(STORY_REPOSITORY) 
+  @Inject(STORY_REPOSITORY)
   private storyRepository: IStoryRepository
 ) {}
 ```

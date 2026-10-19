@@ -24,6 +24,7 @@ Request 3 → Open DB Connection → Query → Close Connection
 ```
 
 **Problems:**
+
 - High overhead from opening/closing connections
 - Slower response times
 - Resource waste
@@ -39,6 +40,7 @@ Request 3 → Acquire Conn1 (reused!) → Query → Release Conn1
 ```
 
 **Benefits:**
+
 - 🚀 **30-50% faster** queries (no connection overhead)
 - 💾 **Better resource usage** (controlled number of connections)
 - 📈 **Higher throughput** (concurrent request handling)
@@ -86,16 +88,16 @@ REDIS_POOL_MAX=10
 
 The system automatically configures optimal settings based on `NODE_ENV`:
 
-| Setting | Development | Production |
-|---------|-------------|------------|
-| **DB_POOL_ENABLED** | `false` | `true` ✅ |
-| **DB_POOL_MIN** | `1` | `2` |
-| **DB_POOL_MAX** | `5` | `10` |
-| **DB_POOL_ACQUIRE_TIMEOUT** | `30000ms` | `30000ms` |
-| **DB_POOL_IDLE_TIMEOUT** | `30000ms` | `30000ms` |
-| **REDIS_POOL_ENABLED** | `false` | `true` ✅ |
-| **REDIS_POOL_MIN** | `1` | `2` |
-| **REDIS_POOL_MAX** | `5` | `10` |
+| Setting                     | Development | Production |
+| --------------------------- | ----------- | ---------- |
+| **DB_POOL_ENABLED**         | `false`     | `true` ✅  |
+| **DB_POOL_MIN**             | `1`         | `2`        |
+| **DB_POOL_MAX**             | `5`         | `10`       |
+| **DB_POOL_ACQUIRE_TIMEOUT** | `30000ms`   | `30000ms`  |
+| **DB_POOL_IDLE_TIMEOUT**    | `30000ms`   | `30000ms`  |
+| **REDIS_POOL_ENABLED**      | `false`     | `true` ✅  |
+| **REDIS_POOL_MIN**          | `1`         | `2`        |
+| **REDIS_POOL_MAX**          | `5`         | `10`       |
 
 ### Recommended Settings by Scale
 
@@ -168,6 +170,7 @@ Located in: `src/core/database/database.module.ts`
 ```
 
 **How it works:**
+
 1. On app startup, creates minimum number of connections
 2. Creates additional connections up to max when needed
 3. Reuses idle connections for new requests
@@ -190,6 +193,7 @@ logger.log({
 ```
 
 **How it works:**
+
 1. Maintains pool of Redis connections
 2. Reuses connections for cache operations
 3. Automatically manages connection lifecycle
@@ -201,17 +205,18 @@ logger.log({
 
 Tested with 1000 concurrent requests:
 
-| Metric | Without Pool | With Pool | Improvement |
-|--------|--------------|-----------|-------------|
-| **Average Response Time** | 245ms | 98ms | **60% faster** |
-| **95th Percentile** | 580ms | 145ms | **75% faster** |
-| **Throughput** | 180 req/s | 420 req/s | **133% increase** |
-| **Connection Overhead** | 45ms/query | 2ms/query | **95% reduction** |
-| **Peak Memory** | 512MB | 384MB | **25% less** |
+| Metric                    | Without Pool | With Pool | Improvement       |
+| ------------------------- | ------------ | --------- | ----------------- |
+| **Average Response Time** | 245ms        | 98ms      | **60% faster**    |
+| **95th Percentile**       | 580ms        | 145ms     | **75% faster**    |
+| **Throughput**            | 180 req/s    | 420 req/s | **133% increase** |
+| **Connection Overhead**   | 45ms/query   | 2ms/query | **95% reduction** |
+| **Peak Memory**           | 512MB        | 384MB     | **25% less**      |
 
 ### Real-World Scenarios
 
 **Scenario 1: User Login Flow**
+
 ```
 Without Pool: 150ms (50ms connection + 100ms query)
 With Pool:     105ms (5ms acquire + 100ms query)
@@ -219,6 +224,7 @@ Improvement:   30% faster
 ```
 
 **Scenario 2: Category List with Cache**
+
 ```
 Without Pool: 80ms (30ms Redis connection + 50ms query)
 With Pool:     52ms (2ms acquire + 50ms query)
@@ -226,6 +232,7 @@ Improvement:   35% faster
 ```
 
 **Scenario 3: Story Creation with Audit Log**
+
 ```
 Without Pool: 280ms (2x DB + 1x Redis connection overhead)
 With Pool:     215ms (connection reuse)
@@ -247,6 +254,7 @@ grep "Redis cache store initialized" logs/app.log
 ```
 
 Expected output:
+
 ```json
 {
   "msg": "Redis cache store initialized successfully",
@@ -261,10 +269,12 @@ Expected output:
 #### Issue 1: Pool Exhaustion
 
 **Symptoms:**
+
 - Timeouts waiting for connections
 - Error: "TimeoutError: ResourceRequest timed out"
 
 **Solution:**
+
 ```bash
 # Increase pool size
 DB_POOL_MAX=20  # Instead of 10
@@ -277,10 +287,12 @@ DB_POOL_ACQUIRE_TIMEOUT=60000  # 60 seconds
 #### Issue 2: Too Many Connections
 
 **Symptoms:**
+
 - Database connection limit errors
 - "Too many connections" in PostgreSQL logs
 
 **Solution:**
+
 ```bash
 # Reduce pool size
 DB_POOL_MAX=5
@@ -293,10 +305,12 @@ psql -c "SHOW max_connections;"
 #### Issue 3: Memory Leaks
 
 **Symptoms:**
+
 - Memory grows over time
 - Connections not being released
 
 **Solution:**
+
 ```bash
 # Reduce idle timeout (close idle connections faster)
 DB_POOL_IDLE_TIMEOUT=10000  # 10 seconds instead of 30
@@ -315,6 +329,7 @@ TYPEORM_LOGGING=true
 ```
 
 This logs:
+
 - Query execution time
 - Connection acquisition time
 - Pool statistics
@@ -446,24 +461,25 @@ SELECT count(*) FROM pg_stat_activity WHERE datname = 'kuybi';
 # deployment.yaml
 resources:
   limits:
-    memory: "512Mi"
-    cpu: "500m"
+    memory: '512Mi'
+    cpu: '500m'
   requests:
-    memory: "256Mi"
-    cpu: "250m"
+    memory: '256Mi'
+    cpu: '250m'
 
 env:
   - name: DB_POOL_MAX
-    value: "10"  # Lower for containerized env
+    value: '10' # Lower for containerized env
   - name: REDIS_POOL_MAX
-    value: "10"
+    value: '10'
 ```
 
 ### Multiple Replicas
 
 ```yaml
 # deployment.yaml
-replicas: 3  # 3 pod instances
+replicas: 3 # 3 pod instances
+
 
 # Calculate pool size:
 # Total DB connections = DB_POOL_MAX * replicas
@@ -515,7 +531,7 @@ replicas: 3  # 3 pod instances
 ## Related Documentation
 
 - [Performance Optimization](../guides/performance.md)
-- [Database Configuration](../../architecture/ENTERPRISE_DATABASE.md)
+- [Database Configuration](../../archive/2025/architecture/ENTERPRISE_DATABASE.md)
 - [Caching Strategy](../cache/REDIS_CACHING_COMPLETE.md)
 - [Production Deployment](../../deployment/PM2_GUIDE.md)
 

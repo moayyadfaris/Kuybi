@@ -23,13 +23,17 @@ npm install
 ## 🔧 Required Code Changes
 
 ### 1. **NO** Wildcard Routes Found ✅
+
 No changes needed - no wildcards detected in codebase.
 
 ### 2. Cache Module Already Compatible ✅
+
 `src/cache/cache.module.ts` already uses Keyv correctly. Just upgrade `@keyv/redis` to v5.
 
 ### 3. Config Module (Review Recommended)
+
 **New precedence in v4**:
+
 1. Internal config files
 2. Validated env vars
 3. process.env
@@ -37,23 +41,22 @@ No changes needed - no wildcards detected in codebase.
 **Action**: Test that env vars don't need to override internal config.
 
 ### 4. Integration Tests (Possible Adjustments)
+
 If dynamic modules fail in tests, use one of:
 
 ```typescript
 // Option 1: Reuse module instance
-const typeOrmModule = TypeOrmModule.forRoot(config);
-imports: [typeOrmModule, typeOrmModule]  // Same instance
+const typeOrmModule = TypeOrmModule.forRoot(config)
+imports: [typeOrmModule, typeOrmModule] // Same instance
 
 // Option 2: Use old algorithm
-Test.createTestingModule(
-  { /* ... */ },
-  { moduleIdGeneratorAlgorithm: 'deep-hash' }
-)
+Test.createTestingModule({/* ... */}, { moduleIdGeneratorAlgorithm: 'deep-hash' })
 ```
 
 ## 📦 Package Updates
 
 ### Core NestJS (v10 → v11)
+
 ```bash
 @nestjs/common: 10.4.20 → 11.1.7
 @nestjs/core: 10.4.20 → 11.1.7
@@ -63,6 +66,7 @@ Test.createTestingModule(
 ```
 
 ### Additional Updates
+
 ```bash
 @keyv/redis: 3.0.1 → 5.1.3
 bcrypt: 5.1.1 → 6.0.0 (BREAKING: review bcrypt.compare usage)
@@ -72,16 +76,19 @@ jest: 29.7.0 → 30.2.0
 ## ⚠️ Known Breaking Changes
 
 ### 1. **Express v5** (Auto-handled by NestJS)
+
 - Wildcard routes need names: `*` → `*splat`
 - **Status**: ✅ Not applicable (no wildcards found)
 
 ### 2. **bcrypt v6** (if upgrading)
+
 ```typescript
 // May need adjustments to bcrypt.compare calls
 // Review password comparison logic
 ```
 
 ### 3. **Config Module Precedence**
+
 ```typescript
 // Internal config NOW overrides env vars
 // Before: process.env → validated env → internal config
@@ -89,6 +96,7 @@ jest: 29.7.0 → 30.2.0
 ```
 
 ### 4. **Jest v30** (if upgrading)
+
 Some test syntax may change. Review test output.
 
 ## 🧪 Testing Strategy
@@ -130,18 +138,21 @@ npm install
 ## 📊 Migration Status
 
 ### ✅ Low Risk Items
+
 - [x] Node.js version compatible
 - [x] No wildcard routes to update
 - [x] Cache module already using Keyv
 - [x] No Express v5 breaking changes apply
 
 ### ⚠️ Medium Risk Items
+
 - [ ] Config module precedence change (test required)
 - [ ] Integration test dynamic modules (may need adjustment)
 - [ ] bcrypt v6 upgrade (if updating)
 - [ ] Jest v30 (if updating)
 
 ### 🔴 High Risk Items
+
 - None identified ✅
 
 ## 📝 Post-Migration Validation
@@ -164,6 +175,7 @@ npm run logs:view
 ## 🎯 Expected Outcome
 
 **After successful migration**:
+
 - All tests pass ✅
 - Application starts without errors ✅
 - All features work as before ✅
@@ -173,29 +185,32 @@ npm run logs:view
 ## 🆘 Troubleshooting
 
 ### Issue: Tests fail with "Cannot find module"
+
 **Solution**: Clear jest cache
+
 ```bash
 npm run test -- --clearCache
 ```
 
 ### Issue: Integration tests fail with duplicate providers
+
 **Solution**: Use old module resolution algorithm
+
 ```typescript
-Test.createTestingModule(
-  { /* ... */ },
-  { moduleIdGeneratorAlgorithm: 'deep-hash' }
-)
+Test.createTestingModule({/* ... */}, { moduleIdGeneratorAlgorithm: 'deep-hash' })
 ```
 
 ### Issue: Config values not as expected
+
 **Solution**: Review new config precedence order. Internal config now wins.
 
 ### Issue: bcrypt errors after upgrade
+
 **Solution**: Review bcrypt.compare calls, may need syntax updates
 
 ## 📚 Resources
 
-- [Full Migration Guide](./NESTJS_V11_MIGRATION.md)
+- [Full Migration Guide](NESTJS_V11_MIGRATION.md)
 - [NestJS Docs](https://docs.nestjs.com/migration-guide)
 - [Express v5 Guide](https://expressjs.com/en/guide/migrating-5.html)
 
@@ -210,6 +225,7 @@ Test.createTestingModule(
 ## 🎉 Quick Win!
 
 **Good news**: This codebase is well-positioned for v11 migration!
+
 - ✅ Already using Keyv (cache-manager v7 ready)
 - ✅ No wildcard routes to update
 - ✅ Modern Node.js version
