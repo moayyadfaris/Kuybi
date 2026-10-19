@@ -1,25 +1,42 @@
-import { assertProductionSecrets } from '@core/config/validation'
+import { assertProductionSecrets, validate } from '@core/config/validation'
+
+import 'reflect-metadata'
 
 describe('assertProductionSecrets', () => {
   const strongSecret = 'x'.repeat(48)
 
-  it('is a no-op outside production', () => {
-    expect(() => assertProductionSecrets({ NODE_ENV: 'development' })).not.toThrow()
+  const deployed = {
+    JWT_SECRET: strongSecret,
+    DB_PASSWORD: 'a-real-database-password',
+    CORS_ORIGIN: 'https://admin.kuybi.com,https://kuybi.com'
+  }
+
+  it.each(['development', 'test', undefined])('is a no-op for NODE_ENV=%s', env => {
+    expect(() => assertProductionSecrets({ NODE_ENV: env })).not.toThrow()
   })
 
   it('accepts strong production secrets', () => {
-    expect(() =>
-      assertProductionSecrets({
-        NODE_ENV: 'production',
-        JWT_SECRET: strongSecret,
-        DB_PASSWORD: 'a-real-database-password'
-      })
-    ).not.toThrow()
+    expect(() => assertProductionSecrets({ NODE_ENV: 'production', ...deployed })).not.toThrow()
   })
+
+  it('applies to staging too, not only production', () => {
+    expect(() => assertProductionSecrets({ NODE_ENV: 'staging' })).toThrow(
+      /Insecure staging configuration[\s\S]*JWT_SECRET is required in staging/
+    )
+  })
+
+  it.each([undefined, '*', 'https://kuybi.com, *'])(
+    'rejects CORS_ORIGIN=%s outside development/test',
+    corsOrigin => {
+      expect(() =>
+        assertProductionSecrets({ NODE_ENV: 'production', ...deployed, CORS_ORIGIN: corsOrigin })
+      ).toThrow(/CORS_ORIGIN must list the allowed origins/)
+    }
+  )
 
   it('rejects a missing JWT_SECRET in production', () => {
     expect(() =>
-      assertProductionSecrets({ NODE_ENV: 'production', DB_PASSWORD: 'a-real-database-password' })
+      assertProductionSecrets({ ...deployed, NODE_ENV: 'production', JWT_SECRET: undefined })
     ).toThrow(/JWT_SECRET is required/)
   })
 
@@ -49,5 +66,15 @@ describe('assertProductionSecrets', () => {
         'BULL_BOARD_PASSWORD'
       ])
     ).toThrow(/BULL_BOARD_PASSWORD uses a placeholder value/)
+  })
+})
+
+describe('validate', () => {
+  it('rejects an unknown NODE_ENV instead of booting with development defaults', () => {
+    expect(() => validate({ NODE_ENV: 'prod', CORS_ORIGIN: '*' })).toThrow(/NODE_ENV/)
+  })
+
+  it('accepts the known environments', () => {
+    expect(() => validate({ NODE_ENV: 'test', CORS_ORIGIN: '*' })).not.toThrow()
   })
 })

@@ -3,10 +3,11 @@
  * Tests super-admin session management endpoints with real database
  */
 
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -82,8 +83,7 @@ describe('Session Management Integration Tests', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+    configureApp(app)
     await app.init()
 
     dataSource = moduleFixture.get(DataSource)
@@ -151,17 +151,17 @@ describe('Session Management Integration Tests', () => {
     const superAdminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: superAdminUser.email, password: SUPER_ADMIN_PASSWORD })
-    superAdminToken = superAdminLogin.body.accessToken
+    superAdminToken = superAdminLogin.body.data.accessToken
 
     const adminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: adminUser.email, password: ADMIN_PASSWORD })
-    adminToken = adminLogin.body.accessToken
+    adminToken = adminLogin.body.data.accessToken
 
     const regularUserLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: regularUser.email, password: USER_PASSWORD })
-    regularUserToken = regularUserLogin.body.accessToken
+    regularUserToken = regularUserLogin.body.data.accessToken
   })
 
   afterAll(async () => {
@@ -179,11 +179,11 @@ describe('Session Management Integration Tests', () => {
         .set('Authorization', `Bearer ${regularUserToken}`)
         .expect(200)
 
-      expect(response.body).toHaveProperty('sessions')
-      expect(response.body).toHaveProperty('pagination')
-      expect(response.body.sessions.length).toBeGreaterThan(0)
-      expect(response.body.sessions[0]).toHaveProperty('id')
-      expect(response.body.sessions[0]).toHaveProperty('deviceType')
+      expect(response.body.data).toHaveProperty('sessions')
+      expect(response.body.data).toHaveProperty('pagination')
+      expect(response.body.data.sessions.length).toBeGreaterThan(0)
+      expect(response.body.data.sessions[0]).toHaveProperty('id')
+      expect(response.body.data.sessions[0]).toHaveProperty('deviceType')
     })
 
     it('should return 401 without authentication', async () => {
@@ -198,10 +198,10 @@ describe('Session Management Integration Tests', () => {
         .set('Authorization', `Bearer ${regularUserToken}`)
         .expect(200)
 
-      expect(response.body).toHaveProperty('totalSessions')
-      expect(response.body).toHaveProperty('activeSessions')
-      expect(response.body).toHaveProperty('deviceStats')
-      expect(response.body.totalSessions).toBeGreaterThan(0)
+      expect(response.body.data).toHaveProperty('totalSessions')
+      expect(response.body.data).toHaveProperty('activeSessions')
+      expect(response.body.data).toHaveProperty('deviceStats')
+      expect(response.body.data.totalSessions).toBeGreaterThan(0)
     })
   })
 
@@ -212,11 +212,11 @@ describe('Session Management Integration Tests', () => {
         .set('Authorization', `Bearer ${superAdminToken}`)
         .expect(200)
 
-      expect(response.body).toHaveProperty('success', true)
-      expect(response.body).toHaveProperty('userId', regularUser.id)
-      expect(response.body).toHaveProperty('sessions')
-      expect(Array.isArray(response.body.sessions)).toBe(true)
-      expect(response.body.sessions.length).toBeGreaterThan(0)
+      expect(response.body.data).toHaveProperty('success', true)
+      expect(response.body.data).toHaveProperty('userId', regularUser.id)
+      expect(response.body.data).toHaveProperty('sessions')
+      expect(Array.isArray(response.body.data.sessions)).toBe(true)
+      expect(response.body.data.sessions.length).toBeGreaterThan(0)
     })
 
     it('should deny admin access to list user sessions', async () => {
@@ -249,8 +249,8 @@ describe('Session Management Integration Tests', () => {
       const freshLogin = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send({ email: regularUser.email, password: USER_PASSWORD })
-      const freshSessionId = freshLogin.body.sessionId
-      const freshToken = freshLogin.body.accessToken
+      const freshSessionId = freshLogin.body.data.sessionId
+      const freshToken = freshLogin.body.data.accessToken
 
       const response = await request(app.getHttpServer())
         .delete(`/api/v1/sessions/users/${regularUser.id}/sessions/${freshSessionId}`)
@@ -258,9 +258,9 @@ describe('Session Management Integration Tests', () => {
         .send({ reason: 'admin_action', notes: 'Security test' })
         .expect(200)
 
-      expect(response.body).toHaveProperty('success', true)
-      expect(response.body).toHaveProperty('sessionId', freshSessionId)
-      expect(response.body).toHaveProperty('userId', regularUser.id)
+      expect(response.body.data).toHaveProperty('success', true)
+      expect(response.body.data).toHaveProperty('sessionId', freshSessionId)
+      expect(response.body.data).toHaveProperty('userId', regularUser.id)
 
       // The revoked session's access token stops working immediately (tokens carry sid)
       await request(app.getHttpServer())
@@ -273,7 +273,7 @@ describe('Session Management Integration Tests', () => {
         .get(`/api/v1/sessions/users/${regularUser.id}?includeExpired=true`)
         .set('Authorization', `Bearer ${superAdminToken}`)
 
-      const revokedSession = verifyRevoked.body.sessions.find(
+      const revokedSession = verifyRevoked.body.data.sessions.find(
         (s: { id: string }) => s.id === freshSessionId
       )
       expect(revokedSession).toBeDefined()
@@ -285,7 +285,7 @@ describe('Session Management Integration Tests', () => {
       const newLogin = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send({ email: regularUser.email, password: USER_PASSWORD })
-      const newSessionId = newLogin.body.sessionId
+      const newSessionId = newLogin.body.data.sessionId
 
       await request(app.getHttpServer())
         .delete(`/api/v1/sessions/users/${regularUser.id}/sessions/${newSessionId}`)
@@ -310,7 +310,7 @@ describe('Session Management Integration Tests', () => {
         .get(`/api/v1/sessions/users/${adminUser.id}`)
         .set('Authorization', `Bearer ${superAdminToken}`)
 
-      const adminSessionId = adminSessions.body.sessions[0].id
+      const adminSessionId = adminSessions.body.data.sessions[0].id
 
       // Try to revoke admin's session using wrong userId
       await request(app.getHttpServer())
@@ -339,17 +339,17 @@ describe('Session Management Integration Tests', () => {
         .send({ reason: 'admin_action', notes: 'Force logout all sessions' })
         .expect(200)
 
-      expect(response.body).toHaveProperty('success', true)
-      expect(response.body).toHaveProperty('userId', regularUser.id)
-      expect(response.body).toHaveProperty('sessionsRevoked')
-      expect(response.body.sessionsRevoked).toBeGreaterThan(0)
+      expect(response.body.data).toHaveProperty('success', true)
+      expect(response.body.data).toHaveProperty('userId', regularUser.id)
+      expect(response.body.data).toHaveProperty('sessionsRevoked')
+      expect(response.body.data.sessionsRevoked).toBeGreaterThan(0)
 
       // Verify all sessions are revoked
       const checkSessions = await request(app.getHttpServer())
         .get(`/api/v1/sessions/users/${regularUser.id}`)
         .set('Authorization', `Bearer ${superAdminToken}`)
 
-      const activeSessions = checkSessions.body.sessions.filter((s: any) => !s.revokedAt)
+      const activeSessions = checkSessions.body.data.sessions.filter((s: any) => !s.revokedAt)
       expect(activeSessions.length).toBe(0)
     })
 
@@ -371,7 +371,7 @@ describe('Session Management Integration Tests', () => {
         await request(app.getHttpServer())
           .post('/api/v1/auth/login')
           .send({ email: regularUser.email, password: USER_PASSWORD })
-      ).body.accessToken
+      ).body.data.accessToken
 
       await request(app.getHttpServer())
         .delete(`/api/v1/sessions/users/${adminUser.id}/sessions`)
@@ -395,7 +395,7 @@ describe('Session Management Integration Tests', () => {
         .post('/api/v1/auth/login')
         .send({ email: regularUser.email, password: USER_PASSWORD })
 
-      const sessionId = loginResponse.body.sessionId
+      const sessionId = loginResponse.body.data.sessionId
 
       // Revoke session
       await request(app.getHttpServer())
@@ -409,7 +409,7 @@ describe('Session Management Integration Tests', () => {
         .get(`/api/v1/sessions/users/${regularUser.id}?includeExpired=true`)
         .set('Authorization', `Bearer ${superAdminToken}`)
 
-      const revokedSession = checkResponse.body.sessions.find(
+      const revokedSession = checkResponse.body.data.sessions.find(
         (s: { id: string }) => s.id === sessionId
       )
       expect(revokedSession).toBeDefined()
@@ -437,7 +437,7 @@ describe('Session Management Integration Tests', () => {
           .post('/api/v1/auth/login')
           .send({ email: resetUser.email, password: RESET_USER_PASSWORD })
           .expect(201)
-        resetUserTokens.push(login.body.accessToken)
+        resetUserTokens.push(login.body.data.accessToken)
       }
 
       // Both tokens work (and their "session usable" answers are now cached)
@@ -482,7 +482,7 @@ describe('Session Management Integration Tests', () => {
           .get('/api/v1/sessions/me')
           .set('Authorization', `Bearer ${token}`)
           .expect(401)
-        expect(response.body.message).toBe('Session has ended')
+        expect(response.body.error.message).toBe('Session has ended')
       }
     })
 

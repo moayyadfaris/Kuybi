@@ -44,23 +44,19 @@ export class SentryInterceptor implements NestInterceptor {
           status: 'success'
         })
       }),
-      catchError((error: Error) => {
-        // Add error context
+      catchError((error: unknown) => {
+        // Context only: HttpExceptionFilter reports 5xx once (it also sees errors thrown by
+        // guards, which never reach interceptors). Capturing here sent every 4xx as well.
         this.sentryService.setContext('request', {
           method: request.method,
           url: request.url,
           headers: this.sanitizeHeaders(request.headers),
           query: request.query,
-          params: request.params
-        })
-
-        // Capture exception
-        this.sentryService.captureException(error, {
+          params: request.params,
           route: request.route?.path,
           controller: context.getClass().name,
           handler: context.getHandler().name
         })
-
         return throwError(() => error)
       })
     )

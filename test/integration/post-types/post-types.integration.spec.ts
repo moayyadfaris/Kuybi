@@ -3,10 +3,11 @@
  * Tests POST /api/post-types CRUD operations with authentication and authorization
  */
 
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -105,13 +106,7 @@ describe('Post Types Integration Tests', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true
-      })
-    )
+    configureApp(app)
 
     dataSource = app.get(DataSource)
     await app.init()
@@ -160,12 +155,12 @@ describe('Post Types Integration Tests', () => {
     const adminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: adminUser.email, password: ADMIN_PASSWORD })
-    adminToken = adminLogin.body.accessToken
+    adminToken = adminLogin.body.data.accessToken
 
     const userLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: regularUser.email, password: USER_PASSWORD })
-    regularToken = userLogin.body.accessToken
+    regularToken = userLogin.body.data.accessToken
   })
 
   afterAll(async () => {
@@ -200,15 +195,15 @@ describe('Post Types Integration Tests', () => {
         .send(validPostType)
         .expect(201)
 
-      expect(response.body).toMatchObject({
+      expect(response.body.data).toMatchObject({
         name: validPostType.name,
         slug: validPostType.slug,
         description: validPostType.description,
         isSystem: false,
         isActive: true
       })
-      expect(response.body).toHaveProperty('id')
-      expect(response.body).toHaveProperty('createdAt')
+      expect(response.body.data).toHaveProperty('id')
+      expect(response.body.data).toHaveProperty('createdAt')
     })
 
     it('should fail without authentication', async () => {
@@ -233,7 +228,7 @@ describe('Post Types Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.message).toEqual(
+      expect(response.body.error.message).toEqual(
         expect.arrayContaining([expect.stringContaining('singularLabel')])
       )
     })
@@ -248,7 +243,7 @@ describe('Post Types Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body.slug).toBe('product')
+      expect(response.body.data.slug).toBe('product')
     })
 
     it('should generate a transliterated slug for an Arabic name', async () => {
@@ -263,8 +258,8 @@ describe('Post Types Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body.name).toBe('مقالات')
-      expect(response.body.slug).toBe('mqalat')
+      expect(response.body.data.name).toBe('مقالات')
+      expect(response.body.data.slug).toBe('mqalat')
     })
 
     it('should suffix the slug when different names produce the same slug', async () => {
@@ -280,7 +275,7 @@ describe('Post Types Integration Tests', () => {
         .send({ ...validPostType, name: 'blog_post' })
         .expect(201)
 
-      expect(response.body.slug).toBe('blog-post-2')
+      expect(response.body.data.slug).toBe('blog-post-2')
     })
 
     it('should reject a duplicate name with 409', async () => {
@@ -296,7 +291,7 @@ describe('Post Types Integration Tests', () => {
         .send(validPostType)
         .expect(409)
 
-      expect(response.body.message).toContain('already exists')
+      expect(response.body.error.message).toContain('already exists')
     })
   })
 
@@ -329,7 +324,7 @@ describe('Post Types Integration Tests', () => {
 
       // isActive is not accepted on create; deactivate via update
       await request(app.getHttpServer())
-        .patch(`/api/v1/post-types/${eventResponse.body.id}`)
+        .patch(`/api/v1/post-types/${eventResponse.body.data.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ isActive: false })
         .expect(200)
@@ -338,9 +333,9 @@ describe('Post Types Integration Tests', () => {
     it('should list all active post types (no auth required)', async () => {
       const response = await request(app.getHttpServer()).get('/api/v1/post-types').expect(200)
 
-      expect(Array.isArray(response.body)).toBe(true)
-      expect(response.body.length).toBe(1)
-      expect(response.body[0].slug).toBe('product')
+      expect(Array.isArray(response.body.data)).toBe(true)
+      expect(response.body.data.length).toBe(1)
+      expect(response.body.data[0].slug).toBe('product')
     })
 
     it('should list all post types including inactive with query param', async () => {
@@ -348,7 +343,7 @@ describe('Post Types Integration Tests', () => {
         .get('/api/v1/post-types?includeInactive=true')
         .expect(200)
 
-      expect(response.body.length).toBe(2)
+      expect(response.body.data.length).toBe(2)
     })
   })
 
@@ -367,7 +362,7 @@ describe('Post Types Integration Tests', () => {
           singularLabel: 'Product',
           pluralLabel: 'Products'
         })
-      postTypeId = createResponse.body.id
+      postTypeId = createResponse.body.data.id
     })
 
     it('should get post type by ID', async () => {
@@ -375,8 +370,8 @@ describe('Post Types Integration Tests', () => {
         .get(`/api/v1/post-types/${postTypeId}`)
         .expect(200)
 
-      expect(response.body.id).toBe(postTypeId)
-      expect(response.body.slug).toBe('product')
+      expect(response.body.data.id).toBe(postTypeId)
+      expect(response.body.data.slug).toBe('product')
     })
 
     it('should return 404 for non-existent ID', async () => {
@@ -406,8 +401,8 @@ describe('Post Types Integration Tests', () => {
         .get('/api/v1/post-types/slug/product')
         .expect(200)
 
-      expect(response.body.slug).toBe('product')
-      expect(response.body.name).toBe('Product')
+      expect(response.body.data.slug).toBe('product')
+      expect(response.body.data.name).toBe('Product')
     })
 
     it('should return 404 for non-existent slug', async () => {
@@ -430,7 +425,7 @@ describe('Post Types Integration Tests', () => {
           singularLabel: 'Product',
           pluralLabel: 'Products'
         })
-      postTypeId = createResponse.body.id
+      postTypeId = createResponse.body.data.id
     })
 
     it('should update post type with admin token', async () => {
@@ -443,8 +438,8 @@ describe('Post Types Integration Tests', () => {
         })
         .expect(200)
 
-      expect(response.body.description).toBe('Updated description')
-      expect(response.body.menuPosition).toBe(20)
+      expect(response.body.data.description).toBe('Updated description')
+      expect(response.body.data.menuPosition).toBe(20)
     })
 
     it('should fail without authentication', async () => {
@@ -462,7 +457,7 @@ describe('Post Types Integration Tests', () => {
         .expect(200)
 
       // Slug should remain unchanged
-      expect(response.body.slug).toBe('product')
+      expect(response.body.data.slug).toBe('product')
     })
   })
 
@@ -482,7 +477,7 @@ describe('Post Types Integration Tests', () => {
           pluralLabel: 'Products',
           isSystem: false
         })
-      postTypeId = createResponse.body.id
+      postTypeId = createResponse.body.data.id
     })
 
     it('should soft delete post type with admin token', async () => {
@@ -518,7 +513,7 @@ describe('Post Types Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(400)
 
-      expect(response.body.message).toContain('system')
+      expect(response.body.error.message).toContain('system')
     })
   })
 })

@@ -3,10 +3,11 @@
  * Tests POST /api/content/:postTypeSlug CRUD operations with field validation
  */
 
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -102,13 +103,7 @@ describe('Content Integration Tests', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true
-      })
-    )
+    configureApp(app)
 
     dataSource = app.get(DataSource)
     await app.init()
@@ -152,17 +147,17 @@ describe('Content Integration Tests', () => {
     const adminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: adminUser.email, password: ADMIN_PASSWORD })
-    adminToken = adminLogin.body.accessToken
+    adminToken = adminLogin.body.data.accessToken
 
     const editorLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: editorUser.email, password: EDITOR_PASSWORD })
-    editorToken = editorLogin.body.accessToken
+    editorToken = editorLogin.body.data.accessToken
 
     const userLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: newUser.email, password: USER_PASSWORD })
-    regularToken = userLogin.body.accessToken
+    regularToken = userLogin.body.data.accessToken
 
     // Create post type
     const postTypeResponse = await request(app.getHttpServer())
@@ -176,7 +171,7 @@ describe('Content Integration Tests', () => {
         singularLabel: 'Product',
         pluralLabel: 'Products'
       })
-    postTypeId = postTypeResponse.body.id
+    postTypeId = postTypeResponse.body.data.id
 
     // Create field definitions
     await request(app.getHttpServer())
@@ -249,12 +244,12 @@ describe('Content Integration Tests', () => {
         .send(validContent)
         .expect(201)
 
-      expect(response.body).toMatchObject({
+      expect(response.body.data).toMatchObject({
         title: 'iPhone 15 Pro',
         excerpt: 'Latest iPhone model',
         status: 'draft'
       })
-      expect(response.body.field_data).toMatchObject({
+      expect(response.body.data.field_data).toMatchObject({
         product_name: 'iPhone 15 Pro',
         price: 999.99
       })
@@ -288,10 +283,10 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.message).toContain('validation')
-      expect(response.body.errors).toBeDefined()
-      expect(response.body.errors.some((e: any) => e.fieldName === 'product_name')).toBe(true)
-      expect(response.body.errors.some((e: any) => e.fieldName === 'price')).toBe(true)
+      expect(response.body.error.message).toContain('validation')
+      expect(response.body.error.errors).toBeDefined()
+      expect(response.body.error.errors.some((e: any) => e.fieldName === 'product_name')).toBe(true)
+      expect(response.body.error.errors.some((e: any) => e.fieldName === 'price')).toBe(true)
     })
 
     it('should validate text field min length', async () => {
@@ -307,8 +302,8 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.errors).toBeDefined()
-      const nameError = response.body.errors.find((e: any) => e.fieldName === 'product_name')
+      expect(response.body.error.errors).toBeDefined()
+      const nameError = response.body.error.errors.find((e: any) => e.fieldName === 'product_name')
       expect(nameError.errorCode).toBe('MIN_LENGTH')
     })
 
@@ -325,7 +320,7 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const nameError = response.body.errors.find((e: any) => e.fieldName === 'product_name')
+      const nameError = response.body.error.errors.find((e: any) => e.fieldName === 'product_name')
       expect(nameError.errorCode).toBe('MAX_LENGTH')
     })
 
@@ -342,7 +337,7 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const priceError = response.body.errors.find((e: any) => e.fieldName === 'price')
+      const priceError = response.body.error.errors.find((e: any) => e.fieldName === 'price')
       expect(priceError.errorCode).toBe('MIN_VALUE')
     })
 
@@ -360,7 +355,7 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const emailError = response.body.errors.find((e: any) => e.fieldName === 'email')
+      const emailError = response.body.error.errors.find((e: any) => e.fieldName === 'email')
       expect(emailError.errorCode).toBe('INVALID_EMAIL')
     })
 
@@ -378,7 +373,9 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const unknownError = response.body.errors.find((e: any) => e.fieldName === 'unknown_field')
+      const unknownError = response.body.error.errors.find(
+        (e: any) => e.fieldName === 'unknown_field'
+      )
       expect(unknownError.errorCode).toBe('UNKNOWN_FIELD')
     })
 
@@ -396,7 +393,7 @@ describe('Content Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body.field_data).toMatchObject({
+      expect(response.body.data.field_data).toMatchObject({
         product_name: 'Test Product',
         price: 100
       })
@@ -415,8 +412,8 @@ describe('Content Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body.slug).toBeDefined()
-      expect(response.body.slug).toMatch(/^iphone-15-pro-max/)
+      expect(response.body.data.slug).toBeDefined()
+      expect(response.body.data.slug).toMatch(/^iphone-15-pro-max/)
     })
   })
 
@@ -447,9 +444,9 @@ describe('Content Integration Tests', () => {
         .get(`/api/v1/content/${postTypeSlug}`)
         .expect(200)
 
-      expect(response.body.data).toBeDefined()
-      expect(Array.isArray(response.body.data)).toBe(true)
-      expect(response.body.total).toBeDefined()
+      expect(response.body.data.data).toBeDefined()
+      expect(Array.isArray(response.body.data.data)).toBe(true)
+      expect(response.body.data.total).toBeDefined()
     })
 
     it('should filter by status', async () => {
@@ -457,8 +454,8 @@ describe('Content Integration Tests', () => {
         .get(`/api/v1/content/${postTypeSlug}?status=published`)
         .expect(200)
 
-      expect(response.body.data.length).toBe(1)
-      expect(response.body.data[0].status).toBe('published')
+      expect(response.body.data.data.length).toBe(1)
+      expect(response.body.data.data[0].status).toBe('published')
     })
 
     it('should support pagination', async () => {
@@ -466,7 +463,7 @@ describe('Content Integration Tests', () => {
         .get(`/api/v1/content/${postTypeSlug}?limit=1&offset=0`)
         .expect(200)
 
-      expect(response.body.data.length).toBe(1)
+      expect(response.body.data.data.length).toBe(1)
     })
 
     it('should support search', async () => {
@@ -474,7 +471,7 @@ describe('Content Integration Tests', () => {
         .get(`/api/v1/content/${postTypeSlug}?search=Product 1`)
         .expect(200)
 
-      expect(response.body.data.length).toBeGreaterThan(0)
+      expect(response.body.data.data.length).toBeGreaterThan(0)
     })
   })
 
@@ -489,7 +486,7 @@ describe('Content Integration Tests', () => {
           title: 'Test Product',
           field_data: { product_name: 'Test Product', price: 100 }
         })
-      contentId = createResponse.body.id
+      contentId = createResponse.body.data.id
     })
 
     it('should get content by ID', async () => {
@@ -499,8 +496,8 @@ describe('Content Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200)
 
-      expect(response.body.id).toBe(contentId)
-      expect(response.body.title).toBe('Test Product')
+      expect(response.body.data.id).toBe(contentId)
+      expect(response.body.data.title).toBe('Test Product')
     })
 
     it('should return 404 for non-existent ID', async () => {
@@ -525,7 +522,7 @@ describe('Content Integration Tests', () => {
             description: 'Original description'
           }
         })
-      contentId = createResponse.body.id
+      contentId = createResponse.body.data.id
     })
 
     it('should update content with valid data', async () => {
@@ -541,9 +538,9 @@ describe('Content Integration Tests', () => {
         })
         .expect(200)
 
-      expect(response.body.title).toBe('Updated Product')
-      expect(response.body.field_data.price).toBe(150)
-      expect(response.body.field_data.description).toBe('Updated description')
+      expect(response.body.data.title).toBe('Updated Product')
+      expect(response.body.data.field_data.price).toBe(150)
+      expect(response.body.data.field_data.description).toBe('Updated description')
     })
 
     it('should validate updated field data', async () => {
@@ -557,7 +554,7 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const priceError = response.body.errors.find((e: any) => e.fieldName === 'price')
+      const priceError = response.body.error.errors.find((e: any) => e.fieldName === 'price')
       expect(priceError.errorCode).toBe('MIN_VALUE')
     })
 
@@ -581,7 +578,7 @@ describe('Content Integration Tests', () => {
           field_data: { product_name: 'Test Product', price: 100 },
           status: 'draft'
         })
-      contentId = createResponse.body.id
+      contentId = createResponse.body.data.id
     })
 
     it('should publish content', async () => {
@@ -590,8 +587,8 @@ describe('Content Integration Tests', () => {
         .set('Authorization', `Bearer ${editorToken}`)
         .expect(200)
 
-      expect(response.body.status).toBe('published')
-      expect(response.body.publishedAt).toBeDefined()
+      expect(response.body.data.status).toBe('published')
+      expect(response.body.data.publishedAt).toBeDefined()
     })
 
     it('should fail without authentication', async () => {
@@ -612,7 +609,7 @@ describe('Content Integration Tests', () => {
           title: 'Test Product',
           field_data: { product_name: 'Test Product', price: 100 }
         })
-      contentId = createResponse.body.id
+      contentId = createResponse.body.data.id
     })
 
     it('should schedule content for future date', async () => {
@@ -627,8 +624,8 @@ describe('Content Integration Tests', () => {
         })
         .expect(200)
 
-      expect(response.body.status).toBe('scheduled')
-      expect(response.body.scheduledFor).toBeDefined()
+      expect(response.body.data.status).toBe('scheduled')
+      expect(response.body.data.scheduledFor).toBeDefined()
     })
 
     it('should fail for past date', async () => {
@@ -656,7 +653,7 @@ describe('Content Integration Tests', () => {
           title: 'Test Product',
           field_data: { product_name: 'Test Product', price: 100 }
         })
-      contentId = createResponse.body.id
+      contentId = createResponse.body.data.id
     })
 
     it('should soft delete content', async () => {

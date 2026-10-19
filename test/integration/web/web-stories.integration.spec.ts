@@ -4,9 +4,10 @@
  * /api/web/v1/* is reachable without authentication, so responses must only ever
  * contain fields that are safe to publish.
  */
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
+import { configureApp } from '@app/app.setup'
 import { DatabaseModule } from '@app/database/database.module'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -115,8 +116,7 @@ describe('Public web stories API', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }))
+    configureApp(app)
     await app.init()
     dataSource = moduleFixture.get(DataSource)
   })
@@ -168,14 +168,14 @@ describe('Public web stories API', () => {
     it('lists only published stories', async () => {
       const res = await request(app.getHttpServer()).get('/api/web/v1/stories').expect(200)
 
-      const ids = res.body.data.map((s: Story) => s.id)
+      const ids = res.body.data.data.map((s: Story) => s.id)
       expect(ids).toContain(published.id)
       expect(ids).not.toContain(draft.id)
     })
 
     it('never exposes author credentials or private story fields', async () => {
       const res = await request(app.getHttpServer()).get('/api/web/v1/stories').expect(200)
-      const story = res.body.data.find((s: Story) => s.id === published.id)
+      const story = res.body.data.data.find((s: Story) => s.id === published.id)
 
       expectNoFields(story, PRIVATE_STORY_FIELDS)
       expectNoFields(story.user, [...SECRET_USER_FIELDS, ...PRIVATE_USER_FIELDS])
@@ -221,8 +221,8 @@ describe('Public web stories API', () => {
         .get('/api/web/v1/stories?categorySlug=technology')
         .expect(200)
 
-      expect(titles(res.body)).toEqual(['Tagged story'])
-      expect(res.body.data[0].categories.map((c: Category) => c.slug).sort()).toEqual([
+      expect(titles(res.body.data)).toEqual(['Tagged story'])
+      expect(res.body.data.data[0].categories.map((c: Category) => c.slug).sort()).toEqual([
         'culture',
         'technology'
       ])
@@ -233,15 +233,15 @@ describe('Public web stories API', () => {
         .get('/api/web/v1/stories?tag=nodejs')
         .expect(200)
 
-      expect(titles(res.body)).toEqual(['Tagged story'])
-      expect(res.body.data[0].tags.map((t: Tag) => t.name).sort()).toEqual(['ai', 'nodejs'])
+      expect(titles(res.body.data)).toEqual(['Tagged story'])
+      expect(res.body.data.data[0].tags.map((t: Tag) => t.name).sort()).toEqual(['ai', 'nodejs'])
     })
 
     it('returns every published story when no filter is given', async () => {
       const res = await request(app.getHttpServer()).get('/api/web/v1/stories').expect(200)
 
-      expect(titles(res.body)).toEqual(['Published story', 'Tagged story'])
-      expect(res.body.total).toBe(2)
+      expect(titles(res.body.data)).toEqual(['Published story', 'Tagged story'])
+      expect(res.body.data.total).toBe(2)
     })
 
     it('returns no stories for an unknown category', async () => {
@@ -249,7 +249,7 @@ describe('Public web stories API', () => {
         .get('/api/web/v1/stories?categorySlug=does-not-exist')
         .expect(200)
 
-      expect(res.body.data).toEqual([])
+      expect(res.body.data.data).toEqual([])
       expect(tagged.id).toBeDefined()
     })
   })
@@ -260,9 +260,9 @@ describe('Public web stories API', () => {
         .get(`/api/web/v1/stories/${published.id}`)
         .expect(200)
 
-      expect(res.body.title).toBe('Published story')
-      expectNoFields(res.body, PRIVATE_STORY_FIELDS)
-      expectNoFields(res.body.user, [...SECRET_USER_FIELDS, ...PRIVATE_USER_FIELDS])
+      expect(res.body.data.title).toBe('Published story')
+      expectNoFields(res.body.data, PRIVATE_STORY_FIELDS)
+      expectNoFields(res.body.data.user, [...SECRET_USER_FIELDS, ...PRIVATE_USER_FIELDS])
     })
 
     it('returns 404 for a story that is not published', async () => {
@@ -279,11 +279,11 @@ describe('Public web stories API', () => {
 
       const res = await request(app.getHttpServer())
         .get(`/api/v1/stories/${published.id}`)
-        .set('Authorization', `Bearer ${login.body.accessToken}`)
+        .set('Authorization', `Bearer ${login.body.data.accessToken}`)
         .expect(200)
 
-      expect(res.body.user).toEqual({ id: author.id, name: 'Story Author' })
-      expectNoFields(res.body.user, [...SECRET_USER_FIELDS, ...PRIVATE_USER_FIELDS])
+      expect(res.body.data.user).toEqual({ id: author.id, name: 'Story Author' })
+      expectNoFields(res.body.data.user, [...SECRET_USER_FIELDS, ...PRIVATE_USER_FIELDS])
     })
   })
 })

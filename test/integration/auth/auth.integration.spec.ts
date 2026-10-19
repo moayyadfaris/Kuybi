@@ -3,10 +3,11 @@
  * Tests authentication flows with real database and Redis
  */
 
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -93,13 +94,7 @@ describe('Auth Integration Tests', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true
-      })
-    )
+    configureApp(app)
 
     dataSource = app.get(DataSource)
     await app.init()
@@ -139,7 +134,7 @@ describe('Auth Integration Tests', () => {
       email: adminUser.email,
       password: ADMIN_PASSWORD
     })
-    adminToken = adminLoginResponse.body.accessToken
+    adminToken = adminLoginResponse.body.data.accessToken
   })
 
   afterAll(async () => {
@@ -159,10 +154,10 @@ describe('Auth Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body).toHaveProperty('accessToken')
-      expect(response.body).toHaveProperty('refreshToken')
-      expect(response.body).toHaveProperty('user')
-      expect(response.body.user.email).toBe(testUser.email)
+      expect(response.body.data).toHaveProperty('accessToken')
+      expect(response.body.data).toHaveProperty('refreshToken')
+      expect(response.body.data).toHaveProperty('user')
+      expect(response.body.data.user.email).toBe(testUser.email)
     })
 
     it('should fail with invalid password', async () => {
@@ -221,7 +216,7 @@ describe('Auth Integration Tests', () => {
         password: TEST_PASSWORD
       })
 
-      refreshToken = loginResponse.body.refreshToken
+      refreshToken = loginResponse.body.data.refreshToken
     })
 
     it('should refresh access token with valid refresh token', async () => {
@@ -230,8 +225,8 @@ describe('Auth Integration Tests', () => {
         .send({ refreshToken })
         .expect(201)
 
-      expect(response.body).toHaveProperty('accessToken')
-      expect(response.body).toHaveProperty('refreshToken')
+      expect(response.body.data).toHaveProperty('accessToken')
+      expect(response.body.data).toHaveProperty('refreshToken')
     })
 
     it('ends the old session: its access token stops working, the new one works', async () => {
@@ -244,15 +239,15 @@ describe('Auth Integration Tests', () => {
           .get('/api/v1/sessions/me')
           .set('Authorization', `Bearer ${token}`)
 
-      await me(login.body.accessToken).expect(200)
+      await me(login.body.data.accessToken).expect(200)
 
       const refreshed = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken: login.body.refreshToken })
+        .send({ refreshToken: login.body.data.refreshToken })
         .expect(201)
 
-      await me(login.body.accessToken).expect(401)
-      await me(refreshed.body.accessToken).expect(200)
+      await me(login.body.data.accessToken).expect(401)
+      await me(refreshed.body.data.accessToken).expect(200)
     })
 
     it('should fail with invalid refresh token', async () => {
@@ -277,8 +272,8 @@ describe('Auth Integration Tests', () => {
         password: TEST_PASSWORD
       })
 
-      accessToken = loginResponse.body.accessToken
-      refreshToken = loginResponse.body.refreshToken
+      accessToken = loginResponse.body.data.accessToken
+      refreshToken = loginResponse.body.data.refreshToken
     })
 
     it('should logout successfully with valid token', async () => {
@@ -327,7 +322,7 @@ describe('Auth Integration Tests', () => {
 
       expect(loginResponse.status).toBe(201)
 
-      const { accessToken, refreshToken } = loginResponse.body
+      const { accessToken, refreshToken } = loginResponse.body.data
 
       // 2. Access protected route (sessions list)
       await request(app.getHttpServer())
@@ -341,8 +336,8 @@ describe('Auth Integration Tests', () => {
         .send({ refreshToken })
         .expect(201)
 
-      const newAccessToken = refreshResponse.body.accessToken
-      const newRefreshToken = refreshResponse.body.refreshToken
+      const newAccessToken = refreshResponse.body.data.accessToken
+      const newRefreshToken = refreshResponse.body.data.refreshToken
       expect(newAccessToken).toBeDefined()
       expect(newRefreshToken).toBeDefined()
 
@@ -380,15 +375,15 @@ describe('Auth Integration Tests', () => {
           })
           .expect(200)
 
-        expect(response.body).toHaveProperty('userId', testUser.id)
-        expect(response.body).toHaveProperty('email', testUser.email)
-        expect(response.body).toHaveProperty('temporaryPassword')
-        expect(response.body).toHaveProperty('forcePasswordChange', true)
-        expect(response.body).toHaveProperty('changedBy')
-        expect(response.body).toHaveProperty('reason', 'Integration test - system generated')
+        expect(response.body.data).toHaveProperty('userId', testUser.id)
+        expect(response.body.data).toHaveProperty('email', testUser.email)
+        expect(response.body.data).toHaveProperty('temporaryPassword')
+        expect(response.body.data).toHaveProperty('forcePasswordChange', true)
+        expect(response.body.data).toHaveProperty('changedBy')
+        expect(response.body.data).toHaveProperty('reason', 'Integration test - system generated')
 
         // Verify password is strong (12 chars with complexity)
-        const tempPassword = response.body.temporaryPassword
+        const tempPassword = response.body.data.temporaryPassword
         expect(tempPassword).toHaveLength(12)
         expect(/[A-Z]/.test(tempPassword)).toBe(true) // uppercase
         expect(/[a-z]/.test(tempPassword)).toBe(true) // lowercase
@@ -464,11 +459,11 @@ describe('Auth Integration Tests', () => {
           })
           .expect(200)
 
-        expect(response.body).toHaveProperty('userId', testUser.id)
-        expect(response.body).toHaveProperty('email', testUser.email)
-        expect(response.body).toHaveProperty('forcePasswordChange', false)
-        expect(response.body).not.toHaveProperty('temporaryPassword') // Not returned for set-password
-        expect(response.body).toHaveProperty('changedBy')
+        expect(response.body.data).toHaveProperty('userId', testUser.id)
+        expect(response.body.data).toHaveProperty('email', testUser.email)
+        expect(response.body.data).toHaveProperty('forcePasswordChange', false)
+        expect(response.body.data).not.toHaveProperty('temporaryPassword') // Not returned for set-password
+        expect(response.body.data).toHaveProperty('changedBy')
       })
 
       it('should allow login with admin-defined password', async () => {
@@ -493,8 +488,8 @@ describe('Auth Integration Tests', () => {
           })
           .expect(201)
 
-        expect(response.body).toHaveProperty('accessToken')
-        expect(response.body).toHaveProperty('refreshToken')
+        expect(response.body.data).toHaveProperty('accessToken')
+        expect(response.body.data).toHaveProperty('refreshToken')
       })
 
       it('should validate password complexity', async () => {
@@ -536,7 +531,7 @@ describe('Auth Integration Tests', () => {
           reason: 'Force password change test'
         })
 
-      temporaryPassword = response.body.temporaryPassword
+      temporaryPassword = response.body.data.temporaryPassword
     })
 
     it('should detect force password change flag on login', async () => {
@@ -548,10 +543,10 @@ describe('Auth Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body).toHaveProperty('requiresPasswordChange', true)
-      expect(response.body).toHaveProperty('tempAccessToken')
-      expect(response.body).not.toHaveProperty('accessToken') // No full access token
-      expect(response.body).not.toHaveProperty('refreshToken')
+      expect(response.body.data).toHaveProperty('requiresPasswordChange', true)
+      expect(response.body.data).toHaveProperty('tempAccessToken')
+      expect(response.body.data).not.toHaveProperty('accessToken') // No full access token
+      expect(response.body.data).not.toHaveProperty('refreshToken')
     })
 
     it('should allow password change with temp token', async () => {
@@ -561,7 +556,7 @@ describe('Auth Integration Tests', () => {
         password: temporaryPassword
       })
 
-      const tempToken = loginResponse.body.tempAccessToken
+      const tempToken = loginResponse.body.data.tempAccessToken
 
       // Change password
       const response = await request(app.getHttpServer())
@@ -574,7 +569,7 @@ describe('Auth Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body).toHaveProperty('message')
+      expect(response.body.data).toHaveProperty('message')
     })
 
     it('should clear force password change flag after change', async () => {
@@ -584,7 +579,7 @@ describe('Auth Integration Tests', () => {
         password: temporaryPassword
       })
 
-      const tempToken = loginResponse.body.tempAccessToken
+      const tempToken = loginResponse.body.data.tempAccessToken
 
       // Change password
       await request(app.getHttpServer())
@@ -606,10 +601,10 @@ describe('Auth Integration Tests', () => {
         })
         .expect(201)
 
-      expect(newLoginResponse.body).toHaveProperty('accessToken')
-      expect(newLoginResponse.body).toHaveProperty('refreshToken')
-      expect(newLoginResponse.body).not.toHaveProperty('requiresPasswordChange')
-      expect(newLoginResponse.body).not.toHaveProperty('tempAccessToken')
+      expect(newLoginResponse.body.data).toHaveProperty('accessToken')
+      expect(newLoginResponse.body.data).toHaveProperty('refreshToken')
+      expect(newLoginResponse.body.data).not.toHaveProperty('requiresPasswordChange')
+      expect(newLoginResponse.body.data).not.toHaveProperty('tempAccessToken')
     })
 
     it('should set forcePasswordChange flag in database', async () => {
@@ -629,7 +624,7 @@ describe('Auth Integration Tests', () => {
 
       await request(app.getHttpServer())
         .post('/api/v1/auth/change-password')
-        .set('Authorization', `Bearer ${loginResponse.body.tempAccessToken}`)
+        .set('Authorization', `Bearer ${loginResponse.body.data.tempAccessToken}`)
         .send({
           currentPassword: temporaryPassword,
           newPassword: 'FinalSecure@999',
@@ -653,7 +648,7 @@ describe('Auth Integration Tests', () => {
 
       await request(app.getHttpServer())
         .post('/api/v1/auth/change-password')
-        .set('Authorization', `Bearer ${loginResponse.body.tempAccessToken}`)
+        .set('Authorization', `Bearer ${loginResponse.body.data.tempAccessToken}`)
         .send({
           currentPassword: temporaryPassword,
           newPassword: 'weak',
@@ -679,7 +674,7 @@ describe('Auth Integration Tests', () => {
           .post('/api/v1/auth/login')
           .send({ email: user.email, password: OLD_PASSWORD })
           .expect(201)
-      ).body.accessToken
+      ).body.data.accessToken
       const change = (body: Record<string, string>) =>
         request(app.getHttpServer())
           .post('/api/v1/auth/change-password')
@@ -712,7 +707,7 @@ describe('Auth Integration Tests', () => {
         newPassword: 'Third@Pass789',
         confirmPassword: 'Third@Pass789'
       }).expect(429)
-      expect(again.body.code ?? again.body.message?.code).toBeDefined()
+      expect(again.body.error.code).toBe('PASSWORD_CHANGE_COOLDOWN')
 
       // The session survived all of it
       await request(app.getHttpServer())
@@ -738,8 +733,8 @@ describe('Auth Integration Tests', () => {
           .get('/api/v1/sessions/me')
           .set('Authorization', `Bearer ${token}`)
 
-      const current = (await login()).body.accessToken
-      const other = (await login()).body.accessToken
+      const current = (await login()).body.data.accessToken
+      const other = (await login()).body.data.accessToken
 
       const response = await request(app.getHttpServer())
         .post('/api/v1/auth/change-password')
@@ -751,8 +746,8 @@ describe('Auth Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body.sessionsRevoked).toBe(1)
-      expect(response.body.message).toContain('Other sessions have been logged out')
+      expect(response.body.data.sessionsRevoked).toBe(1)
+      expect(response.body.data.message).toContain('Other sessions have been logged out')
       await me(current).expect(200)
       await me(other).expect(401)
     })

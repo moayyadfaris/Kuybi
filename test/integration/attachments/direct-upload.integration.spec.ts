@@ -1,7 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -97,8 +98,8 @@ describe('Direct uploads', () => {
   /** Initiates an upload and "uploads" `bytes` to the returned key */
   const uploadAs = async (declared: object, bytes: Buffer) => {
     const response = await initiate(declared).expect(201)
-    storage.objects.set(response.body.upload.fields.key, bytes)
-    return response.body.attachmentId as string
+    storage.objects.set(response.body.data.upload.fields.key, bytes)
+    return response.body.data.attachmentId as string
   }
 
   beforeAll(async () => {
@@ -133,8 +134,7 @@ describe('Direct uploads', () => {
       .compile()
 
     app = moduleRef.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
+    configureApp(app)
     await app.init()
     dataSource = app.get(DataSource)
     storage = new FakeStorage()
@@ -154,7 +154,7 @@ describe('Direct uploads', () => {
         .post('/api/v1/auth/login')
         .send({ email, password: PASSWORD })
         .expect(201)
-      return { user, token: login.body.accessToken as string }
+      return { user, token: login.body.data.accessToken as string }
     }
     owner = await signUp('owner@test-direct.com')
     other = await signUp('other@test-direct.com')
@@ -171,9 +171,9 @@ describe('Direct uploads', () => {
   it('hands out a presigned POST and records a pending upload', async () => {
     const response = await initiate(png).expect(201)
 
-    expect(response.body.upload).toMatchObject({ method: 'POST', url: expect.any(String) })
-    expect(response.body.upload.fields.key).toContain(owner.user.id)
-    const attachment = await stored(response.body.attachmentId)
+    expect(response.body.data.upload).toMatchObject({ method: 'POST', url: expect.any(String) })
+    expect(response.body.data.upload.fields.key).toContain(owner.user.id)
+    const attachment = await stored(response.body.data.attachmentId)
     expect(attachment).toMatchObject({ securityStatus: 'pending_upload', isPublic: false })
   })
 
@@ -188,12 +188,12 @@ describe('Direct uploads', () => {
 
   it('answers 409 when the file has not been uploaded yet, and allows completing later', async () => {
     const response = await initiate(png).expect(201)
-    const id = response.body.attachmentId
+    const id = response.body.data.attachmentId
 
     await complete(id).expect(409)
     expect((await stored(id)).securityStatus).toBe('pending_upload')
 
-    storage.objects.set(response.body.upload.fields.key, PNG)
+    storage.objects.set(response.body.data.upload.fields.key, PNG)
     await complete(id).expect(200)
   })
 
@@ -202,7 +202,7 @@ describe('Direct uploads', () => {
 
     const response = await complete(id).expect(200)
 
-    expect(response.body.id).toBe(id)
+    expect(response.body.data.id).toBe(id)
     const attachment = await stored(id)
     expect(attachment.securityStatus).toBe('processing')
     // Public only after processing has replaced it with an EXIF-stripped copy
@@ -240,7 +240,7 @@ describe('Direct uploads', () => {
 
     const response = await complete(id).expect(422)
 
-    expect(JSON.stringify(response.body)).toContain('application/pdf')
+    expect(JSON.stringify(response.body.error)).toContain('application/pdf')
     const attachment = await stored(id)
     expect(attachment.securityStatus).toBe('rejected')
     expect(storage.objects.has(attachment.path)).toBe(false)
@@ -261,7 +261,7 @@ describe('Direct uploads', () => {
 
   it('removes uploads that were never completed', async () => {
     const response = await initiate(png).expect(201)
-    const id = response.body.attachmentId
+    const id = response.body.data.attachmentId
     await dataSource.query(
       `UPDATE attachments SET "createdAt" = now() - interval '25 hours' WHERE id = $1`,
       [id]

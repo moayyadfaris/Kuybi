@@ -26,8 +26,19 @@ interface ErrorResponseBody {
   }
 }
 
+/** Called once per 5xx (e.g. to report it to Sentry); never for client errors. */
+export type ServerErrorReporter = (exception: unknown, request: Request, status: number) => void
+
+/**
+ * The single global exception filter: one response shape for every error.
+ *
+ * Client errors (4xx) return their message and validation details. Server errors (5xx)
+ * return a generic message unless `http.exposeErrorDetails` is on (development/test
+ * only); the real message and stack always go to the log.
+ */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly exposeErrorDetails: boolean
   private readonly safeFields: Set<string>
   private readonly maxFieldLength: number
   private readonly sensitiveKeys = [
@@ -41,8 +52,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   constructor(
     @Inject(Logger) private readonly logger: PinoLogger,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly reportServerError?: ServerErrorReporter
   ) {
+    // Fails closed: missing config means production behaviour
+    this.exposeErrorDetails = this.configService.get<boolean>('http.exposeErrorDetails', false)
     const allowedFields =
       this.configService.get<string[]>('logging.payloadPreview.allowedFields', []) ?? []
     this.safeFields = new Set(allowedFields.map(field => field.toLowerCase()))
@@ -60,7 +74,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR
 
-    const isDevelopment = process.env.NODE_ENV !== 'production'
+    const isServerError = status >= HttpStatus.INTERNAL_SERVER_ERROR
+    const exposeDetails = this.exposeErrorDetails
 
     // Extract error details
     const exceptionResponse = exception instanceof HttpException ? exception.getResponse() : null
@@ -83,21 +98,26 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const safeQuery = this.sanitizePayload(request.query, false)
     const safeParams = this.sanitizePayload(request.params, false)
 
-    this.logger.error(
-      {
-        requestId,
-        userId: request.user?.id,
-        method: request.method,
-        url: request.url,
-        statusCode: status,
-        errorMessage,
-        stack: errorStack,
-        body: safeBody,
-        query: safeQuery,
-        params: safeParams
-      },
-      `${request.method} ${request.url} failed with ${status}`
-    )
+    const logPayload = {
+      requestId,
+      userId: request.user?.id,
+      method: request.method,
+      url: request.url,
+      statusCode: status,
+      errorMessage,
+      stack: errorStack,
+      body: safeBody,
+      query: safeQuery,
+      params: safeParams
+    }
+    const logMessage = `${request.method} ${request.url} failed with ${status}`
+    if (isServerError) {
+      this.logger.error(logPayload, logMessage)
+      this.report(exception, request, status)
+    } else {
+      // Client errors are expected traffic (bad input, expired tokens); keep them out of error alerts
+      this.logger.warn(logPayload, logMessage)
+    }
 
     // Build error response
     const errorResponse: ErrorResponseBody = {
@@ -107,29 +127,35 @@ export class HttpExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       requestId,
       error: {
-        message: isDevelopment ? errorMessage : this.getSafeErrorMessage(status)
+        message: isServerError && !exposeDetails ? this.getSafeErrorMessage(status) : errorMessage
       }
     }
 
-    // Add validation errors or Health Check details if present
+    // Structured bodies: a client error's (validation messages, field errors, lockout
+    // details) is built for the client and always passed through. A server error's is
+    // passed through only for health checks ('details') or when details are exposed;
+    // anything else could carry internals.
     if (exceptionResponse && typeof exceptionResponse === 'object') {
-      if ('details' in exceptionResponse || 'error' in exceptionResponse) {
-        // Pass through Health Check details or other structured errors
+      if (!isServerError || exposeDetails || 'details' in exceptionResponse) {
         Object.assign(errorResponse.error, exceptionResponse)
-      } else {
-        const message = errorProperty<unknown>(exceptionResponse, 'message')
-        if (Array.isArray(message)) {
-          errorResponse.error.details = message
-        }
       }
     }
 
-    // Include stack trace in development mode only
-    if (isDevelopment && errorStack) {
+    if (exposeDetails && errorStack) {
       errorResponse.error.stack = errorStack
     }
 
     response.status(status).json(errorResponse)
+  }
+
+  private report(exception: unknown, request: Request, status: number): void {
+    if (!this.reportServerError) return
+    try {
+      this.reportServerError(exception, request, status)
+    } catch (error) {
+      // Reporting must never replace the original error response
+      this.logger.warn({ error: (error as Error).message }, 'Server error reporter failed')
+    }
   }
 
   private sanitizePayload(payload: unknown, enforceAllowList = true) {

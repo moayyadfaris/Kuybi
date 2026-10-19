@@ -3,10 +3,11 @@
  * Tests POST /api/post-types/:postTypeId/fields CRUD operations
  */
 
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -98,13 +99,7 @@ describe('Field Definitions Integration Tests', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true
-      })
-    )
+    configureApp(app)
 
     dataSource = app.get(DataSource)
     await app.init()
@@ -140,12 +135,12 @@ describe('Field Definitions Integration Tests', () => {
     const adminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: adminUser.email, password: ADMIN_PASSWORD })
-    adminToken = adminLogin.body.accessToken
+    adminToken = adminLogin.body.data.accessToken
 
     const userLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: newUser.email, password: USER_PASSWORD })
-    regularToken = userLogin.body.accessToken
+    regularToken = userLogin.body.data.accessToken
 
     // Create a post type for testing
     const postTypeResponse = await request(app.getHttpServer())
@@ -159,7 +154,7 @@ describe('Field Definitions Integration Tests', () => {
         singularLabel: 'Product',
         pluralLabel: 'Products'
       })
-    postTypeId = postTypeResponse.body.id
+    postTypeId = postTypeResponse.body.data.id
   })
 
   afterAll(async () => {
@@ -188,13 +183,13 @@ describe('Field Definitions Integration Tests', () => {
         .send(validField)
         .expect(201)
 
-      expect(response.body).toMatchObject({
+      expect(response.body.data).toMatchObject({
         name: 'price',
         label: 'Price',
         fieldType: 'currency',
         isRequired: true
       })
-      expect(response.body).toHaveProperty('id')
+      expect(response.body.data).toHaveProperty('id')
     })
 
     it('should fail without authentication', async () => {
@@ -222,7 +217,7 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.message).toEqual(
+      expect(response.body.error.message).toEqual(
         expect.arrayContaining([expect.stringContaining('snake_case')])
       )
     })
@@ -237,7 +232,7 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.message).toEqual(
+      expect(response.body.error.message).toEqual(
         expect.arrayContaining([expect.stringContaining('fieldType')])
       )
     })
@@ -260,7 +255,7 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(409)
 
-      expect(response.body.message).toContain('already exists')
+      expect(response.body.error.message).toContain('already exists')
     })
 
     it('should create field with all 25 field types', async () => {
@@ -307,7 +302,7 @@ describe('Field Definitions Integration Tests', () => {
           })
           .expect(201)
 
-        expect(response.body.fieldType).toBe(fieldType)
+        expect(response.body.data.fieldType).toBe(fieldType)
       }
     })
   })
@@ -341,8 +336,8 @@ describe('Field Definitions Integration Tests', () => {
         .get(`/api/v1/post-types/${postTypeId}/fields`)
         .expect(200)
 
-      expect(Array.isArray(response.body)).toBe(true)
-      expect(response.body.length).toBe(2)
+      expect(Array.isArray(response.body.data)).toBe(true)
+      expect(response.body.data.length).toBe(2)
     })
 
     it('should return fields in display order', async () => {
@@ -350,8 +345,8 @@ describe('Field Definitions Integration Tests', () => {
         .get(`/api/v1/post-types/${postTypeId}/fields`)
         .expect(200)
 
-      expect(response.body[0].name).toBe('name')
-      expect(response.body[1].name).toBe('price')
+      expect(response.body.data[0].name).toBe('name')
+      expect(response.body.data[1].name).toBe('price')
     })
   })
 
@@ -367,7 +362,7 @@ describe('Field Definitions Integration Tests', () => {
           label: 'Price',
           fieldType: 'currency'
         })
-      fieldId = fieldResponse.body.id
+      fieldId = fieldResponse.body.data.id
     })
 
     it('should get field by ID', async () => {
@@ -375,8 +370,8 @@ describe('Field Definitions Integration Tests', () => {
         .get(`/api/v1/post-types/${postTypeId}/fields/${fieldId}`)
         .expect(200)
 
-      expect(response.body.id).toBe(fieldId)
-      expect(response.body.name).toBe('price')
+      expect(response.body.data.id).toBe(fieldId)
+      expect(response.body.data.name).toBe('price')
     })
 
     it('should return 404 for field from different post type', async () => {
@@ -394,7 +389,7 @@ describe('Field Definitions Integration Tests', () => {
         })
 
       await request(app.getHttpServer())
-        .get(`/api/v1/post-types/${postType2Response.body.id}/fields/${fieldId}`)
+        .get(`/api/v1/post-types/${postType2Response.body.data.id}/fields/${fieldId}`)
         .expect(404)
     })
   })
@@ -412,7 +407,7 @@ describe('Field Definitions Integration Tests', () => {
           fieldType: 'currency',
           isRequired: false
         })
-      fieldId = fieldResponse.body.id
+      fieldId = fieldResponse.body.data.id
     })
 
     it('should update field with admin token', async () => {
@@ -426,8 +421,8 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(200)
 
-      expect(response.body.label).toBe('Product Price')
-      expect(response.body.isRequired).toBe(true)
+      expect(response.body.data.label).toBe('Product Price')
+      expect(response.body.data.isRequired).toBe(true)
     })
 
     it('should fail without authentication', async () => {
@@ -444,7 +439,7 @@ describe('Field Definitions Integration Tests', () => {
         .send({ name: 'new_name' })
         .expect(200)
 
-      expect(response.body.name).toBe('price')
+      expect(response.body.data.name).toBe('price')
     })
 
     it('should prevent updating field type', async () => {
@@ -454,7 +449,7 @@ describe('Field Definitions Integration Tests', () => {
         .send({ fieldType: 'text' })
         .expect(200)
 
-      expect(response.body.fieldType).toBe('currency')
+      expect(response.body.data.fieldType).toBe('currency')
     })
   })
 
@@ -473,7 +468,7 @@ describe('Field Definitions Integration Tests', () => {
           fieldType: 'text',
           displayOrder: 1
         })
-      field1Id = f1.body.id
+      field1Id = f1.body.data.id
 
       const f2 = await request(app.getHttpServer())
         .post(`/api/v1/post-types/${postTypeId}/fields`)
@@ -484,7 +479,7 @@ describe('Field Definitions Integration Tests', () => {
           fieldType: 'text',
           displayOrder: 2
         })
-      field2Id = f2.body.id
+      field2Id = f2.body.data.id
 
       const f3 = await request(app.getHttpServer())
         .post(`/api/v1/post-types/${postTypeId}/fields`)
@@ -495,7 +490,7 @@ describe('Field Definitions Integration Tests', () => {
           fieldType: 'text',
           displayOrder: 3
         })
-      field3Id = f3.body.id
+      field3Id = f3.body.data.id
     })
 
     it('should reorder fields', async () => {
@@ -511,10 +506,10 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(200)
 
-      expect(Array.isArray(response.body)).toBe(true)
-      expect(response.body[0].id).toBe(field3Id)
-      expect(response.body[1].id).toBe(field1Id)
-      expect(response.body[2].id).toBe(field2Id)
+      expect(Array.isArray(response.body.data)).toBe(true)
+      expect(response.body.data[0].id).toBe(field3Id)
+      expect(response.body.data[1].id).toBe(field1Id)
+      expect(response.body.data[2].id).toBe(field2Id)
     })
 
     it('should fail with duplicate display orders', async () => {
@@ -543,7 +538,7 @@ describe('Field Definitions Integration Tests', () => {
           label: 'Price',
           fieldType: 'currency'
         })
-      fieldId = fieldResponse.body.id
+      fieldId = fieldResponse.body.data.id
     })
 
     it('should soft delete field with admin token', async () => {

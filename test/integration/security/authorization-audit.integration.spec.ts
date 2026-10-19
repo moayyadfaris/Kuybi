@@ -1,7 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
@@ -101,8 +102,7 @@ describe('Authorization audit', () => {
       .compile()
 
     app = moduleRef.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
+    configureApp(app)
     await app.init()
     dataSource = app.get(DataSource)
 
@@ -119,7 +119,7 @@ describe('Authorization audit', () => {
         .post('/api/v1/auth/login')
         .send({ email, password: PASSWORD })
         .expect(201)
-      return { user, token: login.body.accessToken }
+      return { user, token: login.body.data.accessToken }
     }
     owner = await signUp('owner@test-audit.com', 'user')
     other = await signUp('other@test-audit.com', 'user')
@@ -148,7 +148,7 @@ describe('Authorization audit', () => {
         .send({ ...StoryFactory.create(), status })
 
     it('lets an author create drafts and submit for review, not publish', async () => {
-      expect((await create(owner).expect(201)).body.status).toBe(StoryStatus.DRAFT)
+      expect((await create(owner).expect(201)).body.data.status).toBe(StoryStatus.DRAFT)
       await create(owner, StoryStatus.PENDING_REVIEW).expect(201)
       await create(owner, StoryStatus.PUBLISHED).expect(403)
       await create(admin, StoryStatus.PUBLISHED).expect(201)
@@ -233,12 +233,12 @@ describe('Authorization audit', () => {
 
     it('shows anonymous visitors published entries only, whatever the filters say', async () => {
       const list = await http().get('/api/v1/content/audit-notes').expect(200)
-      expect(list.body.data.map((c: { id: string }) => c.id)).toEqual([published.id])
+      expect(list.body.data.data.map((c: { id: string }) => c.id)).toEqual([published.id])
 
       const asked = await http()
         .get('/api/v1/content/audit-notes?status=draft&includeDeleted=true')
         .expect(200)
-      expect(asked.body.data.map((c: { id: string }) => c.id)).toEqual([published.id])
+      expect(asked.body.data.data.map((c: { id: string }) => c.id)).toEqual([published.id])
 
       await http().get(`/api/v1/content/audit-notes/${draft.id}`).expect(404)
       await http().get('/api/v1/content/audit-notes/slug/secret-draft').expect(404)
@@ -251,7 +251,7 @@ describe('Authorization audit', () => {
         .get('/api/v1/content/audit-notes?status=draft')
         .set(as(moderator))
         .expect(200)
-      expect(list.body.data.map((c: { id: string }) => c.id)).toEqual([draft.id])
+      expect(list.body.data.data.map((c: { id: string }) => c.id)).toEqual([draft.id])
     })
 
     it('rejects a bad token instead of treating it as anonymous', async () => {

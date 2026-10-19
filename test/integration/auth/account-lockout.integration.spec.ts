@@ -4,12 +4,13 @@
  */
 
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { Test, TestingModule } from '@nestjs/testing'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { EmailService } from '@infrastructure/email/services/email.service'
 import * as bcrypt from 'bcrypt'
@@ -126,14 +127,7 @@ describe('Account Lockout Integration Tests', () => {
       .compile()
 
     app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix('api')
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true
-      })
-    )
+    configureApp(app)
 
     await app.init()
 
@@ -265,8 +259,8 @@ describe('Account Lockout Integration Tests', () => {
         })
         .expect(201)
 
-      expect(response.body).toHaveProperty('accessToken')
-      expect(response.body).toHaveProperty('refreshToken')
+      expect(response.body.data).toHaveProperty('accessToken')
+      expect(response.body.data).toHaveProperty('refreshToken')
 
       const user = await dataSource
         .getRepository(User)
@@ -303,14 +297,14 @@ describe('Account Lockout Integration Tests', () => {
         .expect(423)
 
       expect(response.body.statusCode).toBe(423)
-      expect(response.body.error).toBe('Locked')
-      expect(response.body.message).toContain('locked')
-      expect(response.body.message).toContain('unlocked')
-      expect(response.body.details).toHaveProperty('lockedAt')
-      expect(response.body.details).toHaveProperty('lockedUntil')
-      expect(response.body.details).toHaveProperty('unlockIn')
-      expect(response.body.details.failedAttempts).toBe(5)
-      expect(response.body.details.maxAttempts).toBe(5)
+      expect(response.body.error.error).toBe('Locked')
+      expect(response.body.error.message).toContain('locked')
+      expect(response.body.error.message).toContain('unlocked')
+      expect(response.body.error.details).toHaveProperty('lockedAt')
+      expect(response.body.error.details).toHaveProperty('lockedUntil')
+      expect(response.body.error.details).toHaveProperty('unlockIn')
+      expect(response.body.error.details.failedAttempts).toBe(5)
+      expect(response.body.error.details.maxAttempts).toBe(5)
     })
 
     it('should return lockout information with remaining time', async () => {
