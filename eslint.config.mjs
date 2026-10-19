@@ -144,6 +144,14 @@ export default tseslint.config(
     rules: {
       // src has no explicit `any` left (Oct 2026); keep it that way. Tests may use it.
       '@typescript-eslint/no-explicit-any': 'error',
+      'no-restricted-properties': [
+        'error',
+        {
+          property: 'withMetadata',
+          message:
+            "sharp's withMetadata() KEEPS the input's EXIF (GPS, camera serials). Output has none by default; use keepIccProfile() for colour, keepMetadata() only when metadata must survive."
+        }
+      ],
       'no-restricted-syntax': ['error', NO_ANY_CAST]
     }
   },

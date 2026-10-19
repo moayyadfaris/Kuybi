@@ -92,7 +92,6 @@ export class AttachmentService {
         // Strip sensitive EXIF data first
         const exifResult = await this.exifProcessorService.stripSensitiveData(file.buffer, {
           stripSensitiveData: true,
-          preserveCopyright: true,
           preserveColorProfile: true,
           autoRotate: true
         })

@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import sharp, { type WriteableMetadata } from 'sharp'
+import sharp from 'sharp'
+
+import { hasGpsData } from '../utils/exif-gps.util'
 
 export interface ExifData {
   camera?: {
@@ -37,7 +39,7 @@ export interface ExifData {
 
 export interface ExifProcessingOptions {
   stripSensitiveData?: boolean
-  preserveCopyright?: boolean
+  /** Keep the ICC colour profile (no personal data; dropping it can shift colours). Default true */
   preserveColorProfile?: boolean
   autoRotate?: boolean
 }
@@ -77,13 +79,9 @@ export class ExifProcessorService {
         hasTransparency: metadata.hasAlpha || false
       }
 
-      // Extract camera information
-      if (metadata.exif) {
-        // Note: Sharp's EXIF parsing is limited
-        // For production, integrate exiftool-vendored for comprehensive EXIF extraction
-        this.logger.debug(
-          'EXIF data present but not fully parsed - use exiftool-vendored for complete extraction'
-        )
+      // Only the presence of GPS is detected (coordinates are never read or stored)
+      if (hasGpsData(metadata.exif)) {
+        exifData.location = {}
       }
 
       this.logger.debug({ dimensions: exifData.dimensions }, 'Extracted EXIF data')
@@ -103,40 +101,34 @@ export class ExifProcessorService {
   ): Promise<ExifProcessingResult> {
     try {
       const exifData = await this.extractExifData(buffer)
-      const stripped: string[] = []
+      const input = await sharp(buffer).metadata()
 
-      let sharpInstance = sharp(buffer)
-
-      // Auto-rotate based on EXIF orientation
+      let image = sharp(buffer)
       if (options.autoRotate !== false) {
-        sharpInstance = sharpInstance.rotate()
-        if (exifData.dimensions?.orientation && exifData.dimensions.orientation !== 1) {
-          stripped.push('orientation')
-        }
+        // Applies the EXIF orientation to the pixels, so the tag is no longer needed
+        image = image.rotate()
       }
-
-      // Prepare metadata options
-      const metadataOptions: WriteableMetadata = {
-        orientation: 1 // Reset to standard orientation after rotation
+      if (options.stripSensitiveData === false) {
+        image = image.keepMetadata()
+      } else if (options.preserveColorProfile !== false) {
+        image = image.keepIccProfile()
       }
+      // sharp writes no EXIF/XMP/IPTC unless asked to. withMetadata() would KEEP them
+      // (GPS coordinates, camera serials, timestamps): never use it here.
+      const processedBuffer = await image.toBuffer()
 
-      if (options.preserveCopyright) {
-        // Copyright info is generally safe to keep
-        // Note: Actual implementation would preserve existing copyright metadata
-      }
-
-      // Strip all EXIF data except orientation
-      sharpInstance = sharpInstance.withMetadata(metadataOptions)
-
-      // Generate new buffer without sensitive data
-      const processedBuffer = await sharpInstance.toBuffer()
-
-      // Track what was stripped
+      const stripped: string[] = []
       if (options.stripSensitiveData !== false) {
-        stripped.push('gps', 'camera', 'software', 'datetime')
+        if (input.exif) stripped.push('exif')
+        if (hasGpsData(input.exif)) stripped.push('gps')
+        if (input.xmp) stripped.push('xmp')
+        if (input.iptc) stripped.push('iptc')
+      }
+      if (options.autoRotate !== false && (input.orientation ?? 1) !== 1) {
+        stripped.push('orientation')
       }
 
-      this.logger.info({ stripped: stripped.length }, 'Stripped sensitive EXIF data')
+      this.logger.info({ stripped }, 'Stripped sensitive image metadata')
 
       return {
         buffer: processedBuffer,
@@ -155,8 +147,8 @@ export class ExifProcessorService {
    */
   async hasLocationData(buffer: Buffer): Promise<boolean> {
     try {
-      const exifData = await this.extractExifData(buffer)
-      return !!(exifData.location?.latitude && exifData.location?.longitude)
+      const metadata = await sharp(buffer).metadata()
+      return hasGpsData(metadata.exif)
     } catch {
       return false
     }
@@ -179,37 +171,11 @@ export class ExifProcessorService {
    */
   async correctOrientation(buffer: Buffer): Promise<Buffer> {
     try {
-      return await sharp(buffer)
-        .rotate() // Automatically rotates based on EXIF orientation
-        .withMetadata({ orientation: 1 }) // Reset orientation flag to 1
-        .toBuffer()
+      // rotate() applies the EXIF orientation; the output carries no EXIF (only the ICC profile)
+      return await sharp(buffer).rotate().keepIccProfile().toBuffer()
     } catch (error) {
       this.logger.error({ error: errorMessage(error) }, 'Failed to correct orientation')
       throw new BadRequestException('Failed to correct image orientation')
-    }
-  }
-
-  /**
-   * Parse EXIF buffer to extract metadata
-   * This is a simplified parser - for production, consider using exiftool-vendored
-   */
-  private parseExifBuffer(_exifBuffer: Buffer): Record<string, string | number | boolean> | null {
-    try {
-      // Sharp provides basic EXIF data in the metadata
-      // For comprehensive EXIF parsing, we'd need to use exiftool-vendored
-      // This is a placeholder that would work with Sharp's built-in metadata
-
-      // Note: Sharp's metadata.exif is a Buffer containing raw EXIF data
-      // For simplicity, we're returning null here and relying on Sharp's metadata fields
-      // In production, integrate exiftool-vendored for comprehensive EXIF extraction
-
-      this.logger.warn(
-        'Using basic EXIF extraction - consider integrating exiftool-vendored for comprehensive metadata'
-      )
-      return null
-    } catch (error) {
-      this.logger.error({ error: errorMessage(error) }, 'Failed to parse EXIF buffer')
-      return null
     }
   }
 
@@ -252,8 +218,8 @@ export class ExifProcessorService {
         // Date taken (might be sensitive, but useful for organization)
         dateTaken: exifData.datetime?.original,
 
-        // Location flag (don't include actual coordinates)
-        hasLocation: !!(exifData.location?.latitude && exifData.location?.longitude)
+        // Location flag (coordinates are never read or stored)
+        hasLocation: exifData.location !== undefined
       }
     } catch (error) {
       this.logger.error({ error: errorMessage(error) }, 'Failed to generate metadata summary')

@@ -111,7 +111,6 @@ export class AttachmentProcessor extends BaseProcessor {
       // Step 1: Strip sensitive EXIF data
       const exifResult = await this.exifProcessorService.stripSensitiveData(buffer, {
         stripSensitiveData: true,
-        preserveCopyright: true,
         preserveColorProfile: true,
         autoRotate: true
       })
