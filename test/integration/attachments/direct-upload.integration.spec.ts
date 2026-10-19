@@ -77,10 +77,13 @@ class FakeStorage {
     })
     jest.spyOn(s3, 'upload').mockImplementation(async options => {
       this.uploads.set(options.key, options.isPublic)
+      if (options.isPublic) this.publicKeys.add(options.key)
       return { key: options.key, bucket: 'bucket', location: `https://storage.test/${options.key}` }
     })
-    jest.spyOn(s3, 'makePublic').mockImplementation(async key => {
-      this.publicKeys.add(key)
+    // makePublic delegates to setAcl
+    jest.spyOn(s3, 'setAcl').mockImplementation(async (key, isPublic) => {
+      if (isPublic) this.publicKeys.add(key)
+      else this.publicKeys.delete(key)
     })
   }
 }
@@ -174,13 +177,13 @@ describe('Direct uploads', () => {
 
   const png = { originalName: 'pixel.png', mimeType: 'image/png', size: PNG.length }
 
-  it('hands out a presigned POST and records a pending upload', async () => {
+  it('hands out a presigned POST and records a pending upload (public by default)', async () => {
     const response = await initiate(png).expect(201)
 
     expect(response.body.data.upload).toMatchObject({ method: 'POST', url: expect.any(String) })
     expect(response.body.data.upload.fields.key).toContain(owner.user.id)
     const attachment = await stored(response.body.data.attachmentId)
-    expect(attachment).toMatchObject({ securityStatus: 'pending_upload', isPublic: false })
+    expect(attachment).toMatchObject({ securityStatus: 'pending_upload', isPublic: true })
   })
 
   it('rejects disallowed types and oversized files before issuing a URL', async () => {
@@ -305,6 +308,62 @@ describe('Direct uploads', () => {
       const res = await upload({ isPublic: 'true' }).expect(201)
 
       expect((await stored(res.body.data.attachment.id)).isPublic).toBe(true)
+    })
+  })
+
+  describe("visibility is the uploader's choice", () => {
+    let n = 0
+    const pdf = () => Buffer.concat([PDF, Buffer.from(`% visibility-${Date.now()}-${++n}\n`)])
+    const upload = (body: Buffer, fields: Record<string, string> = {}) => {
+      const req = http()
+        .post('/api/v1/attachments')
+        .set(as(owner.token))
+        .attach('file', body, { filename: 'doc.pdf', contentType: 'application/pdf' })
+      for (const [name, value] of Object.entries(fields)) req.field(name, value)
+      return req
+    }
+    const setPublic = (id: string, isPublic: boolean) =>
+      http().patch(`/api/v1/attachments/${id}`).set(as(owner.token)).send({ isPublic })
+
+    it('defaults to public', async () => {
+      const res = await upload(pdf()).expect(201)
+
+      const attachment = await stored(res.body.data.attachment.id)
+      expect(attachment.isPublic).toBe(true)
+      expect(storage.publicKeys.has(attachment.path)).toBe(true)
+    })
+
+    it('switching to private changes the stored object too, and back', async () => {
+      const { id } = (await upload(pdf()).expect(201)).body.data.attachment
+
+      await setPublic(id, false).expect(200)
+      let attachment = await stored(id)
+      expect(attachment.isPublic).toBe(false)
+      // The flag alone used to change: the object stayed publicly downloadable
+      expect(storage.publicKeys.has(attachment.path)).toBe(false)
+
+      await setPublic(id, true).expect(200)
+      attachment = await stored(id)
+      expect(attachment.isPublic).toBe(true)
+      expect(storage.publicKeys.has(attachment.path)).toBe(true)
+    })
+
+    it('keeps profile images public', async () => {
+      await upload(pdf(), { category: 'profile-image', isPublic: 'false' }).expect(400)
+    })
+
+    it('applies the requested visibility when the same file is uploaded again', async () => {
+      const body = pdf()
+      const first = (await upload(body).expect(201)).body.data.attachment
+
+      // Both the sync and the async upload path deduplicate
+      const again = (await upload(body, { isPublic: 'false', async: 'true' }).expect(201)).body.data
+        .attachment
+
+      expect(again.id).toBe(first.id) // deduplicated
+      const attachment = await stored(first.id)
+      expect(attachment.isPublic).toBe(false)
+      expect(storage.publicKeys.has(attachment.path)).toBe(false)
     })
   })
 })

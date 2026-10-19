@@ -352,19 +352,23 @@ export class S3Service {
    * Make an existing S3 object public
    */
   async makePublic(key: string): Promise<void> {
-    try {
-      const command = new PutObjectAclCommand({
-        Bucket: this.bucket,
-        Key: key,
-        ACL: 'public-read'
-      })
+    await this.setAcl(key, true)
+  }
 
-      await this.executeWithResilience('make-public', signal =>
+  /**
+   * Make an existing S3 object public-read or private
+   */
+  async setAcl(key: string, isPublic: boolean): Promise<void> {
+    const acl = isPublic ? 'public-read' : 'private'
+    try {
+      const command = new PutObjectAclCommand({ Bucket: this.bucket, Key: key, ACL: acl })
+
+      await this.executeWithResilience('set-acl', signal =>
         this.s3Client.send(command, { abortSignal: signal })
       )
-      this.logger.info(`File ACL updated to public: ${key}`)
+      this.logger.info(`File ACL updated to ${acl}: ${key}`)
     } catch (error) {
-      this.logger.error(`Failed to update file ACL to public: ${key}`, error)
+      this.logger.error(`Failed to update file ACL to ${acl}: ${key}`, error)
       throw new InternalServerErrorException('Failed to update file permissions')
     }
   }

@@ -17,9 +17,9 @@ import { AttachmentJobType, QueueName } from '@core/queues/jobs/types'
 import { AttachmentResponseDto, InitiateUploadDto, InitiateUploadResponseDto } from '../dto'
 import { Attachment } from '../entities/attachment.entity'
 import { AttachmentRepository } from '../repositories/attachment.repository'
-import { shouldForcePublic } from '../utils/attachment-image.util'
 
 import { AttachmentService } from './attachment.service'
+import { AttachmentVisibilityService } from './attachment-visibility.service'
 import { FileValidationService, MulterFile } from './file-validation.service'
 import { S3Service } from './s3.service'
 
@@ -57,7 +57,8 @@ export class DirectUploadService {
     private readonly fileValidation: FileValidationService,
     private readonly s3Service: S3Service,
     private readonly outbox: OutboxService,
-    private readonly logger: PinoLogger
+    private readonly logger: PinoLogger,
+    private readonly visibility: AttachmentVisibilityService
   ) {
     this.logger.setContext(DirectUploadService.name)
   }
@@ -85,7 +86,7 @@ export class DirectUploadService {
           category: dto.category,
           description: dto.description,
           tags: dto.tags ?? [],
-          isPublic: shouldForcePublic(dto.category) || dto.isPublic === true,
+          isPublic: this.visibility.resolveRequested(dto.category, dto.isPublic),
           securityStatus: PENDING,
           metadata
         } as Partial<Attachment>)

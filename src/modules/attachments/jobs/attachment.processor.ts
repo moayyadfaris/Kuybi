@@ -98,7 +98,9 @@ export class AttachmentProcessor extends BaseProcessor {
     this.logger.info({ jobId: job.id, attachmentId, s3Key }, 'Processing image')
 
     try {
-      const attachment = await this.attachmentRepository.findById(attachmentId)
+      const attachment = await this.attachmentRepository.findById(attachmentId, {
+        bypassCache: true
+      })
       const metadata: AttachmentMetadata = {
         ...(attachment?.metadata as AttachmentMetadata)
       }
@@ -144,7 +146,8 @@ export class AttachmentProcessor extends BaseProcessor {
       )
 
       processedBuffer = optimizationResult.buffer
-      const publicAccess = isPublic ?? attachment?.isPublic ?? false
+      // The row is the latest choice: visibility may change while the job waits
+      const publicAccess = attachment?.isPublic ?? isPublic ?? false
       const optimizedFormat = optimizationResult.format
       const contentType = mapFormatToContentType(optimizedFormat)
 
@@ -272,8 +275,11 @@ export class AttachmentProcessor extends BaseProcessor {
     try {
       // Download image from S3
       const imageBuffer = await this.s3Service.download(imageUrl)
-      const attachment = await this.attachmentRepository.findById(attachmentId)
-      const publicAccess = isPublic ?? attachment?.isPublic ?? false
+      const attachment = await this.attachmentRepository.findById(attachmentId, {
+        bypassCache: true
+      })
+      // The row is the latest choice: visibility may change while the job waits
+      const publicAccess = attachment?.isPublic ?? isPublic ?? false
 
       const thumbnailSizes: ThumbnailSize[] | undefined = sizes
         ? sizes.map(size => ({

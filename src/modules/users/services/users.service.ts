@@ -9,11 +9,10 @@ import * as bcrypt from 'bcrypt'
 import { RoleRepository } from '@modules/acl'
 import {
   assertAttachmentUsable,
-  AttachmentMetadata,
   AttachmentRepository,
+  AttachmentVisibilityService,
   S3Service
 } from '@modules/attachments'
-import { Attachment } from '@modules/attachments/entities'
 
 import { UserProfileDto } from '../dto/user-profile.dto'
 import { User } from '../entities/user.entity'
@@ -25,6 +24,7 @@ export class UsersService {
     private readonly userRepository: UserRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly s3Service: S3Service,
+    private readonly attachmentVisibility: AttachmentVisibilityService,
     private readonly roleRepository: RoleRepository
   ) {}
 
@@ -164,7 +164,8 @@ export class UsersService {
       throw new BadRequestException('Attachment must be an image')
     }
 
-    await this.ensureAttachmentPublic(attachment)
+    // Profile images are public: every stored object's ACL, not just the flag
+    await this.attachmentVisibility.setVisibility(attachment, true)
 
     // Update user with the profile image
     const updated = await this.userRepository.update(userId, { profileImageId: attachmentId })
@@ -177,49 +178,5 @@ export class UsersService {
   async removeProfileImage(userId: string): Promise<User | null> {
     const updated = await this.userRepository.update(userId, { profileImageId: null })
     return updated
-  }
-
-  private async ensureAttachmentPublic(attachment: Attachment): Promise<void> {
-    if (attachment.isPublic) {
-      return
-    }
-
-    await this.s3Service.makePublic(attachment.path)
-
-    if (attachment.thumbnailPath) {
-      await this.s3Service.makePublic(attachment.thumbnailPath)
-    }
-
-    const metadata = (attachment.metadata || {}) as AttachmentMetadata
-
-    const thumbnails = metadata.thumbnails
-    if (thumbnails) {
-      const thumbnailKeys = Object.values(thumbnails)
-        .map(thumb => thumb?.key)
-        .filter((key): key is string => Boolean(key))
-
-      await Promise.all(thumbnailKeys.map(key => this.s3Service.makePublic(key)))
-    }
-
-    const optimization = metadata.optimization
-    const placeholderKey = optimization?.placeholderKey
-    if (placeholderKey) {
-      await this.s3Service.makePublic(placeholderKey)
-    }
-
-    if (optimization || placeholderKey) {
-      metadata.optimization = {
-        ...(optimization || {}),
-        placeholderKey
-      }
-    }
-
-    attachment.isPublic = true
-    attachment.metadata = metadata
-
-    await this.attachmentRepository.update(attachment.id, {
-      isPublic: true,
-      metadata
-    })
   }
 }

@@ -51,7 +51,7 @@ export class InitiateUploadDto {
   @IsString({ each: true })
   tags?: string[]
 
-  @ApiPropertyOptional({ default: false, description: 'Private unless requested' })
+  @ApiPropertyOptional({ default: true, description: 'Public unless false is sent' })
   @IsOptional()
   @ToBoolean()
   @IsBoolean()
