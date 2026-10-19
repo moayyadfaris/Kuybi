@@ -65,7 +65,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
     )
 
     if (!options?.bypassCache && this.cacheService) {
-      return this.cacheService.wrap<PostContent[]>(
+      return this.cached<PostContent[]>(
         cacheKey,
         async () => {
           const query = this.repository
@@ -132,7 +132,7 @@ export class PostContentRepository extends BaseRepository<PostContent> {
     const cacheKey = this.buildCacheKey('slug', postTypeId, slug)
 
     if (this.cacheService) {
-      return this.cacheService.wrap<PostContent | null>(
+      return this.cached<PostContent | null>(
         cacheKey,
         async () => {
           return this.repository.findOne({

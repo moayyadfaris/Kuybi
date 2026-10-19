@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Between, Brackets, IsNull, Repository } from 'typeorm'
+import { Between, Brackets, FindOptionsRelations, IsNull, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -672,6 +672,11 @@ export class StoryRepository extends BaseRepository<Story> {
     }
     await this.invalidateCacheByTag()
     await this.cacheService.invalidateTags([...tags])
+  }
+
+  /** Uncached read with the given relations, for read-modify-save of relation arrays */
+  findWithRelations(id: number, relations: FindOptionsRelations<Story>): Promise<Story | null> {
+    return this.repository.findOne({ where: { id }, relations })
   }
 
   /**

@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { AclModule } from '@modules/acl'
 import { AttachmentsModule } from '@modules/attachments'
-import { Attachment } from '@modules/attachments/entities'
 import { CategoriesModule } from '@modules/categories'
 import { CountriesModule } from '@modules/countries'
 import { TagsModule } from '@modules/tags'
@@ -31,7 +30,7 @@ import { StoryVersionService } from './services/story-version.service'
 @Module({
   imports: [
     IdempotencyModule,
-    TypeOrmModule.forFeature([Story, StoryVersion, Attachment]),
+    TypeOrmModule.forFeature([Story, StoryVersion]),
     CacheConfigModule,
     MetricsModule,
     AclModule,

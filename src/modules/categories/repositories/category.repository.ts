@@ -31,7 +31,7 @@ export class CategoryRepository extends BaseRepository<Category> {
   async findBySlug(slug: string): Promise<Category | null> {
     const cacheKey = this.buildCacheKey('slug', slug.toLowerCase())
 
-    return this.cacheService.wrap<Category | null>(
+    return this.cached<Category | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({
@@ -48,7 +48,7 @@ export class CategoryRepository extends BaseRepository<Category> {
   async findAllActive(): Promise<Category[]> {
     const cacheKey = this.buildCacheKey('all-active')
 
-    return this.cacheService.wrap<Category[]>(
+    return this.cached<Category[]>(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -234,7 +234,7 @@ export class CategoryRepository extends BaseRepository<Category> {
   }> {
     const cacheKey = this.buildCacheKey('stats')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const [total, active, inactive, deleted] = await Promise.all([

@@ -87,9 +87,7 @@ export class AuditService {
       // Calculate changes if both previous and new values provided
       const changes = this.calculateChanges(options.previousValues, options.newValues)
 
-      // Create audit log entity
-      const repository = this.auditLogRepository.getRepository()
-      const auditLog = repository.create({
+      const saved = await this.auditLogRepository.append({
         // User context
         userId: context.userId || null,
         username: context.username || null,
@@ -127,12 +125,6 @@ export class AuditService {
         description: options.description || null,
         retentionDays: options.retentionDays || 0
       })
-
-      // Save to database
-      const saved = await repository.save(auditLog)
-
-      // Invalidate caches for fresh reads
-      await this.auditLogRepository.invalidateAllCaches()
 
       // Log to Pino for immediate visibility
       this.logToPino(saved)

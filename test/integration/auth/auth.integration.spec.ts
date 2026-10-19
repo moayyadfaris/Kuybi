@@ -775,7 +775,36 @@ describe('Auth Integration Tests', () => {
       })
       expect(user.id).toBeDefined()
     })
+
+    it('stores the email lowercased, so a mixed-case signup can log in', async () => {
+      const stamp = Date.now()
+      const typed = `Mixed.Case-${stamp}@Example.COM`
+      const password = 'Secure@Pass123'
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .send({ email: typed, password, firstName: 'Mixed', lastName: 'Case' })
+        .expect(201)
+
+      const lower = typed.toLowerCase()
+      expect(await dataSource.getRepository(User).findOneBy({ email: lower })).not.toBeNull()
+
+      for (const email of [typed, lower]) {
+        const login = await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email, password })
+          .expect(201)
+        expect(login.body.data.accessToken).toBeDefined()
+      }
+
+      // The same address in another case is the same account
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .send({ email: lower.toUpperCase(), password, firstName: 'Dup', lastName: 'Case' })
+        .expect(409)
+    })
   })
+
   describe('POST /api/v1/auth/reset-password (policies)', () => {
     const FIRST = 'First@Pass123'
     const SECOND = 'Second@Pass456'

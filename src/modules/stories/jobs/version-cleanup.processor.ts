@@ -1,13 +1,11 @@
 import { InjectQueue, Processor } from '@nestjs/bullmq'
-import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { IsNull, LessThan, Repository } from 'typeorm'
 
 import { QueueName, VersionCleanupJobType } from '@core/queues/jobs/types'
 import { BaseProcessor } from '@core/queues/processors/base.processor'
 
-import { StoryVersion, VersionStatus } from '../entities/story-version.entity'
+import { VersionStatus } from '../entities/story-version.entity'
 import { StoryVersionRepository } from '../repositories/story-version.repository'
 
 interface CleanupExpiredJobData {
@@ -25,8 +23,6 @@ interface ManualCleanupJobData {
 @Processor(QueueName.VERSION_CLEANUP)
 export class VersionCleanupProcessor extends BaseProcessor {
   constructor(
-    @InjectRepository(StoryVersion)
-    private readonly versionEntityRepository: Repository<StoryVersion>,
     private readonly versionRepository: StoryVersionRepository,
     @InjectPinoLogger(VersionCleanupProcessor.name)
     logger: PinoLogger,
@@ -71,14 +67,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
       const now = new Date()
 
       // Find expired versions that can be deleted
-      const expiredVersions = await this.versionEntityRepository.find({
-        where: {
-          expiresAt: LessThan(now),
-          isPinned: false,
-          status: VersionStatus.ARCHIVED
-        },
-        select: { id: true, storyId: true, versionNumber: true, expiresAt: true }
-      })
+      const expiredVersions = await this.versionRepository.findExpiredArchived(now)
 
       if (expiredVersions.length === 0) {
         this.logger.info('No expired versions found to clean up')
@@ -110,7 +99,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
 
       for (const version of expiredVersions) {
         try {
-          await this.versionEntityRepository.delete(version.id)
+          await this.versionRepository.delete(version.id)
           deletedCount++
 
           this.logger.debug(
@@ -177,15 +166,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
 
       // Find old versions that are still ACTIVE
-      const oldVersions = await this.versionEntityRepository.find({
-        where: {
-          createdAt: LessThan(cutoffDate),
-          status: VersionStatus.ACTIVE,
-          isPinned: false,
-          expiresAt: IsNull() // Only archive versions without explicit expiry
-        },
-        select: { id: true, storyId: true, versionNumber: true, createdAt: true }
-      })
+      const oldVersions = await this.versionRepository.findActiveCreatedBefore(cutoffDate)
 
       if (oldVersions.length === 0) {
         this.logger.info('No old versions found to archive')
@@ -197,7 +178,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
 
       for (const version of oldVersions) {
         try {
-          await this.versionEntityRepository.update(version.id, {
+          await this.versionRepository.update(version.id, {
             status: VersionStatus.ARCHIVED
           })
           archivedCount++

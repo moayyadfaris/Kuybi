@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectRepository } from '@nestjs/typeorm'
 import { EmailQueueService } from '@infrastructure/email'
 import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { EntityManager, LessThan, Repository } from 'typeorm'
+import { EntityManager, LessThan } from 'typeorm'
 
+import { UserRepository } from '@modules/users'
 import { User } from '@modules/users/entities'
 
 import {
@@ -15,6 +15,7 @@ import {
   ValidateResetTokenDto
 } from '../dto/password-reset.dto'
 import { PasswordReset } from '../entities/password-reset.entity'
+import { PasswordResetRepository } from '../repositories/password-reset.repository'
 
 import { PasswordPolicyService } from './password-policy.service'
 import { SessionsService } from './sessions.service'
@@ -34,10 +35,8 @@ export class PasswordResetService {
   private readonly appUrl: string
 
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(PasswordReset)
-    private readonly passwordResetRepository: Repository<PasswordReset>,
+    private readonly userRepository: UserRepository,
+    private readonly passwordResetRepository: PasswordResetRepository,
     private readonly emailQueueService: EmailQueueService,
     private readonly sessionsService: SessionsService,
     private readonly passwordPolicy: PasswordPolicyService,
@@ -64,9 +63,7 @@ export class PasswordResetService {
     const { email } = dto
 
     // Find user by email
-    const user = await this.userRepository.findOne({
-      where: { email }
-    })
+    const user = await this.userRepository.findByEmail(email.trim(), true)
 
     // Always return success message to prevent email enumeration
     const successMessage = 'If the email exists in our system, a password reset link has been sent.'
@@ -95,7 +92,7 @@ export class PasswordResetService {
     const resetLink = `${this.appUrl}/reset-password?token=${resetToken}`
 
     // Old tokens expire, the new one is stored and its email queued, all or nothing
-    await this.passwordResetRepository.manager.transaction(async manager => {
+    await this.passwordResetRepository.transaction(async manager => {
       await this.invalidateUserResetTokens(user.id, manager)
       await manager.save(
         manager.create(PasswordReset, {
@@ -147,10 +144,7 @@ export class PasswordResetService {
   }> {
     const { token } = dto
 
-    const resetRecord = await this.passwordResetRepository.findOne({
-      where: { token },
-      relations: { user: true }
-    })
+    const resetRecord = await this.passwordResetRepository.findByToken(token)
 
     if (!resetRecord) {
       return { valid: false }
@@ -192,10 +186,7 @@ export class PasswordResetService {
     const { token, newPassword } = dto
 
     // Find reset record with user relation
-    const resetRecord = await this.passwordResetRepository.findOne({
-      where: { token },
-      relations: { user: true }
-    })
+    const resetRecord = await this.passwordResetRepository.findByToken(token)
 
     if (!resetRecord) {
       throw new BadRequestException('Invalid or expired reset token')
@@ -217,17 +208,16 @@ export class PasswordResetService {
 
     // Same rules as a password change: strong enough, not the current or a recent one.
     // Without this, "forgot password" was a way around the reuse policy.
-    const current = await this.userRepository.findOne({
-      where: { id: user.id },
-      select: { id: true, passwordHash: true }
-    })
-    await this.passwordPolicy.assertAcceptable(user.id, newPassword, current?.passwordHash)
+    const currentHash = await this.userRepository.findPasswordHash(user.id)
+    await this.passwordPolicy.assertAcceptable(user.id, newPassword, currentHash ?? undefined)
 
     // Hash new password
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(newPassword, salt)
 
-    await this.passwordResetRepository.manager.transaction(async manager => {
+    // Writes the user's password hash: run through UserRepository so the cached user is
+    // dropped once the reset commits
+    await this.userRepository.transaction(async manager => {
       // Claim the token atomically: of two concurrent requests with the same token only
       // one may succeed (checking `used` above and saving later let both through)
       const claim = await manager.update(
@@ -252,7 +242,7 @@ export class PasswordResetService {
       )
     })
 
-    await this.passwordPolicy.record(user.id, passwordHash, { ipAddress }, current?.passwordHash)
+    await this.passwordPolicy.record(user.id, passwordHash, { ipAddress }, currentHash ?? undefined)
 
     // Invalidate ALL user sessions (force re-login everywhere)
     const revokedCount = await this.sessionsService.revokeAllSessions(
@@ -285,11 +275,11 @@ export class PasswordResetService {
    * - New reset request is made
    * - User successfully resets password
    */
-  private async invalidateUserResetTokens(userId: string, manager?: EntityManager): Promise<void> {
+  private async invalidateUserResetTokens(userId: string, manager: EntityManager): Promise<void> {
     // Mark all unused tokens as expired by setting expiresAt to now
     const now = new Date()
 
-    await (manager ?? this.passwordResetRepository.manager).update(
+    await manager.update(
       PasswordReset,
       {
         userId,
@@ -316,11 +306,7 @@ export class PasswordResetService {
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
 
-    const result = await this.passwordResetRepository.delete({
-      expiresAt: LessThan(cutoffDate)
-    })
-
-    const deleted = result.affected || 0
+    const deleted = await this.passwordResetRepository.deleteExpiredBefore(cutoffDate)
 
     this.logger.info(
       { deleted, olderThanDays, action: 'cleanup_expired_reset_tokens' },

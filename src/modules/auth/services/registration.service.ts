@@ -5,15 +5,13 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectRepository } from '@nestjs/typeorm'
 import { EmailQueueService } from '@infrastructure/email'
 import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
 
-import { findDefaultRoleId } from '@modules/acl'
-import { Role } from '@modules/acl/entities'
+import { RoleRepository } from '@modules/acl'
+import { EmailVerificationRepository, UserRepository } from '@modules/users'
 import { EmailVerification, User } from '@modules/users/entities'
 
 import { RegisterUserDto } from '../dto/register.dto'
@@ -29,12 +27,9 @@ export class RegistrationService {
   private readonly appUrl: string
 
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(EmailVerification)
-    private readonly emailVerificationRepository: Repository<EmailVerification>,
-    @InjectRepository(Role)
-    private readonly roleRepository: Repository<Role>,
+    private readonly userRepository: UserRepository,
+    private readonly emailVerificationRepository: EmailVerificationRepository,
+    private readonly roleRepository: RoleRepository,
     private readonly emailQueueService: EmailQueueService,
     private readonly configService: ConfigService,
     @InjectPinoLogger(RegistrationService.name)
@@ -49,20 +44,16 @@ export class RegistrationService {
    * Register a new user
    */
   async register(registerDto: RegisterUserDto): Promise<User> {
-    const { email, password, firstName, lastName, phoneNumber } = registerDto
+    const { password, firstName, lastName, phoneNumber } = registerDto
+    // Login looks emails up lowercased and the column is case-sensitive: an account
+    // stored as "John@x.com" could never log in
+    const email = registerDto.email.trim().toLowerCase()
 
-    // Check if user already exists
-    const existingUser = await this.userRepository.findOne({
-      where: [{ email }, ...(phoneNumber ? [{ mobileNumber: phoneNumber }] : [])]
-    })
-
-    if (existingUser) {
-      if (existingUser.email === email) {
-        throw new ConflictException('Email already registered')
-      }
-      if (phoneNumber && existingUser.mobileNumber === phoneNumber) {
-        throw new ConflictException('Phone number already registered')
-      }
+    if (await this.userRepository.isEmailTaken(email)) {
+      throw new ConflictException('Email already registered')
+    }
+    if (phoneNumber && (await this.userRepository.isMobileTaken(phoneNumber))) {
+      throw new ConflictException('Phone number already registered')
     }
 
     // Hash password
@@ -73,8 +64,7 @@ export class RegistrationService {
     const emailVerificationToken = randomUUID()
     const emailVerificationExpiry = new Date(Date.now() + this.verificationTokenExpiry)
 
-    // Create user
-    const user = this.userRepository.create({
+    const newUser: Partial<User> = {
       email,
       passwordHash,
       name: `${firstName} ${lastName}`,
@@ -83,18 +73,16 @@ export class RegistrationService {
       isVerified: false,
       isEmailVerified: false,
       emailVerifiedAt: null,
-      primaryRoleId: await findDefaultRoleId(this.roleRepository)
-      // Store verification token temporarily (we'll need to add these columns)
-      // For now, we'll send the email and mark as pending verification
-    })
+      primaryRoleId: await this.roleRepository.findDefaultRoleId()
+    }
 
     const verificationLink = `${this.appUrl}/api/v1/auth/verify-email?token=${emailVerificationToken}`
 
     // User, verification token and welcome email commit together: a user can no longer
     // end up without a token, or receive an email for a registration that rolled back
-    const { savedUser, emailVerificationRecord } = await this.userRepository.manager.transaction(
+    const { savedUser, emailVerificationRecord } = await this.userRepository.transaction(
       async manager => {
-        const savedUser = await manager.save(user)
+        const savedUser = await manager.save(manager.create(User, newUser))
         const emailVerificationRecord = await manager.save(
           manager.create(EmailVerification, {
             userId: savedUser.id,
@@ -140,10 +128,7 @@ export class RegistrationService {
     this.logger.info({ token: token.substring(0, 8) + '...' }, 'Email verification requested')
 
     // Find verification record in database
-    const verificationRecord = await this.emailVerificationRepository.findOne({
-      where: { token },
-      relations: { user: true }
-    })
+    const verificationRecord = await this.emailVerificationRepository.findByToken(token)
 
     if (!verificationRecord) {
       this.logger.warn({ token: token.substring(0, 8) + '...' }, 'Verification token not found')
@@ -194,7 +179,7 @@ export class RegistrationService {
     const loginUrl = `${this.appUrl}/login`
 
     // Token, user and confirmation email commit together
-    const updatedUser = await this.userRepository.manager.transaction(async manager => {
+    const updatedUser = await this.userRepository.transaction(async manager => {
       await manager.save(verificationRecord)
       const updatedUser = await manager.save(user)
       await this.emailQueueService.queueVerifiedSuccessEmail(user.email, firstName, loginUrl, {
@@ -221,7 +206,7 @@ export class RegistrationService {
    * Resend verification email
    */
   async resendVerification(email: string): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { email } })
+    const user = await this.userRepository.findByEmail(email.trim(), true)
 
     if (!user) {
       throw new NotFoundException('User not found')
@@ -241,7 +226,7 @@ export class RegistrationService {
     const firstName = user.name.split(' ')[0]
 
     // Old tokens expire, the new one is stored and its email queued, all or nothing
-    const emailVerificationRecord = await this.userRepository.manager.transaction(async manager => {
+    const emailVerificationRecord = await this.userRepository.transaction(async manager => {
       await manager.update(
         EmailVerification,
         { userId: user.id, verified: false },
@@ -284,7 +269,6 @@ export class RegistrationService {
    * Check if email is already registered
    */
   async isEmailRegistered(email: string): Promise<boolean> {
-    const user = await this.userRepository.findOne({ where: { email } })
-    return !!user
+    return this.userRepository.isEmailTaken(email)
   }
 }

@@ -1,48 +1,45 @@
 import { PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
 
-import { User } from '@modules/users/entities/user.entity'
+import { UserRepository } from '@modules/users/repositories/user.repository'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 
-import { CacheService } from '@core/cache/services/cache.service'
-
 describe('UserAvailabilityService', () => {
-  const build = (cached: boolean | undefined, existsInDb: boolean) => {
-    const userRepository = { exists: jest.fn().mockResolvedValue(existsInDb) }
-    // CacheService.get resolves undefined on a cache miss
-    const cacheService = { get: jest.fn().mockResolvedValue(cached), set: jest.fn() }
+  const build = (taken: boolean) => {
+    const userRepository = {
+      isEmailTaken: jest.fn().mockResolvedValue(taken),
+      isMobileTaken: jest.fn().mockResolvedValue(taken)
+    }
     const service = new UserAvailabilityService(
-      userRepository as unknown as Repository<User>,
-      cacheService as unknown as CacheService,
-      { debug: jest.fn(), info: jest.fn(), warn: jest.fn() } as unknown as PinoLogger
+      userRepository as unknown as UserRepository,
+      { debug: jest.fn() } as unknown as PinoLogger
     )
-    return { service, userRepository, cacheService }
+    return { service, userRepository }
   }
 
-  describe.each([
-    ['email', 'isEmailAvailable', 'new@example.com'],
-    ['phone', 'isPhoneAvailable', '+962790000000']
-  ] as const)('%s', (_label, method, value) => {
-    it('checks the database on a cache miss and reports availability', async () => {
-      const { service, userRepository } = build(undefined, false)
+  it('normalises the email before looking it up', async () => {
+    const { service, userRepository } = build(false)
 
-      const result = await service[method](value)
+    const result = await service.isEmailAvailable('  New@Example.com ')
 
-      expect(userRepository.exists).toHaveBeenCalled()
-      expect(result.available).toBe(true)
-    })
+    expect(userRepository.isEmailTaken).toHaveBeenCalledWith('new@example.com')
+    expect(result).toEqual({ available: true, field: 'email', value: 'new@example.com' })
+  })
 
-    it('reports taken values from the database on a cache miss', async () => {
-      const { service } = build(undefined, true)
+  it('suggests alternatives for a taken email', async () => {
+    const { service } = build(true)
 
-      expect((await service[method](value)).available).toBe(false)
-    })
+    const result = await service.isEmailAvailable('taken@example.com')
 
-    it('uses a cached answer without querying the database', async () => {
-      const { service, userRepository } = build(false, true)
+    expect(result.available).toBe(false)
+    expect(result.suggestions?.length).toBeGreaterThan(0)
+  })
 
-      expect((await service[method](value)).available).toBe(false)
-      expect(userRepository.exists).not.toHaveBeenCalled()
-    })
+  it('strips formatting from phone numbers', async () => {
+    const { service, userRepository } = build(true)
+
+    const result = await service.isPhoneAvailable('+962 79-000 (0000)')
+
+    expect(userRepository.isMobileTaken).toHaveBeenCalledWith('+962790000000')
+    expect(result.available).toBe(false)
   })
 })

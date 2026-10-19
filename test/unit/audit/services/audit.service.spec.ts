@@ -13,18 +13,8 @@ import { AuditContextFactory } from '@modules/audit/services/audit-context.facto
 import { ContextUser } from '@modules/audit/types/context-user.interface'
 
 const createRepositoryStub = () => {
-  const repository = {
-    create: jest.fn(),
-    save: jest.fn()
-  }
-
-  return {
-    repo: repository,
-    instance: {
-      getRepository: () => repository,
-      invalidateAllCaches: jest.fn()
-    } as unknown as AuditLogRepository
-  }
+  const repository = { append: jest.fn() }
+  return { repo: repository, instance: repository as unknown as AuditLogRepository }
 }
 
 const createConfigStub = (enabled: boolean): ConfigService =>
@@ -80,8 +70,7 @@ describe('AuditService', () => {
     const result = await service.logLoginFromRequest(req, sampleUser)
 
     expect(result).toBeNull()
-    expect(repo.create).not.toHaveBeenCalled()
-    expect(repo.save).not.toHaveBeenCalled()
+    expect(repo.append).not.toHaveBeenCalled()
   })
 
   it('persists audit log when enabled', async () => {
@@ -93,8 +82,7 @@ describe('AuditService', () => {
       severity: AuditSeverity.LOW,
       requestId: 'req-123'
     }
-    repo.create.mockReturnValue(savedLog)
-    repo.save.mockResolvedValue(savedLog)
+    repo.append.mockResolvedValue(savedLog)
 
     const mockSentryService = {} as any
     const service = new AuditService(
@@ -122,8 +110,9 @@ describe('AuditService', () => {
 
     const result = await service.logLoginFromRequest(req, sampleUser, { sessionType: 'standard' })
 
-    expect(repo.create).toHaveBeenCalled()
-    expect(repo.save).toHaveBeenCalled()
+    expect(repo.append).toHaveBeenCalledWith(
+      expect.objectContaining({ action: AuditAction.LOGIN, requestId: 'req-123' })
+    )
     expect(result).toEqual(savedLog)
   })
 })

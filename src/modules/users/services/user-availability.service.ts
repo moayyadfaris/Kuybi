@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
 
-import { CacheService } from '@core/cache/services/cache.service'
-
-import { User } from '../entities/user.entity'
+import { UserRepository } from '../repositories/user.repository'
 
 export interface AvailabilityCheckResult {
   available: boolean
@@ -20,20 +16,13 @@ export interface AvailabilityCheckResult {
  * Checks if email or phone number is already in use
  *
  * Features:
- * - Email availability check with caching
- * - Phone availability check with caching
- * - Username suggestions if not available
- * - Fast lookup with Redis caching (1-hour TTL)
+ * - Email and phone availability (cached in UserRepository; any user write clears it)
+ * - Email suggestions if not available
  */
 @Injectable()
 export class UserAvailabilityService {
-  private readonly CACHE_TTL = 3600 // 1 hour
-  private readonly CACHE_PREFIX = 'user:availability'
-
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly cacheService: CacheService,
+    private readonly userRepository: UserRepository,
     @InjectPinoLogger(UserAvailabilityService.name)
     private readonly logger: PinoLogger
   ) {}
@@ -43,38 +32,9 @@ export class UserAvailabilityService {
    */
   async isEmailAvailable(email: string): Promise<AvailabilityCheckResult> {
     const normalizedEmail = email.toLowerCase().trim()
-    const cacheKey = `${this.CACHE_PREFIX}:email:${normalizedEmail}`
+    const available = !(await this.userRepository.isEmailTaken(normalizedEmail))
 
-    // Try cache first
-    const cached = await this.cacheService.get<boolean>(cacheKey)
-    // CacheService.get resolves undefined on a miss
-    if (cached !== undefined && cached !== null) {
-      this.logger.debug(
-        { email: normalizedEmail, cached: true },
-        'Email availability check (cached)'
-      )
-      return {
-        available: cached,
-        field: 'email',
-        value: normalizedEmail,
-        suggestions: cached ? undefined : this.generateEmailSuggestions(normalizedEmail)
-      }
-    }
-
-    // Check database
-    const exists = await this.userRepository.exists({
-      where: { email: normalizedEmail }
-    })
-
-    const available = !exists
-
-    // Cache result
-    await this.cacheService.set(cacheKey, available, this.CACHE_TTL)
-
-    this.logger.info(
-      { email: normalizedEmail, available, cached: false },
-      'Email availability check (database)'
-    )
+    this.logger.debug({ email: normalizedEmail, available }, 'Email availability check')
 
     return {
       available,
@@ -89,37 +49,9 @@ export class UserAvailabilityService {
    */
   async isPhoneAvailable(phone: string): Promise<AvailabilityCheckResult> {
     const normalizedPhone = this.normalizePhone(phone)
-    const cacheKey = `${this.CACHE_PREFIX}:phone:${normalizedPhone}`
+    const available = !(await this.userRepository.isMobileTaken(normalizedPhone))
 
-    // Try cache first
-    const cached = await this.cacheService.get<boolean>(cacheKey)
-    // CacheService.get resolves undefined on a miss
-    if (cached !== undefined && cached !== null) {
-      this.logger.debug(
-        { phone: normalizedPhone, cached: true },
-        'Phone availability check (cached)'
-      )
-      return {
-        available: cached,
-        field: 'phone',
-        value: normalizedPhone
-      }
-    }
-
-    // Check database
-    const exists = await this.userRepository.exists({
-      where: { mobileNumber: normalizedPhone }
-    })
-
-    const available = !exists
-
-    // Cache result
-    await this.cacheService.set(cacheKey, available, this.CACHE_TTL)
-
-    this.logger.info(
-      { phone: normalizedPhone, available, cached: false },
-      'Phone availability check (database)'
-    )
+    this.logger.debug({ phone: normalizedPhone, available }, 'Phone availability check')
 
     return {
       available,
@@ -151,27 +83,5 @@ export class UserAvailabilityService {
    */
   private normalizePhone(phone: string): string {
     return phone.replace(/[\s\-()]/g, '')
-  }
-
-  /**
-   * Invalidate cache when user is created/updated
-   */
-  async invalidateCache(email?: string, phone?: string): Promise<void> {
-    const keys: string[] = []
-
-    if (email) {
-      const normalizedEmail = email.toLowerCase().trim()
-      keys.push(`${this.CACHE_PREFIX}:email:${normalizedEmail}`)
-    }
-
-    if (phone) {
-      const normalizedPhone = this.normalizePhone(phone)
-      keys.push(`${this.CACHE_PREFIX}:phone:${normalizedPhone}`)
-    }
-
-    if (keys.length > 0) {
-      await Promise.all(keys.map(key => this.cacheService.del(key)))
-      this.logger.debug({ keys }, 'Invalidated availability cache')
-    }
   }
 }

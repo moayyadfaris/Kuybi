@@ -205,9 +205,7 @@ export class PostTypesService {
 
     // TODO: Phase 2 - Check if post type has content before allowing deletion
     // For now, the database FK constraint with RESTRICT will prevent deletion if content exists
-
-    // Use TypeORM's softDelete directly
-    await this.postTypeRepository.getRepository().softDelete(id)
+    await this.postTypeRepository.softDelete(id)
     await this.postTypeRepository.invalidateCache(postType)
   }
 

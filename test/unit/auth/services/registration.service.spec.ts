@@ -1,11 +1,12 @@
+import { ConflictException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
 
-import { Role } from '@modules/acl/entities/role.entity'
+import { RoleRepository } from '@modules/acl/repositories/role.repository'
 import { RegistrationService } from '@modules/auth/services/registration.service'
-import { EmailVerification } from '@modules/users/entities/email-verification.entity'
 import { User } from '@modules/users/entities/user.entity'
+import { EmailVerificationRepository } from '@modules/users/repositories/email-verification.repository'
+import { UserRepository } from '@modules/users/repositories/user.repository'
 
 describe('RegistrationService.register', () => {
   const dto = {
@@ -15,7 +16,7 @@ describe('RegistrationService.register', () => {
     lastName: 'User'
   }
 
-  const build = (userRoleId: number) => {
+  const build = (userRoleId: number, emailTaken = false) => {
     // Stands in for the transaction's EntityManager
     const manager = {
       create: jest.fn((_entity: unknown, data: object) => data),
@@ -23,24 +24,16 @@ describe('RegistrationService.register', () => {
     }
     const emailQueueService = { queueWelcomeEmail: jest.fn() }
     const userRepository = {
-      manager: {
-        transaction: jest.fn(async (work: (m: typeof manager) => unknown) => work(manager))
-      },
-      findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn(data => data),
-      save: jest.fn(async data => ({ ...data, id: 'user-1' }))
+      // UserRepository.transaction invalidates the user caches after the commit
+      transaction: jest.fn(async (work: (m: typeof manager) => unknown) => work(manager)),
+      isEmailTaken: jest.fn().mockResolvedValue(emailTaken),
+      isMobileTaken: jest.fn().mockResolvedValue(false)
     }
-    const emailVerificationRepository = {
-      create: jest.fn(data => data),
-      save: jest.fn(async data => ({ ...data, id: 'ev-1' }))
-    }
-    const roleRepository = {
-      findOne: jest.fn().mockResolvedValue({ id: userRoleId, name: 'user' })
-    }
+    const roleRepository = { findDefaultRoleId: jest.fn().mockResolvedValue(userRoleId) }
     const service = new RegistrationService(
-      userRepository as unknown as Repository<User>,
-      emailVerificationRepository as unknown as Repository<EmailVerification>,
-      roleRepository as unknown as Repository<Role>,
+      userRepository as unknown as UserRepository,
+      {} as EmailVerificationRepository,
+      roleRepository as unknown as RoleRepository,
       emailQueueService as never,
       { get: (_k: string, d?: unknown) => d } as unknown as ConfigService,
       { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as PinoLogger
@@ -49,13 +42,32 @@ describe('RegistrationService.register', () => {
   }
 
   it("assigns the 'user' role resolved by name", async () => {
-    const { service, userRepository } = build(9)
+    const { service, manager } = build(9)
 
     await service.register(dto as never)
 
-    expect(userRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ primaryRoleId: 9 })
+    expect(manager.create).toHaveBeenCalledWith(User, expect.objectContaining({ primaryRoleId: 9 }))
+  })
+
+  it('stores the email lowercased (login looks it up lowercased)', async () => {
+    const { service, manager, userRepository } = build(9)
+
+    await service.register({ ...dto, email: '  New.User@Example.COM ' } as never)
+
+    expect(userRepository.isEmailTaken).toHaveBeenCalledWith('new.user@example.com')
+    expect(manager.create).toHaveBeenCalledWith(
+      User,
+      expect.objectContaining({ email: 'new.user@example.com' })
     )
+  })
+
+  it('rejects an email that is already registered, whatever its case', async () => {
+    const { service, userRepository } = build(9, true)
+
+    await expect(service.register({ ...dto, email: 'NEW@example.com' } as never)).rejects.toThrow(
+      ConflictException
+    )
+    expect(userRepository.transaction).not.toHaveBeenCalled()
   })
 
   it('stores the user, the verification token and the welcome email in one transaction', async () => {
@@ -63,7 +75,7 @@ describe('RegistrationService.register', () => {
 
     await service.register(dto as never)
 
-    expect(userRepository.manager.transaction).toHaveBeenCalledTimes(1)
+    expect(userRepository.transaction).toHaveBeenCalledTimes(1)
     expect(manager.save).toHaveBeenCalledTimes(2) // user + verification token
     expect(emailQueueService.queueWelcomeEmail).toHaveBeenCalledWith(
       dto.email,

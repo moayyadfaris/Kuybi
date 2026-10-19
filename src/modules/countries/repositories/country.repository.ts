@@ -31,7 +31,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findByIso(iso: string): Promise<Country | null> {
     const cacheKey = this.buildCacheKey('iso', iso.toUpperCase())
 
-    return this.cacheService.wrap<Country | null>(
+    return this.cached<Country | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({ where: { iso: iso.toUpperCase() } })
@@ -46,7 +46,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findByIso3(iso3: string): Promise<Country | null> {
     const cacheKey = this.buildCacheKey('iso3', iso3.toUpperCase())
 
-    return this.cacheService.wrap<Country | null>(
+    return this.cached<Country | null>(
       cacheKey,
       async () => {
         return this.repository.findOne({ where: { iso3: iso3.toUpperCase() } })
@@ -61,7 +61,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findByContinent(continent: string): Promise<Country[]> {
     const cacheKey = this.buildCacheKey('continent', continent)
 
-    return this.cacheService.wrap<Country[]>(
+    return this.cached<Country[]>(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -79,7 +79,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findByRegion(region: string): Promise<Country[]> {
     const cacheKey = this.buildCacheKey('region', region)
 
-    return this.cacheService.wrap<Country[]>(
+    return this.cached<Country[]>(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -173,7 +173,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findAllActive(): Promise<Country[]> {
     const cacheKey = this.buildCacheKey('all-active')
 
-    return this.cacheService.wrap<Country[]>(
+    return this.cached<Country[]>(
       cacheKey,
       async () => {
         return this.repository.find({
@@ -191,7 +191,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findGroupedByContinent(): Promise<Record<string, Country[]>> {
     const cacheKey = this.buildCacheKey('grouped-by-continent')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const countries = await this.repository.find({
@@ -220,7 +220,7 @@ export class CountryRepository extends BaseRepository<Country> {
   async findGroupedByRegion(): Promise<Record<string, Country[]>> {
     const cacheKey = this.buildCacheKey('grouped-by-region')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const countries = await this.repository.find({
@@ -254,7 +254,7 @@ export class CountryRepository extends BaseRepository<Country> {
   }> {
     const cacheKey = this.buildCacheKey('stats')
 
-    return this.cacheService.wrap(
+    return this.cached(
       cacheKey,
       async () => {
         const [total, active] = await Promise.all([

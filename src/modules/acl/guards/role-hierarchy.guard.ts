@@ -1,11 +1,9 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
 
 import { User } from '@modules/users/entities'
 
-import { Role } from '../entities/role.entity'
+import { RoleRepository } from '../repositories/role.repository'
 
 /**
  * Guard to enforce role hierarchy rules
@@ -22,8 +20,7 @@ export class RoleHierarchyGuard implements CanActivate {
   constructor(
     @InjectPinoLogger(RoleHierarchyGuard.name)
     private readonly logger: PinoLogger,
-    @InjectRepository(Role)
-    private roleRepository: Repository<Role>
+    private readonly roleRepository: RoleRepository
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -43,14 +40,15 @@ export class RoleHierarchyGuard implements CanActivate {
     }
 
     // Get target role being assigned/modified
-    const targetRoleId = body.roleId || params.id || params.roleId
-    if (!targetRoleId) {
+    const targetRoleId = Number(body.roleId || params.id || params.roleId)
+    if (!Number.isInteger(targetRoleId)) {
       // No role in request, allow (let controller validate)
       return true
     }
 
-    const targetRole = await this.roleRepository.findOne({
-      where: { id: targetRoleId }
+    // Fresh read: a cached priority must not decide a privilege check
+    const targetRole = await this.roleRepository.findById(targetRoleId, {
+      bypassCache: true
     })
 
     if (!targetRole) {
