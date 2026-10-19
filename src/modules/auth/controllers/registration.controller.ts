@@ -78,13 +78,10 @@ export class RegistrationController {
     )
 
     return {
-      success: true,
-      data: {
-        message: 'Registration successful. Please check your email to verify your account.',
-        userId: user.id,
-        email: user.email,
-        emailVerificationRequired: true
-      }
+      message: 'Registration successful. Please check your email to verify your account.',
+      userId: user.id,
+      email: user.email,
+      emailVerificationRequired: true
     }
   }
 
@@ -112,11 +109,8 @@ export class RegistrationController {
     )
 
     return {
-      success: true,
-      data: {
-        message: 'Email verified successfully. You can now log in.',
-        email: user.email
-      }
+      message: 'Email verified successfully. You can now log in.',
+      email: user.email
     }
   }
 
@@ -140,10 +134,7 @@ export class RegistrationController {
     )
 
     return {
-      success: true,
-      data: {
-        message: 'Verification email sent. Please check your inbox.'
-      }
+      message: 'Verification email sent. Please check your inbox.'
     }
   }
 }

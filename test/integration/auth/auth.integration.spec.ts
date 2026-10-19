@@ -756,10 +756,18 @@ describe('Auth Integration Tests', () => {
     it('records the welcome email in the outbox with the new user', async () => {
       const email = `register-${Date.now()}@example.com`
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post('/api/v1/auth/register')
         .send({ email, password: 'Secure@Pass123', firstName: 'New', lastName: 'Person' })
         .expect(201)
+
+      // One envelope: the payload is data itself, not { success, data } nested again
+      expect(res.body).toMatchObject({
+        success: true,
+        data: { email, emailVerificationRequired: true }
+      })
+      expect(res.body.data).not.toHaveProperty('data')
+      expect(res.body.data).not.toHaveProperty('success')
 
       const user = await dataSource.getRepository(User).findOneByOrFail({ email })
       const queued = await dataSource

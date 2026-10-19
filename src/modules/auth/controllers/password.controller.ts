@@ -64,10 +64,7 @@ export class PasswordController {
       'Password reset request processed'
     )
 
-    return {
-      success: true,
-      data: result
-    }
+    return result
   }
 
   @Post('validate-reset-token')
@@ -93,10 +90,7 @@ export class PasswordController {
       'Reset token validation completed'
     )
 
-    return {
-      success: true,
-      data: result
-    }
+    return result
   }
 
   @Post('reset-password')
@@ -125,10 +119,7 @@ export class PasswordController {
       'Password reset successfully'
     )
 
-    return {
-      success: true,
-      data: result
-    }
+    return result
   }
 
   @Post('change-password')
@@ -153,7 +144,6 @@ export class PasswordController {
           type: 'string',
           example: 'Password changed successfully. Other sessions have been logged out.'
         },
-        success: { type: 'boolean', example: true },
         sessionsRevoked: { type: 'number', example: 3 },
         notificationSent: { type: 'boolean', example: true }
       }
@@ -302,32 +292,26 @@ export class PasswordController {
     schema: {
       type: 'object',
       properties: {
-        success: { type: 'boolean', example: true },
-        data: {
-          type: 'object',
-          properties: {
-            total: { type: 'number', example: 5 },
-            changes: {
-              type: 'array',
-              items: {
+        total: { type: 'number', example: 5 },
+        changes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
+              changedAt: {
+                type: 'string',
+                format: 'date-time',
+                example: '2025-11-06T15:40:38.609Z'
+              },
+              ipAddress: { type: 'string', example: '192.168.1.1' },
+              userAgent: { type: 'string', example: 'Mozilla/5.0...' },
+              device: {
                 type: 'object',
                 properties: {
-                  id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
-                  changedAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2025-11-06T15:40:38.609Z'
-                  },
-                  ipAddress: { type: 'string', example: '192.168.1.1' },
-                  userAgent: { type: 'string', example: 'Mozilla/5.0...' },
-                  device: {
-                    type: 'object',
-                    properties: {
-                      type: { type: 'string', example: 'desktop' },
-                      browser: { type: 'string', example: 'Chrome' },
-                      os: { type: 'string', example: 'macOS' }
-                    }
-                  }
+                  type: { type: 'string', example: 'desktop' },
+                  browser: { type: 'string', example: 'Chrome' },
+                  os: { type: 'string', example: 'macOS' }
                 }
               }
             }
@@ -367,11 +351,8 @@ export class PasswordController {
     )
 
     return {
-      success: true,
-      data: {
-        total: changes.length,
-        changes
-      }
+      total: changes.length,
+      changes
     }
   }
 }

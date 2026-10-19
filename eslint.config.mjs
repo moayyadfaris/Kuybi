@@ -17,6 +17,31 @@ const NO_ANY_CAST = {
   message: 'Do not cast to `any`; use a precise type or `as unknown as T`.'
 }
 
+/** Data access rule (see the feature-module block below) */
+const DATA_ACCESS_SELECTORS = [
+  {
+    selector:
+      'Decorator > CallExpression[callee.name=/^Inject(Repository|DataSource|EntityManager)$/]',
+    message:
+      "Use the owning module's repository (writes through it invalidate its caches), not a TypeORM repository, DataSource or EntityManager."
+  },
+  {
+    selector:
+      'TSParameterProperty TSTypeReference > Identifier[name=/^(DataSource|EntityManager)$/]',
+    message:
+      'Do not inject a DataSource or EntityManager; run transactions with <repository>.transaction(work).'
+  }
+]
+
+/** Controllers return the payload; TransformInterceptor adds the envelope */
+const SELF_WRAPPED_RESPONSE = {
+  // TransformInterceptor wraps every response in { success, data }; a handler
+  // that adds its own produced { success, data: { success, data } }
+  selector:
+    "MethodDefinition > FunctionExpression > BlockStatement > ReturnStatement > ObjectExpression > Property[key.name='success']",
+  message: 'Return the payload only: TransformInterceptor adds { success, data } to every response.'
+}
+
 const MODULES = readdirSync(join(import.meta.dirname, 'src/modules'), { withFileTypes: true })
   .filter(entry => entry.isDirectory())
   .map(entry => entry.name)
@@ -156,20 +181,19 @@ export default tseslint.config(
       'src/modules/*/seeders/**'
     ],
     rules: {
+      'no-restricted-syntax': ['error', NO_ANY_CAST, ...DATA_ACCESS_SELECTORS]
+    }
+  },
+  {
+    // TransformInterceptor wraps every response in { success, data }; a handler that
+    // adds its own produced { success, data: { success, data } }
+    files: ['src/modules/*/controllers/**/*.ts'],
+    rules: {
       'no-restricted-syntax': [
         'error',
         NO_ANY_CAST,
-        {
-          selector: "Decorator > CallExpression[callee.name=/^Inject(Repository|DataSource|EntityManager)$/]",
-          message:
-            "Use the owning module's repository (writes through it invalidate its caches), not a TypeORM repository, DataSource or EntityManager."
-        },
-        {
-          selector:
-            "TSParameterProperty TSTypeReference > Identifier[name=/^(DataSource|EntityManager)$/]",
-          message:
-            'Do not inject a DataSource or EntityManager; run transactions with <repository>.transaction(work).'
-        }
+        ...DATA_ACCESS_SELECTORS,
+        SELF_WRAPPED_RESPONSE
       ]
     }
   },
