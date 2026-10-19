@@ -1,6 +1,12 @@
 import { SessionFilterDto } from '@modules/auth/dto'
 import { Session } from '@modules/auth/entities/session.entity'
-import { filterAndSortSessions, shareOf } from '@modules/auth/utils/session-list.util'
+import {
+  anonymizeIp,
+  filterAndSortSessions,
+  needsEndedSessions,
+  sessionState,
+  shareOf
+} from '@modules/auth/utils/session-list.util'
 
 const session = (fields: Partial<Session>) => fields as Session
 
@@ -44,5 +50,32 @@ describe('session list helpers', () => {
         { deviceType: 'mobile', count: 0, percentage: 0 }
       ])
     })
+  })
+
+  describe('session state', () => {
+    const later = new Date(Date.now() + 60_000)
+    it('is revoked before it is expired', () => {
+      expect(sessionState(session({ isActive: true, expiresAt: later }))).toBe('active')
+      expect(sessionState(session({ isActive: true, expiresAt: new Date(0) }))).toBe('expired')
+      expect(sessionState(session({ isActive: false, expiresAt: new Date(0) }))).toBe('revoked')
+      expect(
+        sessionState(session({ isActive: true, deletedAt: new Date(), expiresAt: later }))
+      ).toBe('revoked')
+    })
+
+    it('loads ended sessions only when the filter can match them', () => {
+      const needs = (filter: Record<string, unknown>) =>
+        needsEndedSessions(filter as unknown as SessionFilterDto)
+      expect(needs({})).toBe(false)
+      expect(needs({ includeExpired: true })).toBe(true)
+      expect(needs({ filterByStatus: 'expiring', includeExpired: true })).toBe(false)
+      expect(needs({ filterByStatus: 'revoked' })).toBe(true)
+    })
+  })
+
+  it('masks the end of IPv4 and IPv6 addresses', () => {
+    expect(anonymizeIp('203.0.113.7')).toBe('203.0.***.***')
+    expect(anonymizeIp('2001:db8:85a3:8d3:1319:8a2e:370:7348')).toBe('2001:db8:85a3:8d3::')
+    expect(anonymizeIp(undefined)).toBeUndefined()
   })
 })

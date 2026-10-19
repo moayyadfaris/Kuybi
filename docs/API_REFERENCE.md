@@ -17,6 +17,7 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 Get your token by logging in:
+
 ```bash
 POST /api/v1/auth/login
 ```
@@ -26,6 +27,7 @@ POST /api/v1/auth/login
 ## 🔐 Authentication Endpoints
 
 ### Login
+
 ```http
 POST /api/v1/auth/login
 Content-Type: application/json
@@ -37,6 +39,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -53,6 +56,7 @@ Content-Type: application/json
 ```
 
 ### Refresh Token
+
 ```http
 POST /api/v1/auth/refresh
 Content-Type: application/json
@@ -63,14 +67,9 @@ Content-Type: application/json
 ```
 
 ### Logout
+
 ```http
 POST /api/v1/auth/logout
-Authorization: Bearer <token>
-```
-
-### Get User Sessions
-```http
-GET /api/v1/auth/sessions
 Authorization: Bearer <token>
 ```
 
@@ -79,48 +78,65 @@ Authorization: Bearer <token>
 ## 👥 Session Management
 
 ### List Sessions
+
 ```http
-GET /api/v1/sessions
+GET /api/v1/sessions          (also /api/v1/sessions/me)
 Authorization: Bearer <token>
 ```
 
+The one session list (`GET /api/v1/auth/sessions` was merged into it). Each session carries
+`status`: `active`, `expired` or `revoked`. Query: `page` (from 1), `limit` (1-100),
+`filterByStatus` (`active`, `expiring` = within 24 hours, `expired`, `revoked`, `all`; default:
+live sessions, or all with `includeExpired=true`), `filterByDevice`, `filterByType`,
+`filterBySecurityLevel`, `searchByIp`, `searchByFingerprint`, `sortBy`, `sortOrder`,
+`includeRiskAssessment`, `anonymizeData` (masks the end of each IP address).
+
 ### Get Session by ID
+
 ```http
 GET /api/v1/sessions/:id
 Authorization: Bearer <token>
 ```
 
 ### Get Session Statistics
+
 ```http
 GET /api/v1/sessions/stats
 Authorization: Bearer <token>
 ```
 
 ### Delete Session
+
 ```http
 DELETE /api/v1/sessions/:id
 Authorization: Bearer <token>
 ```
 
 ### Revoke All Sessions
+
 ```http
 DELETE /api/v1/sessions/all/revoke
 Authorization: Bearer <token>
 ```
 
 ### Revoke Sessions by Device Type
+
 ```http
 DELETE /api/v1/sessions/device/:type
 Authorization: Bearer <token>
 ```
 
 ### Extend Session
+
 ```http
-POST /api/v1/sessions/:id/extend
+POST /api/v1/sessions/:id/extend?days=7
 Authorization: Bearer <token>
 ```
 
+`days`: 1-30. The new expiry is never more than 30 days from now.
+
 ### Manual Cleanup
+
 ```http
 POST /api/v1/sessions/cleanup
 Authorization: Bearer <token>
@@ -131,6 +147,7 @@ Authorization: Bearer <token>
 ## 🎭 ACL - Roles
 
 ### Create Role
+
 ```http
 POST /api/v1/roles
 Authorization: Bearer <token>
@@ -145,30 +162,35 @@ Content-Type: application/json
 ```
 
 ### List All Roles
+
 ```http
 GET /api/v1/roles
 Authorization: Bearer <token>
 ```
 
 ### List Active Roles
+
 ```http
 GET /api/v1/roles/active
 Authorization: Bearer <token>
 ```
 
 ### Get Role by ID
+
 ```http
 GET /api/v1/roles/:id
 Authorization: Bearer <token>
 ```
 
 ### Get Role Permissions
+
 ```http
 GET /api/v1/roles/:id/permissions
 Authorization: Bearer <token>
 ```
 
 ### Update Role
+
 ```http
 PUT /api/v1/roles/:id
 Authorization: Bearer <token>
@@ -182,6 +204,7 @@ Content-Type: application/json
 ```
 
 ### Assign Permissions to Role
+
 ```http
 POST /api/v1/roles/:id/permissions
 Authorization: Bearer <token>
@@ -193,6 +216,7 @@ Content-Type: application/json
 ```
 
 ### Remove Permissions from Role
+
 ```http
 DELETE /api/v1/roles/:id/permissions
 Authorization: Bearer <token>
@@ -204,6 +228,7 @@ Content-Type: application/json
 ```
 
 ### Delete Role
+
 ```http
 DELETE /api/v1/roles/:id
 Authorization: Bearer <token>
@@ -214,6 +239,7 @@ Authorization: Bearer <token>
 ## 🔑 ACL - Permissions
 
 ### Create Permission
+
 ```http
 POST /api/v1/permissions
 Authorization: Bearer <token>
@@ -230,36 +256,42 @@ Content-Type: application/json
 ```
 
 ### List All Permissions
+
 ```http
 GET /api/v1/permissions
 Authorization: Bearer <token>
 ```
 
 ### Filter Permissions by Action
+
 ```http
 GET /api/v1/permissions?action=create
 Authorization: Bearer <token>
 ```
 
 ### Filter Permissions by Subject
+
 ```http
 GET /api/v1/permissions?subject=Story
 Authorization: Bearer <token>
 ```
 
 ### Filter by Both
+
 ```http
 GET /api/v1/permissions?action=update&subject=Story
 Authorization: Bearer <token>
 ```
 
 ### Get Permission by ID
+
 ```http
 GET /api/v1/permissions/:id
 Authorization: Bearer <token>
 ```
 
 ### Update Permission
+
 ```http
 PUT /api/v1/permissions/:id
 Authorization: Bearer <token>
@@ -272,6 +304,7 @@ Content-Type: application/json
 ```
 
 ### Delete Permission
+
 ```http
 DELETE /api/v1/permissions/:id
 Authorization: Bearer <token>
@@ -282,12 +315,14 @@ Authorization: Bearer <token>
 ## 👤 User Role Assignments
 
 ### Get User's Roles
+
 ```http
 GET /api/v1/users/:userId/roles
 Authorization: Bearer <token>
 ```
 
 ### Assign Role to User
+
 ```http
 POST /api/v1/users/:userId/roles
 Authorization: Bearer <token>
@@ -301,18 +336,21 @@ Content-Type: application/json
 ```
 
 ### Revoke Role from User
+
 ```http
 DELETE /api/v1/users/:userId/roles/:roleId
 Authorization: Bearer <token>
 ```
 
 ### Activate User Role
+
 ```http
 POST /api/v1/users/:userId/roles/:roleId/activate
 Authorization: Bearer <token>
 ```
 
 ### Deactivate User Role
+
 ```http
 POST /api/v1/users/:userId/roles/:roleId/deactivate
 Authorization: Bearer <token>
@@ -323,6 +361,7 @@ Authorization: Bearer <token>
 ## 📰 Stories
 
 ### Create Story
+
 ```http
 POST /api/v1/stories
 Authorization: Bearer <token>
@@ -340,48 +379,56 @@ Content-Type: application/json
 **Required Permission:** `create:Story`
 
 ### List Stories
+
 ```http
 GET /api/v1/stories
 Authorization: Bearer <token>
 ```
 
 ### Get Story Statistics
+
 ```http
 GET /api/v1/stories/stats
 Authorization: Bearer <token>
 ```
 
 ### Get Stories by User
+
 ```http
 GET /api/v1/stories/user/:userId
 Authorization: Bearer <token>
 ```
 
 ### Get Stories by Status
+
 ```http
 GET /api/v1/stories/status/:status
 Authorization: Bearer <token>
 ```
 
 ### Get Stories by Type
+
 ```http
 GET /api/v1/stories/type/:type
 Authorization: Bearer <token>
 ```
 
 ### Get Story Children
+
 ```http
 GET /api/v1/stories/:id/children
 Authorization: Bearer <token>
 ```
 
 ### Get Story by ID
+
 ```http
 GET /api/v1/stories/:id
 Authorization: Bearer <token>
 ```
 
 ### Update Story
+
 ```http
 PATCH /api/v1/stories/:id
 Authorization: Bearer <token>
@@ -396,6 +443,7 @@ Content-Type: application/json
 **Required Permission:** `update:Story`
 
 ### Update Story Status
+
 ```http
 PATCH /api/v1/stories/:id/status
 Authorization: Bearer <token>
@@ -409,6 +457,7 @@ Content-Type: application/json
 **Required Permission:** `publish:Story`
 
 ### Delete Story (Soft Delete)
+
 ```http
 DELETE /api/v1/stories/:id
 Authorization: Bearer <token>
@@ -417,6 +466,7 @@ Authorization: Bearer <token>
 **Required Permission:** `delete:Story`
 
 ### Hard Delete Story
+
 ```http
 DELETE /api/v1/stories/:id/hard
 Authorization: Bearer <token>
@@ -425,6 +475,7 @@ Authorization: Bearer <token>
 **Required Permission:** `manage:all` (Super Admin only)
 
 ### Restore Story
+
 ```http
 POST /api/v1/stories/:id/restore
 Authorization: Bearer <token>
@@ -433,6 +484,7 @@ Authorization: Bearer <token>
 **Required Permission:** `restore:Story`
 
 ### Add Attachments to Story
+
 ```http
 POST /api/v1/stories/:id/attachments
 Authorization: Bearer <token>
@@ -444,6 +496,7 @@ Content-Type: application/json
 ```
 
 ### Remove Attachments from Story
+
 ```http
 DELETE /api/v1/stories/:id/attachments
 Authorization: Bearer <token>
@@ -455,12 +508,14 @@ Content-Type: application/json
 ```
 
 ### Get Story Attachments
+
 ```http
 GET /api/v1/stories/:id/attachments
 Authorization: Bearer <token>
 ```
 
 ### Add Tags to Story
+
 ```http
 POST /api/v1/stories/:id/tags
 Authorization: Bearer <token>
@@ -472,6 +527,7 @@ Content-Type: application/json
 ```
 
 ### Remove Tags from Story
+
 ```http
 DELETE /api/v1/stories/:id/tags
 Authorization: Bearer <token>
@@ -483,6 +539,7 @@ Content-Type: application/json
 ```
 
 ### Get Story Tags
+
 ```http
 GET /api/v1/stories/:id/tags
 Authorization: Bearer <token>
@@ -493,6 +550,7 @@ Authorization: Bearer <token>
 ## 📁 Categories
 
 ### Create Category
+
 ```http
 POST /api/v1/categories
 Authorization: Bearer <token>
@@ -508,36 +566,42 @@ Content-Type: application/json
 **Required Permission:** `create:Category`
 
 ### List Categories
+
 ```http
 GET /api/v1/categories
 Authorization: Bearer <token>
 ```
 
 ### List Active Categories
+
 ```http
 GET /api/v1/categories/active
 Authorization: Bearer <token>
 ```
 
 ### Get Category Statistics
+
 ```http
 GET /api/v1/categories/stats
 Authorization: Bearer <token>
 ```
 
 ### Get Category by Slug
+
 ```http
 GET /api/v1/categories/slug/:slug
 Authorization: Bearer <token>
 ```
 
 ### Get Category by ID
+
 ```http
 GET /api/v1/categories/:id
 Authorization: Bearer <token>
 ```
 
 ### Update Category
+
 ```http
 PATCH /api/v1/categories/:id
 Authorization: Bearer <token>
@@ -552,6 +616,7 @@ Content-Type: application/json
 **Required Permission:** `update:Category`
 
 ### Delete Category (Soft Delete)
+
 ```http
 DELETE /api/v1/categories/:id
 Authorization: Bearer <token>
@@ -560,6 +625,7 @@ Authorization: Bearer <token>
 **Required Permission:** `delete:Category`
 
 ### Restore Category
+
 ```http
 POST /api/v1/categories/:id/restore
 Authorization: Bearer <token>
@@ -568,6 +634,7 @@ Authorization: Bearer <token>
 **Required Permission:** `restore:Category`
 
 ### Hard Delete Category
+
 ```http
 DELETE /api/v1/categories/:id/hard
 Authorization: Bearer <token>
@@ -580,6 +647,7 @@ Authorization: Bearer <token>
 ## 🏷️ Tags
 
 ### Create Tag
+
 ```http
 POST /api/v1/tags
 Authorization: Bearer <token>
@@ -592,24 +660,28 @@ Content-Type: application/json
 ```
 
 ### List Tags
+
 ```http
 GET /api/v1/tags
 Authorization: Bearer <token>
 ```
 
 ### List System Tags
+
 ```http
 GET /api/v1/tags/system
 Authorization: Bearer <token>
 ```
 
 ### Get Tag by ID
+
 ```http
 GET /api/v1/tags/:id
 Authorization: Bearer <token>
 ```
 
 ### Update Tag
+
 ```http
 PATCH /api/v1/tags/:id
 Authorization: Bearer <token>
@@ -621,12 +693,14 @@ Content-Type: application/json
 ```
 
 ### Delete Tag (Soft Delete)
+
 ```http
 DELETE /api/v1/tags/:id
 Authorization: Bearer <token>
 ```
 
 ### Hard Delete Tag
+
 ```http
 DELETE /api/v1/tags/:id/hard
 Authorization: Bearer <token>
@@ -637,6 +711,7 @@ Authorization: Bearer <token>
 ## 📎 Attachments
 
 ### Upload Attachment
+
 ```http
 POST /api/v1/attachments
 Authorization: Bearer <token>
@@ -648,24 +723,28 @@ file: <binary>
 **Required Permission:** `create:Attachment`
 
 ### Get Attachment Statistics
+
 ```http
 GET /api/v1/attachments/stats
 Authorization: Bearer <token>
 ```
 
 ### Get Attachment by ID
+
 ```http
 GET /api/v1/attachments/:id
 Authorization: Bearer <token>
 ```
 
 ### Get Attachments by User
+
 ```http
 GET /api/v1/attachments/user/:userId
 Authorization: Bearer <token>
 ```
 
 ### Update Attachment
+
 ```http
 PATCH /api/v1/attachments/:id
 Authorization: Bearer <token>
@@ -680,6 +759,7 @@ Content-Type: application/json
 **Required Permission:** `update:Attachment`
 
 ### Delete Attachment (Soft Delete)
+
 ```http
 DELETE /api/v1/attachments/:id
 Authorization: Bearer <token>
@@ -688,6 +768,7 @@ Authorization: Bearer <token>
 **Required Permission:** `delete:Attachment`
 
 ### Hard Delete Attachment
+
 ```http
 DELETE /api/v1/attachments/:id/hard
 Authorization: Bearer <token>
@@ -696,6 +777,7 @@ Authorization: Bearer <token>
 **Required Permission:** `manage:all` (Super Admin only)
 
 ### Restore Attachment
+
 ```http
 POST /api/v1/attachments/:id/restore
 Authorization: Bearer <token>
@@ -704,6 +786,7 @@ Authorization: Bearer <token>
 **Required Permission:** `restore:Attachment`
 
 ### Get Presigned URL
+
 ```http
 POST /api/v1/attachments/:id/presigned-url
 Authorization: Bearer <token>
@@ -715,12 +798,14 @@ Content-Type: application/json
 ```
 
 ### Download Attachment
+
 ```http
 GET /api/v1/attachments/:id/download
 Authorization: Bearer <token>
 ```
 
 ### Cleanup Orphaned Attachments
+
 ```http
 POST /api/v1/attachments/cleanup-orphaned
 Authorization: Bearer <token>
@@ -731,6 +816,7 @@ Authorization: Bearer <token>
 ## 🌍 Countries
 
 ### List Countries
+
 ```http
 GET /api/v1/countries
 Authorization: Bearer <token>
@@ -741,16 +827,19 @@ Authorization: Bearer <token>
 ## ⚕️ Health Checks
 
 ### Health Check
+
 ```http
 GET /api/health
 ```
 
 ### Readiness Check
+
 ```http
 GET /api/health/ready
 ```
 
 ### Liveness Check
+
 ```http
 GET /api/health/live
 ```
@@ -760,12 +849,14 @@ GET /api/health/live
 ## 🔧 Admin
 
 ### Get Cleanup Statistics
+
 ```http
 GET /api/v1/admin/cleanup/stats
 Authorization: Bearer <token>
 ```
 
 ### Trigger Manual Cleanup
+
 ```http
 POST /api/v1/admin/cleanup/trigger
 Authorization: Bearer <token>
@@ -776,6 +867,7 @@ Authorization: Bearer <token>
 ## 🎯 Permission Requirements
 
 ### Actions
+
 - `manage` - Full control (super permission)
 - `create` - Create new resources
 - `read` - View resources
@@ -790,6 +882,7 @@ Authorization: Bearer <token>
 - `assign` - Assign resources/roles
 
 ### Subjects
+
 - `all` - All subjects (wildcard for super-admin)
 - `User` - User accounts
 - `Story` - Story content
@@ -805,25 +898,30 @@ Authorization: Bearer <token>
 ### Default Roles
 
 #### Super Admin
+
 - Has `manage:all` permission
 - **Bypasses ALL permission checks** (no DB queries)
 - Instant access to all endpoints
 
 #### Admin
+
 - Full CRUD on most resources
 - Cannot manage roles/permissions (except super-admin)
 
 #### Moderator
+
 - Read users
 - CRUD + Moderate + Publish stories
 - Read categories, tags, settings
 
 #### User
+
 - Update own profile
 - CRUD own stories/attachments
 - Read public resources
 
 #### Guest
+
 - Read-only access to public resources
 
 ---
@@ -831,6 +929,7 @@ Authorization: Bearer <token>
 ## 📝 Response Format
 
 ### Success Response
+
 ```json
 {
   "success": true,
@@ -841,6 +940,7 @@ Authorization: Bearer <token>
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -856,6 +956,7 @@ Authorization: Bearer <token>
 ```
 
 ### Validation Error Response
+
 ```json
 {
   "success": false,

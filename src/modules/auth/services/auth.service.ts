@@ -33,7 +33,7 @@ type AccountLockInfo = Awaited<ReturnType<AccountLockoutService['getAccountLockI
  * Sign-in and the session lifecycle it starts: credential checks (with lockout),
  * login, refresh-token rotation and logout.
  *
- * Related: PasswordChangeService (self-service password change), SessionListingService
+ * Related: PasswordChangeService (self-service password change)
  * (listing a user's sessions), AccessTokenService (JWT issuing).
  */
 @Injectable()

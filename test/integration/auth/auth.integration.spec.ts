@@ -326,7 +326,7 @@ describe('Auth Integration Tests', () => {
 
       // 2. Access protected route (sessions list)
       await request(app.getHttpServer())
-        .get('/api/v1/auth/sessions')
+        .get('/api/v1/sessions/me')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
 
@@ -343,7 +343,7 @@ describe('Auth Integration Tests', () => {
 
       // 4. Use new token
       await request(app.getHttpServer())
-        .get('/api/v1/auth/sessions')
+        .get('/api/v1/sessions/me')
         .set('Authorization', `Bearer ${newAccessToken}`)
         .expect(200)
 
@@ -356,7 +356,7 @@ describe('Auth Integration Tests', () => {
 
       // 6. Verify token is blacklisted
       await request(app.getHttpServer())
-        .get('/api/v1/auth/sessions')
+        .get('/api/v1/sessions/me')
         .set('Authorization', `Bearer ${newAccessToken}`)
         .expect(401)
     })

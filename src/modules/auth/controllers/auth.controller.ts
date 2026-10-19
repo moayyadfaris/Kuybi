@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  Req,
-  UnauthorizedException,
-  UseGuards
-} from '@nestjs/common'
+import { Body, Controller, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger'
 import { seconds, Throttle } from '@nestjs/throttler'
 import { clientIp } from '@shared/utils/request.util'
@@ -19,11 +10,10 @@ import { User } from '@modules/users/entities'
 
 import { JwtAuthGuard } from '@core/auth'
 
-import { ListSessionsQueryDto } from '../dto/list-sessions.query.dto'
 import { LoginDto } from '../dto/login.dto'
 import { LogoutDto } from '../dto/logout.dto'
 import { RefreshTokenDto } from '../dto/refresh-token.dto'
-import { AuthService, SessionListingService } from '../services'
+import { AuthService } from '../services'
 
 interface AuthenticatedRequest extends Request {
   user?: User
@@ -37,7 +27,6 @@ export class AuthController {
     @InjectPinoLogger(AuthController.name)
     private readonly logger: PinoLogger,
     private readonly authService: AuthService,
-    private readonly sessionListingService: SessionListingService,
     private readonly auditService: AuditService
   ) {}
 
@@ -178,49 +167,6 @@ export class AuthController {
         logoutType,
         reason: body.reason || 'user_initiated'
       }
-    }
-  }
-
-  @Get('sessions')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ description: 'Lists active sessions for current user' })
-  async listSessions(@Query() query: ListSessionsQueryDto, @Req() req: AuthenticatedRequest) {
-    const user = req.user
-    if (!user) {
-      throw new UnauthorizedException('Authenticated user not found on request context')
-    }
-
-    this.logger.info(
-      {
-        userId: user.id,
-        page: query.page,
-        limit: query.limit,
-        action: 'list_sessions_request'
-      },
-      'List sessions request'
-    )
-
-    const result = await this.sessionListingService.list(user.id, query)
-
-    this.logger.info(
-      {
-        userId: user.id,
-        total: result.total,
-        page: result.page,
-        action: 'list_sessions_success'
-      },
-      'Sessions listed successfully'
-    )
-
-    return {
-      pagination: {
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
-        totalPages: Math.ceil(result.total / result.limit) || 1
-      },
-      sessions: result.sessions
     }
   }
 }
