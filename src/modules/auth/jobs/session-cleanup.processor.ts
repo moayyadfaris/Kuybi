@@ -6,7 +6,11 @@ import { QueueName, SessionCleanupJobType } from '@core/queues/jobs/types'
 import { BaseProcessor } from '@core/queues/processors/base.processor'
 
 import { SessionRepository } from '../repositories/session.repository'
+import { PasswordResetService } from '../services/password-reset.service'
 import { SessionsService } from '../services/sessions.service'
+
+/** Expired reset tokens are kept this long (for support questions), then deleted */
+const RESET_TOKEN_RETENTION_DAYS = 1
 
 interface CleanupJobData {
   olderThanDays?: number
@@ -21,10 +25,9 @@ export class SessionCleanupProcessor extends BaseProcessor {
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly sessionRepository: SessionRepository,
+    private readonly passwordResetService: PasswordResetService,
     @InjectPinoLogger(SessionCleanupProcessor.name)
     logger: PinoLogger,
-    @InjectQueue(QueueName.SESSION_CLEANUP)
-    private readonly sessionQueue: Queue,
     @InjectQueue(QueueName.DEAD_LETTER)
     deadLetterQueue: Queue
   ) {
@@ -41,6 +44,10 @@ export class SessionCleanupProcessor extends BaseProcessor {
         return this.handleCleanup(job as Job<CleanupJobData>)
       case SessionCleanupJobType.CHECK_EXPIRING:
         return this.handleCheckExpiring(job as Job<ExpiringJobData>)
+      case SessionCleanupJobType.CLEANUP_RESET_TOKENS:
+        return {
+          deleted: await this.passwordResetService.cleanupExpiredTokens(RESET_TOKEN_RETENTION_DAYS)
+        }
       default:
         this.logger.warn(
           { jobId: job.id, jobName: job.name },
@@ -66,12 +73,5 @@ export class SessionCleanupProcessor extends BaseProcessor {
       this.logger.warn({ count: expiring.length, withinMinutes }, 'Sessions are expiring soon')
     }
     return { count: expiring.length }
-  }
-
-  /**
-   * Utility to enqueue ad-hoc cleanup jobs (used by API for manual triggers)
-   */
-  async enqueueCleanup(olderThanDays = 30) {
-    await this.sessionQueue.add(SessionCleanupJobType.CLEANUP_EXPIRED, { olderThanDays })
   }
 }
