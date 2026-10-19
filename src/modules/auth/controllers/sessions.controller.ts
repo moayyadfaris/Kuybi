@@ -38,7 +38,12 @@ import {
 } from '../dto'
 import { Session } from '../entities/session.entity'
 import { SessionCleanupService, SessionsService } from '../services'
-import { filterAndSortSessions, shareOf } from '../utils/session-list.util'
+import {
+  filterAndSortSessions,
+  needsEndedSessions,
+  shareOf,
+  toListedSession
+} from '../utils/session-list.util'
 
 // The controller is guarded by JwtAuthGuard, so the user is always present
 interface AuthenticatedRequest extends Request {
@@ -79,7 +84,7 @@ export class SessionsController {
     this.logger.info({ userId, filter, action: 'list_sessions' }, 'Listing user sessions')
 
     const filtered = filterAndSortSessions(
-      await this.sessionsService.getActiveSessions(userId, filter.includeExpired),
+      await this.sessionsService.getActiveSessions(userId, needsEndedSessions(filter)),
       filter
     )
 
@@ -92,7 +97,7 @@ export class SessionsController {
     // Add risk assessment if requested
     const mapped = await Promise.all(
       paginated.map(async session => {
-        const sessionData: Record<string, unknown> = { ...session }
+        const sessionData: Record<string, unknown> = toListedSession(session, filter)
         if (filter.includeRiskAssessment) {
           try {
             sessionData.riskAssessment = await this.sessionsService.assessSessionRisk(session.id)
@@ -335,7 +340,10 @@ export class SessionsController {
       'Super-admin listing user sessions'
     )
 
-    const allSessions = await this.sessionsService.getActiveSessions(userId, filter.includeExpired)
+    const allSessions = await this.sessionsService.getActiveSessions(
+      userId,
+      needsEndedSessions(filter)
+    )
     const filtered = filterAndSortSessions(allSessions, filter)
 
     const duration = Date.now() - startTime
@@ -354,7 +362,7 @@ export class SessionsController {
 
     return {
       userId,
-      sessions: filtered,
+      sessions: filtered.map(session => toListedSession(session, filter)),
       total: allSessions.length,
       filtered: filtered.length,
       message: `Found ${filtered.length} session(s) for user`

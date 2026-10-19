@@ -37,7 +37,6 @@ import {
   AuthService,
   PasswordChangeService,
   SessionCleanupService,
-  SessionListingService,
   SessionsService,
   TokenBlacklistService
 } from './services'
@@ -77,7 +76,6 @@ import {
     PasswordPolicyService,
     AccessTokenService,
     PasswordChangeService,
-    SessionListingService,
     SessionsService,
     SessionCleanupService,
     TokenBlacklistService,

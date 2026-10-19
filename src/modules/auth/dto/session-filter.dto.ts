@@ -19,6 +19,8 @@ export enum SortOrder {
 
 export enum SessionStatus {
   ACTIVE = 'active',
+  /** Active and expiring within 24 hours */
+  EXPIRING = 'expiring',
   EXPIRED = 'expired',
   REVOKED = 'revoked',
   ALL = 'all'
@@ -126,14 +128,23 @@ export class SessionFilterDto {
   filterByType?: SessionType
 
   @ApiPropertyOptional({
-    description: 'Filter by session status',
+    description:
+      'Filter by session status. Without it the list holds live sessions, or every session with includeExpired',
     enum: SessionStatus,
-    example: SessionStatus.ACTIVE,
-    default: SessionStatus.ACTIVE
+    example: SessionStatus.ACTIVE
   })
   @IsOptional()
   @IsEnum(SessionStatus)
-  filterByStatus?: SessionStatus = SessionStatus.ACTIVE
+  filterByStatus?: SessionStatus
+
+  @ApiPropertyOptional({
+    description: 'Mask the last two parts of each IP address',
+    default: false
+  })
+  @IsOptional()
+  @ToBoolean()
+  @IsBoolean()
+  anonymizeData?: boolean = false
 
   @ApiPropertyOptional({
     description: 'Filter by security level',

@@ -98,6 +98,70 @@ describe('Own sessions', () => {
     })
   })
 
+  describe('status filter and privacy', () => {
+    let viewer: Actor
+    const HOUR = 60 * 60 * 1000
+
+    beforeAll(async () => {
+      viewer = await t.signUp('viewer@own-sessions.test', 'user')
+      const [current] = await sessionsOf(viewer.user.id)
+      const repo = t.dataSource.getRepository(Session)
+      const copy = (fields: Partial<Session>) =>
+        repo.save(
+          repo.create({
+            ...current,
+            id: undefined,
+            createdAt: undefined,
+            refreshTokenHash: `hash-${Math.random()}`,
+            ...fields
+          })
+        )
+      await copy({ expiresAt: new Date(Date.now() + 2 * HOUR), deviceType: 'mobile' })
+      await copy({ expiresAt: new Date(Date.now() - HOUR), deviceType: 'tablet' })
+      await copy({ isActive: false, deletedAt: new Date(), deviceType: 'bot' })
+      await t.cache.reset()
+    })
+
+    const list = async (query: Record<string, string>) =>
+      (await t.http().get('/api/v1/sessions/me').query(query).set(viewer.auth).expect(200)).body
+        .data.sessions as Array<Session & { status: string }>
+    const devices = async (query: Record<string, string>) =>
+      (await list(query)).map(s => s.deviceType).sort()
+
+    it('lists live sessions by default and filters by status', async () => {
+      expect(await devices({})).toEqual(['mobile', 'unknown'])
+      expect(await devices({ filterByStatus: 'active' })).toEqual(['mobile', 'unknown'])
+      expect(await devices({ filterByStatus: 'expiring' })).toEqual(['mobile'])
+      expect(await devices({ filterByStatus: 'expired' })).toEqual(['tablet'])
+      expect(await devices({ filterByStatus: 'revoked' })).toEqual(['bot'])
+      expect(await devices({ filterByStatus: 'all' })).toHaveLength(4)
+    })
+
+    it('reports each session status', async () => {
+      const all = await list({ filterByStatus: 'all' })
+      const statusOf = (device: string) => all.find(s => s.deviceType === device)?.status
+      expect(statusOf('mobile')).toBe('active')
+      expect(statusOf('tablet')).toBe('expired')
+      expect(statusOf('bot')).toBe('revoked')
+    })
+
+    it('masks IP addresses on request', async () => {
+      await t.dataSource
+        .getRepository(Session)
+        .update({ userId: viewer.user.id }, { ipAddress: '203.0.113.77' })
+      await t.cache.reset()
+
+      const [masked] = await list({ anonymizeData: 'true' })
+      expect(masked.ipAddress).toBe('203.0.***.***')
+      const [plain] = await list({})
+      expect(plain.ipAddress).toBe('203.0.113.77')
+    })
+  })
+
+  it('has one session list: GET /v1/auth/sessions is gone', async () => {
+    await t.http().get('/api/v1/auth/sessions').set(owner.auth).expect(404)
+  })
+
   describe('one session', () => {
     it('reads its own session and refuses another user', async () => {
       const [mine] = await sessionsOf(owner.user.id)
