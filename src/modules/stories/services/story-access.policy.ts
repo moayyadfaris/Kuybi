@@ -1,9 +1,10 @@
-import { ForbiddenException, Injectable } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 
-import { AbilityFactory, Action, asSubject, Subject } from '@modules/acl'
+import { AbilityFactory, Action, asSubject, RecordScope, recordScope, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
 import { Story, StoryStatus } from '../entities/story.entity'
+import { STORY_SCOPE_COLUMNS } from '../repositories/story.repository'
 import { AUTHOR_STATUSES } from '../story-status.rules'
 
 /**
@@ -20,6 +21,29 @@ export class StoryAccessPolicy {
 
   can(user: User, action: Action, story: Story): boolean {
     return this.abilityFactory.createForUser(user).can(action, asSubject(Subject.Story, story))
+  }
+
+  /**
+   * The stories this user may read, as a filter for list queries. Comes from the same
+   * rules as can(): e.g. the 'user' role reads published stories and its own.
+   */
+  readScope(user: User): RecordScope {
+    return recordScope(
+      this.abilityFactory.createForUser(user),
+      Action.Read,
+      Subject.Story,
+      STORY_SCOPE_COLUMNS
+    )
+  }
+
+  /**
+   * A story the user may not read is reported as missing (404), not forbidden: a 403
+   * would confirm that a hidden draft exists
+   */
+  assertCanRead(user: User, story: Story): void {
+    if (!this.can(user, Action.Read, story)) {
+      throw new NotFoundException(`Story with ID ${story.id} not found`)
+    }
   }
 
   assertCan(user: User, action: Action, story: Story, message: string): void {

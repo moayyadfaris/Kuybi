@@ -20,6 +20,13 @@ import { Subject } from '../types/subjects.enum'
  * - user: CRUD own resources only
  * - guest: Read public resources only
  */
+/**
+ * Stories everyone with read access sees. Other statuses (drafts, review, archived...)
+ * stay visible to their author and to roles that read every story. Literal, not
+ * StoryStatus.PUBLISHED: acl does not depend on feature modules.
+ */
+const PUBLISHED_STORIES = { status: 'PUBLISHED' }
+
 @Injectable()
 export class AclSeeder {
   private readonly logger = new Logger(AclSeeder.name)
@@ -77,6 +84,18 @@ export class AclSeeder {
       // Story permissions
       { action: Action.Create, subject: Subject.Story, reason: 'Create stories' },
       { action: Action.Read, subject: Subject.Story, reason: 'Read all stories' },
+      {
+        action: Action.Read,
+        subject: Subject.Story,
+        conditions: PUBLISHED_STORIES,
+        reason: 'Read published stories'
+      },
+      {
+        action: Action.Read,
+        subject: Subject.Story,
+        conditions: { userId: '${userId}' },
+        reason: 'Read own stories (any status)'
+      },
       { action: Action.Update, subject: Subject.Story, reason: 'Update any story' },
       {
         action: Action.Update,
@@ -383,9 +402,10 @@ export class AclSeeder {
       // Own profile
       findPerm(Action.Read, Subject.User, { id: '${userId}' }),
       findPerm(Action.Update, Subject.User, { id: '${userId}' }),
-      // Own stories
+      // Own stories; others' only once published
       findPerm(Action.Create, Subject.Story),
-      findPerm(Action.Read, Subject.Story),
+      findPerm(Action.Read, Subject.Story, PUBLISHED_STORIES),
+      findPerm(Action.Read, Subject.Story, { userId: '${userId}' }),
       findPerm(Action.Update, Subject.Story, { userId: '${userId}' }),
       findPerm(Action.Delete, Subject.Story, { userId: '${userId}' }),
       // Story versions (can view and create versions for stories)
@@ -413,7 +433,7 @@ export class AclSeeder {
     // Guest - read-only public access
     const guest = roleMap.get('guest')!
     const guestActions = [
-      findPerm(Action.Read, Subject.Story),
+      findPerm(Action.Read, Subject.Story, PUBLISHED_STORIES),
       findPerm(Action.Read, Subject.Attachment, { isPublic: true }),
       findPerm(Action.Read, Subject.Category),
       findPerm(Action.Read, Subject.Tag),
@@ -428,7 +448,10 @@ export class AclSeeder {
     const revoked: Array<[Role, Permission | undefined]> = [
       // Was "read every attachment, including other users' private files"
       [user, findPerm(Action.Read, Subject.Attachment)],
-      [guest, findPerm(Action.Read, Subject.Attachment)]
+      [guest, findPerm(Action.Read, Subject.Attachment)],
+      // Was "read every story", drafts and archived ones included
+      [user, findPerm(Action.Read, Subject.Story)],
+      [guest, findPerm(Action.Read, Subject.Story)]
     ]
     for (const [role, perm] of revoked) {
       if (perm) await this.revokePermission(role, perm)
