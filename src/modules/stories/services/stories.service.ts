@@ -125,10 +125,11 @@ export class StoriesService {
   /**
    * Find all stories with pagination and filters
    */
-  async findAll(filters: StoryFilterDto) {
+  async findAll(filters: StoryFilterDto, viewer: User) {
     this.logger.debug({ action: 'find_all_stories', filters }, 'Finding stories with filters')
 
     const result = await this.storyRepository.search({
+      scope: this.accessPolicy.readScope(viewer),
       search: filters.search,
       status: filters.status,
       type: filters.type,
@@ -168,10 +169,20 @@ export class StoriesService {
   }
 
   /**
+   * A story the viewer may read; 404 when it is missing, deleted or hidden from them
+   */
+  async findVisible(id: number, viewer: User): Promise<Story> {
+    const story = await this.findOne(id, viewer.id)
+    this.accessPolicy.assertCanRead(viewer, story)
+    return story
+  }
+
+  /**
    * Find stories by user ID
    */
   async findByUser(
     userId: string,
+    viewer: User,
     options?: {
       includeDeleted?: boolean
       limit?: number
@@ -182,11 +193,15 @@ export class StoriesService {
 
     const offset = options?.page ? (options.page - 1) * (options?.limit || 20) : undefined
 
-    const stories = await this.storyRepository.findByUser(userId, {
-      includeDeleted: options?.includeDeleted,
-      limit: options?.limit,
-      offset
-    })
+    const stories = await this.storyRepository.findByUser(
+      userId,
+      this.accessPolicy.readScope(viewer),
+      {
+        includeDeleted: options?.includeDeleted,
+        limit: options?.limit,
+        offset
+      }
+    )
 
     return this.storyEnrichmentService.enrichStoriesCollection(stories)
   }
@@ -196,6 +211,7 @@ export class StoriesService {
    */
   async findByStatus(
     status: StoryStatus,
+    viewer: User,
     options?: {
       limit?: number
       page?: number
@@ -205,10 +221,14 @@ export class StoriesService {
 
     const offset = options?.page ? (options.page - 1) * (options?.limit || 20) : undefined
 
-    const stories = await this.storyRepository.findByStatus(status, {
-      limit: options?.limit,
-      offset
-    })
+    const stories = await this.storyRepository.findByStatus(
+      status,
+      this.accessPolicy.readScope(viewer),
+      {
+        limit: options?.limit,
+        offset
+      }
+    )
 
     return this.storyEnrichmentService.enrichStoriesCollection(stories)
   }
@@ -218,6 +238,7 @@ export class StoriesService {
    */
   async findByType(
     type: StoryType,
+    viewer: User,
     options?: {
       limit?: number
       page?: number
@@ -227,10 +248,14 @@ export class StoriesService {
 
     const offset = options?.page ? (options.page - 1) * (options?.limit || 20) : undefined
 
-    const stories = await this.storyRepository.findByType(type, {
-      limit: options?.limit,
-      offset
-    })
+    const stories = await this.storyRepository.findByType(
+      type,
+      this.accessPolicy.readScope(viewer),
+      {
+        limit: options?.limit,
+        offset
+      }
+    )
 
     return this.storyEnrichmentService.enrichStoriesCollection(stories)
   }
@@ -238,13 +263,17 @@ export class StoriesService {
   /**
    * Find child stories (threaded stories)
    */
-  async findChildren(parentId: number, includeDeleted?: boolean): Promise<Story[]> {
+  async findChildren(parentId: number, viewer: User, includeDeleted?: boolean): Promise<Story[]> {
     this.logger.debug(
       { action: 'find_children', parentId, includeDeleted },
       'Finding child stories'
     )
 
-    const stories = await this.storyRepository.findChildren(parentId, { includeDeleted })
+    const stories = await this.storyRepository.findChildren(
+      parentId,
+      this.accessPolicy.readScope(viewer),
+      { includeDeleted }
+    )
 
     return this.storyEnrichmentService.enrichStoriesCollection(stories)
   }
@@ -383,12 +412,12 @@ export class StoriesService {
   }
 
   /**
-   * Get story statistics
+   * Story statistics over the stories the viewer may read
    */
-  async getStats(): Promise<StoryStatsDto> {
+  async getStats(viewer: User): Promise<StoryStatsDto> {
     this.logger.debug({ action: 'get_stats' }, 'Getting story statistics')
 
-    const stats = await this.storyRepository.getStats()
+    const stats = await this.storyRepository.getStats(this.accessPolicy.readScope(viewer))
 
     return {
       total: stats.total,

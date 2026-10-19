@@ -62,13 +62,19 @@ export class StoryVersionController {
    */
   private async assertCanEditStory(storyId: number, req: AuthenticatedRequest): Promise<void> {
     if (!req.user) throw new UnauthorizedException('User not authenticated')
-    const story = await this.storiesService.findOne(storyId)
+    const story = await this.storiesService.findVisible(storyId, req.user)
     this.accessPolicy.assertCan(
       req.user,
       Action.Update,
       story,
       'You do not have permission to modify the versions of this story'
     )
+  }
+
+  /** Reading versions needs read access to the story (404 when hidden) */
+  private async assertCanReadStory(storyId: number, req: AuthenticatedRequest): Promise<void> {
+    if (!req.user) throw new UnauthorizedException('User not authenticated')
+    await this.storiesService.findVisible(storyId, req.user)
   }
 
   private getUserId(req: AuthenticatedRequest): string {
@@ -113,11 +119,13 @@ export class StoryVersionController {
     type: [VersionResponseDto]
   })
   async getVersionHistory(
+    @Req() req: AuthenticatedRequest,
     @Param('storyId', ParseIntPipe) storyId: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
     @Query('offset', new ParseIntPipe({ optional: true })) offset?: number,
     @Query('branchName') branchName?: string
   ): Promise<VersionResponseDto[]> {
+    await this.assertCanReadStory(storyId, req)
     const versions = await this.versionService.getVersionHistory(storyId, branchName, limit, offset)
     return versions.map(toVersionResponseDto)
   }
@@ -141,8 +149,10 @@ export class StoryVersionController {
   @ApiResponse({ status: 404, description: 'Version not found' })
   async getVersion(
     @Param('storyId', ParseIntPipe) storyId: number,
-    @Param('versionNumber', ParseIntPipe) versionNumber: number
+    @Param('versionNumber', ParseIntPipe) versionNumber: number,
+    @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
+    await this.assertCanReadStory(storyId, req)
     const version = await this.versionService.getVersion(storyId, versionNumber)
     return toVersionResponseDto(version)
   }
@@ -329,8 +339,10 @@ export class StoryVersionController {
   @ApiResponse({ status: 404, description: 'Version not found' })
   async compareVersions(
     @Param('storyId', ParseIntPipe) storyId: number,
-    @Body() dto: CompareVersionsDto
+    @Body() dto: CompareVersionsDto,
+    @Req() req: AuthenticatedRequest
   ): Promise<VersionComparisonDto> {
+    await this.assertCanReadStory(storyId, req)
     const result = await this.branchService.compareVersions(storyId, dto.versionA, dto.versionB)
 
     return {
@@ -357,7 +369,11 @@ export class StoryVersionController {
     description: 'Branch information retrieved successfully',
     type: [BranchInfoDto]
   })
-  async getBranchInfo(@Param('storyId', ParseIntPipe) storyId: number): Promise<BranchInfoDto[]> {
+  async getBranchInfo(
+    @Param('storyId', ParseIntPipe) storyId: number,
+    @Req() req: AuthenticatedRequest
+  ): Promise<BranchInfoDto[]> {
+    await this.assertCanReadStory(storyId, req)
     return this.branchService.getBranchInfo(storyId)
   }
 

@@ -172,18 +172,26 @@ describe('Authorization audit', () => {
   })
 
   describe("another user's story versions", () => {
-    it('cannot be created, branched, tagged or rolled back', async () => {
-      const base = `/api/v1/stories/${story.id}/versions`
-      await http().post(base).set(as(other)).send({ commitMessage: 'x' }).expect(403)
-      await http().post(`${base}/branch`).set(as(other)).send({ branchName: 'evil' }).expect(403)
-      await http().post(`${base}/1/tag`).set(as(other)).send({ tag: 'evil' }).expect(403)
+    const tamper = async (storyId: number, status: number) => {
+      const base = `/api/v1/stories/${storyId}/versions`
+      await http().post(base).set(as(other)).send({ commitMessage: 'x' }).expect(status)
+      await http().post(`${base}/branch`).set(as(other)).send({ branchName: 'evil' }).expect(status)
+      await http().post(`${base}/1/tag`).set(as(other)).send({ tag: 'evil' }).expect(status)
       await http()
         .post(`${base}/rollback`)
         .set(as(other))
         .send({ versionNumber: 1, commitMessage: 'evil' })
-        .expect(403)
+        .expect(status)
+      expect(await dataSource.getRepository(StoryVersion).countBy({ storyId })).toBe(0)
+    }
 
-      expect(await dataSource.getRepository(StoryVersion).countBy({ storyId: story.id })).toBe(0)
+    it('cannot be created, branched, tagged or rolled back on a published story (403)', async () => {
+      await dataSource.getRepository(Story).update(story.id, { status: StoryStatus.PUBLISHED })
+      await tamper(story.id, 403)
+    })
+
+    it('answer 404 on a draft, which the other user cannot see at all', async () => {
+      await tamper(story.id, 404)
     })
   })
 

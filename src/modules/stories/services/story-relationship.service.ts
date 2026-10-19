@@ -228,8 +228,8 @@ export class StoryRelationshipService {
   /**
    * Get story attachments (not the deleted ones)
    */
-  async getAttachments(storyId: number): Promise<Attachment[]> {
-    const story = await this.loadStory(storyId, 'attachments')
+  async getAttachments(storyId: number, viewer: User): Promise<Attachment[]> {
+    const story = await this.loadReadable(storyId, 'attachments', viewer)
     return (story.attachments ?? [])
       .filter(attachment => !attachment.deletedAt)
       .map(attachment => toAttachmentResponse(attachment) as unknown as Attachment)
@@ -238,15 +238,15 @@ export class StoryRelationshipService {
   /**
    * Get story tags
    */
-  async getTags(storyId: number): Promise<Tag[]> {
-    return (await this.loadStory(storyId, 'tags')).tags ?? []
+  async getTags(storyId: number, viewer: User): Promise<Tag[]> {
+    return (await this.loadReadable(storyId, 'tags', viewer)).tags ?? []
   }
 
   /**
    * Get story categories
    */
-  async getCategories(storyId: number): Promise<Category[]> {
-    return (await this.loadStory(storyId, 'categories')).categories ?? []
+  async getCategories(storyId: number, viewer: User): Promise<Category[]> {
+    return (await this.loadReadable(storyId, 'categories', viewer)).categories ?? []
   }
 
   /** The story with one relation loaded; 404 when missing or soft-deleted */
@@ -255,6 +255,13 @@ export class StoryRelationshipService {
     if (!story || story.deletedAt) {
       throw new NotFoundException(`Story with ID ${storyId} not found`)
     }
+    return story
+  }
+
+  /** 404, like a missing story, when the viewer may not read it */
+  private async loadReadable(storyId: number, relation: Relation, viewer: User): Promise<Story> {
+    const story = await this.loadStory(storyId, relation)
+    this.accessPolicy.assertCanRead(viewer, story)
     return story
   }
 

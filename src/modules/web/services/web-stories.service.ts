@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 
+import type { RecordScope } from '@modules/acl'
 import { StoryRepository } from '@modules/stories'
 import { StoryStatus } from '@modules/stories/entities'
 
 import { WebStoriesQueryDto } from '../dto/web-query.dto'
 import { toPublicStory } from '../web-response.mapper'
+
+/** The public site shows published stories only */
+const PUBLISHED_ONLY: RecordScope = { all: false, anyOf: [{ status: StoryStatus.PUBLISHED }] }
 
 @Injectable()
 export class WebStoriesService {
@@ -18,7 +22,7 @@ export class WebStoriesService {
     const { search, categorySlug, tag, page = 1, limit = 20 } = query
 
     const result = await this.storyRepository.search({
-      status: StoryStatus.PUBLISHED,
+      scope: PUBLISHED_ONLY,
       search,
       categorySlug,
       tagName: tag,
@@ -44,11 +48,7 @@ export class WebStoriesService {
   async getPublishedStoryById(id: number) {
     const story = await this.storyRepository.findById(id)
 
-    if (!story) {
-      throw new NotFoundException('Story not found')
-    }
-
-    if (story.status !== StoryStatus.PUBLISHED) {
+    if (!story || story.deletedAt || story.status !== StoryStatus.PUBLISHED) {
       throw new NotFoundException('Story not found')
     }
 

@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Brackets, FindOptionsRelations, Repository } from 'typeorm'
+import {
+  Brackets,
+  FindOptionsRelations,
+  Repository,
+  SelectQueryBuilder,
+  WhereExpressionBuilder
+} from 'typeorm'
+
+import type { RecordScope } from '@modules/acl'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -18,6 +26,12 @@ import { Story, StoryPriority, StoryStatus, StoryType } from '../entities/story.
  * contact details and account state stay out of story payloads (and the story cache).
  */
 const STORY_AUTHOR_COLUMNS = ['user.id', 'user.name']
+
+/** Story columns a read scope may filter on (they become SQL identifiers) */
+export const STORY_SCOPE_COLUMNS = ['status', 'userId', 'type', 'priority', 'countryId'] as const
+
+/** Every story, for internal reads that are not on behalf of a user */
+export const ALL_STORIES: RecordScope = { all: true }
 
 @Injectable()
 export class StoryRepository extends BaseRepository<Story> {
@@ -73,13 +87,19 @@ export class StoryRepository extends BaseRepository<Story> {
    */
   async findByUser(
     userId: string,
+    scope: RecordScope,
     options?: {
       includeDeleted?: boolean
       limit?: number
       offset?: number
     }
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey('user', userId, JSON.stringify(options || {}))
+    const cacheKey = this.buildCacheKey(
+      'user',
+      userId,
+      this.scopeKey(scope),
+      JSON.stringify(options || {})
+    )
 
     return this.cached<Story[]>(
       cacheKey,
@@ -93,10 +113,7 @@ export class StoryRepository extends BaseRepository<Story> {
           .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.userId = :userId', { userId })
           .orderBy('story.createdAt', 'DESC')
-
-        if (!options?.includeDeleted) {
-          query.andWhere('story.deletedAt IS NULL')
-        }
+        this.applyScope(query, scope, options?.includeDeleted)
 
         if (options?.limit) {
           query.take(options.limit)
@@ -118,12 +135,18 @@ export class StoryRepository extends BaseRepository<Story> {
    */
   async findByStatus(
     status: StoryStatus,
+    scope: RecordScope,
     options?: {
       limit?: number
       offset?: number
     }
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey('status', status, JSON.stringify(options || {}))
+    const cacheKey = this.buildCacheKey(
+      'status',
+      status,
+      this.scopeKey(scope),
+      JSON.stringify(options || {})
+    )
 
     return this.cached<Story[]>(
       cacheKey,
@@ -136,8 +159,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .leftJoin('story.user', 'user')
           .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.status = :status', { status })
-          .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
+        this.applyScope(query, scope)
 
         if (options?.limit) {
           query.take(options.limit)
@@ -159,12 +182,18 @@ export class StoryRepository extends BaseRepository<Story> {
    */
   async findByType(
     type: StoryType,
+    scope: RecordScope,
     options?: {
       limit?: number
       offset?: number
     }
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey('type', type, JSON.stringify(options || {}))
+    const cacheKey = this.buildCacheKey(
+      'type',
+      type,
+      this.scopeKey(scope),
+      JSON.stringify(options || {})
+    )
 
     return this.cached<Story[]>(
       cacheKey,
@@ -177,8 +206,8 @@ export class StoryRepository extends BaseRepository<Story> {
           .leftJoin('story.user', 'user')
           .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.type = :type', { type })
-          .andWhere('story.deletedAt IS NULL')
           .orderBy('story.createdAt', 'DESC')
+        this.applyScope(query, scope)
 
         if (options?.limit) {
           query.take(options.limit)
@@ -201,6 +230,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
   async findChildren(
     parentId: number,
+    scope: RecordScope,
     options?: {
       includeDeleted?: boolean
     }
@@ -208,6 +238,7 @@ export class StoryRepository extends BaseRepository<Story> {
     const cacheKey = this.buildCacheKey(
       'children',
       parentId.toString(),
+      this.scopeKey(scope),
       JSON.stringify(options || {})
     )
 
@@ -223,10 +254,7 @@ export class StoryRepository extends BaseRepository<Story> {
           .addSelect(STORY_AUTHOR_COLUMNS)
           .where('story.parentId = :parentId', { parentId })
           .orderBy('story.createdAt', 'DESC')
-
-        if (!options?.includeDeleted) {
-          query.andWhere('story.deletedAt IS NULL')
-        }
+        this.applyScope(query, scope, options?.includeDeleted)
 
         return query.getMany()
       },
@@ -239,6 +267,8 @@ export class StoryRepository extends BaseRepository<Story> {
    * Includes mainImage and user to prevent N+1 queries
    */
   async search(filters: {
+    /** Which stories the reader may see */
+    scope: RecordScope
     search?: string
     status?: StoryStatus
     type?: StoryType
@@ -275,10 +305,7 @@ export class StoryRepository extends BaseRepository<Story> {
       .leftJoin('story.user', 'user')
       .addSelect(STORY_AUTHOR_COLUMNS)
 
-    // Exclude soft-deleted by default
-    if (!filters.includeDeleted) {
-      builder.andWhere('story.deletedAt IS NULL')
-    }
+    this.applyScope(builder, filters.scope, filters.includeDeleted)
 
     // Text search
     if (filters.search) {
@@ -384,7 +411,7 @@ export class StoryRepository extends BaseRepository<Story> {
   /**
    * Get story statistics
    */
-  async getStats(): Promise<{
+  async getStats(scope: RecordScope): Promise<{
     total: number
     byStatus: Record<StoryStatus, number>
     byType: Record<StoryType, number>
@@ -397,7 +424,7 @@ export class StoryRepository extends BaseRepository<Story> {
     deleted: number
   }> {
     return this.cached(
-      this.buildCacheKey('stats'),
+      this.buildCacheKey('stats', this.scopeKey(scope)),
       async () => {
         const now = new Date()
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -406,8 +433,7 @@ export class StoryRepository extends BaseRepository<Story> {
 
         // One pass for the scalar counts (FILTER), one GROUP BY per breakdown
         const [counts, byStatus, byType, byPriority] = await Promise.all([
-          this.repository
-            .createQueryBuilder('story')
+          this.scoped(this.repository.createQueryBuilder('story'), scope)
             .select('COUNT(*) FILTER (WHERE story.deletedAt IS NULL)', 'total')
             .addSelect(
               'COUNT(*) FILTER (WHERE story.deletedAt IS NULL AND story.createdAt >= :today)',
@@ -422,11 +448,13 @@ export class StoryRepository extends BaseRepository<Story> {
               'createdThisMonth'
             )
             .addSelect('COUNT(*) FILTER (WHERE story.deletedAt IS NOT NULL)', 'deleted')
-            .setParameters({ today, week, month })
+            .setParameter('today', today)
+            .setParameter('week', week)
+            .setParameter('month', month)
             .getRawOne<Record<string, string>>(),
-          this.countLiveBy<StoryStatus>('status'),
-          this.countLiveBy<StoryType>('type'),
-          this.countLiveBy<StoryPriority>('priority')
+          this.countLiveBy<StoryStatus>('status', scope),
+          this.countLiveBy<StoryType>('type', scope),
+          this.countLiveBy<StoryPriority>('priority', scope)
         ])
 
         const count = (key: string) => Number(counts?.[key] ?? 0)
@@ -440,7 +468,8 @@ export class StoryRepository extends BaseRepository<Story> {
           createdThisMonth: count('createdThisMonth'),
           published: byStatus[StoryStatus.PUBLISHED] ?? 0,
           drafts: byStatus[StoryStatus.DRAFT] ?? 0,
-          deleted: count('deleted')
+          // Deleted stories are listed only for unrestricted readers, so only they get a count
+          deleted: scope.all ? count('deleted') : 0
         }
       },
       300 // 5 minutes
@@ -449,13 +478,13 @@ export class StoryRepository extends BaseRepository<Story> {
 
   /** Live (not soft-deleted) stories per value of a column */
   private async countLiveBy<K extends string>(
-    column: 'status' | 'type' | 'priority'
+    column: 'status' | 'type' | 'priority',
+    scope: RecordScope
   ): Promise<Record<K, number>> {
-    const rows = await this.repository
-      .createQueryBuilder('story')
+    const rows = await this.scoped(this.repository.createQueryBuilder('story'), scope)
       .select(`story.${column}`, 'value')
       .addSelect('COUNT(*)', 'count')
-      .where('story.deletedAt IS NULL')
+      .andWhere('story.deletedAt IS NULL')
       .groupBy(`story.${column}`)
       .getRawMany<{ value: K; count: string }>()
     return Object.fromEntries(rows.map(row => [row.value, Number(row.count)])) as Record<K, number>
@@ -474,6 +503,58 @@ export class StoryRepository extends BaseRepository<Story> {
     for (const state of new Set(states.map(s => s.id))) {
       await this.invalidateCacheByEntityId(state)
     }
+  }
+
+  /**
+   * Limits a query to the stories a scope allows. Soft-deleted stories are left out
+   * unless `includeDeleted`, which only an unrestricted scope may use.
+   */
+  private applyScope(
+    query: SelectQueryBuilder<Story>,
+    scope: RecordScope,
+    includeDeleted = false
+  ): void {
+    this.scoped(query, scope)
+    if (!(scope.all && includeDeleted)) {
+      query.andWhere('story.deletedAt IS NULL')
+    }
+  }
+
+  /** Adds the scope's conditions (any one of its condition sets) to the query */
+  private scoped(query: SelectQueryBuilder<Story>, scope: RecordScope): SelectQueryBuilder<Story> {
+    if (scope.all) return query
+    if (scope.anyOf.length === 0) return query.andWhere('FALSE')
+
+    return query.andWhere(
+      new Brackets(anyOf => {
+        scope.anyOf.forEach((conditions, i) => {
+          anyOf.orWhere(new Brackets(allOf => this.whereAll(allOf, conditions, `scope${i}`)))
+        })
+      })
+    )
+  }
+
+  private whereAll(
+    query: WhereExpressionBuilder,
+    conditions: Record<string, unknown>,
+    prefix: string
+  ): void {
+    for (const [column, value] of Object.entries(conditions)) {
+      // Column names become identifiers: only the allowlisted ones get through
+      if (!(STORY_SCOPE_COLUMNS as readonly string[]).includes(column)) {
+        query.andWhere('FALSE')
+      } else if (value === null) {
+        query.andWhere(`story.${column} IS NULL`)
+      } else {
+        const param = `${prefix}_${column}`
+        query.andWhere(`story.${column} = :${param}`, { [param]: value })
+      }
+    }
+  }
+
+  /** Cache-key part for a scope: lists differ per scope, so they are cached per scope */
+  private scopeKey(scope: RecordScope): string {
+    return scope.all ? 'all' : JSON.stringify(scope.anyOf)
   }
 
   /** Uncached read with the given relations, for read-modify-save of relation arrays */

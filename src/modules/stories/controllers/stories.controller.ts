@@ -87,8 +87,8 @@ export class StoriesController {
   @ApiResponse({ status: 200, description: 'List of stories with pagination' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  findAll(@Query() filterDto: StoryFilterDto) {
-    return this.storiesService.findAll(filterDto)
+  findAll(@Query() filterDto: StoryFilterDto, @Req() req: AuthenticatedRequest) {
+    return this.storiesService.findAll(filterDto, this.viewer(req))
   }
 
   @Get('stats')
@@ -97,8 +97,8 @@ export class StoriesController {
   @ApiResponse({ status: 200, description: 'Story statistics' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  getStats() {
-    return this.storiesService.getStats()
+  getStats(@Req() req: AuthenticatedRequest) {
+    return this.storiesService.getStats(this.viewer(req))
   }
 
   @Get('user/:userId')
@@ -112,12 +112,13 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByUser(
+    @Req() req: AuthenticatedRequest,
     @Param('userId') userId: string,
     @Query('includeDeleted') includeDeleted?: boolean,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number
   ) {
-    return this.storiesService.findByUser(userId, { includeDeleted, limit, page })
+    return this.storiesService.findByUser(userId, this.viewer(req), { includeDeleted, limit, page })
   }
 
   @Get('status/:status')
@@ -130,11 +131,12 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByStatus(
+    @Req() req: AuthenticatedRequest,
     @Param('status') status: StoryStatus,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number
   ) {
-    return this.storiesService.findByStatus(status, { limit, page })
+    return this.storiesService.findByStatus(status, this.viewer(req), { limit, page })
   }
 
   @Get('type/:type')
@@ -147,11 +149,12 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByType(
+    @Req() req: AuthenticatedRequest,
     @Param('type') type: StoryType,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number
   ) {
-    return this.storiesService.findByType(type, { limit, page })
+    return this.storiesService.findByType(type, this.viewer(req), { limit, page })
   }
 
   @Get(':id/children')
@@ -164,10 +167,11 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findChildren(
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Query('includeDeleted') includeDeleted?: boolean
   ) {
-    return this.storiesService.findChildren(id, includeDeleted)
+    return this.storiesService.findChildren(id, this.viewer(req), includeDeleted)
   }
 
   @Get(':id')
@@ -179,7 +183,7 @@ export class StoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    return this.storiesService.findOne(id, req.user?.id)
+    return this.storiesService.findVisible(id, this.viewer(req))
   }
 
   @Patch(':id')
@@ -308,8 +312,8 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  getAttachments(@Param('id', ParseIntPipe) id: number) {
-    return this.storyRelationshipService.getAttachments(id)
+  getAttachments(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+    return this.storyRelationshipService.getAttachments(id, this.viewer(req))
   }
 
   // Tag management endpoints
@@ -358,8 +362,8 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  getTags(@Param('id', ParseIntPipe) id: number) {
-    return this.storyRelationshipService.getTags(id)
+  getTags(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+    return this.storyRelationshipService.getTags(id, this.viewer(req))
   }
 
   // Category management endpoints
@@ -408,8 +412,8 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  getCategories(@Param('id', ParseIntPipe) id: number) {
-    return this.storyRelationshipService.getCategories(id)
+  getCategories(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+    return this.storyRelationshipService.getCategories(id, this.viewer(req))
   }
 
   @Put(':id/main-image')
@@ -445,11 +449,9 @@ export class StoriesController {
     return this.storyMediaService.removeMainImage(id, req.user)
   }
 
-  private getAuthenticatedUserId(req: AuthenticatedRequest): string {
-    const userId = req.user?.id
-    if (!userId) {
-      throw new UnauthorizedException('User not authenticated')
-    }
-    return userId
+  /** The signed-in user, whose permissions decide which stories they can read */
+  private viewer(req: AuthenticatedRequest): User {
+    if (!req.user) throw new UnauthorizedException('User not authenticated')
+    return req.user
   }
 }
