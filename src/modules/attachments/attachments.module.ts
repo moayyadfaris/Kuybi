@@ -18,6 +18,7 @@ import { DirectUploadService } from './services/direct-upload.service'
 import { ExifProcessorService } from './services/exif-processor.service'
 import { FileValidationService } from './services/file-validation.service'
 import { ImageOptimizationService } from './services/image-optimization.service'
+import { ImagePipelineService } from './services/image-pipeline.service'
 import { ImageProcessingService } from './services/image-processing.service'
 import { S3Service } from './services/s3.service'
 
@@ -42,6 +43,7 @@ import { S3Service } from './services/s3.service'
     ImageProcessingService,
     ImageOptimizationService,
     ExifProcessorService,
+    ImagePipelineService,
     S3Service
   ],
   exports: [
@@ -51,6 +53,7 @@ import { S3Service } from './services/s3.service'
     ImageProcessingService,
     ImageOptimizationService,
     ExifProcessorService,
+    ImagePipelineService,
     S3Service
   ]
 })

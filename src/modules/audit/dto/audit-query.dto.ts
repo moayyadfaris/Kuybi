@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ToArray } from '@shared/decorators/to-array.decorator'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Type } from 'class-transformer'
 import {
@@ -28,6 +29,7 @@ export class SearchAuditLogsDto {
   })
   @IsOptional()
   @IsEnum(AuditAction, { each: true })
+  @ToArray()
   @IsArray()
   action?: AuditAction[]
 
@@ -53,6 +55,7 @@ export class SearchAuditLogsDto {
   })
   @IsOptional()
   @IsEnum(AuditSeverity, { each: true })
+  @ToArray()
   @IsArray()
   severity?: AuditSeverity[]
 
@@ -63,6 +66,7 @@ export class SearchAuditLogsDto {
   })
   @IsOptional()
   @IsEnum(AuditStatus, { each: true })
+  @ToArray()
   @IsArray()
   status?: AuditStatus[]
 

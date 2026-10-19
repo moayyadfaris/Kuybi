@@ -30,16 +30,13 @@ import {
   AttachmentMetadata,
   extractFormatFromMime,
   mapFormatToContentType,
-  resolveExtensionFromFormat,
-  ThumbnailMetadata
+  resolveExtensionFromFormat
 } from '../utils/attachment-image.util'
 
 import { AttachmentAccessPolicy } from './attachment-access.policy'
 import { AttachmentVisibilityService } from './attachment-visibility.service'
-import { ExifProcessorService } from './exif-processor.service'
 import { FileValidationService, MulterFile } from './file-validation.service'
-import { ImageOptimizationService } from './image-optimization.service'
-import { ImageProcessingService } from './image-processing.service'
+import { ImagePipelineService, PreparedImage } from './image-pipeline.service'
 import { S3Service } from './s3.service'
 
 @Injectable()
@@ -49,9 +46,7 @@ export class AttachmentService {
   constructor(
     private readonly attachmentRepository: AttachmentRepository,
     private readonly fileValidationService: FileValidationService,
-    private readonly imageProcessingService: ImageProcessingService,
-    private readonly imageOptimizationService: ImageOptimizationService,
-    private readonly exifProcessorService: ExifProcessorService,
+    private readonly imagePipeline: ImagePipelineService,
     private readonly s3Service: S3Service,
     private readonly accessPolicy: AttachmentAccessPolicy,
     private readonly configService: ConfigService,
@@ -80,88 +75,19 @@ export class AttachmentService {
     const isPublic = this.visibility.resolveRequested(dto.category, dto.isPublic)
     const isImage = file.mimetype.startsWith('image/')
 
-    let processedBuffer = file.buffer
-    let metadata: AttachmentMetadata = {}
-    let thumbnailPath: string | undefined
-    let processedFormat: string | undefined = extractFormatFromMime(file.mimetype)
-    let placeholderBuffer: Buffer | undefined
-
-    // Process images with advanced optimization and EXIF stripping
+    // Images are stored only after metadata stripping: a failure rejects the upload
+    // instead of storing the original (which still carries GPS location and camera data)
+    let prepared: PreparedImage | undefined
     if (isImage) {
       try {
-        // Strip sensitive EXIF data first
-        const exifResult = await this.exifProcessorService.stripSensitiveData(file.buffer, {
-          stripSensitiveData: true,
-          preserveCopyright: true,
-          preserveColorProfile: true,
-          autoRotate: true
-        })
-        processedBuffer = exifResult.buffer
-
-        // Generate metadata summary (safe, no GPS/sensitive info)
-        const summary = await this.exifProcessorService.generateMetadataSummary(file.buffer)
-        metadata = { ...summary } as AttachmentMetadata
-
-        // Validate metadata for security concerns
-        const metadataValidation = await this.exifProcessorService.validateMetadata(file.buffer)
-        if (!metadataValidation.valid) {
-          this.logger.warn(
-            { issues: metadataValidation.issues },
-            'Image metadata validation issues detected'
-          )
-        }
-        metadata.validation = metadataValidation
-
-        // Generate optimized responsive image set
-        const optimizationResult = await this.imageOptimizationService.optimizeImage(
-          processedBuffer,
-          {
-            maxWidth: 2048,
-            maxHeight: 2048,
-            quality: 85,
-            stripMetadata: true,
-            autoRotate: false, // Already rotated by EXIF processor
-            generateWebP: true,
-            generateAVIF: true,
-            generatePlaceholder: true
-          }
-        )
-
-        // Use the optimized buffer
-        processedBuffer = optimizationResult.buffer
-        processedFormat = optimizationResult.format || processedFormat
-
-        // Upload thumbnail (Low-Quality Image Placeholder)
-        if (optimizationResult.placeholder) {
-          placeholderBuffer = optimizationResult.placeholder
-        }
-
-        // Store optimization metadata
-        metadata.optimization = {
-          originalSize: optimizationResult.originalSize,
-          optimizedSize: optimizationResult.size,
-          compressionRatio: optimizationResult.compressionRatio,
-          format: optimizationResult.format,
-          width: optimizationResult.width,
-          height: optimizationResult.height,
-          hasWebP: !!optimizationResult.webp,
-          hasAVIF: !!optimizationResult.avif,
-          hasPlaceholder: !!optimizationResult.placeholder
-        }
-
-        this.logger.info(
-          {
-            originalSize: optimizationResult.originalSize,
-            optimizedSize: optimizationResult.size,
-            ratio: optimizationResult.compressionRatio
-          },
-          'Image optimized successfully'
-        )
+        prepared = await this.imagePipeline.prepare(file.buffer)
       } catch (error) {
-        this.logger.error({ error: errorMessage(error) }, 'Image processing failed, using original')
-        // Continue with original buffer if processing fails
+        this.logger.error({ error: errorMessage(error) }, 'Image processing failed')
+        throw new BadRequestException('The image could not be processed')
       }
     }
+    const processedBuffer = prepared?.buffer ?? file.buffer
+    const processedFormat = prepared?.format ?? extractFormatFromMime(file.mimetype)
 
     const checksum = crypto.createHash('sha256').update(processedBuffer).digest('hex')
 
@@ -177,45 +103,19 @@ export class AttachmentService {
       extension: storageExtension
     })
 
-    const storedMimeType = isImage ? mapFormatToContentType(processedFormat) : file.mimetype
-
     await this.s3Service.upload({
       key: storageKey,
       buffer: processedBuffer,
-      contentType: storedMimeType,
+      contentType: prepared?.contentType ?? file.mimetype,
       isPublic
     })
 
-    if (placeholderBuffer) {
-      const placeholderKey = this.s3Service.generateVariantKey(storageKey, 'placeholder', '.jpg')
-      await this.s3Service.upload({
-        key: placeholderKey,
-        buffer: placeholderBuffer,
-        contentType: 'image/jpeg',
-        isPublic
-      })
-      metadata.optimization = {
-        ...(metadata.optimization || {}),
-        placeholderKey
-      }
-    }
-
-    if (isImage && dto.generateThumbnails !== false) {
-      try {
-        const { thumbnails: uploadedThumbnails, previewKey } = await this.uploadThumbnailVariants(
-          storageKey,
-          processedBuffer,
-          isPublic
-        )
-        thumbnailPath = previewKey
-        metadata.thumbnails = uploadedThumbnails
-      } catch (error) {
-        this.logger.error(
-          { error: error instanceof Error ? error.message : 'Unknown', storageKey },
-          'Failed to upload thumbnail variants'
-        )
-      }
-    }
+    const { metadata, thumbnailPath } = prepared
+      ? await this.imagePipeline.storeDerivatives(storageKey, prepared, isPublic, {
+          generateThumbnails: dto.generateThumbnails !== false
+        })
+      : { metadata: {} as AttachmentMetadata, thumbnailPath: undefined }
+    const storedMimeType = prepared?.contentType ?? file.mimetype
 
     const attachment = await this.attachmentRepository.create({
       userId,
@@ -270,12 +170,14 @@ export class AttachmentService {
 
     const storedMimeType = isImage ? mapFormatToContentType(processedFormat) : file.mimetype
 
-    // Upload original file to S3 first
+    // An image keeps its metadata (GPS location, camera) until the processor has
+    // stripped it: store it private, and the processor applies the requested visibility
+    // to the processed copy. Other files are final as uploaded.
     await this.s3Service.upload({
       key: storageKey,
       buffer: file.buffer,
       contentType: storedMimeType,
-      isPublic
+      isPublic: isImage ? false : isPublic
     })
 
     // The record and its processing job commit together: no attachment can be left
@@ -577,54 +479,5 @@ export class AttachmentService {
       thumbnails,
       placeholderUrl
     }
-  }
-
-  private async uploadThumbnailVariants(
-    baseKey: string,
-    buffer: Buffer,
-    isPublic: boolean
-  ): Promise<{ thumbnails: Record<string, ThumbnailMetadata>; previewKey?: string }> {
-    const generated = await this.imageProcessingService.generateThumbnails(buffer)
-    const thumbnails: Record<string, ThumbnailMetadata> = {}
-
-    await Promise.all(
-      Object.entries(generated).map(async ([variant, data]) => {
-        const extension = resolveExtensionFromFormat(data.format)
-        const key = this.s3Service.generateVariantKey(baseKey, variant, extension)
-
-        await this.s3Service.upload({
-          key,
-          buffer: data.buffer,
-          contentType: mapFormatToContentType(data.format),
-          isPublic
-        })
-
-        thumbnails[variant] = {
-          key,
-          width: data.width,
-          height: data.height,
-          size: data.size,
-          format: data.format
-        }
-      })
-    )
-
-    const previewPriority = ['medium', 'large', 'small', 'preview']
-    let previewKey: string | undefined
-
-    for (const variant of previewPriority) {
-      const entry = thumbnails[variant]
-      if (entry) {
-        previewKey = entry.key
-        break
-      }
-    }
-
-    if (!previewKey) {
-      const first = Object.values(thumbnails)[0]
-      previewKey = first?.key
-    }
-
-    return { thumbnails, previewKey }
   }
 }

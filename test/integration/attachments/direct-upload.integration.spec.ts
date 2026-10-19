@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { configureApp } from '@app/app.setup'
 import { ENTITIES } from '@app/database/entities'
 import { LoggerModule } from 'nestjs-pino'
+import sharp from 'sharp'
 import request from 'supertest'
 import { DataSource } from 'typeorm'
 
@@ -13,6 +14,7 @@ import { AttachmentsModule } from '@modules/attachments/attachments.module'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { DirectUploadService } from '@modules/attachments/services/direct-upload.service'
 import { S3Service } from '@modules/attachments/services/s3.service'
+import { hasGpsData } from '@modules/attachments/utils/exif-gps.util'
 import { AuthModule } from '@modules/auth/auth.module'
 import { StoriesModule } from '@modules/stories/stories.module'
 import { TagsModule } from '@modules/tags/tags.module'
@@ -77,7 +79,9 @@ class FakeStorage {
     })
     jest.spyOn(s3, 'upload').mockImplementation(async options => {
       this.uploads.set(options.key, options.isPublic)
+      this.objects.set(options.key, options.buffer)
       if (options.isPublic) this.publicKeys.add(options.key)
+      else this.publicKeys.delete(options.key)
       return { key: options.key, bucket: 'bucket', location: `https://storage.test/${options.key}` }
     })
     // makePublic delegates to setAcl
@@ -364,6 +368,75 @@ describe('Direct uploads', () => {
       const attachment = await stored(first.id)
       expect(attachment.isPublic).toBe(false)
       expect(storage.publicKeys.has(attachment.path)).toBe(false)
+    })
+  })
+
+  describe('image metadata on multipart uploads', () => {
+    const geotaggedJpeg = () =>
+      sharp({
+        create: {
+          width: 320,
+          height: 240,
+          channels: 3,
+          background: `#${Date.now().toString(16).slice(-6)}`
+        }
+      })
+        .jpeg()
+        .withExif({
+          IFD0: { Make: 'Canon' },
+          IFD3: {
+            GPSLatitudeRef: 'N',
+            GPSLatitude: '31/1 57/1 0/1',
+            GPSLongitudeRef: 'E',
+            GPSLongitude: '35/1 55/1 0/1'
+          }
+        })
+        .toBuffer()
+    const uploadImage = (body: Buffer, fields: Record<string, string>) => {
+      const req = http()
+        .post('/api/v1/attachments')
+        .set(as(owner.token))
+        .attach('file', body, { filename: 'holiday.jpg', contentType: 'image/jpeg' })
+      for (const [name, value] of Object.entries(fields)) req.field(name, value)
+      return req
+    }
+
+    it('stores the original without GPS (sync path)', async () => {
+      const res = await uploadImage(await geotaggedJpeg(), { async: 'false' }).expect(201)
+
+      const attachment = await stored(res.body.data.attachment.id)
+      const object = storage.objects.get(attachment.path)!
+      expect(hasGpsData((await sharp(object).metadata()).exif)).toBe(false)
+      expect(attachment.isPublic).toBe(true)
+    })
+
+    it('rejects an image it cannot process instead of storing it unstripped', async () => {
+      const before = storage.objects.size
+      // Valid JPEG signature, broken body: passes type detection, fails decoding
+      const broken = Buffer.concat([(await geotaggedJpeg()).subarray(0, 200), Buffer.alloc(64)])
+
+      await uploadImage(broken, { async: 'false' }).expect(400)
+
+      expect(storage.objects.size).toBe(before)
+    })
+
+    it('keeps an async image private until processed, even if made public meanwhile', async () => {
+      const res = await uploadImage(await geotaggedJpeg(), {
+        async: 'true',
+        isPublic: 'false'
+      }).expect(201)
+      const { id } = res.body.data.attachment
+      const attachment = await stored(id)
+      expect(storage.uploads.get(attachment.path)).toBe(false)
+
+      await http()
+        .patch(`/api/v1/attachments/${id}`)
+        .set(as(owner.token))
+        .send({ isPublic: true })
+        .expect(200)
+
+      expect((await stored(id)).isPublic).toBe(true) // the choice is recorded
+      expect(storage.publicKeys.has(attachment.path)).toBe(false) // the raw upload stays private
     })
   })
 })

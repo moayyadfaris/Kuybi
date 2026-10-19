@@ -60,13 +60,7 @@ export enum SMSJobType {
  * Attachment Processing Job Types
  */
 export enum AttachmentJobType {
-  PROCESS_IMAGE = 'process-image',
-  GENERATE_THUMBNAILS = 'generate-thumbnails',
-  VIRUS_SCAN = 'virus-scan',
-  CLEANUP_ORPHANED = 'cleanup-orphaned-files',
-  EXTRACT_METADATA = 'extract-metadata',
-  OPTIMIZE_IMAGE = 'optimize-image',
-  CONVERT_FORMAT = 'convert-format'
+  PROCESS_IMAGE = 'process-image'
 }
 
 /**

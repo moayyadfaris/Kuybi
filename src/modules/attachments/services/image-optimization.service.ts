@@ -97,12 +97,9 @@ export class ImageOptimizationService {
         image = image.rotate()
       }
 
-      // Strip metadata if requested (privacy/security)
-      if (options.stripMetadata) {
-        image = image.withMetadata({
-          exif: {}
-        })
-      }
+      // sharp output carries no EXIF/XMP/IPTC by default. withMetadata({ exif: {} }) used to
+      // be here: it KEEPS the input's metadata (GPS included) and merges into it.
+      image = options.stripMetadata ? image.keepIccProfile() : image.keepMetadata()
 
       // Resize if needed
       if (options.maxWidth || options.maxHeight) {
