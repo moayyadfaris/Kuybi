@@ -103,6 +103,7 @@ export class FieldDefinitionsService {
 
     // Invalidate caches
     await this.fieldDefinitionRepository.invalidateCacheForPostType(postTypeId)
+    await this.postTypesService.dropCached(postTypeId)
 
     return fieldDefinition
   }
@@ -181,6 +182,7 @@ export class FieldDefinitionsService {
 
     // Invalidate caches
     await this.fieldDefinitionRepository.invalidateCache(updated)
+    await this.postTypesService.dropCached(updated.postTypeId)
 
     return updated
   }
@@ -200,6 +202,7 @@ export class FieldDefinitionsService {
     // Invalidate the per-id/per-name caches as well as the post type lists,
     // otherwise findOne keeps serving the deleted field from cache
     await this.fieldDefinitionRepository.invalidateCache(fieldDefinition)
+    await this.postTypesService.dropCached(fieldDefinition.postTypeId)
   }
 
   /**
@@ -230,6 +233,7 @@ export class FieldDefinitionsService {
 
     // Reorder fields
     await this.fieldDefinitionRepository.reorderFields(postTypeId, fieldOrders)
+    await this.postTypesService.dropCached(postTypeId)
   }
 
   /**
