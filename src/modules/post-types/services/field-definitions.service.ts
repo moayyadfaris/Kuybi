@@ -9,6 +9,7 @@ import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { FieldDefinition } from '../entities/field-definition.entity'
 import { FieldType } from '../enums/field-type.enum'
 import { FieldDefinitionRepository } from '../repositories/field-definition.repository'
+import { PostContentRepository } from '../repositories/post-content.repository'
 
 import { PostTypesService } from './post-types.service'
 
@@ -22,6 +23,7 @@ import { PostTypesService } from './post-types.service'
 export class FieldDefinitionsService {
   constructor(
     private readonly fieldDefinitionRepository: FieldDefinitionRepository,
+    private readonly postContentRepository: PostContentRepository,
     private readonly postTypesService: PostTypesService
   ) {}
 
@@ -69,8 +71,9 @@ export class FieldDefinitionsService {
       )
     }
 
-    // Validate field definition
     this.validateFieldDefinition(data)
+    // Entries may still hold values under this name (from a deleted field of the same name)
+    if (data.isUnique) await this.assertNoDuplicates(postTypeId, data.name)
 
     // Get next display order if not provided
     const displayOrder =
@@ -159,8 +162,9 @@ export class FieldDefinitionsService {
   ): Promise<FieldDefinition> {
     const field = await this.findOne(id)
 
-    // Validate field definition
     this.validateFieldDefinition({ ...field, ...data })
+    if (data.isUnique && !field.isUnique)
+      await this.assertNoDuplicates(field.postTypeId, field.name)
 
     // Update field
     Object.assign(field, {
@@ -225,6 +229,15 @@ export class FieldDefinitionsService {
     // Reorder fields
     await this.fieldDefinitionRepository.reorderFields(postTypeId, fieldOrders)
     await this.postTypesService.dropCached(postTypeId)
+  }
+
+  /** A field can be made unique only while no two live entries share a value of it */
+  private async assertNoDuplicates(postTypeId: string, name: string): Promise<void> {
+    if (await this.postContentRepository.hasDuplicateValues(postTypeId, name)) {
+      throw new ConflictException(
+        `Entries already share values of '${name}'; make them distinct before making it unique`
+      )
+    }
   }
 
   /**

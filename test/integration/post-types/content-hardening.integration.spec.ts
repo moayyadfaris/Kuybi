@@ -224,6 +224,59 @@ describe('Dynamic content hardening', () => {
     })
   })
 
+  describe('unique fields', () => {
+    const sku = (value: string, as: Actor = admin) =>
+      create({ title: `Item ${value} ${Math.random()}`, field_data: { sku: value } }, as)
+
+    it('refuse a value another live entry has, on create and on update', async () => {
+      await field('sku', { isUnique: true })
+      const first = await sku('X1').expect(201)
+      await sku('X1').expect(409)
+
+      const second = await sku('X2').expect(201)
+      await t
+        .http()
+        .patch(`${base()}/${second.body.data.id}`)
+        .set(admin.auth)
+        .send({ field_data: { sku: 'X1' } })
+        .expect(409)
+      // Saving an entry with its own value is not a conflict
+      await t
+        .http()
+        .patch(`${base()}/${first.body.data.id}`)
+        .set(admin.auth)
+        .send({ field_data: { sku: 'X1' }, title: 'Renamed' })
+        .expect(200)
+
+      // A deleted entry's value is free again
+      await t.http().delete(`${base()}/${first.body.data.id}`).set(admin.auth).expect(204)
+      await sku('X1').expect(201)
+    })
+
+    it('let only one of several concurrent writers take a value', async () => {
+      await field('sku', { isUnique: true })
+
+      const statuses = (await Promise.all(Array.from({ length: 5 }, () => sku('RACE')))).map(
+        res => res.status
+      )
+      expect(statuses.filter(status => status === 201)).toHaveLength(1)
+      expect(statuses.filter(status => status === 409)).toHaveLength(4)
+    })
+
+    it('cannot be switched on while entries share a value', async () => {
+      const code = await field('code')
+      await create({ title: 'A', field_data: { code: 'same' } }).expect(201)
+      await create({ title: 'B', field_data: { code: 'same' } }).expect(201)
+
+      await t
+        .http()
+        .patch(`/api/v1/post-types/${postType.id}/fields/${code.id}`)
+        .set(admin.auth)
+        .send({ isUnique: true })
+        .expect(409)
+    })
+  })
+
   describe('reuse after a soft delete', () => {
     it('frees a content slug', async () => {
       const first = await create({ title: 'Hello' }).expect(201)

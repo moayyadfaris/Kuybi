@@ -9,6 +9,7 @@ import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 import { User } from '@modules/users/entities'
 
+import { FieldDefinition } from '../entities/field-definition.entity'
 import { PostContent } from '../entities/post-content.entity'
 import { PostType } from '../entities/post-type.entity'
 import { ContentStatus } from '../enums/content-status.enum'
@@ -28,7 +29,8 @@ export interface ContentInput {
 }
 
 /**
- * Entries of a post type: field_data validated against the type's field definitions,
+ * Entries of a post type: field_data validated against the type's field definitions
+ * (values of fields marked unique may not repeat among live entries of the type),
  * the publishing workflow (draft, scheduled, published) and soft delete. Public readers
  * get published entries of active post types only (ContentAccessPolicy).
  */
@@ -55,7 +57,10 @@ export class ContentService {
     const status = data.status ?? ContentStatus.DRAFT
     this.accessPolicy.assertCanSetStatus(author, status)
     const fieldData = data.fieldData ?? {}
-    await this.assertValidFieldData(postType.id, fieldData)
+    const fields = await this.fieldDefinitionsService.findByPostType(postType.id)
+    this.fieldValidationService.throwIfInvalid(
+      await this.fieldValidationService.validateFieldData(fields, fieldData)
+    )
 
     // Generated slugs get a numeric suffix on collision (among live entries)
     const slug = await uniqueSlug(slugify(data.title, { fallback: 'content' }), candidate =>
@@ -63,18 +68,21 @@ export class ContentService {
     )
 
     try {
-      return await this.postContentRepository.save({
-        postTypeId: postType.id,
-        title: data.title,
-        slug,
-        excerpt: data.excerpt,
-        fieldData,
-        status,
-        authorId: author.id,
-        publishedAt: status === ContentStatus.PUBLISHED ? new Date() : undefined,
-        scheduledAt: data.scheduledAt,
-        createdBy: author.id
-      })
+      return await this.saveUnique(
+        {
+          postTypeId: postType.id,
+          title: data.title,
+          slug,
+          excerpt: data.excerpt,
+          fieldData,
+          status,
+          authorId: author.id,
+          publishedAt: status === ContentStatus.PUBLISHED ? new Date() : undefined,
+          scheduledAt: data.scheduledAt,
+          createdBy: author.id
+        },
+        fields
+      )
     } catch (error) {
       // Another entry took the slug since the check
       if (isUniqueViolation(error)) throw new ConflictException('Slug already exists')
@@ -133,8 +141,9 @@ export class ContentService {
       if (data.status === ContentStatus.PUBLISHED) changes.publishedAt = new Date()
     }
 
+    let fields: FieldDefinition[] = []
     if (data.fieldData) {
-      const fields = await this.fieldDefinitionsService.findByPostType(content.postTypeId)
+      fields = await this.fieldDefinitionsService.findByPostType(content.postTypeId)
       const defined = new Set(fields.map(field => field.name))
       const kept = Object.fromEntries(
         Object.entries(content.fieldData ?? {}).filter(([name]) => defined.has(name))
@@ -145,13 +154,10 @@ export class ContentService {
       )
     }
 
-    const updated = await this.postContentRepository.save({
-      ...content,
-      ...changes,
-      updatedBy: editor.id,
-      version: content.version + 1
-    })
-    return updated
+    return this.saveUnique(
+      { ...content, ...changes, updatedBy: editor.id, version: content.version + 1 },
+      fields
+    )
   }
 
   /** Soft delete; the slug becomes free for a new entry */
@@ -193,10 +199,22 @@ export class ContentService {
     return content
   }
 
-  private async assertValidFieldData(postTypeId: string, fieldData: Record<string, unknown>) {
-    const fields = await this.fieldDefinitionsService.findByPostType(postTypeId)
-    this.fieldValidationService.throwIfInvalid(
-      await this.fieldValidationService.validateFieldData(fields, fieldData)
-    )
+  /**
+   * Saves the entry; 409 when a field marked unique (among `fields`, the definitions of
+   * the field data being written) has a value another live entry of the type already has
+   */
+  private async saveUnique(
+    entry: Partial<PostContent> & { postTypeId: string },
+    fields: FieldDefinition[]
+  ): Promise<PostContent> {
+    const unique = fields.filter(field => field.isUnique).map(field => field.name)
+    const { saved, conflicts } = await this.postContentRepository.saveUnlessDuplicate(entry, unique)
+    if (!saved) {
+      throw new ConflictException({
+        message: `Another entry already has this value: ${conflicts.join(', ')}`,
+        fields: conflicts
+      })
+    }
+    return saved
   }
 }

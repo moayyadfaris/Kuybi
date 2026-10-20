@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { DeepPartial, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
 import { PostContent } from '../entities/post-content.entity'
 import { ContentStatus } from '../enums/content-status.enum'
+
+/** First key of the advisory lock serializing writes of unique field values (per post type) */
+const UNIQUE_VALUES_LOCK = 0x50_43 // "PC"
+
+/** Values that do not take part in uniqueness (an empty field is not a duplicate) */
+const isEmpty = (value: unknown) => value === null || value === undefined || value === ''
 
 /** Columns of the author shown with an entry: who wrote it, not how to reach them */
 const AUTHOR_COLUMNS = ['author.id', 'author.name']
@@ -77,6 +83,60 @@ export class PostContentRepository extends BaseRepository<PostContent> {
         .where('pc.postTypeId = :postTypeId AND pc.slug = :slug', { postTypeId, slug })
         .getOne()
     )
+  }
+
+  /**
+   * Saves the entry unless another live entry of its post type has the same value in one
+   * of `uniqueFields`; returns the fields in conflict instead. The check and the save run
+   * in one transaction holding the post type's lock, so concurrent writers cannot both
+   * take a value.
+   */
+  async saveUnlessDuplicate(
+    entry: DeepPartial<PostContent> & { postTypeId: string },
+    uniqueFields: string[]
+  ): Promise<{ saved?: PostContent; conflicts: string[] }> {
+    const fieldData = (entry.fieldData ?? {}) as Record<string, unknown>
+    const checked = uniqueFields.filter(name => !isEmpty(fieldData[name]))
+    return this.transaction(
+      async manager => {
+        if (checked.length > 0) {
+          await manager.query('SELECT pg_advisory_xact_lock($1, hashtext($2))', [
+            UNIQUE_VALUES_LOCK,
+            entry.postTypeId
+          ])
+        }
+        const conflicts: string[] = []
+        for (const name of checked) {
+          const [taken] = await manager.query(
+            `SELECT 1 FROM post_content
+              WHERE "postTypeId" = $1 AND "deletedAt" IS NULL
+                AND "fieldData" -> $2 = $3::jsonb
+                AND ($4::uuid IS NULL OR id <> $4)
+              LIMIT 1`,
+            [entry.postTypeId, name, JSON.stringify(fieldData[name]), entry.id ?? null]
+          )
+          if (taken) conflicts.push(name)
+        }
+        if (conflicts.length > 0) return { conflicts }
+        return { saved: await manager.save(PostContent, entry), conflicts }
+      },
+      { touched: entry.id ? [entry.id] : [] }
+    )
+  }
+
+  /** Whether two live entries of the post type share a (non-empty) value of this field */
+  async hasDuplicateValues(postTypeId: string, fieldName: string): Promise<boolean> {
+    const [duplicate] = await this.repository.query(
+      `SELECT 1 FROM post_content
+        WHERE "postTypeId" = $1 AND "deletedAt" IS NULL
+          AND "fieldData" -> $2 IS NOT NULL
+          AND "fieldData" -> $2 NOT IN ('null'::jsonb, '""'::jsonb)
+        GROUP BY "fieldData" -> $2
+       HAVING COUNT(*) > 1
+        LIMIT 1`,
+      [postTypeId, fieldName]
+    )
+    return !!duplicate
   }
 
   /** Whether a live entry of the post type has this slug */

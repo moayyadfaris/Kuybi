@@ -768,6 +768,9 @@ DELETE /api/v1/content/:postTypeSlug/:id           # delete:Content (soft)
   the worker within a minute of their time.
 - `PATCH` merges `field_data` into the stored values; values of fields removed from the
   post type are dropped. File, image and video values must be http(s) URLs.
+- A field marked `isUnique` takes each value once among the live entries of its post type:
+  a repeat answers `409` (with the conflicting `fields`), concurrent writers included.
+  Marking a field unique while entries share a value also answers `409`.
 - Names of post types and fields, and entry slugs, can be reused after a delete.
 - Entries show their author's id and name only.
 
