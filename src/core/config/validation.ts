@@ -1,6 +1,6 @@
 import { ENVIRONMENTS, isLocalEnvironment } from '@shared/utils/environment'
 import { plainToInstance } from 'class-transformer'
-import { IsIn, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator'
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min, validateSync } from 'class-validator'
 
 class EnvironmentVariables {
   // A typo such as "prod" must not boot with the development defaults
@@ -169,6 +169,11 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SMTP_PASSWORD?: string
+
+  // Prefix of every cache key; letters, digits, dot, dash and underscore
+  @Matches(/^[A-Za-z0-9._-]+$/)
+  @IsOptional()
+  CACHE_NAMESPACE?: string
 
   @IsString()
   @IsOptional()

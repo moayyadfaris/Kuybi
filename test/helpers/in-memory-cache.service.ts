@@ -41,39 +41,10 @@ export class InMemoryCacheService implements CacheServiceApi {
     this.store.delete(key)
   }
 
-  async scanKeys(pattern: string): Promise<string[]> {
-    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-    return [...this.store.keys()].filter(key => regex.test(key))
-  }
-
-  async delPattern(pattern: string): Promise<void> {
-    for (const key of await this.scanKeys(pattern)) {
-      this.store.delete(key)
-    }
-  }
-
+  /** Test-only: forget everything between tests */
   async reset(): Promise<void> {
     this.store.clear()
     this.tagIndex.clear()
-  }
-
-  async wrap<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    if (this.store.has(key)) {
-      return this.read<T>(key) as T
-    }
-    // Like cache-manager: a miss returns the freshly computed value itself
-    const value = await fn()
-    this.write(key, value)
-    return value
-  }
-
-  async wrapWithTags<T>(key: string, tags: string[], fn: () => Promise<T>): Promise<T> {
-    if (this.store.has(key)) {
-      return this.read<T>(key) as T
-    }
-    const value = await fn()
-    await this.setWithTags(key, value, tags)
-    return value
   }
 
   async setWithTags<T>(key: string, value: T, tags: string[]): Promise<void> {

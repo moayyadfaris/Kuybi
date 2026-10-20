@@ -132,7 +132,9 @@ export default () => {
       password: process.env.REDIS_PASSWORD || undefined,
       db: parseInt(process.env.REDIS_DB || '0', 10),
       queueDb: parseInt(process.env.REDIS_QUEUE_DB || '1', 10), // Separate DB for queues
-      ttl: parseInt(process.env.REDIS_TTL || '3600', 10) // 1 hour default
+      ttl: parseInt(process.env.REDIS_TTL || '3600', 10), // 1 hour default
+      // Prefix of every cache key (entries and tag sets); the Redis server may be shared
+      cacheNamespace: process.env.CACHE_NAMESPACE || 'kuybi'
     },
     s3: {
       bucket: defaultBucket,

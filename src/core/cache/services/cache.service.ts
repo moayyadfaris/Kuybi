@@ -1,65 +1,63 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { errorMessage } from '@shared/utils/error.util'
 import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { Cache } from 'cache-manager'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-/**
- * Cache Service
- *
- * Provides helper methods for cache operations
- * Abstracts cache-manager for easier testing and maintenance
- */
-/**
- * Structural view of the cache-manager / Keyv / Redis objects this service probes.
- * Store internals differ across cache-manager v5-v7, Keyv and the Redis client in use
- * (node-redis or ioredis), so every member is optional and checked before use.
- */
-interface RedisClientLike {
-  scanIterator?: (options: {
-    MATCH: string
-  }) => AsyncIterable<string | Buffer | (string | Buffer)[]>
-  keys?: (pattern: string) => Promise<string[]>
-  sadd?: (key: string, member: string) => Promise<unknown>
-  smembers?: (key: string) => Promise<string[]>
-  expire?: (key: string, seconds: number) => Promise<unknown>
-  del?: (key: string) => Promise<unknown>
-  call?: (command: string, ...args: (string | number)[]) => Promise<unknown>
-  sendCommand?: (args: string[]) => Promise<unknown>
+/** What this service needs from the Redis client behind the Keyv store */
+interface ScriptRunner {
+  eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>
 }
 
-interface KeyvStoreLike {
-  client?: RedisClientLike
-  _client?: RedisClientLike
+/** The Keyv instance cache-manager holds, with its @keyv/redis adapter */
+interface RedisKeyv {
   namespace?: string
-  _namespace?: string
+  store: { getClient(): Promise<ScriptRunner> }
 }
 
-interface KeyvLike {
-  _store?: KeyvStoreLike
-  store?: KeyvStoreLike & { reset?: () => Promise<void> }
-  opts?: { store?: KeyvStoreLike; namespace?: string }
-  _namespace?: string
-  iterator?: (namespace?: string) => AsyncIterable<[string, unknown]>
-}
+/**
+ * Adds an entry key to a tag set, extending the set's TTL but never shortening it: the
+ * set must outlive every entry it tracks, or a long-lived entry could no longer be
+ * invalidated. A set without TTL gets one.
+ */
+const TAG_SCRIPT = `
+redis.call('SADD', KEYS[1], ARGV[1])
+local ttl = tonumber(ARGV[2])
+if redis.call('TTL', KEYS[1]) < ttl then redis.call('EXPIRE', KEYS[1], ttl) end
+return 1`
 
-interface CacheStoreLike extends KeyvLike {
-  stores?: KeyvLike[]
-}
+/**
+ * Deletes every entry of a tag set and the set, atomically: an entry tagged while the
+ * invalidation runs cannot be dropped from the set yet survive in the cache.
+ * (Single-node Redis: entry keys are derived, not declared in KEYS.)
+ */
+const INVALIDATE_SCRIPT = `
+local members = redis.call('SMEMBERS', KEYS[1])
+for _, key in ipairs(members) do redis.call('UNLINK', ARGV[1] .. key) end
+redis.call('DEL', KEYS[1])
+return #members`
 
+/**
+ * The application cache: get/set/del plus tag-based invalidation (ADR 0003). Entries are
+ * stored by Keyv under the app's namespace; tag sets are plain Redis sets under
+ * `<namespace>:_tags:` (no entity name starts with an underscore, so a tag set never
+ * shares a key with an entry). Every call goes through a timeout and a circuit breaker and degrades
+ * to a miss (or a no-op) when Redis is unavailable.
+ */
 @Injectable()
 export class CacheService {
   private readonly timeoutMs: number
   private readonly breaker: CircuitBreaker
+  private readonly defaultTtlSeconds: number
 
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @InjectPinoLogger(CacheService.name) private readonly logger: PinoLogger,
     private readonly configService: ConfigService
   ) {
     this.timeoutMs = this.configService.get<number>('resilience.cache.timeoutMs', 1500)
+    this.defaultTtlSeconds = this.configService.get<number>('redis.ttl', 3600)
     this.breaker = new CircuitBreaker({
       name: 'cache',
       failureThreshold: this.configService.get<number>('resilience.cache.failureThreshold', 10),
@@ -68,394 +66,128 @@ export class CacheService {
     })
   }
 
-  /**
-   * Get cached value by key
-   */
   async get<T>(key: string): Promise<T | undefined> {
-    return this.executeWithResilience('get', () => this.cacheManager.get<T>(key), undefined, {
-      key
-    })
+    const value = await this.resilient('get', () => this.cacheManager.get<T>(key), { key })
+    return value ?? undefined
   }
 
-  /**
-   * Set cached value with optional TTL (seconds)
-   */
+  /** Stores a value; `ttl` in seconds (the configured default when omitted) */
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
-    const ttlMs = this.normalizeTtl(ttl)
-    await this.executeWithResilience(
-      'set',
-      () => this.cacheManager.set(key, value, ttlMs),
-      undefined,
-      {
-        key,
-        ttl
-      }
-    )
+    await this.resilient('set', () => this.cacheManager.set(key, value, this.ttlMs(ttl)), {
+      key,
+      ttl
+    })
   }
 
-  /**
-   * Delete cached value by key
-   */
   async del(key: string): Promise<void> {
-    await this.executeWithResilience('del', () => this.cacheManager.del(key), undefined, { key })
+    await this.resilient('del', () => this.cacheManager.del(key), { key })
   }
 
   /**
-   * Delete multiple keys matching a pattern
-   * WARNING: This can be expensive on large keyspaces
-   */
-  async delPattern(pattern: string): Promise<void> {
-    await this.executeWithResilience(
-      'delPattern',
-      () => this.deletePatternInternal(pattern),
-      undefined,
-      {
-        pattern
-      }
-    )
-  }
-
-  /**
-   * List the keys matching a glob pattern (SCAN, never KEYS on node-redis). The keys are
-   * returned without the store namespace, ready for get/del. Returns [] on cache failure.
-   */
-  async scanKeys(pattern: string): Promise<string[]> {
-    return this.executeWithResilience('scanKeys', () => this.scanKeysInternal(pattern), [], {
-      pattern
-    })
-  }
-
-  /**
-   * Clear all cached values
-   * Note: This requires direct access to the underlying store
-   */
-  async reset(): Promise<void> {
-    await this.executeWithResilience('reset', async () => {
-      const cacheStore = this.cacheManager as unknown as CacheStoreLike
-      if (cacheStore.store?.reset) {
-        await cacheStore.store.reset()
-      } else {
-        this.logger.warn('Cache reset not supported by current store')
-      }
-    })
-  }
-
-  /**
-   * Wrap a function with caching
-   */
-  async wrap<T>(key: string, fn: () => Promise<T>, ttl?: number): Promise<T> {
-    const ttlMs = this.normalizeTtl(ttl)
-    return this.executeWithResilience(
-      'wrap',
-      () => this.cacheManager.wrap(key, fn, ttlMs),
-      undefined,
-      { key, ttl },
-      fn
-    )
-  }
-
-  /**
-   * Wrap a function with tag-based caching
-   */
-  async wrapWithTags<T>(
-    key: string,
-    tags: string[],
-    fn: () => Promise<T>,
-    ttl?: number
-  ): Promise<T> {
-    // Try to get from cache first
-    const cached = await this.get<T>(key)
-    if (cached !== undefined && cached !== null) {
-      return cached
-    }
-
-    // Execute function
-    const value = await fn()
-
-    // Set with tags
-    await this.setWithTags(key, value, tags, ttl)
-
-    return value
-  }
-
-  /**
-   * Check if cache store is available (health check)
-   */
-  async isHealthy(): Promise<boolean> {
-    try {
-      const testKey = 'health:check'
-      await this.set(testKey, true, 5)
-      const value = await this.get(testKey)
-      await this.del(testKey)
-      return value === true
-    } catch (error) {
-      this.logger.error({ msg: 'Cache health check failed', error: errorMessage(error) })
-      return false
-    }
-  }
-
-  /**
-   * Build namespaced cache key
-   */
-  buildKey(namespace: string, ...parts: (string | number)[]): string {
-    return [namespace, ...parts].join(':')
-  }
-
-  /**
-   * Convert TTL seconds to milliseconds accepted by cache-manager
-   */
-  private normalizeTtl(ttl?: number): number | undefined {
-    if (typeof ttl !== 'number' || !isFinite(ttl) || ttl <= 0) {
-      return undefined
-    }
-    return Math.round(ttl * 1000)
-  }
-
-  private async executeWithResilience<T>(
-    operation: string,
-    fn: () => Promise<T>,
-    fallbackValue?: T,
-    meta?: Record<string, unknown>,
-    fallbackFn?: () => Promise<T>
-  ): Promise<T> {
-    try {
-      return await this.breaker.exec(() =>
-        withTimeout(
-          () => fn(),
-          this.timeoutMs,
-          () =>
-            this.logger.warn(
-              { operation, timeoutMs: this.timeoutMs, ...meta },
-              `Cache ${operation} timed out after ${this.timeoutMs}ms`
-            )
-        )
-      )
-    } catch (error) {
-      this.logger.error(
-        { msg: `Cache ${operation} error`, error: (error as Error).message, ...meta },
-        `Cache ${operation} failed`
-      )
-      if (fallbackFn) {
-        return fallbackFn()
-      }
-      return fallbackValue as T
-    }
-  }
-
-  private async scanKeysInternal(pattern: string): Promise<string[]> {
-    const redisClient = this.getRedisClient()
-
-    const cacheStore = this.cacheManager as unknown as CacheStoreLike
-    const keyvInstance: KeyvLike = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
-    const keyvStore: KeyvStoreLike | null =
-      keyvInstance?._store ?? keyvInstance?.store ?? keyvInstance?.opts?.store ?? null
-
-    const namespace: string =
-      keyvInstance?._namespace ??
-      keyvInstance?.opts?.namespace ??
-      keyvStore?.namespace ??
-      keyvStore?._namespace ??
-      ''
-
-    // Keyv always joins namespace and key with ':', regardless of the store's keyPrefixSeparator
-    const prefix = namespace ? `${namespace}:` : ''
-    const namespacedPattern = `${prefix}${pattern}`
-    const stripPrefix = (key: string | Buffer): string => {
-      const value = typeof key === 'string' ? key : key.toString()
-      return prefix && value.startsWith(prefix) ? value.slice(prefix.length) : value
-    }
-
-    const keys = new Set<string>()
-
-    if (redisClient?.scanIterator) {
-      // node-redis 5 yields one batch (string[]) per SCAN page; v4 yielded single keys.
-      // SCAN may return a key more than once, hence the Set.
-      for await (const batch of redisClient.scanIterator({ MATCH: namespacedPattern })) {
-        for (const key of Array.isArray(batch) ? batch : [batch]) {
-          keys.add(stripPrefix(key))
-        }
-      }
-    } else if (redisClient?.keys) {
-      for (const key of await redisClient.keys(namespacedPattern)) {
-        keys.add(stripPrefix(key))
-      }
-    } else if (typeof keyvInstance?.iterator === 'function') {
-      const escaped = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
-      const matcher = new RegExp(`^${escaped.replace(/\*/g, '.*')}$`)
-      for await (const [key] of keyvInstance.iterator(namespace || undefined)) {
-        if (matcher.test(key)) {
-          keys.add(key)
-        }
-      }
-    } else {
-      this.logger.warn({ pattern }, 'Cache store does not support key scanning')
-    }
-
-    return [...keys]
-  }
-
-  private async deletePatternInternal(pattern: string): Promise<void> {
-    this.logger.info({ pattern }, 'Attempting to delete cache keys matching pattern')
-
-    const keysToDelete = await this.scanKeysInternal(pattern)
-
-    if (keysToDelete.length === 0) {
-      this.logger.info({ pattern }, 'No cache keys found matching pattern')
-      return
-    }
-
-    await Promise.all(keysToDelete.map((key: string) => this.del(key)))
-    this.logger.info({ pattern, deletedCount: keysToDelete.length }, 'Cache keys deleted')
-  }
-
-  /**
-   * Set cached value with tags for group invalidation
-   * Tags enable invalidating all cache entries belonging to a logical group
-   * Example: setWithTags('story:123', data, ['stories', 'story:user:456'], 3600)
+   * Stores a value and records its key under each tag, for invalidateTag. If the tags
+   * cannot be recorded the entry is removed again: an untracked entry could never be
+   * invalidated and would be served stale until it expires.
    */
   async setWithTags<T>(key: string, value: T, tags: string[], ttl?: number): Promise<void> {
-    // Set the main cache entry
     await this.set(key, value, ttl)
-
-    // Store tags-to-keys mapping in Redis sets
-    await this.executeWithResilience(
+    const tagTtl = String(this.ttlSeconds(ttl) + 300)
+    const tagged = await this.resilient(
       'setWithTags',
       async () => {
-        const redisClient = this.getRedisClient()
-
-        if (redisClient) {
-          // Add this key to each tag's set
-          for (const tag of tags) {
-            const tagKey = `cache:tag:${tag}`
-            try {
-              // Try multiple ways to execute redis commands (ioredis vs node-redis vs wrappers)
-              if (typeof redisClient.sadd === 'function') {
-                await redisClient.sadd(tagKey, key)
-                if (ttl) await redisClient.expire?.(tagKey, ttl + 300)
-              } else if (typeof redisClient.call === 'function') {
-                // ioredis generic call
-                await redisClient.call('sadd', tagKey, key)
-                if (ttl) await redisClient.call('expire', tagKey, ttl + 300)
-              } else if (typeof redisClient.sendCommand === 'function') {
-                // node-redis generic call
-                await redisClient.sendCommand(['SADD', tagKey, key])
-                if (ttl) await redisClient.sendCommand(['EXPIRE', tagKey, (ttl + 300).toString()])
-              } else {
-                this.logger.warn(
-                  { tag, key },
-                  'Redis client found but no compatible command method found'
-                )
-                continue
-              }
-            } catch (err) {
-              this.logger.warn(
-                { tag, key, error: errorMessage(err) },
-                'Failed to add tag to Redis set'
-              )
-            }
-          }
-
-          this.logger.debug({ key, tags }, 'Cache entry tagged successfully')
-        } else {
-          this.logger.warn(
-            { key, tags },
-            'Redis tagging not supported (client not found), falling back to regular cache'
-          )
+        const client = await this.client()
+        for (const tag of tags) {
+          await client.eval(TAG_SCRIPT, { keys: [this.tagKey(tag)], arguments: [key, tagTtl] })
         }
+        return true
       },
-      undefined,
       { key, tags }
     )
+    if (!tagged) await this.del(key)
   }
 
-  /**
-   * Invalidate all cache entries associated with a tag
-   * Example: invalidateTag('stories') // Clears all story-related caches
-   */
+  /** Deletes every entry recorded under the tag */
   async invalidateTag(tag: string): Promise<void> {
-    await this.executeWithResilience(
+    await this.resilient(
       'invalidateTag',
       async () => {
-        const redisClient = this.getRedisClient()
-
-        if (!redisClient) {
-          this.logger.warn({ tag }, 'Redis tagging not supported, skipping tag invalidation')
-          return
-        }
-
-        const tagKey = `cache:tag:${tag}`
-        let keys: string[]
-
-        try {
-          if (typeof redisClient.smembers === 'function') {
-            keys = await redisClient.smembers(tagKey)
-          } else if (typeof redisClient.call === 'function') {
-            keys = (await redisClient.call('smembers', tagKey)) as string[]
-          } else if (typeof redisClient.sendCommand === 'function') {
-            keys = (await redisClient.sendCommand(['SMEMBERS', tagKey])) as string[]
-          } else {
-            this.logger.warn(
-              { tag },
-              'Redis client found but no compatible command method found for smembers'
-            )
-            return
-          }
-        } catch (err) {
-          this.logger.error({ tag, error: errorMessage(err) }, 'Failed to fetch keys for tag')
-          return
-        }
-
-        if (keys.length === 0) {
-          this.logger.debug({ tag }, 'No cache entries found for tag')
-          return
-        }
-
-        // Delete all cache entries
-        await Promise.all(keys.map((key: string) => this.del(key)))
-
-        // Delete the tag set itself
-        try {
-          if (typeof redisClient.del === 'function') {
-            await redisClient.del(tagKey)
-          } else if (typeof redisClient.call === 'function') {
-            await redisClient.call('del', tagKey)
-          } else if (typeof redisClient.sendCommand === 'function') {
-            await redisClient.sendCommand(['DEL', tagKey])
-          }
-        } catch (err) {
-          this.logger.warn({ tag, error: errorMessage(err) }, 'Failed to delete tag key')
-        }
-
-        this.logger.info({ tag, keysInvalidated: keys.length }, 'Cache tag invalidated')
+        const client = await this.client()
+        const count = await client.eval(INVALIDATE_SCRIPT, {
+          keys: [this.tagKey(tag)],
+          arguments: [this.entryPrefix()]
+        })
+        this.logger.debug({ tag, keysInvalidated: count }, 'Cache tag invalidated')
       },
-      undefined,
       { tag }
     )
   }
 
-  /**
-   * Invalidate multiple tags at once
-   * Example: invalidateTags(['stories', 'categories'])
-   */
   async invalidateTags(tags: string[]): Promise<void> {
     await Promise.all(tags.map(tag => this.invalidateTag(tag)))
-    this.logger.info({ tags, count: tags.length }, 'Multiple cache tags invalidated')
   }
 
-  private getRedisClient(): RedisClientLike | null {
-    const cacheStore = this.cacheManager as unknown as CacheStoreLike
-    // Robust discovery logic for cache-manager v5/v6/v7 and Keyv
-    const keyvInstance: KeyvLike = cacheStore?.store ?? cacheStore?.stores?.[0] ?? cacheStore
-    const keyvStore: KeyvStoreLike | null =
-      keyvInstance?._store ?? keyvInstance?.store ?? keyvInstance?.opts?.store ?? null
+  /** Round-trips a value through the cache (health checks) */
+  async isHealthy(): Promise<boolean> {
+    const key = 'health:check'
+    await this.set(key, true, 5)
+    const value = await this.get(key)
+    await this.del(key)
+    return value === true
+  }
 
-    const redisClient: RedisClientLike | null =
-      keyvStore?.client ??
-      keyvStore?._client ??
-      cacheStore?.store?.client ??
-      cacheStore?.store?._client ??
-      null
+  buildKey(namespace: string, ...parts: (string | number)[]): string {
+    return [namespace, ...parts].join(':')
+  }
 
-    return redisClient
+  private get keyv(): RedisKeyv {
+    return (this.cacheManager as unknown as { stores: RedisKeyv[] }).stores[0]
+  }
+
+  /**
+   * The connected Redis client. Keyv connects it lazily on its first get or set, so a
+   * process whose first cache call is a tag operation (a worker job) must connect it.
+   */
+  private client(): Promise<ScriptRunner> {
+    return this.keyv.store.getClient()
+  }
+
+  /** Raw Redis prefix of Keyv entries, e.g. "kuybi:" */
+  private entryPrefix(): string {
+    return this.keyv.namespace ? `${this.keyv.namespace}:` : ''
+  }
+
+  private tagKey(tag: string): string {
+    return `${this.entryPrefix()}_tags:${tag}`
+  }
+
+  private ttlSeconds(ttl?: number): number {
+    return typeof ttl === 'number' && isFinite(ttl) && ttl > 0 ? ttl : this.defaultTtlSeconds
+  }
+
+  private ttlMs(ttl?: number): number {
+    return Math.round(this.ttlSeconds(ttl) * 1000)
+  }
+
+  /** Runs a cache call through the breaker and timeout; undefined when it fails */
+  private async resilient<T>(
+    operation: string,
+    fn: () => Promise<T>,
+    meta: Record<string, unknown>
+  ): Promise<T | undefined> {
+    try {
+      return await this.breaker.exec(() =>
+        withTimeout(fn, this.timeoutMs, () =>
+          this.logger.warn(
+            { operation, timeoutMs: this.timeoutMs, ...meta },
+            'Cache call timed out'
+          )
+        )
+      )
+    } catch (error) {
+      this.logger.error(
+        { operation, error: (error as Error).message, ...meta },
+        `Cache ${operation} failed`
+      )
+      return undefined
+    }
   }
 }

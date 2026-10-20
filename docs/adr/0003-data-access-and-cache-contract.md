@@ -27,9 +27,8 @@ served stale.
   - A single row picked by a query rather than a unique key (the latest version, the
     newest duplicate, `findOne(where)`) is a **selection**: `cached(..., { selection:
 true })` tags it with the list tag too, because a new row can become the answer.
-  - **Invalidation is by tag only.** Repositories do not delete keys (`del`) or key
-    patterns (`delPattern`, a SCAN of the whole keyspace): every entry is tagged, so the
-    tags reach it. Writes that bypass the base methods (raw inserts, bulk updates) call
+  - **Invalidation is by tag only.** Repositories do not delete keys (`del`); there are
+    no pattern deletes: every entry is tagged, so the tags reach it. Writes that bypass the base methods (raw inserts, bulk updates) call
     `invalidateCacheByEntityId`, `invalidateListCaches` or `invalidateCacheByTag`.
   - A write invalidates the row it touched and the list tag; other rows stay cached.
   - An entry that **embeds rows of another entity** (a story with its tags, categories,
@@ -60,7 +59,7 @@ true })` tags it with the list tag too, because a new row can become the answer.
   `@InjectRepository`, `@InjectDataSource`, `@InjectEntityManager`, or `DataSource` /
   `EntityManager` constructor parameters.
 - ESLint (repositories): no `this.cacheService.wrap/set`; use `cached()` / `cacheSet()`.
-  No `this.cacheService.del/delPattern`; invalidate by tag.
+  No `this.cacheService.del`; invalidate by tag.
 - `scripts/check-module-graph.js`: `forFeature` only with the module's own entities.
 - Tests: `base-repository-cache.integration.spec.ts` (real Postgres and Redis, including
   selections), `story-cache.integration.spec.ts` (embedded rows), `role-cache.integration.spec.ts`, the countries search freshness test and the

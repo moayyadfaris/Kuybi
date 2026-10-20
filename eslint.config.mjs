@@ -19,7 +19,8 @@ const NO_ANY_CAST = {
 
 /** Error codes are part of the API: one catalogue (ErrorCode), no ad-hoc strings */
 const ERROR_CODE_LITERAL = {
-  selector: "NewExpression[callee.name=/Exception$/] Property[key.name='code'][value.type='Literal']",
+  selector:
+    "NewExpression[callee.name=/Exception$/] Property[key.name='code'][value.type='Literal']",
   message: "Use a code from ErrorCode ('@shared/errors'); add it there if it is new."
 }
 
@@ -239,15 +240,15 @@ export default tseslint.config(
         ...SRC_SELECTORS,
         {
           selector:
-            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(wrap|set|wrapWithTags|setWithTags)$/]",
+            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(set|setWithTags)$/]",
           message:
             'Cache with this.cached() / this.cacheSet(): only their tags are invalidated by writes through the repository.'
         },
         {
           selector:
-            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(del|delPattern)$/]",
+            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name='del']",
           message:
-            'Invalidate by tag (invalidateCacheByEntityId, invalidateListCaches, invalidateCacheByTag): every repository entry is tagged, and delPattern scans the whole keyspace.'
+            'Invalidate by tag (invalidateCacheByEntityId, invalidateListCaches, invalidateCacheByTag): every repository entry is tagged.'
         }
       ]
     }

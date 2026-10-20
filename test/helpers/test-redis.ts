@@ -40,11 +40,15 @@ export class TestRedis {
   }
 
   /**
-   * Clear all keys in test database
+   * Deletes the app's cache keys (entries and tag sets) from the test database. Only keys
+   * under the namespace: the Redis server, test database included, may be shared with
+   * other projects, so never FLUSHDB.
    */
-  static async clearCache(): Promise<void> {
-    if (this.client) {
-      await this.client.flushdb()
+  static async clearCache(namespace = process.env.CACHE_NAMESPACE || 'kuybi'): Promise<void> {
+    if (!this.client) return
+    const stream = this.client.scanStream({ match: `${namespace}:*`, count: 500 })
+    for await (const keys of stream as AsyncIterable<string[]>) {
+      if (keys.length) await this.client.unlink(...keys)
     }
   }
 
