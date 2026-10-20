@@ -8,11 +8,6 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 import { User } from '../entities/user.entity'
 
 /**
- * User Repository
- *
- * Handles all database operations for User entity with caching.
- */
-/**
  * Relations loaded with every user lookup. Role permissions are included because
  * AbilityFactory builds CASL abilities from them for the authenticated user.
  */
@@ -22,10 +17,15 @@ const USER_RELATIONS: FindOptionsRelations<User> = {
   userRoles: { role: { rolePermissions: { permission: true } } }
 }
 
+/**
+ * Users table. Rows are cached with their roles and permissions embedded; changing a
+ * user's roles (UserRolesService) invalidates the user's cached row. Authentication
+ * reads users fresh (JwtStrategy), so cached permissions never decide access.
+ */
 @Injectable()
 export class UserRepository extends BaseRepository<User> {
   protected entityName = 'user'
-  protected defaultTTL = 900 // 15 minutes for user data
+  protected defaultTTL = 900
 
   constructor(
     @InjectRepository(User)
@@ -35,9 +35,7 @@ export class UserRepository extends BaseRepository<User> {
     super(repository, cacheService)
   }
 
-  /**
-   * Override findById to include profileImage relation
-   */
+  /** With profile image, roles and permissions (USER_RELATIONS) */
   async findById(
     id: string,
     options?: { ttl?: number; bypassCache?: boolean }
@@ -63,9 +61,7 @@ export class UserRepository extends BaseRepository<User> {
     )
   }
 
-  /**
-   * Find user by email with caching
-   */
+  /** By email (stored lowercased); with the same relations as findById */
   async findByEmail(email: string, bypassCache = false): Promise<User | null> {
     const cacheKey = this.buildCacheKey('email', email.toLowerCase())
 
@@ -106,9 +102,7 @@ export class UserRepository extends BaseRepository<User> {
     )
   }
 
-  /**
-   * Find user by mobile number with caching
-   */
+  /** By mobile number, without relations */
   async findByMobile(mobileNumber: string): Promise<User | null> {
     const cacheKey = this.buildCacheKey('mobile', mobileNumber)
 
@@ -121,9 +115,7 @@ export class UserRepository extends BaseRepository<User> {
     )
   }
 
-  /**
-   * Find users by role with caching
-   */
+  /** Users whose primary role is `roleName`, newest first */
   async findByRole(
     roleName: string,
     options?: { limit?: number; offset?: number }
@@ -152,9 +144,7 @@ export class UserRepository extends BaseRepository<User> {
     )
   }
 
-  /**
-   * Search users by name or email
-   */
+  /** Users matching name or email (case-insensitive substring) and the filters */
   async search(query: {
     search?: string
     role?: string
@@ -193,47 +183,7 @@ export class UserRepository extends BaseRepository<User> {
     return qb.getManyAndCount()
   }
 
-  /**
-   * Find active users
-   */
-  async findActive(options?: { limit?: number; offset?: number }): Promise<User[]> {
-    const cacheKey = this.buildCacheKey(
-      'active',
-      `limit:${options?.limit ?? 50}`,
-      `offset:${options?.offset ?? 0}`
-    )
-
-    return this.cached<User[]>(
-      cacheKey,
-      async () => {
-        return this.repository.find({
-          where: { isActive: true },
-          take: options?.limit ?? 50,
-          skip: options?.offset ?? 0,
-          order: { createdAt: 'DESC' }
-        })
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
-   * Update user verification status
-   */
-  async updateVerification(id: string, isVerified: boolean): Promise<User | null> {
-    await this.repository.update(id, { isVerified })
-
-    await this.invalidateEntityCache(id)
-
-    return this.findById(id, { bypassCache: true })
-  }
-
-  /**
-   * Update user password hash
-   */
-  /**
-   * Load only the password hash for credential checks. Never cached.
-   */
+  /** Only the password hash, for credential checks. Never cached. */
   async findPasswordHash(id: string): Promise<string | null> {
     const row = await this.repository
       .createQueryBuilder('user')
@@ -301,15 +251,6 @@ export class UserRepository extends BaseRepository<User> {
     })
   }
 
-  findLocked(limit: number, offset: number): Promise<[User[], number]> {
-    return this.repository.findAndCount({
-      where: { isLocked: true },
-      take: limit,
-      skip: offset,
-      order: { lockedAt: 'DESC' }
-    })
-  }
-
   /** Locked users whose lock period is over */
   findExpiredLocks(): Promise<User[]> {
     return this.repository.find({ where: { isLocked: true, lockedUntil: LessThan(new Date()) } })
@@ -322,9 +263,7 @@ export class UserRepository extends BaseRepository<User> {
     await this.invalidateEntityCache(id)
   }
 
-  /**
-   * Get user statistics
-   */
+  /** Totals, and users per primary role */
   async getStats(): Promise<{
     total: number
     active: number
@@ -358,7 +297,7 @@ export class UserRepository extends BaseRepository<User> {
 
         return { total, active, verified, byRole }
       },
-      300 // 5 minutes TTL for stats
+      300
     )
   }
 }

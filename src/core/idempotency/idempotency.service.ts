@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
+import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { randomUUID } from 'crypto'
-import { LessThan, QueryFailedError, Repository } from 'typeorm'
+import { LessThan, Repository } from 'typeorm'
 
 import { IdempotencyKey } from './idempotency-key.entity'
 
@@ -22,8 +23,6 @@ export type BeginResult =
   | { kind: 'replay'; record: IdempotencyKey }
   | { kind: 'in_progress' }
   | { kind: 'mismatch' }
-
-const UNIQUE_VIOLATION = '23505'
 
 @Injectable()
 export class IdempotencyService {
@@ -141,11 +140,4 @@ export class IdempotencyService {
     const result = await this.repository.delete({ expiresAt: LessThan(new Date()) })
     return result.affected ?? 0
   }
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    error instanceof QueryFailedError &&
-    (error.driverError as { code?: string } | undefined)?.code === UNIQUE_VIOLATION
-  )
 }

@@ -102,10 +102,12 @@ export class UsersController {
     @Query('role') role?: string,
     @Query('isActive') isActive?: boolean,
     @Query('isVerified') isVerified?: boolean,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
-    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit = 20,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset = 0
   ) {
     this.assertCanReadEveryone(req)
+    limit = Math.min(Math.max(limit, 1), 100)
+    offset = Math.max(offset, 0)
     const [users, total] = await this.usersService.searchUsers({
       search,
       role,
@@ -132,7 +134,7 @@ export class UsersController {
         total,
         limit,
         offset,
-        hasMore: (offset ?? 0) + (limit ?? 20) < total
+        hasMore: offset + limit < total
       }
     }
   }

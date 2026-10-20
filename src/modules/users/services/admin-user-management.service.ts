@@ -10,25 +10,20 @@ import { RoleRepository } from '@modules/acl'
 import { AuditService } from '@modules/audit'
 import { AuditAction, AuditSeverity } from '@modules/audit/entities'
 
+import { EventBus } from '@core/events'
+
 import {
   AdminUpdateUserDto,
   AdminUpdateUserResponseDto,
   UpdatedUserDataDto
 } from '../dto/admin-update-user.dto'
 import { User } from '../entities/user.entity'
+import { UserAccessSuspendedEvent } from '../events/user-access-suspended.event'
 import { UserRepository } from '../repositories/user.repository'
 
 /**
- * Admin User Management Service
- *
- * Handles administrative user management operations:
- * - Update any user field including sensitive fields
- * - Change user roles and permissions
- * - Activate/deactivate accounts
- * - Lock/unlock accounts
- * - Full audit trail for all changes
- *
- * All operations are super-admin only and logged for security compliance.
+ * Super-admin edits of any user field (PATCH /admin/users/:id): profile, primary role,
+ * status, lock. Every change is audited. Locking or deactivating ends the user's sessions.
  */
 @Injectable()
 export class AdminUserManagementService {
@@ -36,27 +31,13 @@ export class AdminUserManagementService {
     private readonly userRepository: UserRepository,
     private readonly roleRepository: RoleRepository,
     private readonly auditService: AuditService,
+    private readonly eventBus: EventBus,
     @InjectPinoLogger(AdminUserManagementService.name)
     private readonly logger: PinoLogger
   ) {}
 
   /**
-   * Update user by super-admin
-   *
-   * Allows super-admin to modify any user field including:
-   * - Personal information (name, email, mobile)
-   * - Account status (isActive, isVerified, isLocked)
-   * - Role assignment (primaryRoleId)
-   * - Security settings (forcePasswordChange, failedLoginAttempts)
-   *
-   * @param userId - Target user ID to update
-   * @param dto - Update data
-   * @param adminId - Super-admin performing the update
-   * @param adminEmail - Super-admin email for audit trail
-   * @returns Updated user data with metadata
-   * @throws NotFoundException if user not found
-   * @throws BadRequestException if role not found or invalid data
-   * @throws ConflictException if email/mobile already exists
+   * @throws ConflictException when the email or mobile number belongs to another user
    */
   async updateUser(
     userId: string,
@@ -64,7 +45,8 @@ export class AdminUserManagementService {
     adminId: string,
     adminEmail: string
   ): Promise<AdminUpdateUserResponseDto> {
-    // Find target user
+    // Login looks emails up lowercased and the column is case-sensitive
+    const email = dto.email?.trim().toLowerCase()
     const user = await this.userRepository.findById(userId, { bypassCache: true })
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`)
@@ -89,15 +71,14 @@ export class AdminUserManagementService {
       }
     }
 
-    // Check for email uniqueness
-    if (dto.email && dto.email !== user.email) {
-      const existingUser = await this.userRepository.findByEmail(dto.email)
+    if (email && email !== user.email) {
+      const existingUser = await this.userRepository.findByEmail(email, true)
       if (existingUser && existingUser.id !== userId) {
-        throw new ConflictException(`Email ${dto.email} is already in use`)
+        throw new ConflictException(`Email ${email} is already in use`)
       }
       originalValues.email = user.email
-      newValues.email = dto.email
-      changes.push(`email changed from ${user.email} to ${dto.email}`)
+      newValues.email = email
+      changes.push(`email changed from ${user.email} to ${email}`)
     }
 
     // Check for mobile uniqueness
@@ -131,23 +112,14 @@ export class AdminUserManagementService {
       }
     })
 
-    // If no changes, return early
     if (changes.length === 0) {
-      this.logger.info(
-        {
-          userId,
-          adminId,
-          action: 'admin_update_user_no_changes'
-        },
-        'No changes to update'
-      )
       return this.buildResponse(user, adminEmail, dto.reason)
     }
 
     // Apply updates
     const updateData: Partial<User> = {}
     if (dto.name !== undefined) updateData.name = dto.name
-    if (dto.email !== undefined) updateData.email = dto.email
+    if (email !== undefined) updateData.email = email
     if (dto.mobileNumber !== undefined) updateData.mobileNumber = dto.mobileNumber
     if (dto.primaryRoleId !== undefined) updateData.primaryRoleId = dto.primaryRoleId
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive
@@ -171,27 +143,29 @@ export class AdminUserManagementService {
     if (dto.failedLoginAttempts !== undefined)
       updateData.failedLoginAttempts = dto.failedLoginAttempts
 
-    // Perform update
     const updatedUser = await this.userRepository.update(userId, updateData)
     if (!updatedUser) {
       throw new BadRequestException('Failed to update user')
     }
 
-    // Log with PinoLogger
+    // Whoever holds the user's sessions loses access now, not at their next login
+    const suspended =
+      (dto.isLocked === true && !user.isLocked) || (dto.isActive === false && user.isActive)
+    if (suspended) {
+      await this.eventBus.publish(
+        new UserAccessSuspendedEvent(
+          userId,
+          adminId,
+          dto.isLocked ? 'Account locked by administrator' : 'Account deactivated by administrator'
+        )
+      )
+    }
+
     this.logger.warn(
-      {
-        action: 'admin_update_user',
-        userId,
-        userEmail: user.email,
-        adminId,
-        adminEmail,
-        changes,
-        reason: dto.reason || 'No reason provided'
-      },
-      `Super-admin ${adminEmail} updated user ${user.email}`
+      { action: 'admin_update_user', userId, adminId, changes: Object.keys(newValues), suspended },
+      'Super-admin updated a user'
     )
 
-    // Audit log
     await this.auditService.logAction(
       {
         userId: adminId,
@@ -218,9 +192,6 @@ export class AdminUserManagementService {
     return this.buildResponse(updatedUser, adminEmail, dto.reason)
   }
 
-  /**
-   * Build standardized response
-   */
   private buildResponse(
     user: User,
     adminEmail: string,

@@ -82,7 +82,8 @@ export class User implements AclPrincipal {
     type: 'varchar',
     length: 100,
     nullable: true,
-    comment: 'Reason for account lock: FAILED_ATTEMPTS, ADMIN_LOCK, SECURITY_VIOLATION'
+    comment:
+      'Reason for account lock: FAILED_ATTEMPTS or ADMIN_LOCK (or a reason given by an admin)'
   })
   lockReason: string | null
 
@@ -102,16 +103,12 @@ export class User implements AclPrincipal {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date
 
-  /**
-   * Get the primary role name
-   */
+  /** 'user' when the primary role is not loaded */
   getPrimaryRoleName(): string {
     return this.primaryRole?.name || 'user'
   }
 
-  /**
-   * Get user's highest priority role
-   */
+  /** The highest-ranking of the primary role and the active, unexpired additional roles */
   getHighestPriorityRole(): Role | null {
     if (!this.userRoles || this.userRoles.length === 0) {
       return this.primaryRole
@@ -159,31 +156,6 @@ export class User implements AclPrincipal {
   }
 
   /**
-   * Get all active role names for this user
-   */
-  getRoles(): string[] {
-    const roles = new Set<string>()
-
-    // Add primary role
-    if (this.primaryRole) {
-      roles.add(this.primaryRole.name)
-    }
-
-    // Add user roles
-    if (this.userRoles) {
-      const now = new Date()
-      this.userRoles
-        .filter(
-          userRole =>
-            userRole.isActive && userRole.role && (!userRole.expiresAt || userRole.expiresAt > now)
-        )
-        .forEach(userRole => roles.add(userRole.role.name))
-    }
-
-    return Array.from(roles)
-  }
-
-  /**
    * Check if user is a super admin
    */
   isSuperAdmin(): boolean {
@@ -210,24 +182,5 @@ export class User implements AclPrincipal {
 
     // Can only manage users with lower priority
     return myPriority > targetPriority
-  }
-
-  /**
-   * Check if user can assign a specific role
-   */
-  canAssignRole(role: Role): boolean {
-    if (this.isSuperAdmin()) {
-      return true // Super admin can assign any role
-    }
-
-    // Cannot assign super-admin role
-    if (role.name === 'super-admin') {
-      return false
-    }
-
-    const myPriority = this.getHighestPriorityRole()?.priority || 0
-
-    // Can only assign roles with lower priority
-    return myPriority > role.priority
   }
 }

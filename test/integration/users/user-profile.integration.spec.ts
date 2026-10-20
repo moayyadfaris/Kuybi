@@ -13,6 +13,8 @@ import { LoggerModule } from 'nestjs-pino'
 import request from 'supertest'
 import { DataSource } from 'typeorm'
 
+import { UserRepository } from '@modules/users/repositories/user.repository'
+
 import { EventsModule } from '@core/events'
 import { SentryModule } from '@core/sentry'
 
@@ -21,7 +23,6 @@ import { AuthModule } from '../../../src/modules/auth/auth.module'
 import { User } from '../../../src/modules/users/entities/user.entity'
 import { UserAvailabilityService } from '../../../src/modules/users/services/user-availability.service'
 import { UserRolesService } from '../../../src/modules/users/services/user-roles.service'
-import { UsersService } from '../../../src/modules/users/services/users.service'
 import { UsersModule } from '../../../src/modules/users/users.module'
 import { UserFactory } from '../../factories/user.factory'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
@@ -241,15 +242,22 @@ describe('User Profile Integration Tests', () => {
   describe('cache coherence', () => {
     it('shows a role change in the cached role listing', async () => {
       const userRoles = app.get(UserRolesService)
+      // A caller allowed to manage the user (as a super-admin is)
+      const admin = {
+        id: testUser.id,
+        name: 'Admin',
+        email: 'admin@example.com',
+        canManageUser: () => true
+      } as unknown as User
       const before = await userRoles.getUserRoles(testUser.id) // warms the user cache
       expect(before.roles.map(r => r.name)).not.toContain('moderator')
 
-      await userRoles.assignRole(testUser.id, { roleId: roles['moderator'].id })
+      await userRoles.assignRole(testUser.id, { roleId: roles['moderator'].id }, admin)
 
       const after = await userRoles.getUserRoles(testUser.id)
       expect(after.roles.map(r => r.name)).toContain('moderator')
 
-      await userRoles.revokeRole(testUser.id, roles['moderator'].id)
+      await userRoles.revokeRole(testUser.id, roles['moderator'].id, admin)
       expect((await userRoles.getUserRoles(testUser.id)).roles.map(r => r.name)).not.toContain(
         'moderator'
       )
@@ -260,11 +268,12 @@ describe('User Profile Integration Tests', () => {
       const email = `fresh-${Date.now()}@example.com`
       expect((await availability.isEmailAvailable(email)).available).toBe(true) // cached
 
-      await app.get(UsersService).createUser({
+      // A write through the repository, as registration does
+      await app.get(UserRepository).create({
         name: 'Fresh User',
         email,
-        mobileNumber: `+9627${Date.now().toString().slice(-8)}`,
-        password: 'Str0ng!Passw0rd'
+        passwordHash: 'not-a-real-hash',
+        primaryRoleId: roles['user'].id
       })
 
       expect((await availability.isEmailAvailable(email)).available).toBe(false)

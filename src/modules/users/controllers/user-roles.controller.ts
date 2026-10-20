@@ -66,8 +66,7 @@ export class UserRolesController {
     @Body() assignRoleDto: AssignRoleDto,
     @Req() req: Request
   ) {
-    const currentUser = (req as unknown as { user: User }).user
-    return this.userRolesService.assignRole(userId, assignRoleDto, currentUser)
+    return this.userRolesService.assignRole(userId, assignRoleDto, callerOf(req))
   }
 
   @Delete(':roleId')
@@ -89,8 +88,7 @@ export class UserRolesController {
     @Param('roleId', ParseIntPipe) roleId: number,
     @Req() req: Request
   ) {
-    const currentUser = (req as unknown as { user: User }).user
-    await this.userRolesService.revokeRole(userId, roleId, currentUser)
+    await this.userRolesService.revokeRole(userId, roleId, callerOf(req))
   }
 
   @Post(':roleId/activate')
@@ -105,9 +103,10 @@ export class UserRolesController {
   @ApiResponse({ status: 404, description: 'User role assignment not found' })
   async activateRole(
     @Param('userId') userId: string,
-    @Param('roleId', ParseIntPipe) roleId: number
+    @Param('roleId', ParseIntPipe) roleId: number,
+    @Req() req: Request
   ) {
-    return this.userRolesService.activateRole(userId, roleId)
+    return this.userRolesService.activateRole(userId, roleId, callerOf(req))
   }
 
   @Post(':roleId/deactivate')
@@ -122,8 +121,12 @@ export class UserRolesController {
   @ApiResponse({ status: 404, description: 'User role assignment not found' })
   async deactivateRole(
     @Param('userId') userId: string,
-    @Param('roleId', ParseIntPipe) roleId: number
+    @Param('roleId', ParseIntPipe) roleId: number,
+    @Req() req: Request
   ) {
-    return this.userRolesService.deactivateRole(userId, roleId)
+    return this.userRolesService.deactivateRole(userId, roleId, callerOf(req))
   }
 }
+
+/** JwtAuthGuard guards the controller, so the user is set */
+const callerOf = (req: Request) => (req as unknown as { user: User }).user

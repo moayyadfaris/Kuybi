@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { UserRepository } from '../repositories/user.repository'
 
@@ -11,30 +10,17 @@ export interface AvailabilityCheckResult {
 }
 
 /**
- * User Availability Service
- *
- * Checks if email or phone number is already in use
- *
- * Features:
- * - Email and phone availability (cached in UserRepository; any user write clears it)
- * - Email suggestions if not available
+ * Sign-up form checks: is this email or phone number free? Cached in UserRepository (any
+ * user write clears it). Reveals whether an email is registered, by design; the endpoint
+ * is throttled.
  */
 @Injectable()
 export class UserAvailabilityService {
-  constructor(
-    private readonly userRepository: UserRepository,
-    @InjectPinoLogger(UserAvailabilityService.name)
-    private readonly logger: PinoLogger
-  ) {}
+  constructor(private readonly userRepository: UserRepository) {}
 
-  /**
-   * Check if email is available for registration
-   */
   async isEmailAvailable(email: string): Promise<AvailabilityCheckResult> {
     const normalizedEmail = email.toLowerCase().trim()
     const available = !(await this.userRepository.isEmailTaken(normalizedEmail))
-
-    this.logger.debug({ email: normalizedEmail, available }, 'Email availability check')
 
     return {
       available,
@@ -44,14 +30,9 @@ export class UserAvailabilityService {
     }
   }
 
-  /**
-   * Check if phone number is available for registration
-   */
   async isPhoneAvailable(phone: string): Promise<AvailabilityCheckResult> {
     const normalizedPhone = this.normalizePhone(phone)
     const available = !(await this.userRepository.isMobileTaken(normalizedPhone))
-
-    this.logger.debug({ phone: normalizedPhone, available }, 'Phone availability check')
 
     return {
       available,
@@ -60,9 +41,7 @@ export class UserAvailabilityService {
     }
   }
 
-  /**
-   * Generate email suggestions if email is not available
-   */
+  /** Variations of a taken address (not checked for availability themselves) */
   private generateEmailSuggestions(email: string): string[] {
     const [username, domain] = email.split('@')
     if (!username || !domain) return []
@@ -78,9 +57,7 @@ export class UserAvailabilityService {
     return suggestions.slice(0, 3) // Return top 3 suggestions
   }
 
-  /**
-   * Normalize phone number (remove spaces, dashes, etc.)
-   */
+  /** Without spaces, dashes and parentheses */
   private normalizePhone(phone: string): string {
     return phone.replace(/[\s\-()]/g, '')
   }

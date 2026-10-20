@@ -2,6 +2,7 @@
  * Public API of the users module. Other modules import only from here
  * (or from @modules/users/entities); everything else is internal.
  */
+export { UserAccessSuspendedEvent } from './events/user-access-suspended.event'
 export { UserCredentialsResetEvent } from './events/user-credentials-reset.event'
 export { EmailVerificationRepository } from './repositories/email-verification.repository'
 export { UserRepository } from './repositories/user.repository'
