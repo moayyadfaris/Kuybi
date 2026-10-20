@@ -271,6 +271,22 @@ describe('Story versions', () => {
     expect((await versions()).find(v => v.isRollback)?.branchName).toBe('rollback-to-v1')
   })
 
+  it('numbers concurrent versions without duplicates', async () => {
+    await snapshot()
+    const results = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        http()
+          .post(`${base()}/branch`)
+          .set(auth())
+          .send({ branchName: `parallel-${i}` })
+      )
+    )
+    expect(results.map(r => r.status)).toEqual(Array(6).fill(201))
+
+    const numbers = (await versions()).map(v => v.versionNumber)
+    expect(new Set(numbers).size).toBe(numbers.length)
+  })
+
   it('answers 409 when a merge conflicts', async () => {
     await snapshot()
     await http()

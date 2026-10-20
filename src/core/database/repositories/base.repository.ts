@@ -13,6 +13,22 @@ import {
 import { CacheService } from '../../cache/services/cache.service'
 
 /**
+ * The row tag of one entity row (`<entityName>:<id>`). Every write through that entity's
+ * repository invalidates it, so another repository can tag an entry that embeds the row
+ * with it (dependsOn) and have the entry dropped when the row changes.
+ */
+export function cacheRowTag(entityName: string, id: string | number): string {
+  return `${entityName}:${id}`
+}
+
+export interface CacheEntryOptions<V> {
+  /** A row picked by a query rather than by its key: also dropped when any row changes */
+  selection?: boolean
+  /** Row tags (cacheRowTag) of other entities embedded in the value */
+  dependsOn?: (value: V) => string[]
+}
+
+/**
  * Base Repository Pattern
  *
  * Provides common data access operations with built-in caching support.
@@ -60,7 +76,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     key: string,
     load: () => Promise<V>,
     ttl?: number,
-    options?: { selection?: boolean }
+    options?: CacheEntryOptions<V>
   ): Promise<V> {
     if (!this.cacheService) return load()
     const hit = await this.cacheService.get<V>(key)
@@ -78,11 +94,14 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     key: string,
     value: V,
     ttl?: number,
-    options?: { selection?: boolean }
+    options?: CacheEntryOptions<V>
   ): Promise<void> {
     if (!this.cacheService || value === undefined) return
     const tags = this.getCacheTags(this.rowIdOf(value))
     if (options?.selection && !tags.includes(this.listTag())) tags.push(this.listTag())
+    for (const tag of options?.dependsOn?.(value) ?? []) {
+      if (!tags.includes(tag)) tags.push(tag)
+    }
     await this.cacheService.setWithTags(key, value, tags, ttl ?? this.defaultTTL)
   }
 
@@ -277,7 +296,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   }
 
   private rowTag(id: string | number): string {
-    return `${this.entityName}:${id}`
+    return cacheRowTag(this.entityName, id)
   }
 
   private listTag(): string {

@@ -28,25 +28,16 @@ export enum VersionStatus {
 }
 
 /**
- * StoryVersion Entity
- *
- * Stores complete snapshots of story content at different points in time.
- * Provides Git-like version control with branching, merging, and rollback.
- *
- * Features:
- * - Complete content snapshots
- * - Parent version tracking for history chain
- * - Branch/tag support
- * - Diff calculation
- * - Rollback capabilities
- * - Change summary
+ * A full snapshot of a story's content, Git-style: numbered per story, on a branch, with
+ * its parent version, an optional tag and the diff from the parent.
  */
+// Numbers are unique per story (assigned under a lock: StoryVersionRepository.insertNumbered)
+@Index('UQ_STORY_VERSIONS_STORY_NUMBER', ['storyId', 'versionNumber'], { unique: true })
 // Latest version of a branch; the self references are checked when versions are deleted
 @Index('IDX_STORY_VERSIONS_BRANCH_NUMBER', ['storyId', 'branchName', 'versionNumber'])
 @Index('IDX_STORY_VERSIONS_PARENT', ['parentVersionId'])
 @Index('IDX_STORY_VERSIONS_MERGED_FROM', ['mergedFromVersionId'])
 @Entity('story_versions')
-@Index(['storyId', 'versionNumber'])
 @Index(['storyId', 'createdAt'])
 @Index(['branchName'])
 @Index(['tag'])
@@ -64,8 +55,9 @@ export class StoryVersion {
   story: Story
 
   // Version metadata
+  /** 1, 2, 3... per story, across branches */
   @Column({ type: 'int' })
-  versionNumber: number // Sequential version number (1, 2, 3, ...)
+  versionNumber: number
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   versionLabel: string | null // e.g., "v1.0", "beta-1"

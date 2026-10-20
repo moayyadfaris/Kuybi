@@ -12,7 +12,7 @@ import {
 import type { RecordScope } from '@modules/acl'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { BaseRepository } from '@core/database/repositories/base.repository'
+import { BaseRepository, cacheRowTag } from '@core/database/repositories/base.repository'
 
 import { STORY_SORT_FIELDS, type StorySortField } from '../constants/story-sort-fields'
 import { Story, StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
@@ -32,9 +32,23 @@ export const ALL_STORIES: RecordScope = { all: true }
 type ListOptions = { limit?: number; offset?: number; includeDeleted?: boolean }
 
 /**
+ * Row tags of the rows a cached story embeds (entity names of their repositories): a
+ * rename, delete or change of any of them through its repository drops the story entries
+ */
+function embeddedRows(value: Story | Story[] | null): string[] {
+  const stories = Array.isArray(value) ? value : value ? [value] : []
+  return stories.flatMap(story => [
+    ...(story.userId ? [cacheRowTag('user', story.userId)] : []),
+    ...(story.mainImageId ? [cacheRowTag('attachment', story.mainImageId)] : []),
+    ...(story.tags ?? []).map(tag => cacheRowTag('tag', tag.id)),
+    ...(story.categories ?? []).map(category => cacheRowTag('category', category.id))
+  ])
+}
+
+/**
  * Stories with their tags, categories, main image and author (id and name), cached per
- * the cache contract. Lists take the reader's scope (StoryAccessPolicy.readScope) and are
- * cached per scope.
+ * the cache contract and also dropped when an embedded row changes (embeddedRows). Lists
+ * take the reader's scope (StoryAccessPolicy.readScope) and are cached per scope.
  */
 @Injectable()
 export class StoryRepository extends BaseRepository<Story> {
@@ -56,7 +70,9 @@ export class StoryRepository extends BaseRepository<Story> {
   ): Promise<Story | null> {
     const load = () => this.withRelations().where('story.id = :id', { id }).getOne()
     if (options?.bypassCache) return load()
-    return this.cached(this.buildCacheKey('id', id), load, options?.ttl ?? this.defaultTTL)
+    return this.cached(this.buildCacheKey('id', id), load, options?.ttl ?? this.defaultTTL, {
+      dependsOn: embeddedRows
+    })
   }
 
   /** A user's stories, newest first */
@@ -394,7 +410,7 @@ export class StoryRepository extends BaseRepository<Story> {
     options: ListOptions
   ): Promise<Story[]> {
     const key = this.buildCacheKey(name, value, this.scopeKey(scope), JSON.stringify(options))
-    return this.cached(key, () => {
+    const load = () => {
       const query = this.withRelations()
         .where(condition, { value })
         .orderBy('story.createdAt', 'DESC')
@@ -402,6 +418,7 @@ export class StoryRepository extends BaseRepository<Story> {
       if (options.limit) query.take(options.limit)
       if (options.offset) query.skip(options.offset)
       return query.getMany()
-    })
+    }
+    return this.cached(key, load, this.defaultTTL, { dependsOn: embeddedRows })
   }
 }

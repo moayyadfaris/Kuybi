@@ -7,12 +7,9 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 
 import { StoryVersion, VersionStatus } from '../entities/story-version.entity'
 
-/**
- * Story Version Repository
- *
- * Handles all database operations for StoryVersion entity with caching.
- * Provides specialized queries for version chains, branches, and tags.
- */
+/** First key of the advisory lock taken while numbering a story's versions (with the story id) */
+const VERSION_NUMBER_LOCK = 0x53_56 // "SV"
+
 @Injectable()
 export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   protected entityName = 'storyVersion'
@@ -292,15 +289,25 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   }
 
   /**
-   * Get the next version number for a story
+   * Inserts a version as the story's next number. Numbering and insert run in one
+   * transaction under a per-story advisory lock, so concurrent writers of the same story
+   * queue up instead of reading the same MAX (UQ_STORY_VERSIONS_STORY_NUMBER backs this).
    */
-  async getNextVersionNumber(storyId: number): Promise<number> {
-    const result = await this.repository
-      .createQueryBuilder('version')
-      .select('MAX(version.versionNumber)', 'maxVersion')
-      .where('version.storyId = :storyId', { storyId })
-      .getRawOne()
-
-    return (result?.maxVersion ?? 0) + 1
+  async insertNumbered(version: StoryVersion): Promise<StoryVersion> {
+    return this.transaction(
+      async manager => {
+        await manager.query('SELECT pg_advisory_xact_lock($1, $2)', [
+          VERSION_NUMBER_LOCK,
+          version.storyId
+        ])
+        const [{ max }] = await manager.query(
+          'SELECT MAX("versionNumber") AS max FROM story_versions WHERE "storyId" = $1',
+          [version.storyId]
+        )
+        version.versionNumber = (max ?? 0) + 1
+        return manager.save(version)
+      },
+      { touched: [] }
+    )
   }
 }

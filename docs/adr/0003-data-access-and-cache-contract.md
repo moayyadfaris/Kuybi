@@ -1,7 +1,7 @@
 # 0003. Data access only through the owning repository; one cache contract
 
 - **Status:** Accepted
-- **Date:** 2026-10-19 (selections and tag-only invalidation: 2026-10-20)
+- **Date:** 2026-10-19 (selections and tag-only invalidation: 2026-10-20; embedded rows: 2026-10-20)
 
 ## Context
 
@@ -32,6 +32,11 @@ true })` tags it with the list tag too, because a new row can become the answer.
     tags reach it. Writes that bypass the base methods (raw inserts, bulk updates) call
     `invalidateCacheByEntityId`, `invalidateListCaches` or `invalidateCacheByTag`.
   - A write invalidates the row it touched and the list tag; other rows stay cached.
+  - An entry that **embeds rows of another entity** (a story with its tags, categories,
+    main image and author) also carries their row tags: `cached(..., { dependsOn })`
+    returns `cacheRowTag(<entity>, <id>)` for each embedded row. A write to that row
+    through its own repository then drops the entry too, without the two modules calling
+    each other.
   - `transaction(work, { touched })` invalidates after the commit (a rollback leaves the
     cache alone): the touched rows when given, otherwise every entry of the entity.
   - Subclasses cache only through `cached()` / `cacheSet()`.
@@ -58,5 +63,5 @@ true })` tags it with the list tag too, because a new row can become the answer.
   No `this.cacheService.del/delPattern`; invalidate by tag.
 - `scripts/check-module-graph.js`: `forFeature` only with the module's own entities.
 - Tests: `base-repository-cache.integration.spec.ts` (real Postgres and Redis, including
-  selections), `role-cache.integration.spec.ts`, the countries search freshness test and the
+  selections), `story-cache.integration.spec.ts` (embedded rows), `role-cache.integration.spec.ts`, the countries search freshness test and the
   role-change / availability coherence tests in `user-profile.integration.spec.ts`.

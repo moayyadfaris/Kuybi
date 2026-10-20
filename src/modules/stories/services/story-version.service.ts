@@ -58,7 +58,6 @@ export class StoryVersionService {
 
     const version = Object.assign(new StoryVersion(), versionContentOfStory(story), {
       storyId: story.id,
-      versionNumber: await this.versionRepository.getNextVersionNumber(story.id),
       versionLabel: dto.versionLabel ?? null,
       versionType: dto.versionType,
       status: VersionStatus.ARCHIVED,
@@ -74,7 +73,7 @@ export class StoryVersionService {
       createdBy: userId
     })
 
-    const saved = await this.versionRepository.save(version)
+    const saved = await this.versionRepository.insertNumbered(version)
 
     this.logger.info(
       {
@@ -127,7 +126,6 @@ export class StoryVersionService {
 
     const rollbackVersion = Object.assign(new StoryVersion(), content, {
       storyId: target.storyId,
-      versionNumber: await this.versionRepository.getNextVersionNumber(target.storyId),
       versionType: VersionType.ROLLBACK,
       status: VersionStatus.ACTIVE,
       branchName: branch,
@@ -141,7 +139,7 @@ export class StoryVersionService {
       changeSummary: `Rolled back to version ${target.versionNumber}`
     })
 
-    const saved = await this.versionRepository.save(rollbackVersion)
+    const saved = await this.versionRepository.insertNumbered(rollbackVersion)
     this.logger.info(
       { storyId: target.storyId, versionId: saved.id, rolledBackTo: target.versionNumber, branch },
       'Story rolled back'
