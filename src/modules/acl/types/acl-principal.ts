@@ -15,7 +15,6 @@ export interface AclPrincipal {
   /** Additional role assignments, with their roles and permissions loaded */
   userRoles?: UserRole[]
   isSuperAdmin(): boolean
-  isAdmin(): boolean
   getPrimaryRoleName(): string
   getHighestPriorityRole(): Role | null
 }

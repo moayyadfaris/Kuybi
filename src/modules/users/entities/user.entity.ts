@@ -163,13 +163,6 @@ export class User implements AclPrincipal {
   }
 
   /**
-   * Check if user is an admin (including super-admin)
-   */
-  isAdmin(): boolean {
-    return this.hasRole('admin') || this.isSuperAdmin()
-  }
-
-  /**
    * Check if user can manage another user based on role hierarchy
    */
   canManageUser(targetUser: User): boolean {

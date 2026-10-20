@@ -1,62 +1,33 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
-import { Reflector } from '@nestjs/core'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { AclPrincipal } from '../types/acl-principal'
 
 /**
- * Guard to restrict access to super-admin users only
- *
- * Usage:
- * @UseGuards(JwtAuthGuard, SuperAdminGuard)
- *
- * IMPORTANT: Must be used AFTER JwtAuthGuard
+ * Super-admins only, for global administration (other users' sessions, user edits,
+ * password resets). Put it after JwtAuthGuard: it reads the authenticated user.
  */
 @Injectable()
 export class SuperAdminGuard implements CanActivate {
   constructor(
     @InjectPinoLogger(SuperAdminGuard.name)
-    private readonly logger: PinoLogger,
-    private reflector: Reflector
+    private readonly logger: PinoLogger
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest()
-    const user: AclPrincipal = request.user
+    const user: AclPrincipal | undefined = request.user
 
     if (!user) {
-      this.logger.warn('SuperAdminGuard: No user in request')
       throw new ForbiddenException('Authentication required')
     }
-
-    // Check using the principal's role methods (authoritative)
-    const isSuperAdmin = user.isSuperAdmin()
-
-    if (!isSuperAdmin) {
+    if (!user.isSuperAdmin()) {
       this.logger.warn(
-        {
-          userId: user.id,
-          email: user.email,
-          primaryRole: user.getPrimaryRoleName(),
-          path: request.url,
-          method: request.method
-        },
-        'SuperAdminGuard: Access denied - super-admin required'
+        { userId: user.id, path: request.url, method: request.method },
+        'Super-admin route refused'
       )
-
       throw new ForbiddenException('Super Admin access required')
     }
-
-    this.logger.info(
-      {
-        userId: user.id,
-        email: user.email,
-        path: request.url,
-        method: request.method
-      },
-      'SuperAdminGuard: Access granted'
-    )
-
     return true
   }
 }

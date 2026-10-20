@@ -233,40 +233,6 @@ describe('User Entity', () => {
     })
   })
 
-  describe('isAdmin', () => {
-    it('should return true when user is super-admin', () => {
-      const user = new User()
-      user.primaryRole = superAdminRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(true)
-    })
-
-    it('should return true when user is admin', () => {
-      const user = new User()
-      user.primaryRole = adminRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(true)
-    })
-
-    it('should return false when user is moderator', () => {
-      const user = new User()
-      user.primaryRole = moderatorRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(false)
-    })
-
-    it('should return false when user is regular user', () => {
-      const user = new User()
-      user.primaryRole = userRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(false)
-    })
-  })
-
   describe('canManageUser', () => {
     it('should return true when super-admin manages anyone', () => {
       const superAdmin = new User()

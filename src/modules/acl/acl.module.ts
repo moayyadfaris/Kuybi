@@ -15,7 +15,6 @@ import { Permission } from './entities/permission.entity'
 import { Role } from './entities/role.entity'
 import { RolePermission } from './entities/role-permission.entity'
 import { UserRole } from './entities/user-role.entity'
-import { AdminOrOwnerGuard } from './guards/admin-or-owner.guard'
 import { RoleHierarchyGuard } from './guards/role-hierarchy.guard'
 // Guards
 import { SuperAdminGuard } from './guards/super-admin.guard'
@@ -44,7 +43,6 @@ import { RolesService } from './services/roles.service'
     AbilityGuard,
     SuperAdminGuard,
     RoleHierarchyGuard,
-    AdminOrOwnerGuard,
     AclSeeder
   ],
   controllers: [RolesController, PermissionsController],
@@ -53,7 +51,6 @@ import { RolesService } from './services/roles.service'
     AbilityGuard,
     SuperAdminGuard,
     RoleHierarchyGuard,
-    AdminOrOwnerGuard,
     RolesService,
     PermissionsService,
     RoleRepository,

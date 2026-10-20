@@ -276,6 +276,7 @@ export class StoriesController {
 
   // Attachment management endpoints
   @Post(':id/attachments')
+  @CheckAbility({ action: Action.Update, subject: Subject.Story })
   @ApiOperation({ summary: 'Attach attachments to story' })
   @ApiResponse({ status: 200, description: 'Attachments attached successfully', type: Story })
   @ApiResponse({ status: 404, description: 'Story not found' })
@@ -291,6 +292,7 @@ export class StoriesController {
   }
 
   @Delete(':id/attachments')
+  @CheckAbility({ action: Action.Update, subject: Subject.Story })
   @ApiOperation({ summary: 'Detach attachments from story' })
   @ApiResponse({ status: 200, description: 'Attachments detached successfully', type: Story })
   @ApiResponse({ status: 404, description: 'Story not found' })
