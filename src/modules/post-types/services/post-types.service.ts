@@ -102,6 +102,14 @@ export class PostTypesService {
   }
 
   /**
+   * Drops the cached post type: read by slug it embeds its field definitions, so field
+   * changes (made through FieldDefinitionsService) must clear it
+   */
+  async dropCached(id: string): Promise<void> {
+    await this.postTypeRepository.invalidateCache(id)
+  }
+
+  /**
    * Find post type by ID
    * @param id - Post type UUID
    */

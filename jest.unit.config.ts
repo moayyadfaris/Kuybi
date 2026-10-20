@@ -9,14 +9,7 @@ import baseConfig from './jest.config.ts'
 const config: Config = {
   ...baseConfig,
   testRegex: '.*\\.spec\\.ts$',
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '\\.integration\\.spec\\.ts$',
-    '/test/performance/',
-    // QUARANTINED: written against an older get/set caching API; the repository now uses
-    // cacheService.wrap and count queries. Rewrite, then remove this entry.
-    '/test/unit/post-types/repositories/post-type.repository.spec.ts'
-  ],
+  testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.spec\\.ts$', '/test/performance/'],
   globalSetup: undefined,
   globalTeardown: undefined,
   testSequencer: undefined
