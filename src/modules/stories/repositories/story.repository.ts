@@ -204,7 +204,8 @@ export class StoryRepository extends BaseRepository<Story> {
       builder.andWhere(
         `EXISTS (SELECT 1 FROM story_tags st
                    JOIN tags t ON t.id = st."tagId"
-                  WHERE st."storyId" = story.id AND lower(t.name) = lower(:tagName))`,
+                  WHERE st."storyId" = story.id AND lower(t.name) = lower(:tagName)
+                    AND t."deletedAt" IS NULL)`,
         { tagName: filters.tagName }
       )
     }
@@ -395,7 +396,7 @@ export class StoryRepository extends BaseRepository<Story> {
   private withRelations(): SelectQueryBuilder<Story> {
     return this.repository
       .createQueryBuilder('story')
-      .leftJoinAndSelect('story.tags', 'tags')
+      .leftJoinAndSelect('story.tags', 'tags', 'tags.deletedAt IS NULL')
       .leftJoinAndSelect('story.categories', 'categories', 'categories.deletedAt IS NULL')
       .leftJoinAndSelect('story.mainImage', 'mainImage')
       .leftJoin('story.user', 'user')

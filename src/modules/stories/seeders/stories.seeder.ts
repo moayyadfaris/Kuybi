@@ -34,7 +34,7 @@ export class StoriesSeeder {
 
       // Get some dependencies
       const categories = await this.categoryRepository.findAllActive()
-      const tags = await this.tagRepository.findAllActive()
+      const tags = await this.tagRepository.list({ limit: 500 })
       const country = await this.countryRepository.findByIso('US') // Default to US for example
 
       if (categories.length === 0) {

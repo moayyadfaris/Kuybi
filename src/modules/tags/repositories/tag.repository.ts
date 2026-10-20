@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { startsWithPattern } from '@shared/utils/like.util'
 import { IsNull, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
@@ -7,107 +8,69 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 
 import { Tag } from '../entities/tag.entity'
 
-/**
- * Tag Repository
- *
- * Handles all database operations for Tag entity with caching.
- */
+export interface TagListOptions {
+  sortBy?: 'name' | 'sortOrder' | 'createdAt'
+  sortOrder?: 'ASC' | 'DESC'
+  /** Names starting with this (case-insensitive) */
+  search?: string
+  limit: number
+  offset?: number
+}
+
+/** Stored form of a tag name: trimmed and lowercase */
+export const normalizeTagName = (name: string): string => name.trim().toLowerCase()
+
+/** Live (not deleted) tags, cached under the cache contract (ADR 0003) */
 @Injectable()
 export class TagRepository extends BaseRepository<Tag> {
   protected entityName = 'tag'
   protected defaultTTL = 1800 // 30 minutes for tags (relatively static)
 
-  constructor(
-    @InjectRepository(Tag)
-    protected readonly repository: Repository<Tag>,
-    protected readonly cacheService: CacheService
-  ) {
+  constructor(@InjectRepository(Tag) repository: Repository<Tag>, cacheService: CacheService) {
     super(repository, cacheService)
   }
 
-  /**
-   * Find tag by name
-   */
-  async findByName(name: string): Promise<Tag | null> {
-    const cacheKey = this.buildCacheKey('name', name.toLowerCase())
-
-    return this.cached<Tag | null>(
-      cacheKey,
-      async () => {
-        return this.repository.findOne({
-          where: {
-            name: name.toLowerCase(),
-            deletedAt: IsNull()
-          }
-        })
-      },
-      this.defaultTTL
+  /** The live tag with this name (compared in stored form) */
+  findByName(name: string): Promise<Tag | null> {
+    const normalized = normalizeTagName(name)
+    return this.cached(this.buildCacheKey('name', normalized), () =>
+      this.repository.findOne({ where: { name: normalized, deletedAt: IsNull() } })
     )
   }
 
-  /**
-   * Find all active tags with optional sorting
-   */
-  async findAllActive(options?: {
-    sortBy?: 'name' | 'sortOrder' | 'createdAt'
-    sortOrder?: 'ASC' | 'DESC'
-  }): Promise<Tag[]> {
-    const cacheKey = this.buildCacheKey('all-active', JSON.stringify(options || {}))
-
-    return this.cached<Tag[]>(
-      cacheKey,
-      async () => {
-        const sortBy = options?.sortBy || 'sortOrder'
-        const sortOrder = options?.sortOrder || 'ASC'
-
-        return this.repository.find({
-          where: { deletedAt: IsNull() },
-          order: { [sortBy]: sortOrder }
+  /** A page of live tags */
+  list(options: TagListOptions): Promise<Tag[]> {
+    return this.cached(this.buildCacheKey('list', JSON.stringify(options)), () => {
+      const query = this.repository
+        .createQueryBuilder('tag')
+        .where('tag.deletedAt IS NULL')
+        .orderBy(`tag.${options.sortBy ?? 'sortOrder'}`, options.sortOrder ?? 'ASC')
+        .addOrderBy('tag.id', 'ASC')
+        .offset(options.offset ?? 0)
+        .limit(options.limit)
+      if (options.search) {
+        query.andWhere('tag.name LIKE :pattern', {
+          pattern: startsWithPattern(normalizeTagName(options.search))
         })
-      },
-      this.defaultTTL
+      }
+      return query.getMany()
+    })
+  }
+
+  findSystemTags(): Promise<Tag[]> {
+    return this.cached(this.buildCacheKey('system-tags'), () =>
+      this.repository.find({
+        where: { isSystem: true, deletedAt: IsNull() },
+        order: { sortOrder: 'ASC', id: 'ASC' }
+      })
     )
   }
 
-  /**
-   * Find system tags
-   */
-  async findSystemTags(): Promise<Tag[]> {
-    const cacheKey = this.buildCacheKey('system-tags')
-
-    return this.cached<Tag[]>(
-      cacheKey,
-      async () => {
-        return this.repository.find({
-          where: {
-            isSystem: true,
-            deletedAt: IsNull()
-          },
-          order: { sortOrder: 'ASC' }
-        })
-      },
-      this.defaultTTL
-    )
-  }
-
-  /** Tag names are stored lowercase */
   async create(data: Partial<Tag>): Promise<Tag> {
-    // Normalize name to lowercase
-    const normalizedName = data.name ? data.name.toLowerCase().trim() : undefined
-    if (normalizedName) {
-      data.name = normalizedName
-    }
-
-    return super.create(data)
+    return super.create(data.name ? { ...data, name: normalizeTagName(data.name) } : data)
   }
 
-  /** Tag names are stored lowercase */
   async update(id: number, data: Partial<Tag>): Promise<Tag | null> {
-    // Normalize name to lowercase if provided
-    if (data.name) {
-      data.name = data.name.toLowerCase().trim()
-    }
-
-    return super.update(id, data)
+    return super.update(id, data.name ? { ...data, name: normalizeTagName(data.name) } : data)
   }
 }

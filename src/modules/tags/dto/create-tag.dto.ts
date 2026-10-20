@@ -3,6 +3,7 @@ import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import {
   IsBoolean,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -13,7 +14,7 @@ import {
 
 export class CreateTagDto {
   @ApiProperty({
-    description: 'Tag name',
+    description: 'Tag name (stored trimmed and lowercase)',
     minLength: 2,
     maxLength: 200,
     example: 'breaking-news'
@@ -45,7 +46,7 @@ export class CreateTagDto {
   sortOrder?: number
 
   @ApiPropertyOptional({
-    description: 'Whether this is a system tag',
+    description: 'Whether this is a system tag (set and managed by super-admins only)',
     example: false
   })
   @IsOptional()
@@ -58,5 +59,6 @@ export class CreateTagDto {
     example: { category: 'news', importance: 'high' }
   })
   @IsOptional()
+  @IsObject()
   metadata?: Record<string, unknown>
 }

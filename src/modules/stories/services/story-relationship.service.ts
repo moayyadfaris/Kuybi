@@ -176,7 +176,9 @@ export class StoryRelationshipService {
   private async findTagsById(ids: number[]): Promise<Tag[]> {
     const unique = [...new Set(ids)]
     if (unique.length === 0) return []
-    const tags = await this.tagRepository.findMany({ where: { id: In(unique) } })
+    const tags = await this.tagRepository.findMany({
+      where: { id: In(unique), deletedAt: IsNull() }
+    })
     if (tags.length !== unique.length) {
       const found = new Set(tags.map(tag => tag.id))
       const missing = unique.filter(id => !found.has(id))
@@ -187,7 +189,7 @@ export class StoryRelationshipService {
 
   private findTagsByName(names: string[]): Promise<Tag[]> {
     if (names.length === 0) return Promise.resolve([])
-    return this.tagRepository.findMany({ where: { name: In(names) } })
+    return this.tagRepository.findMany({ where: { name: In(names), deletedAt: IsNull() } })
   }
 
   private async createTag(name: string, userId: string): Promise<Tag> {

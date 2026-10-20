@@ -647,25 +647,29 @@ Content-Type: application/json
 }
 ```
 
+**Required Permission:** `create:Tag`. Names are stored trimmed and lowercase and are unique
+among live tags (`409` otherwise; a deleted tag's name can be used again). System tags
+(`isSystem: true`) are created, changed and deleted by super-admins only (`403` for others).
+
 ### List Tags
 
 ```http
-GET /api/v1/tags
-Authorization: Bearer <token>
+GET /api/v1/tags?search=&sortBy=sortOrder&sortOrder=ASC&limit=100&offset=0
 ```
+
+Public. `search` matches names starting with it; `limit` is 1–500 (default 100). Tags are
+returned without who created or changed them.
 
 ### List System Tags
 
 ```http
 GET /api/v1/tags/system
-Authorization: Bearer <token>
 ```
 
 ### Get Tag by ID
 
 ```http
 GET /api/v1/tags/:id
-Authorization: Bearer <token>
 ```
 
 ### Update Tag
@@ -686,6 +690,8 @@ Content-Type: application/json
 DELETE /api/v1/tags/:id
 Authorization: Bearer <token>
 ```
+
+The tag disappears from stories and can no longer be attached; its name becomes free.
 
 ### Hard Delete Tag
 
