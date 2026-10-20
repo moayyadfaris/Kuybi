@@ -55,7 +55,8 @@ class EnvironmentVariables {
   @IsOptional()
   JWT_ACCESS_EXPIRES_IN?: string
 
-  @IsString()
+  // Session and refresh-token lifetime: a number and d, h or m (30d, 12h, 90m)
+  @Matches(/^\d+[dhm]$/)
   @IsOptional()
   JWT_REFRESH_EXPIRES_IN?: string
 

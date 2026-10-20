@@ -99,6 +99,12 @@ describe('assertProductionSecrets', () => {
 })
 
 describe('validate', () => {
+  it.each(['7', '7 days', '1w', ''])('rejects JWT_REFRESH_EXPIRES_IN=%s', value => {
+    expect(() =>
+      validate({ NODE_ENV: 'test', CORS_ORIGIN: '*', JWT_REFRESH_EXPIRES_IN: value })
+    ).toThrow(/JWT_REFRESH_EXPIRES_IN/)
+  })
+
   it('rejects an unknown NODE_ENV instead of booting with development defaults', () => {
     expect(() => validate({ NODE_ENV: 'prod', CORS_ORIGIN: '*' })).toThrow(/NODE_ENV/)
   })

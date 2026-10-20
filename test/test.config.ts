@@ -37,7 +37,7 @@ export const testConfig = {
     jwtSecret: 'test-secret-key-do-not-use-in-production',
     jwtRefreshSecret: 'test-refresh-secret-key',
     jwtAccessExpiresIn: '1h',
-    jwtRefreshExpiresIn: '7d'
+    sessionDays: 7
   },
   aws: {
     region: 'us-east-1',
