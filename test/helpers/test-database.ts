@@ -72,7 +72,7 @@ export class TestDatabase {
    */
   static async runMigrations(): Promise<void> {
     if (this.dataSource?.isInitialized) {
-      await this.dataSource.runMigrations()
+      await this.dataSource.runMigrations({ transaction: 'each' })
     }
   }
 
@@ -81,7 +81,7 @@ export class TestDatabase {
    */
   static async revertMigration(): Promise<void> {
     if (this.dataSource?.isInitialized) {
-      await this.dataSource.undoLastMigration()
+      await this.dataSource.undoLastMigration({ transaction: 'each' })
     }
   }
 

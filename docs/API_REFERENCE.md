@@ -944,16 +944,36 @@ Authorization: Bearer <token>
 ```json
 {
   "success": false,
-  "statusCode": 400,
+  "statusCode": 401,
   "path": "/api/v1/stories",
-  "timestamp": "2025-10-25T00:00:00.000Z",
+  "timestamp": "2026-10-20T00:00:00.000Z",
+  "requestId": "3f2c…",
   "error": {
-    "message": "Error description",
-    "error": "Bad Request",
-    "statusCode": 400
+    "code": "AUTH_TOKEN_EXPIRED",
+    "message": "Access token expired"
   }
 }
 ```
+
+**Branch on `error.code`, never on `error.message`**: messages are for people and may
+change; codes are stable (new ones are added, existing ones never change meaning). The full
+list, with what the client should do, is `ErrorCode` in `src/shared/errors/error-code.ts`.
+The ones clients usually handle:
+
+| Code                                                                                           | Status   | Client action                                         |
+| ---------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------- |
+| `AUTH_TOKEN_EXPIRED`                                                                           | 401      | Refresh the access token, retry                       |
+| `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_SESSION_ENDED`, `AUTH_REFRESH_TOKEN_INVALID` | 401      | Sign in again (a refresh will not help)               |
+| `AUTH_INVALID_CREDENTIALS`                                                                     | 401      | Show "wrong email or password"                        |
+| `AUTH_ACCOUNT_LOCKED`                                                                          | 423      | Show the lock; `error.details.unlockIn` is in seconds |
+| `AUTH_ACCOUNT_INACTIVE`                                                                        | 401      | Account disabled                                      |
+| `AUTH_PASSWORD_CHANGE_REQUIRED`                                                                | 403      | Send the user to change their password                |
+| `PASSWORD_CHANGE_COOLDOWN`                                                                     | 429      | Password changed recently; see `error.details`        |
+| `VALIDATION_FAILED`                                                                            | 400      | `error.message` is the list of problems               |
+| `IDEMPOTENCY_KEY_REUSED`                                                                       | 422      | Same key, different request: use a new key            |
+| `IDEMPOTENCY_IN_PROGRESS`                                                                      | 409      | The first request is still running: retry later       |
+| `NOT_FOUND`, `FORBIDDEN`, `CONFLICT`, `TOO_MANY_REQUESTS`, …                                   | as named | Generic code of the status                            |
+| `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE`                                                        | 5xx      | Retry later; quote `requestId` when reporting         |
 
 ### Validation Error Response
 
@@ -962,9 +982,9 @@ Authorization: Bearer <token>
   "success": false,
   "statusCode": 400,
   "error": {
+    "code": "VALIDATION_FAILED",
     "message": ["name should not be empty", "email must be an email"],
-    "error": "Bad Request",
-    "statusCode": 400
+    "error": "Bad Request"
   }
 }
 ```

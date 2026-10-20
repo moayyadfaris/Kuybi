@@ -44,6 +44,13 @@ export enum StoryPriority {
   URGENT = 'URGENT'
 }
 
+// Lists read live stories newest first: all of them, per status (published for most
+// readers, see ADR 0010) and per author; the visibility filter ORs the last two
+@Index('IDX_STORIES_LIVE_CREATED', ['createdAt'], { where: '"deletedAt" IS NULL' })
+@Index('IDX_STORIES_STATUS_CREATED', ['status', 'createdAt'], { where: '"deletedAt" IS NULL' })
+@Index('IDX_STORIES_USER_CREATED', ['userId', 'createdAt'], { where: '"deletedAt" IS NULL' })
+@Index('IDX_STORIES_PARENT', ['parentId'])
+@Index('IDX_STORIES_MAIN_IMAGE', ['mainImageId'])
 @Entity({ name: 'stories' })
 export class Story {
   @PrimaryGeneratedColumn('increment')

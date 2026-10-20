@@ -32,7 +32,7 @@ import { User } from '@modules/users/entities'
  */
 @Entity('password_resets')
 @Index(['email']) // Email index defined here - not on property level
-@Index(['token'], { unique: true })
+// token: unique through its column constraint
 @Index(['userId', 'used'])
 @Index(['expiresAt'])
 export class PasswordReset {

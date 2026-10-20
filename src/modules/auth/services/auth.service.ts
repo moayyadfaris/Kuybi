@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common'
+import { ErrorCode } from '@shared/errors'
 import { errorMessage } from '@shared/utils/error.util'
 import { createHash } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
@@ -16,6 +17,16 @@ import { AccessTokenService } from './access-token.service'
 import { AccountLockoutService } from './account-lockout.service'
 import { SessionsService } from './sessions.service'
 import { TokenBlacklistService } from './token-blacklist.service'
+
+const INVALID_CREDENTIALS = {
+  code: ErrorCode.AUTH_INVALID_CREDENTIALS,
+  message: 'Invalid credentials'
+}
+
+const refreshTokenInvalid = (message: string) => ({
+  code: ErrorCode.AUTH_REFRESH_TOKEN_INVALID,
+  message
+})
 
 function hashEmail(email: string): string {
   return createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16)
@@ -53,7 +64,7 @@ export class AuthService {
       // reveal which emails are registered
       await this.passwordHasher.verify(password, null)
       this.recordFailedLogin('user_not_found', { emailHash: hashEmail(email) }, context)
-      throw new UnauthorizedException('Invalid credentials')
+      throw new UnauthorizedException(INVALID_CREDENTIALS)
     }
 
     // Check if account is locked
@@ -93,12 +104,15 @@ export class AuthService {
         throw accountLockedException(lockInfo)
       }
 
-      throw new UnauthorizedException('Invalid credentials')
+      throw new UnauthorizedException(INVALID_CREDENTIALS)
     }
 
     if (!user.isActive) {
       this.recordFailedLogin('user_inactive', { userId: user.id }, context)
-      throw new UnauthorizedException('User is inactive')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_ACCOUNT_INACTIVE,
+        message: 'User is inactive'
+      })
     }
 
     // Successful login - reset failed attempts counter
@@ -209,13 +223,15 @@ export class AuthService {
   async refresh(refreshToken: string, context: SessionContext) {
     const [tokenId, tokenSecret] = refreshToken.split('.')
     if (!tokenId || !tokenSecret) {
-      throw new UnauthorizedException('Invalid refresh token format')
+      throw new UnauthorizedException(refreshTokenInvalid('Invalid refresh token format'))
     }
 
     // Validate session exists and is active
     const validationResult = await this.sessionsService.validateSession(tokenId)
     if (!validationResult.valid || !validationResult.session) {
-      throw new UnauthorizedException(validationResult.reason || 'Invalid session')
+      throw new UnauthorizedException(
+        refreshTokenInvalid(validationResult.reason || 'Invalid session')
+      )
     }
 
     const session = validationResult.session
@@ -224,14 +240,14 @@ export class AuthService {
     const isValid = await verifyTokenSecret(tokenSecret, session.refreshTokenHash)
     if (!isValid) {
       await this.sessionsService.revokeSession(tokenId, 'invalid_token_secret')
-      throw new UnauthorizedException('Invalid refresh token')
+      throw new UnauthorizedException(refreshTokenInvalid('Invalid refresh token'))
     }
 
     // Verify user is still active
     const user = await this.usersService.findById(session.userId)
     if (!user || !user.isActive) {
       await this.sessionsService.revokeSession(tokenId, 'user_inactive')
-      throw new UnauthorizedException('User unavailable')
+      throw new UnauthorizedException(refreshTokenInvalid('User unavailable'))
     }
 
     // Refresh session (creates new session, revokes old one)
@@ -274,27 +290,29 @@ export class AuthService {
     const [tokenId, tokenSecret] = refreshToken.split('.')
 
     if (!tokenId || !tokenSecret) {
-      throw new UnauthorizedException('Invalid refresh token format')
+      throw new UnauthorizedException(refreshTokenInvalid('Invalid refresh token format'))
     }
 
     // Validate session
     const validationResult = await this.sessionsService.validateSession(tokenId)
     if (!validationResult.valid || !validationResult.session) {
-      throw new UnauthorizedException(validationResult.reason || 'Invalid session')
+      throw new UnauthorizedException(
+        refreshTokenInvalid(validationResult.reason || 'Invalid session')
+      )
     }
 
     const session = validationResult.session
 
     // Verify ownership
     if (session.userId !== userId) {
-      throw new UnauthorizedException('Session does not belong to user')
+      throw new UnauthorizedException(refreshTokenInvalid('Session does not belong to user'))
     }
 
     // Verify refresh token secret
     const isValid = await verifyTokenSecret(tokenSecret, session.refreshTokenHash)
     if (!isValid) {
       await this.sessionsService.revokeSession(tokenId, 'invalid_token_secret')
-      throw new UnauthorizedException('Invalid refresh token')
+      throw new UnauthorizedException(refreshTokenInvalid('Invalid refresh token'))
     }
 
     // Blacklist the current access token immediately (if provided)
@@ -374,6 +392,7 @@ function accountLockedException(lockInfo: AccountLockInfo): HttpException {
   return new HttpException(
     {
       statusCode: HttpStatus.LOCKED,
+      code: ErrorCode.AUTH_ACCOUNT_LOCKED,
       message: `Account has been locked due to too many failed attempts. ${lockInfo.lockedUntil ? `It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.` : 'Contact an administrator to unlock it.'}`,
       error: 'Locked',
       details: {

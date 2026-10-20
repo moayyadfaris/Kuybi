@@ -16,6 +16,7 @@ one rather than editing it.
 | [0008](0008-one-http-pipeline.md)                     | One HTTP pipeline, one exception filter, one response envelope                     | Accepted                |
 | [0009](0009-attachment-visibility-and-uploads.md)     | Attachments: public by default, uploader-controlled, ACL follows the flag          | Accepted                |
 | [0010](0010-story-read-visibility.md)                 | Stories: readers see published stories and their own; lists follow the permissions | Accepted                |
+| [0011](0011-error-codes.md)                           | Every error response carries a stable error code                                   | Accepted                |
 
 ## Writing a new record
 

@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PassportStrategy } from '@nestjs/passport'
+import { ErrorCode } from '@shared/errors'
 import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { ExtractJwt, Strategy } from 'passport-jwt'
@@ -37,7 +38,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
 
     if (!token) {
-      throw new UnauthorizedException('Access token not found')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_TOKEN_MISSING,
+        message: 'Access token not found'
+      })
     }
 
     // Check if token is blacklisted (user logged out)
@@ -51,7 +55,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
         'Attempted use of blacklisted token'
       )
-      throw new UnauthorizedException('Token has been revoked')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_SESSION_ENDED,
+        message: 'Token has been revoked'
+      })
     }
 
     // The token dies with its session (logout, logout-all, admin password reset, refresh).
@@ -63,11 +70,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           { userId: payload.sub, sessionId: payload.sid, action: 'revoked_session_token_attempt' },
           'Access token used after its session ended'
         )
-        throw new UnauthorizedException('Session has ended')
+        throw new UnauthorizedException({
+          code: ErrorCode.AUTH_SESSION_ENDED,
+          message: 'Session has ended'
+        })
       }
       req.sessionId = payload.sid
     } else if (!payload.tempPasswordChange) {
-      throw new UnauthorizedException('Access token is not bound to a session')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_TOKEN_INVALID,
+        message: 'Access token is not bound to a session'
+      })
     }
 
     // Load full user entity (includes primaryRole, userRoles relations)
@@ -84,7 +97,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
         'User from JWT payload not found in database'
       )
-      throw new UnauthorizedException('User not found')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_TOKEN_INVALID,
+        message: 'User not found'
+      })
     }
 
     if (!user.isActive) {
@@ -96,7 +112,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
         'Inactive user attempted to use token'
       )
-      throw new UnauthorizedException('User account is inactive')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_ACCOUNT_INACTIVE,
+        message: 'User account is inactive'
+      })
     }
 
     // Temp tokens issued for forced password change are restricted by JwtAuthGuard

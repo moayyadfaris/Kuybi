@@ -65,7 +65,6 @@ export class FieldDefinition {
   // ========== Field Identity ==========
 
   @Column({ length: 100 })
-  @Index()
   name: string
 
   @Column({ length: 200 })
@@ -76,7 +75,6 @@ export class FieldDefinition {
     enum: FieldType,
     name: 'fieldType'
   })
-  @Index()
   fieldType: FieldType
 
   @Column({ type: 'text', nullable: true })
@@ -93,7 +91,6 @@ export class FieldDefinition {
   // ========== Validation Flags ==========
 
   @Column({ type: 'boolean', default: false, name: 'isRequired' })
-  @Index()
   isRequired: boolean
 
   @Column({ type: 'boolean', default: false, name: 'isUnique' })
@@ -179,7 +176,6 @@ export class FieldDefinition {
   updatedAt: Date
 
   @DeleteDateColumn({ type: 'timestamptz', nullable: true, name: 'deletedAt' })
-  @Index()
   deletedAt?: Date
 
   // ========== Optimistic Locking ==========

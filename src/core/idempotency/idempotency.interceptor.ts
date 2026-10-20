@@ -9,6 +9,7 @@ import {
   NestInterceptor,
   UnprocessableEntityException
 } from '@nestjs/common'
+import { ErrorCode } from '@shared/errors'
 import { createHash } from 'crypto'
 import { Request, Response } from 'express'
 import { from, Observable, of, throwError } from 'rxjs'
@@ -71,7 +72,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const key = request.header(IDEMPOTENCY_HEADER)
     if (key === undefined) return next.handle()
     if (!KEY_PATTERN.test(key)) {
-      throw new BadRequestException('Idempotency-Key must be 1-255 printable ASCII characters')
+      throw new BadRequestException({
+        code: ErrorCode.IDEMPOTENCY_KEY_INVALID,
+        message: 'Idempotency-Key must be 1-255 printable ASCII characters'
+      })
     }
 
     const routePath = (request.route as { path?: string } | undefined)?.path ?? request.path
@@ -81,11 +85,15 @@ export class IdempotencyInterceptor implements NestInterceptor {
       mergeMap(result => {
         switch (result.kind) {
           case 'mismatch':
-            throw new UnprocessableEntityException(
-              'Idempotency-Key was already used with a different request'
-            )
+            throw new UnprocessableEntityException({
+              code: ErrorCode.IDEMPOTENCY_KEY_REUSED,
+              message: 'Idempotency-Key was already used with a different request'
+            })
           case 'in_progress':
-            throw new ConflictException('A request with this Idempotency-Key is still in progress')
+            throw new ConflictException({
+              code: ErrorCode.IDEMPOTENCY_IN_PROGRESS,
+              message: 'A request with this Idempotency-Key is still in progress'
+            })
           case 'replay': {
             response.setHeader('Idempotent-Replayed', 'true')
             const status = result.record.responseStatus ?? 200

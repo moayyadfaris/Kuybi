@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -10,6 +11,10 @@ import {
 
 import { User } from '@modules/users/entities'
 
+// Per-user lists, duplicate detection by checksum, and the cleanup of stale uploads
+@Index('IDX_ATTACHMENTS_USER_CREATED', ['userId', 'createdAt'])
+@Index('IDX_ATTACHMENTS_USER_CHECKSUM', ['userId', 'checksum'])
+@Index('IDX_ATTACHMENTS_STATUS_CREATED', ['securityStatus', 'createdAt'])
 @Entity({ name: 'attachments' })
 export class Attachment {
   @PrimaryGeneratedColumn('uuid')
