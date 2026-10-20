@@ -169,10 +169,11 @@ export class RoleRepository extends BaseRepository<Role> {
   }
 
   /**
-   * Clear all role-related caches
+   * Drops every cached role entry (rows with their permissions, lists). The raw writes
+   * above bypass the base write methods, and del('role:*') never matched anything: del
+   * takes a key, not a pattern.
    */
   private async clearCache(): Promise<void> {
-    const pattern = this.buildCacheKey('*')
-    await this.cacheService.del(pattern)
+    await this.invalidateCacheByTag()
   }
 }

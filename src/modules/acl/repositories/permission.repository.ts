@@ -95,10 +95,9 @@ export class PermissionRepository extends BaseRepository<Permission> {
   }
 
   /**
-   * Clear all permission-related caches
+   * Drops every cached permission entry
    */
   async clearCache(): Promise<void> {
-    const pattern = this.buildCacheKey('*')
-    await this.cacheService.del(pattern)
+    await this.invalidateCacheByTag()
   }
 }

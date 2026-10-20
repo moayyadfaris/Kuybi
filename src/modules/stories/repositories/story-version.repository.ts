@@ -152,7 +152,9 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
             order: { versionNumber: 'DESC' }
           })
         },
-        options?.ttl ?? 900 // 15 min TTL (more dynamic)
+        options?.ttl ?? 900, // 15 min TTL (more dynamic)
+        // The newest (or tagged) version, not a unique key: a new version can take its place
+        { selection: true }
       )
     }
 
@@ -277,7 +279,9 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
             relations: { author: true }
           })
         },
-        options?.ttl ?? this.defaultTTL
+        options?.ttl ?? this.defaultTTL,
+        // The newest (or tagged) version, not a unique key: a new version can take its place
+        { selection: true }
       )
     }
 
@@ -298,56 +302,5 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
       .getRawOne()
 
     return (result?.maxVersion ?? 0) + 1
-  }
-
-  /**
-   * Invalidate all caches for a specific story
-   */
-  async invalidateStoryVersionCaches(storyId: number): Promise<void> {
-    if (!this.cacheService) return
-
-    const pattern = this.buildCacheKey('*', storyId, '*')
-    await this.cacheService.delPattern(pattern)
-
-    // Also invalidate list caches
-    await this.invalidateListCaches()
-  }
-
-  /**
-   * Override save to invalidate caches
-   */
-  async save(entity: StoryVersion): Promise<StoryVersion> {
-    const saved = await this.repository.save(entity)
-
-    // Invalidate all version caches for this story
-    await this.invalidateStoryVersionCaches(saved.storyId)
-
-    return saved
-  }
-
-  /**
-   * Override update to invalidate caches
-   */
-  async update(id: string, data: Partial<StoryVersion>): Promise<StoryVersion> {
-    const version = await this.repository.findOne({ where: { id } })
-    if (!version) {
-      throw new Error(`StoryVersion with id ${id} not found`)
-    }
-
-    Object.assign(version, data)
-    return this.save(version)
-  }
-
-  /**
-   * Override delete to invalidate caches
-   */
-  async delete(id: string): Promise<boolean> {
-    const version = await this.repository.findOne({ where: { id } })
-    if (version) {
-      await this.repository.delete(id)
-      await this.invalidateStoryVersionCaches(version.storyId)
-      return true
-    }
-    return false
   }
 }

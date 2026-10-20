@@ -90,9 +90,7 @@ export class TagRepository extends BaseRepository<Tag> {
     )
   }
 
-  /**
-   * Override create to invalidate caches
-   */
+  /** Tag names are stored lowercase */
   async create(data: Partial<Tag>): Promise<Tag> {
     // Normalize name to lowercase
     const normalizedName = data.name ? data.name.toLowerCase().trim() : undefined
@@ -100,59 +98,16 @@ export class TagRepository extends BaseRepository<Tag> {
       data.name = normalizedName
     }
 
-    const tag = await super.create(data)
-
-    // Invalidate relevant caches
-    await Promise.all([
-      normalizedName
-        ? this.cacheService.del(this.buildCacheKey('name', normalizedName))
-        : Promise.resolve(),
-      this.cacheService.delPattern(this.buildCacheKey('all-active', '*')),
-      this.cacheService.del(this.buildCacheKey('system-tags'))
-    ])
-
-    return tag
+    return super.create(data)
   }
 
-  /**
-   * Override update to invalidate caches
-   */
+  /** Tag names are stored lowercase */
   async update(id: number, data: Partial<Tag>): Promise<Tag | null> {
     // Normalize name to lowercase if provided
     if (data.name) {
       data.name = data.name.toLowerCase().trim()
     }
 
-    const tag = await super.update(id, data)
-
-    // Invalidate relevant caches
-    await Promise.all([
-      this.cacheService.del(this.buildCacheKey('id', id.toString())),
-      tag ? this.cacheService.del(this.buildCacheKey('name', tag.name)) : Promise.resolve(),
-      this.cacheService.delPattern(this.buildCacheKey('all-active', '*')),
-      this.cacheService.del(this.buildCacheKey('system-tags'))
-    ])
-
-    return tag
-  }
-
-  /**
-   * Override delete to invalidate caches
-   */
-  async delete(id: number): Promise<boolean> {
-    const tag = await this.findById(id)
-    if (!tag) return false
-
-    const result = await super.delete(id)
-
-    // Invalidate relevant caches
-    await Promise.all([
-      this.cacheService.del(this.buildCacheKey('id', id.toString())),
-      this.cacheService.del(this.buildCacheKey('name', tag.name)),
-      this.cacheService.delPattern(this.buildCacheKey('all-active', '*')),
-      this.cacheService.del(this.buildCacheKey('system-tags'))
-    ])
-
-    return result
+    return super.update(id, data)
   }
 }

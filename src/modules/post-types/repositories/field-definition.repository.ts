@@ -176,39 +176,23 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
       }
     })
 
-    // Invalidate caches after reordering
-    await this.invalidateCacheForPostType(postTypeId)
+    // Every reordered row changed, plus the lists
+    await this.invalidateCacheByTag()
   }
 
   /**
-   * Invalidate all caches for a specific post type
-   * @param postTypeId - Post type UUID
+   * Invalidate the field lists of a post type (tagged as lists of this entity)
+   * @param _postTypeId - Post type UUID
    */
-  async invalidateCacheForPostType(postTypeId: string): Promise<void> {
-    if (!this.cacheService) return
-
-    const keys = [
-      this.buildCacheKey('postType', postTypeId),
-      this.buildCacheKey('required', postTypeId),
-      this.buildCacheKey('searchable', postTypeId)
-    ]
-
-    await Promise.all(keys.map(key => this.cacheService.del(key)))
+  async invalidateCacheForPostType(_postTypeId: string): Promise<void> {
+    await this.invalidateListCaches()
   }
 
   /**
-   * Invalidate cache for specific field definition
+   * Invalidate cache for specific field definition (its row, by id or name, and the lists)
    * @param field - Field definition entity
    */
   async invalidateCache(field: FieldDefinition): Promise<void> {
-    if (!this.cacheService) return
-
-    const keys = [
-      this.buildCacheKey('id', field.id),
-      this.buildCacheKey('name', field.postTypeId, field.name)
-    ]
-
-    await Promise.all(keys.map(key => this.cacheService.del(key)))
-    await this.invalidateCacheForPostType(field.postTypeId)
+    await this.invalidateCacheByEntityId(field.id)
   }
 }

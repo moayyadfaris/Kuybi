@@ -170,38 +170,10 @@ export class PostTypeRepository extends BaseRepository<PostType> {
   }
 
   /**
-   * Invalidate all caches for post types
-   * Call this after create/update/delete operations
-   */
-  async invalidateAllCaches(): Promise<void> {
-    if (!this.cacheService) return
-
-    const keys = [
-      this.buildCacheKey('active'),
-      this.buildCacheKey('system'),
-      this.buildCacheKey('all')
-    ]
-
-    await Promise.all(keys.map(key => this.cacheService.del(key)))
-  }
-
-  /**
-   * Invalidate cache for specific post type
+   * Invalidate cache for specific post type (its row, by id, slug or name, and the lists)
    * @param postType - Post type entity or ID
    */
   async invalidateCache(postType: PostType | string): Promise<void> {
-    if (!this.cacheService) return
-
-    const id = typeof postType === 'string' ? postType : postType.id
-    const slug = typeof postType === 'string' ? null : postType.slug
-    const name = typeof postType === 'string' ? null : postType.name
-
-    const keys = [this.buildCacheKey('id', id)]
-
-    if (slug) keys.push(this.buildCacheKey('slug', slug))
-    if (name) keys.push(this.buildCacheKey('name', name))
-
-    await Promise.all(keys.map(key => this.cacheService.del(key)))
-    await this.invalidateAllCaches()
+    await this.invalidateCacheByEntityId(typeof postType === 'string' ? postType : postType.id)
   }
 }

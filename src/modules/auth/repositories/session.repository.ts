@@ -169,9 +169,8 @@ export class SessionRepository extends BaseRepository<Session> {
     }
 
     await this.repository.save(session)
+    // Its row, and every list: counts, per-user lists and access statuses
     await this.invalidateEntityCache(sessionId)
-    await this.invalidateListCaches()
-    await this.invalidateAccessStatus(session.userId)
 
     this.logger.debug(
       { sessionId, reason, userId: session.userId, action: 'session_revoked' },
@@ -217,9 +216,9 @@ export class SessionRepository extends BaseRepository<Session> {
       'Revoked all user sessions in repository'
     )
 
-    await this.invalidateUserSessionCache(userId)
-    await this.invalidateListCaches()
-    await this.invalidateAccessStatus(userId)
+    // A bulk update touches rows this repository did not read: drop every cached
+    // session entry (rows by id, lists, access statuses), not just the lists
+    await this.invalidateCacheByTag()
 
     return count
   }
@@ -482,21 +481,5 @@ export class SessionRepository extends BaseRepository<Session> {
     }
 
     return status.active && status.expiresAt > Date.now()
-  }
-
-  private async invalidateAccessStatus(userId: string): Promise<void> {
-    await this.cacheService.delPattern(this.buildCacheKey('access', userId, '*'))
-  }
-
-  /**
-   * Custom cache invalidation for session-specific patterns
-   */
-  async invalidateUserSessionCache(userId: string): Promise<void> {
-    await Promise.all([
-      this.cacheService.del(this.buildCacheKey('user', userId, 'active')),
-      this.cacheService.del(this.buildCacheKey('user', userId, 'all')),
-      this.cacheService.del(this.buildCacheKey('stats', 'user', userId)),
-      this.cacheService.del(this.buildCacheKey('count', 'active', userId))
-    ])
   }
 }

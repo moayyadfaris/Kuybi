@@ -223,10 +223,7 @@ export class UserRepository extends BaseRepository<User> {
   async updateVerification(id: string, isVerified: boolean): Promise<User | null> {
     await this.repository.update(id, { isVerified })
 
-    // Invalidate caches
     await this.invalidateEntityCache(id)
-    await this.cacheService.delPattern(`${this.entityName}:email:*`)
-    await this.cacheService.delPattern(`${this.entityName}:mobile:*`)
 
     return this.findById(id, { bypassCache: true })
   }
@@ -302,19 +299,8 @@ export class UserRepository extends BaseRepository<User> {
   async updatePassword(id: string, passwordHash: string): Promise<void> {
     await this.repository.update(id, { passwordHash })
 
-    // Invalidate user cache but keep other caches
+    // The row (also cached by email and mobile: same row tag) and the lists
     await this.invalidateEntityCache(id)
-  }
-
-  protected async invalidateEntityCache(id: string | number): Promise<void> {
-    await super.invalidateEntityCache(id)
-
-    if (!this.cacheService) {
-      return
-    }
-
-    await this.cacheService.delPattern(`${this.entityName}:email:*`)
-    await this.cacheService.delPattern(`${this.entityName}:mobile:*`)
   }
 
   /**
@@ -355,17 +341,5 @@ export class UserRepository extends BaseRepository<User> {
       },
       300 // 5 minutes TTL for stats
     )
-  }
-
-  /**
-   * Override to add custom cache invalidation
-   */
-  protected async invalidateListCaches(): Promise<void> {
-    await super.invalidateListCaches()
-
-    // Also invalidate role and active caches
-    await this.cacheService.delPattern(`${this.entityName}:role:*`)
-    await this.cacheService.delPattern(`${this.entityName}:active:*`)
-    await this.cacheService.delPattern(`${this.entityName}:stats`)
   }
 }

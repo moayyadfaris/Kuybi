@@ -12,6 +12,9 @@ import { Country } from '../entities/country.entity'
  *
  * Handles all database operations for Country entity with caching.
  */
+/** Columns search() may sort by (they become SQL identifiers) */
+export const COUNTRY_SORT_FIELDS = ['name', 'continent', 'currencyCode', 'phonecode'] as const
+
 @Injectable()
 export class CountryRepository extends BaseRepository<Country> {
   protected entityName = 'country'
@@ -113,6 +116,12 @@ export class CountryRepository extends BaseRepository<Country> {
       totalPages: number
     }
   }> {
+    return this.cached(this.buildCacheKey('search', JSON.stringify(query)), () =>
+      this.runSearch(query)
+    )
+  }
+
+  private async runSearch(query: Parameters<CountryRepository['search']>[0]) {
     const builder = this.repository.createQueryBuilder('country')
 
     // Apply search
@@ -141,8 +150,10 @@ export class CountryRepository extends BaseRepository<Country> {
     }
 
     // Apply sorting
-    const orderBy = query.orderBy || 'name'
-    const orderDirection = query.orderDirection || 'ASC'
+    const orderBy = (COUNTRY_SORT_FIELDS as readonly string[]).includes(query.orderBy ?? '')
+      ? query.orderBy
+      : 'name'
+    const orderDirection = query.orderDirection === 'DESC' ? 'DESC' : 'ASC'
     builder.orderBy(`country.${orderBy}`, orderDirection)
 
     // Apply pagination
@@ -309,21 +320,5 @@ export class CountryRepository extends BaseRepository<Country> {
       })
       return selected
     })
-  }
-
-  /**
-   * Override to add custom cache invalidation
-   */
-  protected async invalidateListCaches(): Promise<void> {
-    await super.invalidateListCaches()
-
-    // Invalidate specific country caches
-    await this.cacheService.delPattern(`${this.entityName}:iso:*`)
-    await this.cacheService.delPattern(`${this.entityName}:iso3:*`)
-    await this.cacheService.delPattern(`${this.entityName}:continent:*`)
-    await this.cacheService.delPattern(`${this.entityName}:region:*`)
-    await this.cacheService.delPattern(`${this.entityName}:all-active`)
-    await this.cacheService.delPattern(`${this.entityName}:grouped-*`)
-    await this.cacheService.delPattern(`${this.entityName}:stats`)
   }
 }

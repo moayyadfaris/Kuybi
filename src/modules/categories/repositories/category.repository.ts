@@ -12,6 +12,9 @@ import { Category } from '../entities/category.entity'
  *
  * Handles all database operations for Category entity with caching.
  */
+/** Columns search() may sort by (they become SQL identifiers) */
+export const CATEGORY_SORT_FIELDS = ['name', 'slug', 'createdAt', 'updatedAt'] as const
+
 @Injectable()
 export class CategoryRepository extends BaseRepository<Category> {
   protected entityName = 'category'
@@ -114,8 +117,10 @@ export class CategoryRepository extends BaseRepository<Category> {
     }
 
     // Apply sorting
-    const orderBy = query.orderBy || 'name'
-    const orderDirection = query.orderDirection || 'ASC'
+    const orderBy = (CATEGORY_SORT_FIELDS as readonly string[]).includes(query.orderBy ?? '')
+      ? query.orderBy
+      : 'name'
+    const orderDirection = query.orderDirection === 'DESC' ? 'DESC' : 'ASC'
     builder.orderBy(`category.${orderBy}`, orderDirection)
 
     // Apply pagination
@@ -251,17 +256,5 @@ export class CategoryRepository extends BaseRepository<Category> {
       },
       300 // 5 minutes TTL for stats
     )
-  }
-
-  /**
-   * Override to add custom cache invalidation
-   */
-  protected async invalidateListCaches(): Promise<void> {
-    await super.invalidateListCaches()
-
-    // Invalidate specific category caches
-    await this.cacheService.delPattern(`${this.entityName}:slug:*`)
-    await this.cacheService.delPattern(`${this.entityName}:all-active`)
-    await this.cacheService.delPattern(`${this.entityName}:stats`)
   }
 }

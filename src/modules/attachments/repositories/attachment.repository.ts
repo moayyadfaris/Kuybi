@@ -37,20 +37,6 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }
 
   /**
-   * Wrapper for cache operations
-   */
-  private async withCache<T>(
-    cacheKey: string,
-    factory: () => Promise<T>,
-    ttl?: number
-  ): Promise<T> {
-    if (this.cacheService) {
-      return this.cached(cacheKey, factory, ttl || this.defaultTTL)
-    }
-    return factory()
-  }
-
-  /**
    * Find attachment by ID with optional soft delete inclusion
    */
   async findByIdWithOptions(id: string, includeDeleted = false): Promise<Attachment | null> {
@@ -90,7 +76,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
 
     const cacheKey = this.buildCacheKey('list', JSON.stringify(options))
 
-    return this.withCache(
+    return this.cached(
       cacheKey,
       async () => {
         const query = this.repository
@@ -132,7 +118,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   ): Promise<Attachment[]> {
     const cacheKey = this.buildCacheKey('user', userId, JSON.stringify(options))
 
-    return this.withCache(cacheKey, async () => {
+    return this.cached(cacheKey, async () => {
       const query = this.repository
         .createQueryBuilder('attachment')
         .where('attachment.userId = :userId', { userId })
@@ -153,7 +139,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
 
     const cacheKey = this.buildCacheKey('orphaned', olderThanDays.toString())
 
-    return this.withCache(cacheKey, async () => {
+    return this.cached(cacheKey, async () => {
       // Query for attachments that:
       // 1. Are older than X days
       // 2. Have no story associations
@@ -175,16 +161,21 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   async findByChecksum(userId: string, checksum: string): Promise<Attachment | null> {
     const cacheKey = this.buildCacheKey('checksum', userId, checksum)
 
-    return this.withCache(cacheKey, async () => {
-      return this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.userId = :userId', { userId })
-        .andWhere('attachment.checksum = :checksum', { checksum })
-        .andWhere('attachment.deletedAt IS NULL')
-        .leftJoinAndSelect('attachment.user', 'user')
-        .orderBy('attachment.createdAt', 'DESC')
-        .getOne()
-    })
+    // The newest match, not a unique key: a selection
+    return this.cached(
+      cacheKey,
+      () =>
+        this.repository
+          .createQueryBuilder('attachment')
+          .where('attachment.userId = :userId', { userId })
+          .andWhere('attachment.checksum = :checksum', { checksum })
+          .andWhere('attachment.deletedAt IS NULL')
+          .leftJoinAndSelect('attachment.user', 'user')
+          .orderBy('attachment.createdAt', 'DESC')
+          .getOne(),
+      undefined,
+      { selection: true }
+    )
   }
 
   /**
@@ -199,7 +190,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }> {
     const cacheKey = this.buildCacheKey('stats')
 
-    return this.withCache(
+    return this.cached(
       cacheKey,
       async () => {
         const query = this.repository
@@ -448,43 +439,8 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     }
   }
 
-  /**
-   * Invalidate cache for a specific attachment
-   */
+  /** Its cached row (by id or checksum) and every list */
   private async invalidateCacheForEntity(id: string): Promise<void> {
-    if (!this.cacheService) return
-
-    // Clear specific attachment cache
-    await this.cacheService.del(this.buildCacheKey('id', id))
-    await this.cacheService.delPattern(this.buildCacheKey('findOne', '*'))
-
-    // Clear list caches (very important for list queries)
-    await this.invalidateListCaches()
-  }
-
-  /**
-   * Override invalidateListCaches to include attachment-specific patterns
-   */
-  protected async invalidateListCaches(): Promise<void> {
-    if (!this.cacheService) {
-      return
-    }
-
-    const patterns = [
-      `${this.entityName}:list:*`,
-      `${this.entityName}:user:*`,
-      `${this.entityName}:category:*`,
-      `${this.entityName}:mimetype:*`,
-      `${this.entityName}:public:*`,
-      `${this.entityName}:security-status:*`,
-      `${this.entityName}:tags:*`,
-      `${this.entityName}:stats:*`,
-      `${this.entityName}:checksum:*`,
-      `${this.entityName}:findOne:*`
-    ]
-
-    for (const pattern of patterns) {
-      await this.cacheService.delPattern(pattern)
-    }
+    await this.invalidateCacheByEntityId(id)
   }
 }

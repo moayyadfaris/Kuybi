@@ -234,32 +234,19 @@ export class PostContentRepository extends BaseRepository<PostContent> {
   }
 
   /**
-   * Invalidate cache for specific content
+   * Invalidate one content entry: its cached row (by id or slug: same row tag) and every
+   * list it may appear in
    * @param contentId - Content UUID or PostContent entity
    */
   async invalidateCacheForContent(contentId: string | PostContent): Promise<void> {
-    if (!this.cacheService) return
-
-    const id = typeof contentId === 'string' ? contentId : contentId.id
-
-    // For entity, also invalidate slug-based cache
-    if (typeof contentId !== 'string') {
-      const slugKey = this.buildCacheKey('slug', contentId.postTypeId, contentId.slug)
-      await this.cacheService.del(slugKey)
-    }
-
-    await this.cacheService.del(this.buildCacheKey('id', id))
+    await this.invalidateCacheByEntityId(typeof contentId === 'string' ? contentId : contentId.id)
   }
 
   /**
-   * Invalidate all caches for a post type
-   * @param postTypeId - Post type UUID
+   * Invalidate the lists of a post type (they are tagged as lists of this entity)
+   * @param _postTypeId - Post type UUID
    */
-  async invalidateCacheForPostType(postTypeId: string): Promise<void> {
-    if (!this.cacheService) return
-
-    // Use pattern deletion to clear all caches for this post type
-    const pattern = this.buildCacheKey('postType', postTypeId, '*')
-    await this.cacheService.delPattern(pattern)
+  async invalidateCacheForPostType(_postTypeId: string): Promise<void> {
+    await this.invalidateListCaches()
   }
 }

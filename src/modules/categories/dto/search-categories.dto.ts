@@ -3,6 +3,8 @@ import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Type } from 'class-transformer'
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
+import { CATEGORY_SORT_FIELDS } from '../repositories/category.repository'
+
 export class SearchCategoriesDto {
   @ApiPropertyOptional({
     description: 'Search term to filter categories by name, slug, or description',
@@ -52,7 +54,7 @@ export class SearchCategoriesDto {
   })
   @IsOptional()
   @IsString()
-  @IsIn(['name', 'slug', 'createdAt', 'updatedAt'])
+  @IsIn(CATEGORY_SORT_FIELDS)
   orderBy?: string
 
   @ApiPropertyOptional({
