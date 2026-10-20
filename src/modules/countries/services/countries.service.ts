@@ -1,29 +1,15 @@
 import { Injectable } from '@nestjs/common'
 
-import { CacheService } from '@core/cache/services/cache.service'
-
 import { ListCountriesQueryDto } from '../dto/list-countries.query.dto'
 import { Country } from '../entities/country.entity'
 import { CountryRepository } from '../repositories/country.repository'
 
 @Injectable()
 export class CountriesService {
-  constructor(
-    private readonly countryRepository: CountryRepository,
-    private readonly cacheService: CacheService
-  ) {}
+  constructor(private readonly countryRepository: CountryRepository) {}
 
   async searchCountries(query: ListCountriesQueryDto) {
-    // Build cache key based on query parameters
-    const cacheKey = this.buildCacheKey(query)
-
-    // Try to get from cache first
-    const cached = await this.cacheService.get<Record<string, unknown>>(cacheKey)
-    if (cached) {
-      return { ...cached, cached: true }
-    }
-
-    // Use repository's search method
+    // Cached by the repository (invalidated by country writes)
     const result = await this.countryRepository.search({
       search: query.search,
       continent: query.continent,
@@ -35,7 +21,7 @@ export class CountriesService {
       limit: query.limit
     })
 
-    const response = {
+    return {
       results: result.results,
       total: result.total,
       pagination: result.pagination,
@@ -50,11 +36,6 @@ export class CountriesService {
         }
       }
     }
-
-    // Cache the response (1 hour TTL for countries data)
-    await this.cacheService.set(cacheKey, response, 3600)
-
-    return { ...response, cached: false }
   }
 
   /**
@@ -112,27 +93,5 @@ export class CountriesService {
    */
   async invalidateCache(): Promise<void> {
     await this.countryRepository.invalidateAllCaches()
-  }
-
-  private buildCacheKey(query: ListCountriesQueryDto): string {
-    const keyParts = ['countries', 'list', `page:${query.page ?? 0}`, `limit:${query.limit ?? 50}`]
-
-    if (query.search) {
-      keyParts.push(`search:${query.search}`)
-    }
-    if (query.continent) {
-      keyParts.push(`continent:${query.continent}`)
-    }
-    if (typeof query.isActive === 'boolean') {
-      keyParts.push(`active:${query.isActive}`)
-    }
-    if (query.orderBy) {
-      keyParts.push(`sort:${query.orderBy}:${query.orderDirection ?? 'asc'}`)
-    }
-    if (query.fields) {
-      keyParts.push(`fields:${query.fields.join(',')}`)
-    }
-
-    return keyParts.join(':')
   }
 }

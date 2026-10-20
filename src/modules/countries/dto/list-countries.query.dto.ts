@@ -4,7 +4,9 @@ import { PaginationQueryDto } from '@shared/dto/pagination-query.dto'
 import { Transform } from 'class-transformer'
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator'
 
-const ORDER_FIELDS = ['name', 'continent', 'currencyCode', 'phonecode']
+import { COUNTRY_SORT_FIELDS } from '../repositories/country.repository'
+
+const ORDER_FIELDS = [...COUNTRY_SORT_FIELDS]
 const ORDER_DIRECTIONS = ['asc', 'desc'] as const
 
 export class ListCountriesQueryDto extends PaginationQueryDto {

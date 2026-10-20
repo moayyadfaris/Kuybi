@@ -3,6 +3,7 @@
  */
 import { CountriesModule } from '@modules/countries/countries.module'
 import { Country } from '@modules/countries/entities/country.entity'
+import { CountryRepository } from '@modules/countries/repositories/country.repository'
 
 import { createHttpTestApp, HttpTestApp } from '../../helpers/http-test-app'
 import { resetDatabase } from '../../helpers/reset-database'
@@ -112,6 +113,16 @@ describe('Countries', () => {
     const res = await list({ fields: 'iso,name', search: 'fra' })
 
     expect(res.body.data.results).toEqual([{ iso: 'FR', name: 'FRANCE' }])
+  })
+
+  it('serves a country change at once (the seeder updates through the repository)', async () => {
+    expect(names(await list({ search: 'jordan' }))).toEqual(['JORDAN']) // now cached
+
+    const jordan = await t.dataSource.getRepository(Country).findOneByOrFail({ iso: 'JO' })
+    await t.app.get(CountryRepository).update(jordan.id, { name: 'HASHEMITE KINGDOM OF JORDAN' })
+
+    expect(names(await list({ search: 'jordan' }))).toEqual(['HASHEMITE KINGDOM OF JORDAN'])
+    await t.app.get(CountryRepository).update(jordan.id, { name: 'JORDAN' })
   })
 
   it('rejects unknown order fields', async () => {

@@ -186,6 +186,10 @@ export class StoryVersionService {
     }
 
     const updated = await this.versionRepository.update(version.id, { tag })
+    if (!updated) {
+      // Deleted since it was read above
+      throw new NotFoundException(`Version ${versionNumber} not found`)
+    }
 
     this.logger.info({ storyId, versionId: version.id, tag }, 'Version tagged successfully')
 

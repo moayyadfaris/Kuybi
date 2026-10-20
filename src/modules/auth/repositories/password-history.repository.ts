@@ -60,9 +60,6 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
     // Cleanup old entries (keep only last N)
     await this.cleanupOldPasswords(userId, keepLast)
 
-    // Invalidate cache
-    await this.invalidateUserCache(userId)
-
     this.logger.info(
       { userId, keepLast, ipAddress },
       'Password history entry added and old entries cleaned'
@@ -92,17 +89,6 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
         { userId, deleted: idsToDelete.length, kept: keepLast },
         'Cleaned up old password history entries'
       )
-    }
-  }
-
-  /**
-   * Invalidate all cache for a specific user
-   */
-  private async invalidateUserCache(userId: string): Promise<void> {
-    const patterns = [`${this.entityName}:user:${userId}:*`, `${this.entityName}:list:*`]
-
-    for (const pattern of patterns) {
-      await this.cacheService.delPattern(pattern)
     }
   }
 }

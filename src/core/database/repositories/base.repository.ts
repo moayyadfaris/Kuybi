@@ -22,7 +22,10 @@ import { CacheService } from '../../cache/services/cache.service'
  * Cache contract
  * - Every cached entry carries the entity tag plus either its row tag (`<entity>:<id>`,
  *   when the value is a single row) or the list tag (`<entity>:list`: lists, counts and
- *   booleans - anything a new or changed row can make wrong). Misses are not cached.
+ *   booleans - anything a new or changed row can make wrong). A single row picked by a
+ *   query rather than a unique key (the latest, the first match) is a `selection` and
+ *   carries both: another row can become the answer. Misses are not cached.
+ * - Invalidation is by tag only, never by key pattern (no SCAN of the keyspace).
  * - A write through this class invalidates the row tag of the row it touched and the
  *   list tag. Other rows stay cached.
  * - transaction() cannot know which rows the work touched, so it invalidates the
@@ -53,27 +56,34 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Read-through cache for subclass queries. The value is tagged per the cache
    * contract, so writes through this repository invalidate it.
    */
-  protected async cached<V>(key: string, load: () => Promise<V>, ttl?: number): Promise<V> {
+  protected async cached<V>(
+    key: string,
+    load: () => Promise<V>,
+    ttl?: number,
+    options?: { selection?: boolean }
+  ): Promise<V> {
     if (!this.cacheService) return load()
     const hit = await this.cacheService.get<V>(key)
     if (hit !== undefined && hit !== null) return hit
     const value = await load()
     // A cached null would read back as a miss, so misses are not stored
-    if (value !== null) await this.cacheSet(key, value, ttl)
+    if (value !== null) await this.cacheSet(key, value, ttl, options)
     return value
   }
 
   /**
    * Store a value under the cache contract (see cached())
    */
-  protected async cacheSet<V>(key: string, value: V, ttl?: number): Promise<void> {
+  protected async cacheSet<V>(
+    key: string,
+    value: V,
+    ttl?: number,
+    options?: { selection?: boolean }
+  ): Promise<void> {
     if (!this.cacheService || value === undefined) return
-    await this.cacheService.setWithTags(
-      key,
-      value,
-      this.getCacheTags(this.rowIdOf(value)),
-      ttl ?? this.defaultTTL
-    )
+    const tags = this.getCacheTags(this.rowIdOf(value))
+    if (options?.selection && !tags.includes(this.listTag())) tags.push(this.listTag())
+    await this.cacheService.setWithTags(key, value, tags, ttl ?? this.defaultTTL)
   }
 
   /**
@@ -86,10 +96,12 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     if (options?.bypassCache) {
       return this.repository.findOne({ where })
     }
+    // Any conditions, so possibly not a unique key: a selection
     return this.cached(
       this.buildCacheKey('findOne', JSON.stringify(where)),
       () => this.repository.findOne({ where }),
-      options?.ttl
+      options?.ttl,
+      { selection: true }
     )
   }
 
@@ -276,23 +288,16 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Invalidate cache for a specific entity
    */
   protected async invalidateEntityCache(id: string | number): Promise<void> {
-    if (!this.cacheService) return
-
     await this.invalidateCacheByEntityId(id)
-    await this.cacheService.delPattern(this.buildCacheKey('findOne', '*'))
   }
 
   /**
-   * Invalidate list caches
-   * Override this in specific repositories to add custom patterns
+   * Invalidate list caches (and selections)
    */
   protected async invalidateListCaches(): Promise<void> {
     if (!this.cacheService) return
 
     await this.cacheService.invalidateTag(this.listTag())
-    await this.cacheService.delPattern(`${this.entityName}:findMany:*`)
-    await this.cacheService.delPattern(`${this.entityName}:list:*`)
-    await this.cacheService.delPattern(`${this.entityName}:search:*`)
   }
 
   /**
@@ -302,7 +307,6 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     if (!this.cacheService) return
 
     await this.invalidateCacheByTag()
-    await this.cacheService.delPattern(`${this.entityName}:*`)
   }
 
   /**
@@ -310,20 +314,6 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    */
   protected getCacheTags(id?: string | number): string[] {
     return [this.entityName, id !== undefined ? this.rowTag(id) : this.listTag()]
-  }
-
-  /**
-   * Set cached value with entity tags
-   */
-  protected async setCacheWithTags<V>(
-    key: string,
-    value: V,
-    id?: string | number,
-    ttl?: number
-  ): Promise<void> {
-    if (!this.cacheService) return
-
-    await this.cacheService.setWithTags(key, value, this.getCacheTags(id), ttl ?? this.defaultTTL)
   }
 
   /**

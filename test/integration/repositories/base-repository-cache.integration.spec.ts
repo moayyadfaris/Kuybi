@@ -26,6 +26,16 @@ class ProbeRepository extends BaseRepository<Category> {
   constructor(repository: Repository<Category>, cache: CacheService) {
     super(repository, cache)
   }
+
+  /** The newest row: picked by a query, so a new row can take its place */
+  newest(selection: boolean): Promise<Category | null> {
+    return this.cached(
+      this.buildCacheKey('newest', String(selection)),
+      () => this.repository.findOne({ where: {}, order: { createdAt: 'DESC', id: 'DESC' } }),
+      undefined,
+      { selection }
+    )
+  }
 }
 
 describe('BaseRepository cache coherence (real Redis)', () => {
@@ -150,6 +160,18 @@ describe('BaseRepository cache coherence (real Redis)', () => {
 
     expect((await repo.findById(a.id))?.name).toBe('a2')
     expect((await repo.findById(b.id))?.name).toBe('row-b') // untouched row stays cached
+  })
+
+  it('a selection (a row picked by a query) sees a newer row; a plain row cache would not', async () => {
+    await repo.create(category('older'))
+    expect((await repo.newest(true))?.slug).toBe('older')
+    expect((await repo.newest(false))?.slug).toBe('older')
+
+    await repo.create(category('newer'))
+
+    expect((await repo.newest(true))?.slug).toBe('newer')
+    // Tagged with the old row only: why lookups like "latest version" are selections
+    expect((await repo.newest(false))?.slug).toBe('older')
   })
 
   it('transaction leaves the cache alone when the work rolls back', async () => {

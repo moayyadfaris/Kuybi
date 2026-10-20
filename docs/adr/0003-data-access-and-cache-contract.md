@@ -1,7 +1,7 @@
 # 0003. Data access only through the owning repository; one cache contract
 
 - **Status:** Accepted
-- **Date:** 2026-10-19
+- **Date:** 2026-10-19 (selections and tag-only invalidation: 2026-10-20)
 
 ## Context
 
@@ -24,6 +24,13 @@ served stale.
   - Every cached entry carries the entity tag plus either the row tag
     (`<entity>:<id>`, when the value is one row) or the list tag (`<entity>:list`:
     lists, counts, booleans). Misses are not cached.
+  - A single row picked by a query rather than a unique key (the latest version, the
+    newest duplicate, `findOne(where)`) is a **selection**: `cached(..., { selection:
+true })` tags it with the list tag too, because a new row can become the answer.
+  - **Invalidation is by tag only.** Repositories do not delete keys (`del`) or key
+    patterns (`delPattern`, a SCAN of the whole keyspace): every entry is tagged, so the
+    tags reach it. Writes that bypass the base methods (raw inserts, bulk updates) call
+    `invalidateCacheByEntityId`, `invalidateListCaches` or `invalidateCacheByTag`.
   - A write invalidates the row it touched and the list tag; other rows stay cached.
   - `transaction(work, { touched })` invalidates after the commit (a rollback leaves the
     cache alone): the touched rows when given, otherwise every entry of the entity.
@@ -48,6 +55,8 @@ served stale.
   `@InjectRepository`, `@InjectDataSource`, `@InjectEntityManager`, or `DataSource` /
   `EntityManager` constructor parameters.
 - ESLint (repositories): no `this.cacheService.wrap/set`; use `cached()` / `cacheSet()`.
+  No `this.cacheService.del/delPattern`; invalidate by tag.
 - `scripts/check-module-graph.js`: `forFeature` only with the module's own entities.
-- Tests: `base-repository-cache.integration.spec.ts` (real Postgres and Redis) and the
+- Tests: `base-repository-cache.integration.spec.ts` (real Postgres and Redis, including
+  selections), `role-cache.integration.spec.ts`, the countries search freshness test and the
   role-change / availability coherence tests in `user-profile.integration.spec.ts`.

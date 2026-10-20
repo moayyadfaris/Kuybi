@@ -233,6 +233,12 @@ export default tseslint.config(
             "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(wrap|set|wrapWithTags|setWithTags)$/]",
           message:
             'Cache with this.cached() / this.cacheSet(): only their tags are invalidated by writes through the repository.'
+        },
+        {
+          selector:
+            "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(del|delPattern)$/]",
+          message:
+            'Invalidate by tag (invalidateCacheByEntityId, invalidateListCaches, invalidateCacheByTag): every repository entry is tagged, and delPattern scans the whole keyspace.'
         }
       ]
     }
