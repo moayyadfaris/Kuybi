@@ -1,17 +1,31 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Transform, Type } from 'class-transformer'
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
+import {
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min
+} from 'class-validator'
+
+import { ATTACHMENT_STATUSES } from '../entities/attachment.entity'
 
 export class AttachmentQueryDto {
   @ApiPropertyOptional({ description: 'Category filter', example: 'images' })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   category?: string
 
   @ApiPropertyOptional({ description: 'MIME type filter (supports prefix)', example: 'image/' })
   @IsOptional()
   @IsString()
+  @MaxLength(150)
   mimeType?: string
 
   @ApiPropertyOptional({ description: 'Filter by public/private', example: true })
@@ -22,12 +36,11 @@ export class AttachmentQueryDto {
 
   @ApiPropertyOptional({
     description: 'Security status filter',
-    example: 'approved',
-    enum: ['pending', 'approved', 'rejected', 'scanning']
+    example: 'completed',
+    enum: ATTACHMENT_STATUSES
   })
   @IsOptional()
-  @IsString()
-  @IsEnum(['pending', 'approved', 'rejected', 'scanning'])
+  @IsIn(ATTACHMENT_STATUSES)
   securityStatus?: string
 
   @ApiPropertyOptional({ description: 'Minimum file size in bytes', example: 1024 })
@@ -60,7 +73,10 @@ export class AttachmentQueryDto {
   @Transform(({ value }) => (value ? new Date(value) : undefined))
   endDate?: Date
 
-  @ApiPropertyOptional({ description: 'Include soft-deleted attachments', default: false })
+  @ApiPropertyOptional({
+    description: "Include soft-deleted attachments (only for readers of everyone's files)",
+    default: false
+  })
   @IsOptional()
   @ToBoolean()
   @IsBoolean()

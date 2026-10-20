@@ -44,7 +44,11 @@ import { PostType } from './post-type.entity'
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */
 @Entity({ name: 'post_content' })
-@Index('IDX_POST_CONTENT_SLUG_POST_TYPE_UNIQUE', ['postTypeId', 'slug'], { unique: true })
+// Unique among live entries: a deleted entry's slug can be reused
+@Index('IDX_POST_CONTENT_SLUG_POST_TYPE_UNIQUE', ['postTypeId', 'slug'], {
+  unique: true,
+  where: '"deletedAt" IS NULL'
+})
 @Index('IDX_POST_CONTENT_POST_TYPE', ['postTypeId'])
 @Index('IDX_POST_CONTENT_STATUS', ['status'])
 @Index('IDX_POST_CONTENT_AUTHOR', ['authorId'])

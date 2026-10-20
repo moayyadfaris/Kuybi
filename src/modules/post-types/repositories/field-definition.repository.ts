@@ -8,18 +8,8 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 import { FieldDefinition } from '../entities/field-definition.entity'
 
 /**
- * FieldDefinition Repository
- *
- * Data access layer for FieldDefinition entities with caching (15-min TTL).
- * Manages custom field schemas for post types.
- *
- * Cache Strategy:
- * - 15-minute TTL (field definitions change occasionally)
- * - Cache by post type ID
- * - Invalidate on create/update/delete/reorder operations
- *
- * Part of: Phase 1 - Dynamic Post Types System
- * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
+ * The custom fields of post types, cached per the cache contract (15 minutes). Field
+ * names are unique per post type among live fields only.
  */
 @Injectable()
 export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
@@ -61,57 +51,6 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
     return this.repository.find({
       where: { postTypeId, deletedAt: IsNull() },
       order: { displayOrder: 'ASC', name: 'ASC' }
-    })
-  }
-
-  /**
-   * Find required fields for a post type
-   * @param postTypeId - Post type UUID
-   */
-  async findRequiredFields(postTypeId: string): Promise<FieldDefinition[]> {
-    const cacheKey = this.buildCacheKey('required', postTypeId)
-
-    if (this.cacheService) {
-      return this.cached<FieldDefinition[]>(
-        cacheKey,
-        async () => {
-          return this.repository.find({
-            where: { postTypeId, isRequired: true, deletedAt: IsNull() },
-            order: { displayOrder: 'ASC' }
-          })
-        },
-        this.defaultTTL
-      )
-    }
-
-    return this.repository.find({
-      where: { postTypeId, isRequired: true, deletedAt: IsNull() },
-      order: { displayOrder: 'ASC' }
-    })
-  }
-
-  /**
-   * Find field definition by name within a post type
-   * @param postTypeId - Post type UUID
-   * @param fieldName - Field name
-   */
-  async findByName(postTypeId: string, fieldName: string): Promise<FieldDefinition | null> {
-    const cacheKey = this.buildCacheKey('name', postTypeId, fieldName)
-
-    if (this.cacheService) {
-      return this.cached<FieldDefinition | null>(
-        cacheKey,
-        async () => {
-          return this.repository.findOne({
-            where: { postTypeId, name: fieldName, deletedAt: IsNull() }
-          })
-        },
-        this.defaultTTL
-      )
-    }
-
-    return this.repository.findOne({
-      where: { postTypeId, name: fieldName, deletedAt: IsNull() }
     })
   }
 
@@ -178,14 +117,6 @@ export class FieldDefinitionRepository extends BaseRepository<FieldDefinition> {
 
     // Every reordered row changed, plus the lists
     await this.invalidateCacheByTag()
-  }
-
-  /**
-   * Invalidate the field lists of a post type (tagged as lists of this entity)
-   * @param _postTypeId - Post type UUID
-   */
-  async invalidateCacheForPostType(_postTypeId: string): Promise<void> {
-    await this.invalidateListCaches()
   }
 
   /**

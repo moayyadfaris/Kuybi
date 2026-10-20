@@ -37,10 +37,13 @@ export interface LogActionOptions {
   severity?: AuditSeverity
   tags?: string[]
   description?: string
-  retentionDays?: number
   metadata?: Record<string, unknown>
 }
 
+/**
+ * Writes the audit trail: one row per security-relevant or administrative action, with
+ * who did it, from where, what changed and how severe it is. Read through AuditQueryService.
+ */
 @Injectable()
 export class AuditService {
   constructor(
@@ -69,7 +72,9 @@ export class AuditService {
   }
 
   /**
-   * Main logging method - logs any action with full context
+   * Records an action. Best effort: the action it describes has already happened, so a
+   * failed write is reported (Sentry, error log) and returns null instead of failing the
+   * request that did the action.
    */
   async logAction(context: AuditContext, options: LogActionOptions): Promise<AuditLog | null> {
     if (!this.isAuditEnabled()) {
@@ -115,8 +120,7 @@ export class AuditService {
         metadata: options.metadata
           ? { ...(context.metadata ?? {}), ...options.metadata }
           : context.metadata,
-        description: options.description || null,
-        retentionDays: options.retentionDays || 0
+        description: options.description || null
       })
 
       // Log to Pino for immediate visibility
@@ -135,14 +139,10 @@ export class AuditService {
       })
 
       this.logger.error(
-        {
-          action: options.action,
-          error: errorMessage(error),
-          context
-        },
+        { action: options.action, userId: context.userId, error: errorMessage(error) },
         'Failed to create audit log'
       )
-      throw error
+      return null
     }
   }
 
@@ -185,6 +185,34 @@ export class AuditService {
 
   async logLoginFromRequest(req: Request, user?: ContextUser, metadata?: Record<string, unknown>) {
     return this.logLogin(this.createContextFromRequest(req, user), metadata)
+  }
+
+  /**
+   * A refused login. `user` is the account the email matched, if any; for an unknown email
+   * nothing typed is stored (people type passwords into the email field).
+   */
+  async logLoginFailureFromRequest(req: Request, reason: string, user?: ContextUser) {
+    return this.logAction(this.createContextFromRequest(req, user), {
+      action: AuditAction.LOGIN,
+      status: AuditStatus.FAILURE,
+      description: `Login refused: ${reason.replaceAll('_', ' ')}`,
+      tags: ['authentication', 'security'],
+      metadata: { reason }
+    })
+  }
+
+  /**
+   * A request refused for missing permissions (published by AbilityGuard)
+   */
+  async logUnauthorizedAccess(context: AuditContext, required: string) {
+    return this.logAction(context, {
+      action: AuditAction.UNAUTHORIZED_ACCESS,
+      status: AuditStatus.FAILURE,
+      statusCode: 403,
+      description: `Refused: requires ${required}`,
+      tags: ['authorization', 'security'],
+      metadata: { required }
+    })
   }
 
   /**

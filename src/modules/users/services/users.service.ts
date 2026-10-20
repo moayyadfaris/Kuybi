@@ -5,7 +5,6 @@ import {
   NotFoundException
 } from '@nestjs/common'
 
-import { RoleRepository } from '@modules/acl'
 import {
   assertAttachmentUsable,
   AttachmentRepository,
@@ -13,21 +12,18 @@ import {
   S3Service
 } from '@modules/attachments'
 
-import { PasswordHasher } from '@core/security'
-
 import { UserProfileDto } from '../dto/user-profile.dto'
 import { User } from '../entities/user.entity'
 import { UserRepository } from '../repositories/user.repository'
 
+/** User lookups, profile and profile image; admin edits live in AdminUserManagementService */
 @Injectable()
 export class UsersService {
   constructor(
-    private readonly passwordHasher: PasswordHasher,
     private readonly userRepository: UserRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly s3Service: S3Service,
-    private readonly attachmentVisibility: AttachmentVisibilityService,
-    private readonly roleRepository: RoleRepository
+    private readonly attachmentVisibility: AttachmentVisibilityService
   ) {}
 
   /** Password hash for credential checks only; never returned by regular lookups. */
@@ -47,9 +43,7 @@ export class UsersService {
     return this.userRepository.findById(id, { bypassCache: true })
   }
 
-  /**
-   * Get user profile (safe DTO without sensitive fields)
-   */
+  /** The user as shown to clients (no password hash, lock internals) with an image URL */
   async getUserProfile(id: string): Promise<UserProfileDto | null> {
     // Fresh read (the DTO mapping calls User methods; a cache hit is plain JSON). The
     // profile is not cached either: presigning the image URL is a local HMAC.
@@ -70,28 +64,6 @@ export class UsersService {
     }
 
     return profile
-  }
-
-  async createUser(payload: {
-    name: string
-    email: string
-    mobileNumber: string
-    password: string
-    primaryRoleId?: number
-    isVerified?: boolean
-  }): Promise<User> {
-    const passwordHash = await this.passwordHasher.hash(payload.password)
-
-    const primaryRoleId = payload.primaryRoleId ?? (await this.roleRepository.findDefaultRoleId())
-
-    return this.userRepository.create({
-      name: payload.name,
-      email: payload.email.toLowerCase(),
-      mobileNumber: payload.mobileNumber,
-      passwordHash,
-      primaryRoleId,
-      isVerified: payload.isVerified ?? false
-    })
   }
 
   async updateUser(id: string, data: Partial<User>, currentUser?: User): Promise<User | null> {
@@ -123,22 +95,18 @@ export class UsersService {
     return this.userRepository.getStats()
   }
 
-  async updateVerification(id: string, isVerified: boolean): Promise<User | null> {
-    return this.userRepository.updateVerification(id, isVerified)
-  }
-
   /** Stores a hash made by PasswordHasher (e.g. the same password re-hashed at a higher cost) */
   async storePasswordHash(id: string, passwordHash: string): Promise<void> {
     return this.userRepository.updatePassword(id, passwordHash)
   }
 
   /**
-   * Update user profile image
+   * Sets the user's own, uploaded, live image attachment as profile image and makes it
+   * public (profile images are shown to everyone)
    */
   async updateProfileImage(userId: string, attachmentId: string): Promise<User | null> {
-    // Verify the attachment exists and belongs to the user
     const attachment = await this.attachmentRepository.findById(attachmentId)
-    if (!attachment) {
+    if (!attachment || attachment.deletedAt) {
       throw new NotFoundException('Attachment not found')
     }
 
@@ -147,7 +115,6 @@ export class UsersService {
     }
     assertAttachmentUsable(attachment)
 
-    // Verify it's an image
     if (!attachment.mimeType.startsWith('image/')) {
       throw new BadRequestException('Attachment must be an image')
     }
@@ -155,16 +122,11 @@ export class UsersService {
     // Profile images are public: every stored object's ACL, not just the flag
     await this.attachmentVisibility.setVisibility(attachment, true)
 
-    // Update user with the profile image
-    const updated = await this.userRepository.update(userId, { profileImageId: attachmentId })
-    return updated
+    return this.userRepository.update(userId, { profileImageId: attachmentId })
   }
 
-  /**
-   * Remove user profile image
-   */
+  /** Unsets the profile image (the attachment itself stays) */
   async removeProfileImage(userId: string): Promise<User | null> {
-    const updated = await this.userRepository.update(userId, { profileImageId: null })
-    return updated
+    return this.userRepository.update(userId, { profileImageId: null })
   }
 }

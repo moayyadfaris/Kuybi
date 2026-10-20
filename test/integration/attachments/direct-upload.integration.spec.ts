@@ -28,6 +28,7 @@ import { OutboxMessage } from '@core/outbox'
 import { SentryModule } from '@core/sentry'
 
 import { UserFactory } from '../../factories/user.factory'
+import { FakeStorage } from '../../helpers/fake-storage'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { resetDatabase } from '../../helpers/reset-database'
 import { seedRolesWithPermissions } from '../../helpers/role-seeder'
@@ -53,44 +54,6 @@ const PNG = Buffer.from(
   'base64'
 )
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << >>\n%%EOF\n')
-
-/** In-memory stand-in for S3: tests "upload" by putting bytes under the presigned key */
-class FakeStorage {
-  readonly objects = new Map<string, Buffer>()
-  readonly publicKeys = new Set<string>()
-  /** isPublic of each multipart upload, by key */
-  readonly uploads = new Map<string, boolean | undefined>()
-
-  install(s3: S3Service) {
-    jest.spyOn(s3, 'createPresignedUpload').mockImplementation(async ({ key, contentType }) => ({
-      url: 'https://storage.test/bucket',
-      fields: { key, 'Content-Type': contentType, Policy: 'signed-policy' }
-    }))
-    jest.spyOn(s3, 'getMetadata').mockImplementation(async key => {
-      const body = this.objects.get(key)
-      if (!body) throw new Error('NotFound')
-      return { contentLength: body.length }
-    })
-    jest
-      .spyOn(s3, 'readHead')
-      .mockImplementation(async (key, bytes) => this.objects.get(key)!.subarray(0, bytes))
-    jest.spyOn(s3, 'delete').mockImplementation(async key => {
-      this.objects.delete(key)
-    })
-    jest.spyOn(s3, 'upload').mockImplementation(async options => {
-      this.uploads.set(options.key, options.isPublic)
-      this.objects.set(options.key, options.buffer)
-      if (options.isPublic) this.publicKeys.add(options.key)
-      else this.publicKeys.delete(options.key)
-      return { key: options.key, bucket: 'bucket', location: `https://storage.test/${options.key}` }
-    })
-    // makePublic delegates to setAcl
-    jest.spyOn(s3, 'setAcl').mockImplementation(async (key, isPublic) => {
-      if (isPublic) this.publicKeys.add(key)
-      else this.publicKeys.delete(key)
-    })
-  }
-}
 
 describe('Direct uploads', () => {
   let app: INestApplication

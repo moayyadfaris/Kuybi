@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 
 import { VersionDiff } from '../../dto/version/version-comparison.dto'
-import { Story, StoryPriority, StoryStatus, StoryType } from '../../entities/story.entity'
+import { Story, StoryPriority, StoryType } from '../../entities/story.entity'
 import { StoryVersion } from '../../entities/story-version.entity'
 
 /**
@@ -166,13 +166,15 @@ export function versionContentFromSnapshot(snapshot: StorySnapshot): Partial<Sto
   }
 }
 
-/** The story fields a rollback restores */
+/**
+ * The story fields a rollback restores: the content. Not the status, which belongs to the
+ * editorial workflow (PATCH /stories/:id/status), nor the links or the main image.
+ */
 export function storyContentOfVersion(version: StoryVersion): Partial<Story> {
   return {
     title: version.title,
     details: version.details,
     type: version.type as StoryType,
-    status: version.storyStatus as StoryStatus,
     priority: version.priority as StoryPriority,
     fromTime: toDate(version.fromTime) ?? undefined,
     toTime: toDate(version.toTime) ?? undefined,
@@ -183,8 +185,7 @@ export function storyContentOfVersion(version: StoryVersion): Partial<Story> {
     region: version.region,
     countryId: version.countryId,
     metadata: version.metadata as Record<string, unknown>,
-    internalNotes: version.internalNotes,
-    mainImageId: version.mainImageId
+    internalNotes: version.internalNotes
   }
 }
 

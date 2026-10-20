@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
+/** What the API returns for an attachment (built by AttachmentPresenter) */
 export class AttachmentResponseDto {
   @ApiProperty({ description: 'Attachment ID', example: '550e8400-e29b-41d4-a716-446655440000' })
   id: string
@@ -49,11 +50,9 @@ export class AttachmentResponseDto {
   @ApiPropertyOptional({ description: 'File expiration date' })
   expiresAt?: Date
 
-  @ApiPropertyOptional({ description: 'Thumbnail path if available' })
-  thumbnailPath?: string
-
   @ApiPropertyOptional({
-    description: 'Additional metadata',
+    description:
+      'Image facts and processing state: width, height, format, hasLocation (before stripping), processingStatus, rejectionReasons',
     type: 'object',
     additionalProperties: true
   })
@@ -71,25 +70,24 @@ export class AttachmentResponseDto {
   @ApiPropertyOptional({ description: 'Soft delete timestamp' })
   deletedAt?: Date | null
 
-  @ApiPropertyOptional({ description: 'Public URL (if isPublic=true)' })
+  @ApiPropertyOptional({ description: 'Storage URL, public files only' })
   url?: string
 
-  @ApiPropertyOptional({ description: 'Original full-size image URL' })
+  @ApiPropertyOptional({ description: 'Storage URL of the original, public files only' })
   originalImageUrl?: string
 
-  @ApiPropertyOptional({ description: 'Download URL (authenticated or presigned)' })
-  downloadUrl?: string
+  @ApiProperty({ description: 'Authenticated download route' })
+  downloadUrl: string
 
-  @ApiPropertyOptional({ description: 'Preview/thumbnail URL' })
+  @ApiPropertyOptional({ description: 'Preview thumbnail URL, public files only' })
   previewUrl?: string
 
   @ApiPropertyOptional({
-    description: 'Thumbnail variants with accessible URLs',
+    description: 'Thumbnail variants (URLs for public files only)',
     type: 'object',
     additionalProperties: {
       type: 'object',
       properties: {
-        key: { type: 'string' },
         url: { type: 'string' },
         width: { type: 'number' },
         height: { type: 'number' },
@@ -100,7 +98,7 @@ export class AttachmentResponseDto {
   })
   thumbnails?: Record<
     string,
-    { key: string; url?: string; width?: number; height?: number; size?: number; format?: string }
+    { url?: string; width?: number; height?: number; size?: number; format?: string }
   >
 
   @ApiPropertyOptional({ description: 'Low-quality placeholder URL for progressive loading' })

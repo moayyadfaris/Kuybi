@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common'
 import { PinoLogger } from 'nestjs-pino'
 
 import { VersionDiff } from '../../dto/version/version-comparison.dto'
@@ -64,7 +69,6 @@ export class StoryVersionBranchService {
 
     const branchVersion = Object.assign(new StoryVersion(), versionContentOf(sourceVersion), {
       storyId,
-      versionNumber: await this.versionRepository.getNextVersionNumber(storyId),
       versionType: VersionType.BRANCH,
       status: VersionStatus.ACTIVE,
       branchName,
@@ -76,7 +80,7 @@ export class StoryVersionBranchService {
       changesCount: 0
     })
 
-    const saved = await this.versionRepository.save(branchVersion)
+    const saved = await this.versionRepository.insertNumbered(branchVersion)
     this.logger.info({ storyId, branchName, versionId: saved.id }, 'Branch created successfully')
     return saved
   }
@@ -118,7 +122,7 @@ export class StoryVersionBranchService {
       ? detectConflicts(snapshotOfVersion(baseVersion), sourceSnapshot, targetSnapshot)
       : []
     if (conflicts.length > 0 && !resolveConflicts) {
-      throw new BadRequestException({
+      throw new ConflictException({
         message: 'Merge conflicts detected. Please provide conflict resolutions.',
         conflicts
       })
@@ -129,7 +133,6 @@ export class StoryVersionBranchService {
 
     const mergeVersion = Object.assign(new StoryVersion(), versionContentFromSnapshot(merged), {
       storyId,
-      versionNumber: await this.versionRepository.getNextVersionNumber(storyId),
       versionType: VersionType.MERGE,
       status: VersionStatus.ACTIVE,
       branchName: targetBranch,
@@ -143,7 +146,7 @@ export class StoryVersionBranchService {
       changeSummary: `Merged from ${fromBranch} version ${fromVersionNumber}`
     })
 
-    const saved = await this.versionRepository.save(mergeVersion)
+    const saved = await this.versionRepository.insertNumbered(mergeVersion)
     this.logger.info(
       { storyId, mergeVersionId: saved.id, fromBranch, targetBranch },
       'Version merged successfully'

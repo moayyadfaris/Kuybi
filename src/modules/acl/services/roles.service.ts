@@ -1,27 +1,31 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 
+import { EventBus } from '@core/events'
+
 import { AssignPermissionsDto, RemovePermissionsDto } from '../dto/assign-permissions.dto'
 import { CreateRoleDto } from '../dto/create-role.dto'
 import { UpdateRoleDto } from '../dto/update-role.dto'
 import { Role } from '../entities/role.entity'
+import { AclChangedEvent } from '../events/acl-changed.event'
 import { PermissionRepository } from '../repositories/permission.repository'
 import { RoleRepository } from '../repositories/role.repository'
+import { AclPrincipal } from '../types/acl-principal'
 
+/**
+ * Roles and the permissions granted to them (super-admin only, see RolesController).
+ * System roles keep their name and at least one permission, and cannot be deleted. Every
+ * change is published as AclChangedEvent (the audit module records it).
+ */
 @Injectable()
 export class RolesService {
   constructor(
     private readonly roleRepository: RoleRepository,
-    private readonly permissionRepository: PermissionRepository
+    private readonly permissionRepository: PermissionRepository,
+    private readonly eventBus: EventBus
   ) {}
 
-  /**
-   * Create a new role
-   */
-  async create(createRoleDto: CreateRoleDto): Promise<Role> {
-    // Check if role name already exists
-    const existingRole = await this.roleRepository.findByName(createRoleDto.name)
-
-    if (existingRole) {
+  async create(createRoleDto: CreateRoleDto, actor: AclPrincipal): Promise<Role> {
+    if (await this.roleRepository.findByName(createRoleDto.name)) {
       throw new BadRequestException(`Role with name "${createRoleDto.name}" already exists`)
     }
 
@@ -32,64 +36,45 @@ export class RolesService {
       isActive: createRoleDto.isActive ?? true,
       priority: createRoleDto.priority ?? 50
     })
-
+    await this.publish(role.id, 'create', actor, {
+      name: role.name,
+      priority: role.priority,
+      isSystem: role.isSystem
+    })
     return role
   }
 
-  /**
-   * Get all roles
-   */
   async findAll(): Promise<Role[]> {
     return this.roleRepository.findAll()
   }
 
-  /**
-   * Get all roles with permissions
-   */
   async findAllWithPermissions(): Promise<Role[]> {
     return this.roleRepository.findAllWithPermissions()
   }
 
-  /**
-   * Get all active roles
-   */
   async findActive(): Promise<Role[]> {
     return this.roleRepository.findActive()
   }
 
-  /**
-   * Get role by ID
-   */
   async findOne(id: number): Promise<Role> {
     const role = await this.roleRepository.findById(id)
-
     if (!role) {
       throw new NotFoundException(`Role with ID ${id} not found`)
     }
-
     return role
   }
 
-  /**
-   * Get role with permissions
-   */
   async findOneWithPermissions(id: number): Promise<Role> {
     const role = await this.roleRepository.findByIdWithPermissions(id)
-
     if (!role) {
       throw new NotFoundException(`Role with ID ${id} not found`)
     }
-
     return role
   }
 
-  /**
-   * Update a role
-   */
-  async update(id: number, updateRoleDto: UpdateRoleDto): Promise<Role> {
+  async update(id: number, updateRoleDto: UpdateRoleDto, actor: AclPrincipal): Promise<Role> {
     const role = await this.findOne(id)
 
-    // Prevent updating system roles' critical properties
     if (role.isSystem) {
       if (updateRoleDto.name && updateRoleDto.name !== role.name) {
         throw new BadRequestException('Cannot change the name of a system role')
@@ -98,96 +83,87 @@ export class RolesService {
         throw new BadRequestException('Cannot change isSystem flag of a system role')
       }
     }
-
-    // Check if new name already exists
     if (updateRoleDto.name && updateRoleDto.name !== role.name) {
-      const existingRole = await this.roleRepository.findByName(updateRoleDto.name)
-      if (existingRole) {
+      if (await this.roleRepository.findByName(updateRoleDto.name)) {
         throw new BadRequestException(`Role with name "${updateRoleDto.name}" already exists`)
       }
     }
 
     const updated = await this.roleRepository.update(id, updateRoleDto)
-
     if (!updated) {
       throw new NotFoundException(`Role with ID ${id} not found`)
     }
-
+    await this.publish(id, 'update', actor, { ...updateRoleDto })
     return updated
   }
 
-  /**
-   * Delete a role (soft delete)
-   */
-  async remove(id: number): Promise<void> {
-    try {
-      const deleted = await this.roleRepository.softDelete(id)
-
-      if (!deleted) {
-        throw new NotFoundException(`Role with ID ${id} not found`)
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Cannot delete system roles') {
-        throw new BadRequestException('Cannot delete system roles')
-      }
-      throw error
+  /** Soft delete; the role's holders lose its permissions at once */
+  async remove(id: number, actor: AclPrincipal): Promise<void> {
+    const role = await this.findOne(id)
+    if (role.isSystem) {
+      throw new BadRequestException('Cannot delete system roles')
     }
+    if (!(await this.roleRepository.softDelete(id))) {
+      throw new NotFoundException(`Role with ID ${id} not found`)
+    }
+    await this.publish(id, 'delete', actor, { name: role.name })
   }
 
-  /**
-   * Assign permissions to a role
-   */
-  async assignPermissions(id: number, assignPermissionsDto: AssignPermissionsDto): Promise<Role> {
-    // Verify role exists
+  async assignPermissions(
+    id: number,
+    assignPermissionsDto: AssignPermissionsDto,
+    actor: AclPrincipal
+  ): Promise<Role> {
     await this.findOne(id)
-
-    // Verify all permissions exist
     const permissions = await this.permissionRepository.findByIds(
       assignPermissionsDto.permissionIds
     )
-
     if (permissions.length !== assignPermissionsDto.permissionIds.length) {
       throw new BadRequestException('One or more permission IDs are invalid')
     }
 
-    // Assign permissions
     await this.roleRepository.assignPermissions(id, assignPermissionsDto.permissionIds)
-
-    // Return updated role with permissions
+    await this.publish(id, 'permission_grant', actor, {
+      permissions: permissions.map(p => `${p.action} ${p.subject}`),
+      permissionIds: assignPermissionsDto.permissionIds
+    })
     return this.findOneWithPermissions(id)
   }
 
-  /**
-   * Remove permissions from a role
-   */
-  async removePermissions(id: number, removePermissionsDto: RemovePermissionsDto): Promise<Role> {
-    // Verify role exists
-    const role = await this.findOne(id)
+  async removePermissions(
+    id: number,
+    removePermissionsDto: RemovePermissionsDto,
+    actor: AclPrincipal
+  ): Promise<Role> {
+    const role = await this.findOneWithPermissions(id)
 
-    // Prevent removing all permissions from system roles
     if (role.isSystem) {
-      const roleWithPermissions = await this.findOneWithPermissions(id)
-      const remainingPermissions =
-        roleWithPermissions.rolePermissions.length - removePermissionsDto.permissionIds.length
-
-      if (remainingPermissions === 0) {
+      const removing = new Set(removePermissionsDto.permissionIds)
+      if (role.rolePermissions.every(rp => removing.has(rp.permissionId))) {
         throw new BadRequestException('Cannot remove all permissions from a system role')
       }
     }
 
-    // Remove permissions
     await this.roleRepository.removePermissions(id, removePermissionsDto.permissionIds)
-
-    // Return updated role with permissions
+    await this.publish(id, 'permission_revoke', actor, {
+      permissionIds: removePermissionsDto.permissionIds
+    })
     return this.findOneWithPermissions(id)
   }
 
-  /**
-   * Get all permissions for a role
-   */
   async getRolePermissions(id: number) {
     const role = await this.findOneWithPermissions(id)
-
     return role.rolePermissions.map(rp => rp.permission)
+  }
+
+  private publish(
+    roleId: number,
+    change: AclChangedEvent['change'],
+    actor: AclPrincipal,
+    details: Record<string, unknown>
+  ): Promise<void> {
+    return this.eventBus.publish(
+      new AclChangedEvent('Role', roleId, change, { id: actor.id, email: actor.email }, details)
+    )
   }
 }

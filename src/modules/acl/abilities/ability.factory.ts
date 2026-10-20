@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common'
 import {
-  AbilityBuilder,
   createMongoAbility,
   ForcedSubject,
   MongoAbility,
@@ -42,9 +41,8 @@ export function asSubject(type: Subject, record: object): SubjectInstance {
 @Injectable()
 export class AbilityFactory {
   /**
-   * Create an Ability instance for a specific user
-   * @param user - User with loaded roles and permissions
-   * @returns AppAbility instance with all user permissions
+   * The user's ability: the permissions of their live roles (see below), with super-admins
+   * allowed everything. No user (unauthenticated) gets an ability that allows nothing.
    */
   createForUser(user: AclPrincipal | null | undefined): AppAbility {
     if (!user) {
@@ -57,16 +55,18 @@ export class AbilityFactory {
       return createMongoAbility<AppAbility>([{ action: Action.Manage, subject: Subject.All }])
     }
 
-    // The primary role always applies; additional roles apply while active and unexpired
+    // Roles grant permissions while active and not deleted; additional role assignments
+    // also while the assignment is active and unexpired
     const now = new Date()
+    const isLive = (role?: Role | null): role is Role => !!role?.isActive && !role.deletedAt
     const rolesById = new Map<number, Role>()
-    if (user.primaryRole?.isActive) {
+    if (isLive(user.primaryRole)) {
       rolesById.set(user.primaryRole.id, user.primaryRole)
     }
     for (const userRole of user.userRoles ?? []) {
       const isCurrent =
         userRole.isActive &&
-        userRole.role?.isActive &&
+        isLive(userRole.role) &&
         (!userRole.expiresAt || new Date(userRole.expiresAt) > now)
       if (isCurrent) {
         rolesById.set(userRole.role.id, userRole.role)
@@ -106,25 +106,8 @@ export class AbilityFactory {
   }
 
   /**
-   * Create ability for a guest (unauthenticated) user
-   * @returns AppAbility with minimal permissions
-   */
-  createForGuest(): AppAbility {
-    const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility)
-
-    // Public read access
-    can(Action.Read, Subject.Country)
-    can(Action.Read, Subject.Category)
-    can(Action.Read, Subject.Tag)
-
-    return build()
-  }
-
-  /**
-   * Replace placeholder values in conditions with actual user data
-   * @param conditions - Permission conditions object
-   * @param userId - Current user's ID
-   * @returns Interpolated conditions object
+   * Replaces the `${userId}` placeholder in a permission's conditions with the user's id.
+   * Top-level values only: a nested `${userId}` is left as is (and matches nothing).
    */
   private interpolateConditions(
     conditions: Record<string, unknown> | undefined,

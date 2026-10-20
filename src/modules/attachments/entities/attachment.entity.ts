@@ -11,6 +11,22 @@ import {
 
 import { User } from '@modules/users/entities'
 
+/**
+ * securityStatus values. Direct uploads go pending_upload -> verifying -> processing
+ * (images) -> completed, or rejected; processing can end in failed. Multipart uploads
+ * are completed when stored (images are processed in the request) or processing (async
+ * images). 'pending' is what multipart uploads were given before; read as completed.
+ */
+export const ATTACHMENT_STATUSES = [
+  'pending_upload',
+  'verifying',
+  'processing',
+  'completed',
+  'failed',
+  'rejected',
+  'pending'
+] as const
+
 // Per-user lists, duplicate detection by checksum, and the cleanup of stale uploads
 @Index('IDX_ATTACHMENTS_USER_CREATED', ['userId', 'createdAt'])
 @Index('IDX_ATTACHMENTS_USER_CHECKSUM', ['userId', 'checksum'])
@@ -48,6 +64,7 @@ export class Attachment {
   @Column({ default: false })
   isEncrypted: boolean
 
+  /** Never returned by the API (AttachmentPresenter allowlists response fields) */
   @Column({ nullable: true })
   encryptionKey?: string
 

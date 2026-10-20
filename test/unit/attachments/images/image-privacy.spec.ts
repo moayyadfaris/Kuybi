@@ -5,7 +5,6 @@
  * Until October 2026 both "strip" steps called sharp's withMetadata(), which KEEPS the
  * input's EXIF: every stored original kept its GPS coordinates and camera details.
  */
-import { ConfigService } from '@nestjs/config'
 import { PinoLogger } from 'nestjs-pino'
 import sharp from 'sharp'
 
@@ -15,7 +14,6 @@ import { ImageProcessingService } from '@modules/attachments/services/image-proc
 import { hasGpsData } from '@modules/attachments/utils/exif-gps.util'
 
 const logger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() }
-const config = { get: (_key: string, fallback?: unknown) => fallback } as unknown as ConfigService
 
 /** A JPEG as a phone would produce it: camera make/model and GPS coordinates */
 const geotaggedPhoto = (width = 800, height = 600, orientation?: number) => {
@@ -39,8 +37,8 @@ const metadataOf = (buffer: Buffer) => sharp(buffer).metadata()
 
 describe('image privacy (real sharp pipeline)', () => {
   const exif = new ExifProcessorService(logger as unknown as PinoLogger)
-  const optimizer = new ImageOptimizationService(config, logger as unknown as PinoLogger)
-  const thumbnails = new ImageProcessingService(config)
+  const optimizer = new ImageOptimizationService(logger as unknown as PinoLogger)
+  const thumbnails = new ImageProcessingService()
 
   it('detects GPS in a geotagged photo and not in a plain one', async () => {
     const photo = await geotaggedPhoto()
@@ -51,8 +49,7 @@ describe('image privacy (real sharp pipeline)', () => {
       .toBuffer()
 
     expect(hasGpsData((await metadataOf(photo)).exif)).toBe(true)
-    expect(await exif.hasLocationData(photo)).toBe(true)
-    expect(await exif.hasLocationData(plain)).toBe(false)
+    expect(hasGpsData((await metadataOf(plain)).exif)).toBe(false)
   })
 
   it('strips EXIF (GPS, camera) but keeps the colour profile', async () => {
@@ -78,7 +75,7 @@ describe('image privacy (real sharp pipeline)', () => {
     expect(result.stripped).toContain('orientation')
   })
 
-  it('stores an optimized image without GPS, and so are its variants and thumbnails', async () => {
+  it('stores an optimized image without GPS, and so are its placeholder and thumbnails', async () => {
     const photo = await geotaggedPhoto()
     const stripped = (await exif.stripSensitiveData(photo)).buffer
 
@@ -87,12 +84,15 @@ describe('image privacy (real sharp pipeline)', () => {
       quality: 85,
       stripMetadata: true,
       autoRotate: false,
-      generateWebP: true,
       generatePlaceholder: true
     })
     const thumbs = await thumbnails.generateThumbnails(optimized.buffer)
 
-    const buffers = [optimized.buffer, optimized.webp!, ...Object.values(thumbs).map(t => t.buffer)]
+    const buffers = [
+      optimized.buffer,
+      optimized.placeholder!,
+      ...Object.values(thumbs).map(t => t.buffer)
+    ]
     for (const buffer of buffers) {
       expect(hasGpsData((await metadataOf(buffer)).exif)).toBe(false)
     }
@@ -101,7 +101,6 @@ describe('image privacy (real sharp pipeline)', () => {
   it('strips metadata in optimizeImage even when given the original photo', async () => {
     const optimized = await optimizer.optimizeImage(await geotaggedPhoto(), {
       stripMetadata: true,
-      generateWebP: false,
       generatePlaceholder: false
     })
 
@@ -113,7 +112,6 @@ describe('image privacy (real sharp pipeline)', () => {
   it('keeps metadata only when asked to', async () => {
     const optimized = await optimizer.optimizeImage(await geotaggedPhoto(), {
       stripMetadata: false,
-      generateWebP: false,
       generatePlaceholder: false
     })
 

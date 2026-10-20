@@ -1,20 +1,31 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Brackets, IsNull, Repository } from 'typeorm'
+import { containsPattern } from '@shared/utils/like.util'
+import { Brackets, IsNull, Not, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
 import { Category } from '../entities/category.entity'
 
-/**
- * Category Repository
- *
- * Handles all database operations for Category entity with caching.
- */
 /** Columns search() may sort by (they become SQL identifiers) */
 export const CATEGORY_SORT_FIELDS = ['name', 'slug', 'createdAt', 'updatedAt'] as const
 
+export interface CategorySearch {
+  search?: string
+  isActive?: boolean
+  includeDeleted?: boolean
+  includeCounts?: boolean
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
+  page?: number
+  limit?: number
+}
+
+/**
+ * Categories, cached under the cache contract (ADR 0003). Soft-deleted rows keep their
+ * slug but no longer hold it: slugs are unique among live categories only.
+ */
 @Injectable()
 export class CategoryRepository extends BaseRepository<Category> {
   protected entityName = 'category'
@@ -63,118 +74,62 @@ export class CategoryRepository extends BaseRepository<Category> {
     )
   }
 
-  /**
-   * Search categories with filters, sorting, and pagination
-   */
-  async search(query: {
-    search?: string
-    isActive?: boolean
-    includeDeleted?: boolean
-    includeCounts?: boolean
-    orderBy?: string
-    orderDirection?: 'ASC' | 'DESC'
-    page?: number
-    limit?: number
-  }): Promise<{
+  /** A page of categories matching the filters, optionally with live-story counts */
+  async search(query: CategorySearch): Promise<{
     results: (Category & { storyCount?: number })[]
     total: number
-    pagination: {
-      page: number
-      limit: number
-      totalPages: number
-    }
+    pagination: { page: number; limit: number; totalPages: number }
   }> {
     const builder = this.repository.createQueryBuilder('category')
-
-    // Include story count if requested
-    if (query.includeCounts) {
-      builder
-        .leftJoin('story_categories', 'sc', 'sc.categoryId = category.id')
-        .leftJoin('stories', 's', 's.id = sc.storyId AND s.deletedAt IS NULL')
-        .addSelect('COUNT(DISTINCT s.id)', 'storyCount')
-        .groupBy('category.id')
+    if (!query.includeDeleted) builder.andWhere('category.deletedAt IS NULL')
+    if (query.isActive !== undefined) {
+      builder.andWhere('category.isActive = :isActive', { isActive: query.isActive })
     }
-
-    // Exclude soft-deleted by default
-    if (!query.includeDeleted) {
-      builder.andWhere('category.deletedAt IS NULL')
-    }
-
-    // Apply search
     if (query.search) {
+      const pattern = containsPattern(query.search)
       builder.andWhere(
         new Brackets(qb => {
-          qb.where('category.name ILIKE :search', { search: `%${query.search}%` })
-            .orWhere('category.slug ILIKE :search', { search: `%${query.search}%` })
-            .orWhere('category.description ILIKE :search', { search: `%${query.search}%` })
+          qb.where('category.name ILIKE :pattern', { pattern })
+            .orWhere('category.slug ILIKE :pattern', { pattern })
+            .orWhere('category.description ILIKE :pattern', { pattern })
         })
       )
     }
 
-    // Apply filters
-    if (query.isActive !== undefined) {
-      builder.andWhere('category.isActive = :isActive', { isActive: query.isActive })
-    }
-
-    // Apply sorting
     const orderBy = (CATEGORY_SORT_FIELDS as readonly string[]).includes(query.orderBy ?? '')
       ? query.orderBy
       : 'name'
-    const orderDirection = query.orderDirection === 'DESC' ? 'DESC' : 'ASC'
-    builder.orderBy(`category.${orderBy}`, orderDirection)
-
-    // Apply pagination
     const limit = query.limit ?? 50
-    const page = query.page ?? 1
-    const currentPage = page >= 1 ? page : 1
-    const offset = (currentPage - 1) * limit
-    builder.skip(offset).take(limit)
+    const page = Math.max(query.page ?? 1, 1)
+    const [categories, total] = await builder
+      .orderBy(`category.${orderBy}`, query.orderDirection === 'DESC' ? 'DESC' : 'ASC')
+      .addOrderBy('category.id', 'ASC')
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .getManyAndCount()
 
-    // Execute query
-    let results: (Category & { storyCount?: number })[]
-    let total: number
-
-    if (query.includeCounts) {
-      // Get results with counts
-      const rawResults = await builder.getRawAndEntities()
-      results = rawResults.entities.map((entity, index) => ({
-        ...entity,
-        storyCount: parseInt(rawResults.raw[index].storyCount || '0', 10)
-      }))
-
-      // Get total count separately (without grouping)
-      const countBuilder = this.repository.createQueryBuilder('category')
-      if (!query.includeDeleted) {
-        countBuilder.andWhere('category.deletedAt IS NULL')
-      }
-      if (query.search) {
-        countBuilder.andWhere(
-          new Brackets(qb => {
-            qb.where('category.name ILIKE :search', { search: `%${query.search}%` })
-              .orWhere('category.slug ILIKE :search', { search: `%${query.search}%` })
-              .orWhere('category.description ILIKE :search', { search: `%${query.search}%` })
-          })
-        )
-      }
-      if (query.isActive !== undefined) {
-        countBuilder.andWhere('category.isActive = :isActive', { isActive: query.isActive })
-      }
-      total = await countBuilder.getCount()
-    } else {
-      const [entities, count] = await builder.getManyAndCount()
-      results = entities
-      total = count
-    }
-
+    const counts = query.includeCounts ? await this.storyCounts(categories) : undefined
     return {
-      results,
+      results: counts
+        ? categories.map(category => ({ ...category, storyCount: counts.get(category.id) ?? 0 }))
+        : categories,
       total,
-      pagination: {
-        page: currentPage,
-        limit,
-        totalPages: Math.ceil(total / limit) || 0
-      }
+      pagination: { page, limit, totalPages: Math.ceil(total / limit) }
     }
+  }
+
+  /** Live stories per category, for the given categories */
+  private async storyCounts(categories: Category[]): Promise<Map<string, number>> {
+    if (categories.length === 0) return new Map()
+    const rows: Array<{ categoryId: string; count: string }> = await this.repository.query(
+      `SELECT sc."categoryId", COUNT(*) AS count
+         FROM story_categories sc
+         JOIN stories s ON s.id = sc."storyId" AND s."deletedAt" IS NULL
+        WHERE sc."categoryId" = ANY($1)
+        GROUP BY sc."categoryId"`,
+      [categories.map(category => category.id)]
+    )
+    return new Map(rows.map(row => [row.categoryId, Number(row.count)]))
   }
 
   /**
@@ -194,37 +149,26 @@ export class CategoryRepository extends BaseRepository<Category> {
     return count > 0
   }
 
-  /**
-   * Soft delete a category
-   */
+  /** Soft delete; the active flag is kept, so a restore brings the category back as it was */
   async softDelete(id: string, deletedBy?: string): Promise<boolean> {
-    const result = await this.repository.update(id, {
-      deletedAt: new Date(),
-      deletedBy,
-      isActive: false
-    })
-
-    // Invalidate caches
+    const result = await this.repository.update(
+      { id, deletedAt: IsNull() },
+      { deletedAt: new Date(), deletedBy }
+    )
     await this.invalidateEntityCache(id)
     await this.invalidateListCaches()
-
     return (result.affected ?? 0) > 0
   }
 
-  /**
-   * Restore a soft-deleted category
-   */
+  /** Undoes a soft delete; null when the category is missing or not deleted */
   async restore(id: string): Promise<Category | null> {
-    await this.repository.update(id, {
-      deletedAt: null,
-      deletedBy: null,
-      isActive: true
-    })
-
-    // Invalidate caches
+    const result = await this.repository.update(
+      { id, deletedAt: Not(IsNull()) },
+      { deletedAt: null, deletedBy: null }
+    )
+    if (!result.affected) return null
     await this.invalidateEntityCache(id)
     await this.invalidateListCaches()
-
     return this.findById(id, { bypassCache: true })
   }
 

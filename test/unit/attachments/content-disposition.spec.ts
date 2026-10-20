@@ -1,4 +1,4 @@
-import { contentDisposition } from '@modules/attachments/controllers/attachments.controller'
+import { contentDisposition } from '@modules/attachments/utils/content-disposition.util'
 
 describe('contentDisposition', () => {
   it('keeps plain names readable', () => {

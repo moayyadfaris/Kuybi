@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Type } from 'class-transformer'
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
 
 import { CATEGORY_SORT_FIELDS } from '../repositories/category.repository'
 
@@ -12,6 +12,7 @@ export class SearchCategoriesDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   search?: string
 
   @ApiPropertyOptional({
@@ -19,18 +20,16 @@ export class SearchCategoriesDto {
     example: true
   })
   @IsOptional()
-  @Type(() => Boolean)
   @ToBoolean()
   @IsBoolean()
   isActive?: boolean
 
   @ApiPropertyOptional({
-    description: 'Include soft-deleted categories',
+    description: 'Include soft-deleted categories (only for those who may restore them)',
     example: false,
     default: false
   })
   @IsOptional()
-  @Type(() => Boolean)
   @ToBoolean()
   @IsBoolean()
   includeDeleted?: boolean
@@ -41,7 +40,6 @@ export class SearchCategoriesDto {
     default: false
   })
   @IsOptional()
-  @Type(() => Boolean)
   @ToBoolean()
   @IsBoolean()
   includeCounts?: boolean

@@ -8,6 +8,22 @@ import { STORY_SCOPE_COLUMNS } from '../repositories/story.repository'
 import { AUTHOR_STATUSES } from '../story-status.rules'
 
 /**
+ * Fields shown only to those who may edit the story: staff notes, who did what, and the
+ * exact location (a tip-off's coordinates or address can identify its source; city,
+ * region and country stay visible)
+ */
+const EDITOR_ONLY_FIELDS = [
+  'internalNotes',
+  'deletionReason',
+  'deletedBy',
+  'updatedBy',
+  'lastModifiedBy',
+  'latitude',
+  'longitude',
+  'address'
+] as const satisfies ReadonlyArray<keyof Story>
+
+/**
  * Per-story authorization (e.g. the 'user' role may update only its own stories).
  *
  * Route guards only check the action against the Story type; whether this user may act
@@ -50,6 +66,23 @@ export class StoryAccessPolicy {
     if (!this.can(user, action, story)) {
       throw new ForbiddenException(message)
     }
+  }
+
+  /**
+   * For changes: 404 when the user may not even read the story (as for reads), 403 when
+   * they may read but not do `action`
+   */
+  assertCanChange(user: User, action: Action, story: Story, message: string): void {
+    this.assertCanRead(user, story)
+    this.assertCan(user, action, story, message)
+  }
+
+  /** The story as this viewer may see it: without the editor-only fields unless they can edit it */
+  forViewer(viewer: User, story: Story): Story {
+    if (this.can(viewer, Action.Update, story)) return story
+    const visible = { ...story }
+    for (const field of EDITOR_ONLY_FIELDS) delete visible[field]
+    return visible
   }
 
   /**

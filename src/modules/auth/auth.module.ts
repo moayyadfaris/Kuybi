@@ -16,7 +16,6 @@ import { QueueName } from '@core/queues/jobs/types'
 import { SecurityModule } from '@core/security'
 
 import { AuthController } from './controllers/auth.controller'
-import { CleanupStatsController } from './controllers/cleanup-stats.controller'
 import { PasswordController } from './controllers/password.controller'
 import { RegistrationController } from './controllers/registration.controller'
 import { SessionsController } from './controllers/sessions.controller'
@@ -37,7 +36,6 @@ import {
   AccountLockoutService,
   AuthService,
   PasswordChangeService,
-  SessionCleanupService,
   SessionsService,
   TokenBlacklistService
 } from './services'
@@ -66,20 +64,13 @@ import {
       })
     })
   ],
-  controllers: [
-    AuthController,
-    RegistrationController,
-    PasswordController,
-    SessionsController,
-    CleanupStatsController
-  ],
+  controllers: [AuthController, RegistrationController, PasswordController, SessionsController],
   providers: [
     AuthService,
     PasswordPolicyService,
     AccessTokenService,
     PasswordChangeService,
     SessionsService,
-    SessionCleanupService,
     TokenBlacklistService,
     AccountLockoutService,
     RegistrationService,
@@ -91,16 +82,7 @@ import {
     PasswordResetRepository,
     PasswordHistoryRepository
   ],
-  exports: [
-    AuthService,
-    SessionsService,
-    TokenBlacklistService,
-    AccountLockoutService,
-    RegistrationService,
-    PasswordResetService,
-    PasswordStrengthService,
-    SessionRepository,
-    PasswordHistoryRepository
-  ]
+  // For AuthJobsModule's processors; nothing outside auth uses auth's providers
+  exports: [SessionsService, AccountLockoutService, PasswordResetService, SessionRepository]
 })
 export class AuthModule {}

@@ -96,6 +96,14 @@ export default () => {
         idleTimeoutMillis: parseNumber(process.env.DB_POOL_IDLE_TIMEOUT, 30000)
       }
     },
+    attachments: {
+      // Multipart image uploads are processed in the worker unless a request says otherwise
+      asyncProcessing: parseBoolean(process.env.ATTACHMENT_ASYNC_PROCESSING, false)
+    },
+    stories: {
+      // Automatic versions kept per story and branch (the daily prune deletes older ones)
+      keepAutoVersions: parseNumber(process.env.STORY_KEEP_AUTO_VERSIONS, 50)
+    },
     auth: {
       jwtSecret: process.env.JWT_SECRET,
       jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '10m',
@@ -110,7 +118,6 @@ export default () => {
         maxAttempts: parseNumber(process.env.ACCOUNT_LOCKOUT_MAX_ATTEMPTS, 5),
         lockDuration: parseNumber(process.env.ACCOUNT_LOCKOUT_DURATION, 30 * 60 * 1000), // 30 minutes
         resetAttemptsPeriod: parseNumber(process.env.ACCOUNT_LOCKOUT_RESET_PERIOD, 15 * 60 * 1000), // 15 minutes
-        trackByIpAddress: parseBoolean(process.env.ACCOUNT_LOCKOUT_TRACK_IP, true),
         notifyOnLockout: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_LOCK, true),
         notifyOnUnlock: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_UNLOCK, true)
       }
@@ -151,7 +158,11 @@ export default () => {
       }
     },
     audit: {
-      enabled: parseBoolean(process.env.AUDIT_ENABLED, true)
+      enabled: parseBoolean(process.env.AUDIT_ENABLED, true),
+      // Days rows are kept (the daily purge deletes older ones); 0 keeps them forever
+      retentionDays: parseNumber(process.env.AUDIT_RETENTION_DAYS, 180),
+      // Days critical rows are kept; never less than retentionDays
+      criticalRetentionDays: parseNumber(process.env.AUDIT_CRITICAL_RETENTION_DAYS, 365)
     },
     resilience: {
       s3: {

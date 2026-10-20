@@ -13,18 +13,15 @@ import {
   flattenDiff,
   snapshotOfStory,
   snapshotOfVersion,
-  storyContentOfVersion,
   summarizeChanges,
   versionContentOf,
   versionContentOfStory
 } from './versioning/version-snapshot'
 
 /**
- * Story Version Service
- *
  * Linear version history of a story: snapshot, list, get, rollback, tag. Branches and
  * merges are in StoryVersionBranchService; the snapshot/diff logic is pure, in
- * versioning/version-snapshot.
+ * versioning/version-snapshot. Callers check access to the story first.
  */
 @Injectable()
 export class StoryVersionService {
@@ -35,9 +32,7 @@ export class StoryVersionService {
     this.logger.setContext(StoryVersionService.name)
   }
 
-  /**
-   * Create a new version from a story (skipped when the content is unchanged)
-   */
+  /** Snapshots the story; returns the latest version instead when nothing changed */
   async createVersion(story: Story, dto: CreateVersionDto, userId: string): Promise<StoryVersion> {
     this.logger.info(
       { storyId: story.id, versionType: dto.versionType, userId },
@@ -63,7 +58,6 @@ export class StoryVersionService {
 
     const version = Object.assign(new StoryVersion(), versionContentOfStory(story), {
       storyId: story.id,
-      versionNumber: await this.versionRepository.getNextVersionNumber(story.id),
       versionLabel: dto.versionLabel ?? null,
       versionType: dto.versionType,
       status: VersionStatus.ARCHIVED,
@@ -79,7 +73,7 @@ export class StoryVersionService {
       createdBy: userId
     })
 
-    const saved = await this.versionRepository.save(version)
+    const saved = await this.versionRepository.insertNumbered(version)
 
     this.logger.info(
       {
@@ -94,9 +88,7 @@ export class StoryVersionService {
     return saved
   }
 
-  /**
-   * Get version history for a story
-   */
+  /** Newest first, optionally on one branch */
   async getVersionHistory(
     storyId: number,
     branch?: string,
@@ -106,9 +98,7 @@ export class StoryVersionService {
     return this.versionRepository.findByStoryId(storyId, { branch, limit, offset })
   }
 
-  /**
-   * Get a specific version
-   */
+  /** 404 when the story has no such version */
   async getVersion(storyId: number, versionNumber: number): Promise<StoryVersion> {
     const version = await this.versionRepository.findVersion(storyId, versionNumber)
 
@@ -120,54 +110,41 @@ export class StoryVersionService {
   }
 
   /**
-   * Rollback a story to a previous version: records a ROLLBACK version (on main, or on
-   * a new branch) and returns the story content to restore, which the caller applies.
+   * Records a ROLLBACK version with the content of `target`, on `branch`. Restoring the
+   * story itself is the caller's job, done first so that a refused restore records nothing.
    */
-  async rollbackToVersion(
-    storyId: number,
-    versionNumber: number,
+  async recordRollback(
+    target: StoryVersion,
     userId: string,
     commitMessage: string,
-    createBranch = false,
-    branchName?: string
-  ): Promise<{ version: StoryVersion; restoredContent: Partial<Story> }> {
-    this.logger.info(
-      { storyId, versionNumber, userId, createBranch },
-      'Rolling back story to previous version'
-    )
-
-    const targetVersion = await this.getVersion(storyId, versionNumber)
-    const rollbackBranch = createBranch ? branchName || `rollback-to-v${versionNumber}` : 'main'
-
-    const content = versionContentOf(targetVersion)
+    branch: string
+  ): Promise<StoryVersion> {
+    const content = versionContentOf(target)
     const snapshot = snapshotOfVersion(content)
-    const parentVersion = await this.versionRepository.getLatestVersion(storyId, rollbackBranch)
+    const parentVersion = await this.versionRepository.getLatestVersion(target.storyId, branch)
     const diff = parentVersion ? diffSnapshots(snapshotOfVersion(parentVersion), snapshot) : null
 
     const rollbackVersion = Object.assign(new StoryVersion(), content, {
-      storyId,
-      versionNumber: await this.versionRepository.getNextVersionNumber(storyId),
+      storyId: target.storyId,
       versionType: VersionType.ROLLBACK,
       status: VersionStatus.ACTIVE,
-      branchName: rollbackBranch,
+      branchName: branch,
       commitMessage,
       createdBy: userId,
       isRollback: true,
-      rolledBackFromVersionId: targetVersion.id,
+      rolledBackFromVersionId: target.id,
       parentVersionId: parentVersion?.id || null,
       contentHash: contentHash(snapshot),
       ...(diff && { changes: flattenDiff(diff), changesCount: changedFields(diff).length }),
-      changeSummary: `Rolled back to version ${versionNumber}`
+      changeSummary: `Rolled back to version ${target.versionNumber}`
     })
 
-    const saved = await this.versionRepository.save(rollbackVersion)
-
+    const saved = await this.versionRepository.insertNumbered(rollbackVersion)
     this.logger.info(
-      { storyId, newVersionId: saved.id, rolledBackTo: versionNumber },
-      'Story rolled back successfully'
+      { storyId: target.storyId, versionId: saved.id, rolledBackTo: target.versionNumber, branch },
+      'Story rolled back'
     )
-
-    return { version: saved, restoredContent: storyContentOfVersion(targetVersion) }
+    return saved
   }
 
   /**

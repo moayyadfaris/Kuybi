@@ -11,6 +11,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
+  MaxLength,
   Min
 } from 'class-validator'
 
@@ -115,16 +117,16 @@ export class StoryFilterDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   search?: string
 
   @ApiPropertyOptional({
-    description: 'Include deleted stories',
+    description: 'Include soft-deleted stories (only for readers of every story)',
     default: false
   })
   @IsOptional()
   @ToBoolean()
   @IsBoolean()
-  @Type(() => Boolean)
   includeDeleted?: boolean
 
   @ApiPropertyOptional({
@@ -149,6 +151,7 @@ export class StoryFilterDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(100)
   @Type(() => Number)
   limit?: number = 20
 

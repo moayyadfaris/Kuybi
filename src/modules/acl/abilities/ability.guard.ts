@@ -3,60 +3,64 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  Logger,
   UnauthorizedException
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+import { Request } from 'express'
+
+import { EventBus } from '@core/events'
+
+import { AccessDeniedEvent } from '../events/access-denied.event'
+import { AclPrincipal } from '../types/acl-principal'
 
 import { CHECK_ABILITY, RequiredRule } from './ability.decorator'
 import { AbilityFactory } from './ability.factory'
 
 /**
- * Guard to check if user has required permissions
- * Use with @CheckAbility decorator
+ * Route-level permission check: the user needs any one of the @CheckAbility rules
+ * (handler or class) against the subject type. Per-record conditions (own story, own
+ * attachment...) are checked by the feature's access policy, not here: with a type, CASL
+ * answers "may do this to some record".
+ *
+ * Fails closed: a route behind this guard without @CheckAbility is refused, so a missing
+ * decorator cannot open a route to every signed-in user. A refusal for missing permissions
+ * is published (AccessDeniedEvent) for the audit trail.
  */
 @Injectable()
 export class AbilityGuard implements CanActivate {
+  private readonly logger = new Logger(AbilityGuard.name)
+
   constructor(
-    private reflector: Reflector,
-    private abilityFactory: AbilityFactory
+    private readonly reflector: Reflector,
+    private readonly abilityFactory: AbilityFactory,
+    private readonly eventBus: EventBus
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // Get permission requirements from decorator
-    const rules = this.reflector.get<RequiredRule[]>(CHECK_ABILITY, context.getHandler())
-
-    // If no rules defined, allow access (permission check not required)
+    const rules = this.reflector.getAllAndOverride<RequiredRule[]>(CHECK_ABILITY, [
+      context.getHandler(),
+      context.getClass()
+    ])
     if (!rules || rules.length === 0) {
-      return true
+      this.logger.error(
+        `${context.getClass().name}.${context.getHandler().name} uses AbilityGuard without @CheckAbility`
+      )
+      throw new ForbiddenException('Access denied')
     }
 
-    const request = context.switchToHttp().getRequest()
-    const user = request.user
-
-    // User must be authenticated
+    const req = context.switchToHttp().getRequest<Request & { user?: AclPrincipal }>()
+    const user = req.user
     if (!user) {
       throw new UnauthorizedException('Authentication required')
     }
 
-    // Super-admin bypasses all permission checks
-    // Use User entity method (JWT strategy now returns full User entity)
-    if (user.isSuperAdmin && user.isSuperAdmin()) {
-      return true
-    }
-
-    // Create ability for this user
     const ability = this.abilityFactory.createForUser(user)
-
-    // Check if user has ANY of the required permissions (OR logic)
-    const hasPermission = rules.some(rule => ability.can(rule.action, rule.subject))
-
-    if (!hasPermission) {
-      // Build helpful error message
-      const requiredPermissions = rules.map(r => `${r.action} ${r.subject}`).join(' OR ')
-
-      throw new ForbiddenException(`Insufficient permissions. Required: ${requiredPermissions}`)
+    if (!rules.some(rule => ability.can(rule.action, rule.subject))) {
+      const required = rules.map(r => `${r.action} ${r.subject}`).join(' OR ')
+      await this.eventBus.publish(AccessDeniedEvent.fromRequest(req, user, required))
+      throw new ForbiddenException(`Insufficient permissions. Required: ${required}`)
     }
-
     return true
   }
 }

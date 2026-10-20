@@ -39,7 +39,7 @@ describe('Audit queries', () => {
       })) as AuditLog[]
     )
   const get = (path: string, query: Record<string, string | number | string[]> = {}) =>
-    t.http().get(`/api/audit${path}`).query(query).set(root.auth)
+    t.http().get(`/api/v1/audit${path}`).query(query).set(root.auth)
 
   beforeAll(async () => {
     t = await createHttpTestApp([AuditModule], { resetTables: TABLES })
@@ -90,8 +90,8 @@ describe('Audit queries', () => {
   })
 
   it('is for super-admins only', async () => {
-    await t.http().get('/api/audit/search').set(member.auth).expect(403)
-    await t.http().get('/api/audit/search').expect(401)
+    await t.http().get('/api/v1/audit/search').set(member.auth).expect(403)
+    await t.http().get('/api/v1/audit/search').expect(401)
   })
 
   describe('search', () => {

@@ -14,7 +14,6 @@ import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { AuthModule } from '@modules/auth/auth.module'
-import { PasswordReset } from '@modules/auth/entities/password-reset.entity'
 import { Session } from '@modules/auth/entities/session.entity'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
@@ -363,10 +362,10 @@ describe('Auth Integration Tests', () => {
   })
 
   describe('Admin Password Management', () => {
-    describe('POST /api/admin/users/reset-password (System-Generated)', () => {
+    describe('POST /api/v1/admin/users/reset-password (System-Generated)', () => {
       it('should reset user password with system-generated password', async () => {
         const response = await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -406,7 +405,7 @@ describe('Auth Integration Tests', () => {
 
         // Reset password
         await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -423,7 +422,7 @@ describe('Auth Integration Tests', () => {
 
       it('should fail to reset password for non-existent user', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: '00000000-0000-0000-0000-000000000000',
@@ -434,7 +433,7 @@ describe('Auth Integration Tests', () => {
 
       it('should fail without admin authorization', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .send({
             userId: testUser.id,
             reason: 'Unauthorized test'
@@ -443,12 +442,12 @@ describe('Auth Integration Tests', () => {
       })
     })
 
-    describe('POST /api/admin/users/set-password (Admin-Defined)', () => {
+    describe('POST /api/v1/admin/users/set-password (Admin-Defined)', () => {
       const adminDefinedPassword = 'AdminSet@456'
 
       it('should set specific password for user', async () => {
         const response = await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -469,7 +468,7 @@ describe('Auth Integration Tests', () => {
       it('should allow login with admin-defined password', async () => {
         // Set password
         await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -494,7 +493,7 @@ describe('Auth Integration Tests', () => {
 
       it('should validate password complexity', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -506,7 +505,7 @@ describe('Auth Integration Tests', () => {
 
       it('should fail without admin authorization', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .send({
             userId: testUser.id,
             newPassword: adminDefinedPassword,
@@ -523,7 +522,7 @@ describe('Auth Integration Tests', () => {
     beforeEach(async () => {
       // Reset password with force change flag
       const response = await request(app.getHttpServer())
-        .post('/api/admin/users/reset-password')
+        .post('/api/v1/admin/users/reset-password')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           userId: testUser.id,
@@ -819,9 +818,13 @@ describe('Auth Integration Tests', () => {
 
     const resetTo = async (email: string, newPassword: string) => {
       await request(app.getHttpServer()).post('/api/v1/auth/forgot-password').send({ email })
-      const { token } = await dataSource
-        .getRepository(PasswordReset)
-        .findOneOrFail({ where: { email, used: false }, order: { createdAt: 'DESC' } })
+      // Only a hash is stored: take the token from the emailed link, as the user would
+      const [message] = await dataSource.query(
+        `SELECT payload FROM outbox_messages WHERE payload->>'to' = $1
+          ORDER BY "createdAt" DESC LIMIT 1`,
+        [email]
+      )
+      const token = new URL(message.payload.resetLink).searchParams.get('token')
       return request(app.getHttpServer())
         .post('/api/v1/auth/reset-password')
         .send({ token, newPassword })

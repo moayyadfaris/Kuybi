@@ -5,6 +5,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseEnumPipe,
   ParseUUIDPipe,
   Query,
   UseGuards
@@ -18,8 +19,8 @@ import { JwtAuthGuard } from '@core/auth'
 import {
   DetectSuspiciousActivityDto,
   GetByActionDto,
-  GetByIpAddressDto,
   GetEntityHistoryDto,
+  GetEventsDto,
   GetStatisticsDto,
   GetUserActivityDto,
   SearchAuditLogsDto
@@ -27,8 +28,9 @@ import {
 import { AuditAction } from '../entities/audit-log.entity'
 import { AuditQueryService } from '../services/audit-query.service'
 
+/** The audit trail, read-only, for super-admins */
 @ApiTags('Audit Logs')
-@Controller('audit')
+@Controller('v1/audit')
 @UseGuards(JwtAuthGuard, SuperAdminGuard)
 @ApiBearerAuth()
 export class AuditController {
@@ -52,8 +54,7 @@ export class AuditController {
       severity: dto.severity,
       status: dto.status,
       startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-      isArchived: dto.isArchived
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined
     }
 
     const pagination = {
@@ -86,10 +87,11 @@ export class AuditController {
   })
   @ApiResponse({ status: 200, description: 'Critical events retrieved' })
   @HttpCode(HttpStatus.OK)
-  async getCriticalEvents(@Query() dto: GetStatisticsDto) {
+  async getCriticalEvents(@Query() dto: GetEventsDto) {
     return this.auditQueryService.getCriticalEvents(
       dto.startDate ? new Date(dto.startDate) : undefined,
-      dto.endDate ? new Date(dto.endDate) : undefined
+      dto.endDate ? new Date(dto.endDate) : undefined,
+      dto.limit
     )
   }
 
@@ -100,7 +102,7 @@ export class AuditController {
   })
   @ApiResponse({ status: 200, description: 'Failed operations retrieved' })
   @HttpCode(HttpStatus.OK)
-  async getFailedOperations(@Query() dto: GetUserActivityDto) {
+  async getFailedOperations(@Query() dto: GetEventsDto) {
     return this.auditQueryService.getFailedOperations(
       dto.startDate ? new Date(dto.startDate) : undefined,
       dto.endDate ? new Date(dto.endDate) : undefined,
@@ -116,7 +118,10 @@ export class AuditController {
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User activity retrieved' })
   @HttpCode(HttpStatus.OK)
-  async getUserActivity(@Param('userId') userId: string, @Query() dto: GetUserActivityDto) {
+  async getUserActivity(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query() dto: GetUserActivityDto
+  ) {
     return this.auditQueryService.getUserActivity(
       userId,
       dto.startDate ? new Date(dto.startDate) : undefined,
@@ -134,7 +139,7 @@ export class AuditController {
   @ApiResponse({ status: 200, description: 'Suspicious activity analysis complete' })
   @HttpCode(HttpStatus.OK)
   async detectSuspiciousActivity(
-    @Param('userId') userId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Query() dto: DetectSuspiciousActivityDto
   ) {
     return this.auditQueryService.detectSuspiciousActivity(userId, dto.timeWindowMinutes)
@@ -165,7 +170,10 @@ export class AuditController {
   @ApiParam({ name: 'action', enum: AuditAction, description: 'Action type' })
   @ApiResponse({ status: 200, description: 'Logs by action retrieved' })
   @HttpCode(HttpStatus.OK)
-  async getByAction(@Param('action') action: AuditAction, @Query() dto: GetByActionDto) {
+  async getByAction(
+    @Param('action', new ParseEnumPipe(AuditAction)) action: AuditAction,
+    @Query() dto: GetByActionDto
+  ) {
     return this.auditQueryService.getByAction(action, dto.limit)
   }
 
@@ -177,11 +185,12 @@ export class AuditController {
   @ApiParam({ name: 'ipAddress', description: 'IP address (IPv4 or IPv6)' })
   @ApiResponse({ status: 200, description: 'Logs by IP retrieved' })
   @HttpCode(HttpStatus.OK)
-  async getByIpAddress(@Param('ipAddress') ipAddress: string, @Query() dto: GetByIpAddressDto) {
+  async getByIpAddress(@Param('ipAddress') ipAddress: string, @Query() dto: GetEventsDto) {
     return this.auditQueryService.getByIpAddress(
       ipAddress,
       dto.startDate ? new Date(dto.startDate) : undefined,
-      dto.endDate ? new Date(dto.endDate) : undefined
+      dto.endDate ? new Date(dto.endDate) : undefined,
+      dto.limit
     )
   }
 
@@ -193,8 +202,8 @@ export class AuditController {
   @ApiParam({ name: 'requestId', description: 'Request/Correlation ID' })
   @ApiResponse({ status: 200, description: 'Logs by request ID retrieved' })
   @HttpCode(HttpStatus.OK)
-  async getByRequestId(@Param('requestId') requestId: string) {
-    return this.auditQueryService.getByRequestId(requestId)
+  async getByRequestId(@Param('requestId') requestId: string, @Query() dto: GetEventsDto) {
+    return this.auditQueryService.getByRequestId(requestId, dto.limit)
   }
 
   @Get(':id')

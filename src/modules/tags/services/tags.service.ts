@@ -1,202 +1,112 @@
 import {
-  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common'
-import { errorMessage } from '@shared/utils/error.util'
-import { PinoLogger } from 'nestjs-pino'
+import { isUniqueViolation } from '@shared/utils/database-error.util'
 
 import { CreateTagDto, UpdateTagDto } from '../dto'
 import { Tag } from '../entities/tag.entity'
-import { TagRepository } from '../repositories/tag.repository'
+import { normalizeTagName, TagListOptions, TagRepository } from '../repositories/tag.repository'
 
+/** Who is changing tags, and whether they may manage system tags (super-admins) */
+export interface TagEditor {
+  id: string
+  managesSystemTags: boolean
+}
+
+/**
+ * Tags: names unique among live tags (409 on a clash, however the name is cased or
+ * spaced), soft delete, and system tags that only super-admins may create, change or
+ * delete (others get 403).
+ */
 @Injectable()
 export class TagsService {
-  constructor(
-    private readonly tagRepository: TagRepository,
-    private readonly logger: PinoLogger
-  ) {
-    this.logger.setContext(TagsService.name)
-  }
+  constructor(private readonly tagRepository: TagRepository) {}
 
-  /**
-   * Create a new tag
-   */
-  async create(createTagDto: CreateTagDto, userId: string): Promise<Tag> {
-    this.logger.info({ action: 'create_tag', userId, name: createTagDto.name }, 'Creating tag')
-
-    try {
-      // Check if tag already exists
-      const existing = await this.tagRepository.findByName(createTagDto.name)
-      if (existing) {
-        throw new ConflictException(`Tag with name "${createTagDto.name}" already exists`)
-      }
-
-      const tag = await this.tagRepository.create({
-        ...createTagDto,
-        name: createTagDto.name.toLowerCase().trim(),
-        createdBy: userId,
-        sortOrder: createTagDto.sortOrder ?? 0,
-        isSystem: createTagDto.isSystem ?? false
+  async create(dto: CreateTagDto, editor: TagEditor): Promise<Tag> {
+    if (dto.isSystem) this.assertManagesSystemTags(editor)
+    await this.assertNameFree(dto.name)
+    return this.nameSafe(dto.name, () =>
+      this.tagRepository.create({
+        ...dto,
+        createdBy: editor.id,
+        sortOrder: dto.sortOrder ?? 0,
+        isSystem: dto.isSystem ?? false
       })
-
-      this.logger.info(
-        { action: 'create_tag', tagId: tag.id, userId, name: tag.name },
-        'Tag created successfully'
-      )
-
-      return tag
-    } catch (error) {
-      this.logger.error(
-        { action: 'create_tag', userId, error: errorMessage(error) },
-        'Failed to create tag'
-      )
-      throw error
-    }
+    )
   }
 
-  /**
-   * Find all tags
-   */
-  async findAll(options?: {
-    sortBy?: 'name' | 'sortOrder' | 'createdAt'
-    sortOrder?: 'ASC' | 'DESC'
-  }): Promise<Tag[]> {
-    return this.tagRepository.findAllActive(options)
+  findAll(options: TagListOptions): Promise<Tag[]> {
+    return this.tagRepository.list(options)
   }
 
-  /**
-   * Find tag by ID
-   */
+  /** A live tag (404 when missing or deleted) */
   async findOne(id: number): Promise<Tag> {
     const tag = await this.tagRepository.findById(id)
-
     if (!tag || tag.deletedAt) {
       throw new NotFoundException(`Tag with ID ${id} not found`)
     }
-
     return tag
   }
 
-  /**
-   * Find tag by name
-   */
-  async findByName(name: string): Promise<Tag | null> {
-    return this.tagRepository.findByName(name)
-  }
-
-  /**
-   * Find system tags
-   */
-  async findSystemTags(): Promise<Tag[]> {
+  findSystemTags(): Promise<Tag[]> {
     return this.tagRepository.findSystemTags()
   }
 
-  /**
-   * Update tag
-   */
-  async update(id: number, updateTagDto: UpdateTagDto, userId: string): Promise<Tag> {
-    this.logger.info({ action: 'update_tag', tagId: id, userId }, 'Updating tag')
+  async update(id: number, dto: UpdateTagDto, editor: TagEditor): Promise<Tag> {
+    const tag = await this.findOne(id)
+    if (tag.isSystem || dto.isSystem !== undefined) this.assertManagesSystemTags(editor)
+    if (dto.name !== undefined && normalizeTagName(dto.name) !== tag.name) {
+      await this.assertNameFree(dto.name)
+    }
 
-    try {
-      const tag = await this.findOne(id)
+    const updated = await this.nameSafe(dto.name ?? tag.name, () =>
+      this.tagRepository.update(id, { ...dto, updatedBy: editor.id, version: tag.version + 1 })
+    )
+    if (!updated) {
+      throw new NotFoundException(`Tag with ID ${id} not found`)
+    }
+    return updated
+  }
 
-      // Check if new name conflicts with existing tag
-      if (updateTagDto.name && updateTagDto.name.toLowerCase() !== tag.name) {
-        const existing = await this.tagRepository.findByName(updateTagDto.name)
-        if (existing) {
-          throw new ConflictException(`Tag with name "${updateTagDto.name}" already exists`)
-        }
-      }
+  /** Soft delete; stories keep their links but no longer show the tag */
+  async remove(id: number, editor: TagEditor): Promise<void> {
+    const tag = await this.findOne(id)
+    if (tag.isSystem) this.assertManagesSystemTags(editor)
+    await this.tagRepository.update(id, { deletedAt: new Date(), deletedBy: editor.id })
+  }
 
-      // Prevent modification of system tags by non-admins (simplified)
-      if (tag.isSystem) {
-        throw new BadRequestException('Cannot modify system tags')
-      }
+  /** Permanent delete (also of a soft-deleted tag); stories' links to it go with it */
+  async hardDelete(id: number, editor: TagEditor): Promise<void> {
+    const tag = await this.tagRepository.findById(id, { bypassCache: true })
+    if (!tag) {
+      throw new NotFoundException(`Tag with ID ${id} not found`)
+    }
+    if (tag.isSystem) this.assertManagesSystemTags(editor)
+    await this.tagRepository.delete(id)
+  }
 
-      const updated = await this.tagRepository.update(id, {
-        ...updateTagDto,
-        updatedBy: userId,
-        version: tag.version + 1
-      })
-
-      if (!updated) {
-        throw new NotFoundException(`Tag with ID ${id} not found`)
-      }
-
-      this.logger.info({ action: 'update_tag', tagId: id, userId }, 'Tag updated successfully')
-
-      return updated
-    } catch (error) {
-      this.logger.error(
-        { action: 'update_tag', tagId: id, userId, error: errorMessage(error) },
-        'Failed to update tag'
-      )
-      throw error
+  private assertManagesSystemTags(editor: TagEditor): void {
+    if (!editor.managesSystemTags) {
+      throw new ForbiddenException('System tags are managed by super-admins')
     }
   }
 
-  /**
-   * Soft delete tag
-   */
-  async remove(id: number, userId: string): Promise<void> {
-    this.logger.info({ action: 'delete_tag', tagId: id, userId }, 'Deleting tag')
-
-    try {
-      const tag = await this.findOne(id)
-
-      // Prevent deletion of system tags
-      if (tag.isSystem) {
-        throw new BadRequestException('Cannot delete system tags')
-      }
-
-      await this.tagRepository.update(id, {
-        deletedAt: new Date(),
-        deletedBy: userId
-      })
-
-      this.logger.info({ action: 'delete_tag', tagId: id, userId }, 'Tag deleted successfully')
-    } catch (error) {
-      this.logger.error(
-        { action: 'delete_tag', tagId: id, userId, error: errorMessage(error) },
-        'Failed to delete tag'
-      )
-      throw error
+  private async assertNameFree(name: string): Promise<void> {
+    if (await this.tagRepository.findByName(name)) {
+      throw new ConflictException(`Tag "${normalizeTagName(name)}" already exists`)
     }
   }
 
-  /**
-   * Permanently delete tag
-   */
-  async hardDelete(id: number, userId: string): Promise<void> {
-    this.logger.warn({ action: 'hard_delete_tag', tagId: id, userId }, 'Permanently deleting tag')
-
+  /** Runs a write; a live tag taking the name meanwhile (unique index) answers 409 */
+  private async nameSafe<R>(name: string, write: () => Promise<R>): Promise<R> {
     try {
-      const tag = await this.tagRepository.findById(id)
-
-      if (!tag) {
-        throw new NotFoundException(`Tag with ID ${id} not found`)
-      }
-
-      // Prevent deletion of system tags
-      if (tag.isSystem) {
-        throw new BadRequestException('Cannot delete system tags')
-      }
-
-      const deleted = await this.tagRepository.delete(id)
-
-      if (!deleted) {
-        throw new NotFoundException(`Tag with ID ${id} not found`)
-      }
-
-      this.logger.info({ action: 'hard_delete_tag', tagId: id, userId }, 'Tag permanently deleted')
+      return await write()
     } catch (error) {
-      this.logger.error(
-        { action: 'hard_delete_tag', tagId: id, userId, error: errorMessage(error) },
-        'Failed to permanently delete tag'
-      )
-      throw error
+      if (!isUniqueViolation(error)) throw error
+      throw new ConflictException(`Tag "${normalizeTagName(name)}" already exists`)
     }
   }
 }

@@ -235,6 +235,15 @@ describe('FieldValidationService validators', () => {
       ).toEqual(['FILE_TOO_LARGE'])
     })
 
+    it('accepts only http(s) file URLs (a javascript: link would run when clicked)', async () => {
+      expect(await codesFor(FieldType.FILE, 'https://cdn.example.com/a.pdf')).toEqual([])
+      expect(await codesFor(FieldType.FILE, 'javascript:alert(1)')).toEqual(['INVALID_FILE_URL'])
+      expect(await codesFor(FieldType.IMAGE, { url: 'javascript:alert(1)' })).toEqual([
+        'INVALID_FILE_URL'
+      ])
+      expect(await codesFor(FieldType.VIDEO, 'not a url')).toEqual(['INVALID_FILE_URL'])
+    })
+
     it('rejects a null file value with INVALID_TYPE instead of crashing', async () => {
       expect(await codesFor(FieldType.FILE, null)).toEqual([])
       const required = {

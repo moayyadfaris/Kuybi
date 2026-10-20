@@ -11,6 +11,7 @@ import { MetricsService } from '@core/observability/metrics.service'
 import { PasswordHasher, verifyTokenSecret } from '@core/security'
 import { SentryService } from '@core/sentry'
 
+import type { LoginFailure } from '../types/login-failure'
 import type { SessionContext } from '../types/session-context'
 
 import { AccessTokenService } from './access-token.service'
@@ -35,11 +36,11 @@ function hashEmail(email: string): string {
 type AccountLockInfo = Awaited<ReturnType<AccountLockoutService['getAccountLockInfo']>>
 
 /**
- * Sign-in and the session lifecycle it starts: credential checks (with lockout),
- * login, refresh-token rotation and logout.
+ * Sign-in and the session lifecycle it starts: credential checks (with lockout), login,
+ * refresh-token rotation and logout.
  *
- * Related: PasswordChangeService (self-service password change)
- * (listing a user's sessions), AccessTokenService (JWT issuing).
+ * Related: SessionsService (sessions behind refresh tokens), AccessTokenService (JWTs),
+ * PasswordChangeService (self-service password change).
  */
 @Injectable()
 export class AuthService {
@@ -56,25 +57,41 @@ export class AuthService {
     private readonly passwordHasher: PasswordHasher
   ) {}
 
-  async validateUser(email: string, password: string, context?: SessionContext): Promise<User> {
+  /**
+   * The user these credentials belong to. Every refusal is logged, counted and reported to
+   * `onFailure` (the login route records it in the audit trail) before it is thrown.
+   */
+  async validateUser(
+    email: string,
+    password: string,
+    context?: SessionContext,
+    onFailure?: (failure: LoginFailure) => Promise<unknown>
+  ): Promise<User> {
     // Bypass cache to ensure we get User entity with methods (not plain object from cache)
     const user = await this.usersService.findByEmail(email, true)
     if (!user) {
       // Spend the same hashing time as a wrong password, so response timing does not
       // reveal which emails are registered
       await this.passwordHasher.verify(password, null)
-      this.recordFailedLogin('user_not_found', { emailHash: hashEmail(email) }, context)
+      await this.recordFailedLogin(
+        { reason: 'user_not_found' },
+        { emailHash: hashEmail(email) },
+        context,
+        onFailure
+      )
       throw new UnauthorizedException(INVALID_CREDENTIALS)
     }
 
-    // Check if account is locked
+    // Checked before the password, so a locked account cannot be probed further. Known
+    // trade-off: only existing accounts lock, so a 423 tells the caller the email exists.
     const isLocked = await this.accountLockoutService.isAccountLocked(user.id)
     if (isLocked) {
       const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
-      this.recordFailedLogin(
-        'account_locked',
+      await this.recordFailedLogin(
+        { reason: 'account_locked', user },
         { userId: user.id, lockedUntil: lockInfo.lockedUntil },
-        context
+        context,
+        onFailure
       )
       throw accountLockedException(lockInfo)
     }
@@ -87,10 +104,11 @@ export class AuthService {
 
       // Get updated lock info to check if account was just locked
       const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
-      this.recordFailedLogin(
-        'invalid_password',
+      await this.recordFailedLogin(
+        { reason: 'invalid_password', user },
         { userId: user.id, failedAttempts: lockInfo.failedAttempts },
-        context
+        context,
+        onFailure
       )
 
       // If account was just locked, inform user with 423 Locked
@@ -108,7 +126,12 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      this.recordFailedLogin('user_inactive', { userId: user.id }, context)
+      await this.recordFailedLogin(
+        { reason: 'user_inactive', user },
+        { userId: user.id },
+        context,
+        onFailure
+      )
       throw new UnauthorizedException({
         code: ErrorCode.AUTH_ACCOUNT_INACTIVE,
         message: 'User is inactive'
@@ -145,23 +168,31 @@ export class AuthService {
    * they would exhaust the quota, and the submitted email is personal data (logged only
    * as a hash, which still lets attempts on one address be correlated).
    */
-  private recordFailedLogin(
-    reason: 'user_not_found' | 'invalid_password' | 'account_locked' | 'user_inactive',
+  private async recordFailedLogin(
+    failure: LoginFailure,
     details: Record<string, unknown>,
-    context?: SessionContext
-  ): void {
+    context?: SessionContext,
+    onFailure?: (failure: LoginFailure) => Promise<unknown>
+  ): Promise<void> {
+    const { reason } = failure
     this.metricsService.incrementFailedLogin(reason)
     this.logger.warn(
       { action: 'login_failed', reason, ipAddress: context?.ipAddress, ...details },
       'Login failed'
     )
+    await onFailure?.(failure)
   }
 
+  /**
+   * Starts a session for a user whose credentials were checked (validateUser). A user who
+   * must change their password gets no session, only a token limited to the
+   * password-change endpoints.
+   */
   async login(user: User, context: SessionContext = {}) {
+    // Logged by id only: the email is personal data (see recordFailedLogin)
     this.logger.info(
       {
         userId: user.id,
-        email: user.email,
         ipAddress: context.ipAddress,
         deviceType: context.deviceType,
         action: 'user_login'
@@ -169,25 +200,20 @@ export class AuthService {
       'User login'
     )
 
-    // Check if user must change password
     if (user.forcePasswordChange) {
       this.logger.warn(
-        { userId: user.id, email: user.email, action: 'password_change_required' },
+        { userId: user.id, action: 'password_change_required' },
         'User must change password before accessing system'
       )
-
-      // Return special response indicating password change is required
-      // Do NOT create session until password is changed
       return {
         requiresPasswordChange: true,
         userId: user.id,
         message:
           'Password change required. Please change your password before accessing the system.',
-        tempAccessToken: await this.accessTokenService.issuePasswordChangeToken(user) // Limited token for password change only
+        tempAccessToken: await this.accessTokenService.issuePasswordChangeToken(user)
       }
     }
 
-    // Create session using SessionsService
     const { session, refreshToken } = await this.sessionsService.createSession({
       userId: user.id,
       ipAddress: context.ipAddress,
@@ -196,15 +222,7 @@ export class AuthService {
       sessionType: 'standard'
     })
 
-    // Generate access token
     const accessToken = await this.accessTokenService.issueForSession(user, session.id)
-
-    this.logger.info(
-      { sessionId: session.id, userId: user.id, action: 'session_created' },
-      'Session created for user'
-    )
-
-    // Metric: Log successful login
     this.metricsService.incrementUserLogin(user.getPrimaryRoleName())
 
     return {
@@ -220,6 +238,10 @@ export class AuthService {
     }
   }
 
+  /**
+   * Rotates a refresh token: checks its secret, revokes its session and starts a new one.
+   * A wrong secret revokes the session (the token may have leaked).
+   */
   async refresh(refreshToken: string, context: SessionContext) {
     const [tokenId, tokenSecret] = refreshToken.split('.')
     if (!tokenId || !tokenSecret) {
@@ -250,7 +272,6 @@ export class AuthService {
       throw new UnauthorizedException(refreshTokenInvalid('User unavailable'))
     }
 
-    // Refresh session (creates new session, revokes old one)
     const { session: newSession, refreshToken: newRefreshToken } =
       await this.sessionsService.refreshSession(tokenId, {
         ipAddress: context.ipAddress,
@@ -258,7 +279,6 @@ export class AuthService {
         deviceType: context.deviceType
       })
 
-    // Generate new access token
     const accessToken = await this.accessTokenService.issueForSession(user, newSession.id)
 
     this.logger.info(
@@ -277,6 +297,11 @@ export class AuthService {
     }
   }
 
+  /**
+   * Ends the session of the given refresh token (or every session of the user with
+   * `logoutAll`) and blacklists the presented access token, so it stops working before it
+   * expires. The refresh token must belong to the caller.
+   */
   async logout(
     refreshToken: string,
     options: SessionContext & {

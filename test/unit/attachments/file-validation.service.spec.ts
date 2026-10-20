@@ -1,4 +1,3 @@
-import { ConfigService } from '@nestjs/config'
 import sharp from 'sharp'
 
 import {
@@ -31,7 +30,7 @@ const file = (originalname: string, mimetype: string, buffer: Buffer): MulterFil
 })
 
 describe('FileValidationService', () => {
-  const service = new FileValidationService({} as ConfigService)
+  const service = new FileValidationService()
   let JPEG: Buffer
   let PNG: Buffer
 

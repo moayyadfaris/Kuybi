@@ -12,6 +12,8 @@ export enum QueueName {
   DATA_EXPORT = 'data-export-queue',
   REPORT_GENERATION = 'report-generation-queue',
   VERSION_CLEANUP = 'version-cleanup-queue',
+  CONTENT_PUBLISHING = 'content-publishing-queue',
+  AUDIT_RETENTION = 'audit-retention-queue',
   ACCOUNT_SECURITY = 'account-security-queue',
   DEAD_LETTER = 'dead-letter-queue'
 }
@@ -21,7 +23,6 @@ export enum QueueName {
  */
 export enum SessionCleanupJobType {
   CLEANUP_EXPIRED = 'cleanup-expired-sessions',
-  CHECK_EXPIRING = 'check-expiring-sessions',
   CLEANUP_RESET_TOKENS = 'cleanup-expired-reset-tokens'
 }
 
@@ -75,9 +76,21 @@ export enum NotificationJobType {
  * Version Cleanup Job Types
  */
 export enum VersionCleanupJobType {
-  CLEANUP_EXPIRED = 'cleanup-expired-versions',
-  ARCHIVE_OLD = 'archive-old-versions',
-  MANUAL_CLEANUP = 'manual-cleanup-versions'
+  PRUNE_AUTO = 'prune-auto-versions'
+}
+
+/**
+ * Content Publishing Job Types
+ */
+export enum ContentJobType {
+  PUBLISH_DUE = 'publish-due-content'
+}
+
+/**
+ * Audit Retention Job Types
+ */
+export enum AuditRetentionJobType {
+  PURGE_EXPIRED = 'purge-expired-audit-logs'
 }
 
 /**

@@ -141,7 +141,6 @@ describe('Attachment access', () => {
     await http().post(`/api/v1/attachments/${id}/presigned-url`).send({}).expect(401)
     await http().get(`/api/v1/attachments/${id}/download`).expect(401)
     await http().get('/api/v1/attachments/stats').expect(401)
-    await http().post('/api/v1/attachments/cleanup-orphaned').expect(401)
     await http().get('/api/v1/attachments').expect(401)
   })
 
@@ -180,7 +179,6 @@ describe('Attachment access', () => {
 
   it('keeps maintenance routes admin-only', async () => {
     await http().get('/api/v1/attachments/stats').set(as(other.token)).expect(403)
-    await http().post('/api/v1/attachments/cleanup-orphaned').set(as(other.token)).expect(403)
     await http().get('/api/v1/attachments/stats').set(as(admin.token)).expect(200)
   })
 })

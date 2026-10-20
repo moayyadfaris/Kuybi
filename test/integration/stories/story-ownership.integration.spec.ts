@@ -121,9 +121,14 @@ describe('Story ownership (regular users)', () => {
     // DELETE, not TRUNCATE ... CASCADE: users reference attachments (profile image)
     await dataSource.query('DELETE FROM stories')
     await dataSource.query('DELETE FROM attachments')
-    story = await dataSource
-      .getRepository(Story)
-      .save(StoryFactory.create({ userId: owner.user.id, createdBy: owner.user.id }) as Story)
+    // Published, so the other user can read it: refusals below are 403, not 404
+    story = await dataSource.getRepository(Story).save(
+      StoryFactory.create({
+        userId: owner.user.id,
+        createdBy: owner.user.id,
+        status: StoryStatus.PUBLISHED
+      }) as Story
+    )
 
     // Read it once so later lookups are cache hits (plain objects, as from Redis)
     await http()

@@ -12,14 +12,7 @@ import {
   UnauthorizedException,
   UseGuards
 } from '@nestjs/common'
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags
-} from '@nestjs/swagger'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Request } from 'express'
 
 import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
@@ -28,17 +21,25 @@ import { User } from '@modules/users/entities'
 import { JwtAuthGuard } from '@core/auth'
 
 import { UpdateStoryDto } from '../dto/update-story.dto'
-import { BranchInfoDto, VersionComparisonDto, VersionResponseDto } from '../dto/version'
-import { CompareVersionsDto } from '../dto/version/compare-versions.dto'
-import { CreateBranchDto } from '../dto/version/create-branch.dto'
-import { CreateVersionDto } from '../dto/version/create-version.dto'
-import { MergeVersionDto } from '../dto/version/merge-version.dto'
-import { RollbackVersionDto } from '../dto/version/rollback-version.dto'
+import {
+  BranchInfoDto,
+  CompareVersionsDto,
+  CreateBranchDto,
+  CreateVersionDto,
+  MergeVersionDto,
+  RollbackVersionDto,
+  TagVersionDto,
+  VersionComparisonDto,
+  VersionHistoryQueryDto,
+  VersionResponseDto
+} from '../dto/version'
+import { Story } from '../entities/story.entity'
 import { StoriesService } from '../services/stories.service'
 import { StoryAccessPolicy } from '../services/story-access.policy'
 import { StoryVersionService } from '../services/story-version.service'
 import { StoryVersionBranchService } from '../services/versioning/story-version-branch.service'
 import { toVersionResponseDto } from '../services/versioning/version-response.mapper'
+import { storyContentOfVersion } from '../services/versioning/version-snapshot'
 
 interface AuthenticatedRequest extends Request {
   user?: User
@@ -57,32 +58,25 @@ export class StoryVersionController {
   ) {}
 
   /**
-   * Version history is part of the story: changing it (snapshots, branches, merges,
-   * tags, rollbacks) requires Update on that story, not just on versions in general
+   * Version history is editorial: old versions keep content that was since removed and
+   * the staff notes. Reading or changing it needs Update on the story itself (404 when the
+   * user may not read the story, 403 when they may read but not edit it).
    */
-  private async assertCanEditStory(storyId: number, req: AuthenticatedRequest): Promise<void> {
-    if (!req.user) throw new UnauthorizedException('User not authenticated')
-    const story = await this.storiesService.findVisible(storyId, req.user)
-    this.accessPolicy.assertCan(
-      req.user,
+  private async editableStory(storyId: number, req: AuthenticatedRequest): Promise<Story> {
+    const user = this.viewer(req)
+    const story = await this.storiesService.findOne(storyId)
+    this.accessPolicy.assertCanChange(
+      user,
       Action.Update,
       story,
-      'You do not have permission to modify the versions of this story'
+      'You do not have access to the versions of this story'
     )
+    return story
   }
 
-  /** Reading versions needs read access to the story (404 when hidden) */
-  private async assertCanReadStory(storyId: number, req: AuthenticatedRequest): Promise<void> {
+  private viewer(req: AuthenticatedRequest): User {
     if (!req.user) throw new UnauthorizedException('User not authenticated')
-    await this.storiesService.findVisible(storyId, req.user)
-  }
-
-  private getUserId(req: AuthenticatedRequest): string {
-    const userId = req.user?.id
-    if (!userId) {
-      throw new UnauthorizedException('User not authenticated')
-    }
-    return userId
+    return req.user
   }
 
   /**
@@ -95,24 +89,6 @@ export class StoryVersionController {
     description: 'Retrieve paginated version history for a story with optional branch filtering'
   })
   @ApiParam({ name: 'storyId', type: 'number', description: 'Story ID' })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: 'number',
-    description: 'Items per page (max 100)'
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    type: 'number',
-    description: 'Offset for pagination'
-  })
-  @ApiQuery({
-    name: 'branchName',
-    required: false,
-    type: 'string',
-    description: 'Filter by branch name'
-  })
   @ApiResponse({
     status: 200,
     description: 'Version history retrieved successfully',
@@ -121,12 +97,15 @@ export class StoryVersionController {
   async getVersionHistory(
     @Req() req: AuthenticatedRequest,
     @Param('storyId', ParseIntPipe) storyId: number,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
-    @Query('offset', new ParseIntPipe({ optional: true })) offset?: number,
-    @Query('branchName') branchName?: string
+    @Query() query: VersionHistoryQueryDto
   ): Promise<VersionResponseDto[]> {
-    await this.assertCanReadStory(storyId, req)
-    const versions = await this.versionService.getVersionHistory(storyId, branchName, limit, offset)
+    await this.editableStory(storyId, req)
+    const versions = await this.versionService.getVersionHistory(
+      storyId,
+      query.branchName,
+      query.limit,
+      query.offset
+    )
     return versions.map(toVersionResponseDto)
   }
 
@@ -152,7 +131,7 @@ export class StoryVersionController {
     @Param('versionNumber', ParseIntPipe) versionNumber: number,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
-    await this.assertCanReadStory(storyId, req)
+    await this.editableStory(storyId, req)
     const version = await this.versionService.getVersion(storyId, versionNumber)
     return toVersionResponseDto(version)
   }
@@ -178,10 +157,8 @@ export class StoryVersionController {
     @Body() dto: CreateVersionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
-    await this.assertCanEditStory(storyId, req)
-    const userId = this.getUserId(req)
-    const story = await this.storiesService.findOne(storyId)
-    const version = await this.versionService.createVersion(story, dto, userId)
+    const story = await this.editableStory(storyId, req)
+    const version = await this.versionService.createVersion(story, dto, this.viewer(req).id)
     return toVersionResponseDto(version)
   }
 
@@ -207,42 +184,39 @@ export class StoryVersionController {
     @Body() dto: RollbackVersionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
-    await this.assertCanEditStory(storyId, req)
-    const userId = this.getUserId(req)
-    if (!req.user) throw new UnauthorizedException('User not authenticated')
-    const commitMessage = dto.commitMessage || `Rollback to version ${dto.versionNumber}`
+    await this.editableStory(storyId, req)
+    const user = this.viewer(req)
+    const target = await this.versionService.getVersion(storyId, dto.versionNumber)
 
-    // Perform rollback and get restored content
-    const { version, restoredContent } = await this.versionService.rollbackToVersion(
-      storyId,
-      dto.versionNumber,
-      userId,
-      commitMessage,
-      dto.createBranch || false,
-      dto.branchName
-    )
-
-    // Apply the restored content to the actual story
-    // Only include fields that UpdateStoryDto accepts, transforming as needed
-    const updateDto: UpdateStoryDto = {
-      title: restoredContent.title,
-      details: restoredContent.details,
-      type: restoredContent.type,
-      status: restoredContent.status,
-      priority: restoredContent.priority,
-      fromTime: restoredContent.fromTime?.toISOString(),
-      toTime: restoredContent.toTime?.toISOString(),
-      latitude: restoredContent.latitude,
-      longitude: restoredContent.longitude,
-      address: restoredContent.address,
-      city: restoredContent.city,
-      region: restoredContent.region,
-      countryId: restoredContent.countryId,
-      metadata: restoredContent.metadata,
-      internalNotes: restoredContent.internalNotes
+    // On main the story gets the old content back (through the usual update rules); a
+    // rollback onto a new branch only records the version and leaves the story as it is
+    if (!dto.createBranch) {
+      const content = storyContentOfVersion(target)
+      const restore: UpdateStoryDto = {
+        title: content.title,
+        details: content.details,
+        type: content.type,
+        priority: content.priority,
+        fromTime: content.fromTime?.toISOString(),
+        toTime: content.toTime?.toISOString(),
+        latitude: content.latitude,
+        longitude: content.longitude,
+        address: content.address,
+        city: content.city,
+        region: content.region,
+        countryId: content.countryId,
+        metadata: content.metadata,
+        internalNotes: content.internalNotes
+      }
+      await this.storiesService.update(storyId, restore, user, { recordVersion: false })
     }
-    await this.storiesService.update(storyId, updateDto, req.user)
 
+    const version = await this.versionService.recordRollback(
+      target,
+      user.id,
+      dto.commitMessage,
+      dto.createBranch ? dto.branchName || `rollback-to-v${dto.versionNumber}` : 'main'
+    )
     return toVersionResponseDto(version)
   }
 
@@ -268,13 +242,12 @@ export class StoryVersionController {
     @Body() dto: CreateBranchDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
-    await this.assertCanEditStory(storyId, req)
-    const userId = this.getUserId(req)
+    await this.editableStory(storyId, req)
     const version = await this.branchService.createBranch(
       storyId,
       dto.branchName,
       dto.fromVersionNumber,
-      userId,
+      this.viewer(req).id,
       dto.commitMessage
     )
     return toVersionResponseDto(version)
@@ -299,21 +272,20 @@ export class StoryVersionController {
   @ApiResponse({ status: 404, description: 'Story or branch not found' })
   @ApiResponse({
     status: 409,
-    description: 'Merge conflicts detected - manual resolution required'
+    description: 'Merge conflicts: send resolveConflicts with a value per field'
   })
   async mergeBranches(
     @Param('storyId', ParseIntPipe) storyId: number,
     @Body() dto: MergeVersionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
-    await this.assertCanEditStory(storyId, req)
-    const userId = this.getUserId(req)
+    await this.editableStory(storyId, req)
     const version = await this.branchService.mergeVersion(
       storyId,
       dto.fromBranch,
       dto.fromVersionNumber,
       dto.targetBranch,
-      userId,
+      this.viewer(req).id,
       dto.commitMessage,
       dto.resolveConflicts
     )
@@ -342,7 +314,7 @@ export class StoryVersionController {
     @Body() dto: CompareVersionsDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionComparisonDto> {
-    await this.assertCanReadStory(storyId, req)
+    await this.editableStory(storyId, req)
     const result = await this.branchService.compareVersions(storyId, dto.versionA, dto.versionB)
 
     return {
@@ -373,7 +345,7 @@ export class StoryVersionController {
     @Param('storyId', ParseIntPipe) storyId: number,
     @Req() req: AuthenticatedRequest
   ): Promise<BranchInfoDto[]> {
-    await this.assertCanReadStory(storyId, req)
+    await this.editableStory(storyId, req)
     return this.branchService.getBranchInfo(storyId)
   }
 
@@ -399,11 +371,11 @@ export class StoryVersionController {
   async tagVersion(
     @Param('storyId', ParseIntPipe) storyId: number,
     @Param('versionNumber', ParseIntPipe) versionNumber: number,
-    @Body('tag') tag: string,
+    @Body() dto: TagVersionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<VersionResponseDto> {
-    await this.assertCanEditStory(storyId, req)
-    const version = await this.versionService.tagVersion(storyId, versionNumber, tag)
+    await this.editableStory(storyId, req)
+    const version = await this.versionService.tagVersion(storyId, versionNumber, dto.tag)
     return toVersionResponseDto(version)
   }
 }

@@ -15,7 +15,7 @@
   - Request context (ipAddress, userAgent, method, endpoint, requestId)
   - Status & errors (status, statusCode, errorMessage, errorStack)
   - Security (severity, tags, metadata)
-  - Compliance (retentionDays, isArchived)
+  - Retention: a setting, not per-row columns (see README, Retention)
 
 - **Database Migration**: CreateAuditLogsTable1730150000000
   - 3 PostgreSQL ENUM types (action, severity, status)
@@ -89,17 +89,17 @@
 #### 5. **API Layer** ✅
 
 - **AuditController**: 12 admin-only REST endpoints:
-  - `GET /api/audit/search` - Advanced search
-  - `GET /api/audit/statistics` - Aggregate stats
-  - `GET /api/audit/critical-events` - Security alerts
-  - `GET /api/audit/failed-operations` - Error tracking
-  - `GET /api/audit/user/:userId/activity` - User timeline
-  - `GET /api/audit/user/:userId/suspicious-activity` - Threat detection
-  - `GET /api/audit/entity/:type/:id/history` - Entity audit trail
-  - `GET /api/audit/action/:action` - Filter by action
-  - `GET /api/audit/ip/:ipAddress` - IP-based analysis
-  - `GET /api/audit/request/:requestId` - Distributed tracing
-  - `GET /api/audit/:id` - Single log detail
+  - `GET /api/v1/audit/search` - Advanced search
+  - `GET /api/v1/audit/statistics` - Aggregate stats
+  - `GET /api/v1/audit/critical-events` - Security alerts
+  - `GET /api/v1/audit/failed-operations` - Error tracking
+  - `GET /api/v1/audit/user/:userId/activity` - User timeline
+  - `GET /api/v1/audit/user/:userId/suspicious-activity` - Threat detection
+  - `GET /api/v1/audit/entity/:type/:id/history` - Entity audit trail
+  - `GET /api/v1/audit/action/:action` - Filter by action
+  - `GET /api/v1/audit/ip/:ipAddress` - IP-based analysis
+  - `GET /api/v1/audit/request/:requestId` - Distributed tracing
+  - `GET /api/v1/audit/:id` - Single log detail
   - All protected with ACL (Subject.AuditLog, Action.Read)
 
 - **DTOs**: Comprehensive validation:
@@ -299,7 +299,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 - ✅ Purpose of processing (action types)
 - ✅ Categories of data subjects (user info)
 - ✅ Recipients of personal data (audit trail)
-- ✅ Retention periods (configurable per log)
+- ✅ Retention periods (AUDIT_RETENTION_DAYS, AUDIT_CRITICAL_RETENTION_DAYS)
 - ✅ Right to erasure (soft delete + archiving)
 
 ### SOC 2 Requirements
@@ -374,7 +374,7 @@ await auditService.logUpdate(
 ### Example 3: Security Event
 
 ```typescript
-await auditService.logUnauthorizedAccess(context, '/api/admin/users', 'Insufficient permissions')
+await auditService.logUnauthorizedAccess(context, '/api/v1/admin/users', 'Insufficient permissions')
 ```
 
 ### Example 4: Query User Activity

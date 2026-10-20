@@ -1,14 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { errorMessage } from '@shared/utils/error.util'
+import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { PinoLogger } from 'nestjs-pino'
-import { In } from 'typeorm'
+import { In, IsNull } from 'typeorm'
 
 import { Action } from '@modules/acl'
-import {
-  assertAttachmentUsable,
-  AttachmentRepository,
-  toAttachmentResponse
-} from '@modules/attachments'
+import { assertAttachmentUsable, AttachmentRepository } from '@modules/attachments'
 import { Attachment } from '@modules/attachments/entities'
 import { CategoryRepository } from '@modules/categories'
 import { Category } from '@modules/categories/entities'
@@ -28,10 +24,16 @@ import { Story } from '../entities/story.entity'
 import { StoryRepository } from '../repositories/story.repository'
 
 import { StoryAccessPolicy } from './story-access.policy'
+import { StoryEnrichmentService } from './story-enrichment.service'
 
 type Relation = 'attachments' | 'tags' | 'categories'
 type Linked = { id: string | number }
 
+/**
+ * A story's tags, categories and attachments: resolving them from request ids or names,
+ * linking and unlinking (needs Update on the story) and reading them (needs Read).
+ * Link changes return the whole story, as GET /stories/:id would.
+ */
 @Injectable()
 export class StoryRelationshipService {
   constructor(
@@ -39,6 +41,7 @@ export class StoryRelationshipService {
     private readonly tagRepository: TagRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly attachmentRepository: AttachmentRepository,
+    private readonly storyEnrichmentService: StoryEnrichmentService,
     private readonly logger: PinoLogger,
     private readonly accessPolicy: StoryAccessPolicy
   ) {
@@ -46,91 +49,46 @@ export class StoryRelationshipService {
   }
 
   /**
-   * Helper method to resolve tags by IDs and names, creating new tags if needed
+   * Tags by id (all must exist) and by name. Names are trimmed and lowercased; missing
+   * names are created, and a name another request created first is read back instead.
    */
   async resolveAndCreateTags(
-    tagIds?: number[],
-    tagNames?: string[],
-    userId?: string
+    tagIds: number[] = [],
+    tagNames: string[] = [],
+    userId: string
   ): Promise<Tag[]> {
-    this.logger.debug({ tagIds, tagNames, userId }, 'Resolving and creating tags')
+    const resolved = new Map<number, Tag>()
+    for (const tag of await this.findTagsById(tagIds)) resolved.set(tag.id, tag)
 
-    const resolvedTags: Map<number, Tag> = new Map()
+    const names = normalizeTagNames(tagNames)
+    const existing = await this.findTagsByName(names)
+    for (const tag of existing) resolved.set(tag.id, tag)
 
-    // 1. Resolve tags by IDs (Batch fetch)
-    if (tagIds && tagIds.length > 0) {
-      this.logger.debug({ tagIds, count: tagIds.length }, 'Resolving tags by IDs')
-      const tagsById = await this.tagRepository.findMany({
-        where: { id: In(tagIds) }
-      })
-
-      if (tagsById.length !== tagIds.length) {
-        const foundIds = tagsById.map(t => t.id)
-        const missingIds = tagIds.filter(id => !foundIds.includes(id))
-        this.logger.warn({ missingIds }, 'Some tag IDs not found')
-        throw new BadRequestException(`Tags not found: ${missingIds.join(', ')}`)
-      }
-
-      tagsById.forEach(tag => resolvedTags.set(tag.id, tag))
+    const existingNames = new Set(existing.map(tag => tag.name))
+    const missing = names.filter(name => !existingNames.has(name))
+    for (const name of missing) {
+      const tag = await this.createTag(name, userId)
+      resolved.set(tag.id, tag)
     }
 
-    // 2. Resolve/create tags by names (Batch fetch + specific create)
-    if (tagNames && tagNames.length > 0) {
-      const normalizedNames = [...new Set(tagNames.map(n => n.trim().toLowerCase()))]
+    return [...resolved.values()]
+  }
 
-      // Fetch existing tags by name in one go
-      const existingTags = await this.tagRepository.findMany({
-        where: { name: In(normalizedNames) }
-      })
-
-      existingTags.forEach(tag => resolvedTags.set(tag.id, tag))
-
-      // Identify missing tags
-      const existingNames = existingTags.map(t => t.name)
-      const missingNames = normalizedNames.filter(n => !existingNames.includes(n))
-
-      if (missingNames.length > 0) {
-        if (!userId) {
-          this.logger.warn({ missingNames }, 'Cannot create tags without userId')
-          // If we can't create, we just skip them (or throw, depending on reqs. Existing logic skipped nulls)
-        } else {
-          // Create missing tags individually (names must be unique, potential race condtion if parallel)
-          // Since it's user input, sequential creation is safer or Promise.allSettled
-          // For now, simple loop is better than N+1 reads AND writes. This is N writes only.
-          this.logger.info({ count: missingNames.length }, 'Creating new tags')
-
-          await Promise.all(
-            missingNames.map(async name => {
-              try {
-                const newTag = await this.tagRepository.create({
-                  name,
-                  createdBy: userId,
-                  updatedBy: userId
-                })
-                resolvedTags.set(newTag.id, newTag)
-              } catch (error) {
-                // Handle race condition where tag might be created by another req
-                this.logger.warn(
-                  { name, error: errorMessage(error) },
-                  'Failed to create tag, trying to fetch'
-                )
-                const existing = await this.tagRepository.findByName(name)
-                if (existing) resolvedTags.set(existing.id, existing)
-              }
-            })
-          )
-        }
-      }
+  /** Live (not soft-deleted) categories by id; 400 when any is missing */
+  async resolveCategories(categoryIds: string[]): Promise<Category[]> {
+    const ids = [...new Set(categoryIds)]
+    const categories = await this.categoryRepository.findMany({
+      where: { id: In(ids), deletedAt: IsNull() }
+    })
+    if (categories.length !== ids.length) {
+      throw new BadRequestException('One or more categories not found')
     }
-
-    const result = Array.from(resolvedTags.values())
-    this.logger.debug({ totalTags: result.length }, 'Tags resolution complete')
-    return result
+    return categories
   }
 
   /**
-   * Attach attachments to story: your own files, or public ones (linking a file shows it
-   * to everyone who can read the story)
+   * Your own files, or public ones (linking a file shows it to everyone who can read the
+   * story)
    */
   async attachAttachments(
     storyId: number,
@@ -139,10 +97,9 @@ export class StoryRelationshipService {
   ): Promise<Story> {
     const story = await this.loadForUpdate(storyId, 'attachments', currentUser)
 
-    const attachments = await this.attachmentRepository.findMany({
-      where: { id: In(dto.attachmentIds) }
-    })
-    if (attachments.length !== dto.attachmentIds.length) {
+    const ids = [...new Set(dto.attachmentIds)]
+    const attachments = await this.attachmentRepository.findMany({ where: { id: In(ids) } })
+    if (attachments.length !== ids.length) {
       throw new BadRequestException('One or more attachments not found')
     }
     for (const attachment of attachments) {
@@ -155,9 +112,6 @@ export class StoryRelationshipService {
     return this.link(story, 'attachments', attachments, currentUser)
   }
 
-  /**
-   * Detach attachments from story
-   */
   async detachAttachments(
     storyId: number,
     dto: DetachAttachmentsDto,
@@ -167,55 +121,33 @@ export class StoryRelationshipService {
     return this.unlink(story, 'attachments', dto.attachmentIds, currentUser)
   }
 
-  /**
-   * Attach tags to story, by id or by name (missing names are created)
-   */
+  /** By id or by name (missing names are created) */
   async attachTags(storyId: number, dto: AttachTagsDto, currentUser: User): Promise<Story> {
     const story = await this.loadForUpdate(storyId, 'tags', currentUser)
-    this.requireSomeTags(dto)
+    requireSomeTags(dto)
     const tags = await this.resolveAndCreateTags(dto.tagIds, dto.tags, currentUser.id)
     return this.link(story, 'tags', tags, currentUser)
   }
 
-  /**
-   * Detach tags from story, by id or by name
-   */
+  /** By id or by name; names that match no tag are ignored */
   async detachTags(storyId: number, dto: DetachTagsDto, currentUser: User): Promise<Story> {
     const story = await this.loadForUpdate(storyId, 'tags', currentUser)
-    this.requireSomeTags(dto)
-    // No user: names that do not exist are skipped, never created
-    const tags = await this.resolveAndCreateTags(dto.tagIds, dto.tags)
-    return this.unlink(
-      story,
-      'tags',
-      tags.map(tag => tag.id),
-      currentUser
-    )
+    requireSomeTags(dto)
+    const byName = await this.findTagsByName(normalizeTagNames(dto.tags ?? []))
+    const ids = [...(dto.tagIds ?? []), ...byName.map(tag => tag.id)]
+    return this.unlink(story, 'tags', ids, currentUser)
   }
 
-  /**
-   * Attach categories to story
-   */
   async attachCategories(
     storyId: number,
     dto: AttachCategoriesDto,
     currentUser: User
   ): Promise<Story> {
     const story = await this.loadForUpdate(storyId, 'categories', currentUser)
-
-    const categories = await this.categoryRepository.findMany({
-      where: { id: In(dto.categoryIds) }
-    })
-    if (categories.length !== dto.categoryIds.length) {
-      throw new BadRequestException('One or more categories not found')
-    }
-
+    const categories = await this.resolveCategories(dto.categoryIds)
     return this.link(story, 'categories', categories, currentUser)
   }
 
-  /**
-   * Detach categories from story
-   */
   async detachCategories(
     storyId: number,
     dto: DetachCategoriesDto,
@@ -225,28 +157,50 @@ export class StoryRelationshipService {
     return this.unlink(story, 'categories', dto.categoryIds, currentUser)
   }
 
-  /**
-   * Get story attachments (not the deleted ones)
-   */
+  /** The story's attachments that are not deleted */
   async getAttachments(storyId: number, viewer: User): Promise<Attachment[]> {
     const story = await this.loadReadable(storyId, 'attachments', viewer)
     return (story.attachments ?? [])
       .filter(attachment => !attachment.deletedAt)
-      .map(attachment => toAttachmentResponse(attachment) as unknown as Attachment)
+      .map(attachment => this.storyEnrichmentService.present(attachment))
   }
 
-  /**
-   * Get story tags
-   */
   async getTags(storyId: number, viewer: User): Promise<Tag[]> {
     return (await this.loadReadable(storyId, 'tags', viewer)).tags ?? []
   }
 
-  /**
-   * Get story categories
-   */
   async getCategories(storyId: number, viewer: User): Promise<Category[]> {
     return (await this.loadReadable(storyId, 'categories', viewer)).categories ?? []
+  }
+
+  private async findTagsById(ids: number[]): Promise<Tag[]> {
+    const unique = [...new Set(ids)]
+    if (unique.length === 0) return []
+    const tags = await this.tagRepository.findMany({
+      where: { id: In(unique), deletedAt: IsNull() }
+    })
+    if (tags.length !== unique.length) {
+      const found = new Set(tags.map(tag => tag.id))
+      const missing = unique.filter(id => !found.has(id))
+      throw new BadRequestException(`Tags not found: ${missing.join(', ')}`)
+    }
+    return tags
+  }
+
+  private findTagsByName(names: string[]): Promise<Tag[]> {
+    if (names.length === 0) return Promise.resolve([])
+    return this.tagRepository.findMany({ where: { name: In(names), deletedAt: IsNull() } })
+  }
+
+  private async createTag(name: string, userId: string): Promise<Tag> {
+    try {
+      return await this.tagRepository.create({ name, createdBy: userId, updatedBy: userId })
+    } catch (error) {
+      // Another request created it since the lookup
+      const existing = isUniqueViolation(error) ? await this.tagRepository.findByName(name) : null
+      if (!existing) throw error
+      return existing
+    }
   }
 
   /** The story with one relation loaded; 404 when missing or soft-deleted */
@@ -267,7 +221,7 @@ export class StoryRelationshipService {
 
   private async loadForUpdate(storyId: number, relation: Relation, user: User): Promise<Story> {
     const story = await this.loadStory(storyId, relation)
-    this.accessPolicy.assertCan(
+    this.accessPolicy.assertCanChange(
       user,
       Action.Update,
       story,
@@ -276,7 +230,7 @@ export class StoryRelationshipService {
     return story
   }
 
-  /** Adds the items not linked yet and saves when anything was added */
+  /** Adds the items not linked yet, saving only when something was added */
   private async link(
     story: Story,
     relation: Relation,
@@ -295,10 +249,10 @@ export class StoryRelationshipService {
       { action: `attach_${relation}`, storyId: story.id, userId: user.id, attached: added.length },
       'Story links added'
     )
-    return story
+    return this.reload(story.id)
   }
 
-  /** Removes the given ids and saves when anything was removed */
+  /** Removes the given ids, saving only when something was removed */
   private async unlink(
     story: Story,
     relation: Relation,
@@ -322,12 +276,23 @@ export class StoryRelationshipService {
       },
       'Story links removed'
     )
-    return story
+    return this.reload(story.id)
   }
 
-  private requireSomeTags(dto: { tagIds?: number[]; tags?: string[] }): void {
-    if (!dto.tagIds?.length && !dto.tags?.length) {
-      throw new BadRequestException('At least one tag ID or tag name must be provided')
-    }
+  private async reload(storyId: number): Promise<Story> {
+    const story = await this.storyRepository.findById(storyId, { bypassCache: true })
+    if (!story) throw new NotFoundException(`Story with ID ${storyId} not found`)
+    return this.storyEnrichmentService.enrichStoryMedia(story)
+  }
+}
+
+/** Tag names as stored: trimmed, lowercased, once each */
+function normalizeTagNames(names: string[]): string[] {
+  return [...new Set(names.map(name => name.trim().toLowerCase()).filter(Boolean))]
+}
+
+function requireSomeTags(dto: { tagIds?: number[]; tags?: string[] }): void {
+  if (!dto.tagIds?.length && !dto.tags?.length) {
+    throw new BadRequestException('At least one tag ID or tag name must be provided')
   }
 }

@@ -58,9 +58,6 @@ describe('Audit Integration (controller)', () => {
       tags: override.tags ?? ['test'],
       metadata: override.metadata ?? {},
       description: override.description ?? 'Test log',
-      retentionDays: override.retentionDays ?? 0,
-      isArchived: override.isArchived ?? false,
-      archivedAt: override.archivedAt ?? null,
       createdAt
     }
 
@@ -70,14 +67,6 @@ describe('Audit Integration (controller)', () => {
       },
       isCritical: {
         get: () => base.severity === AuditSeverity.CRITICAL || base.severity === AuditSeverity.HIGH
-      },
-      shouldRetain: {
-        get: () => {
-          if (base.retentionDays === 0) return true
-          const retentionDate = new Date(createdAt)
-          retentionDate.setDate(retentionDate.getDate() + base.retentionDays)
-          return retentionDate > new Date()
-        }
       }
     })
 
@@ -149,9 +138,9 @@ describe('Audit Integration (controller)', () => {
     await app.close()
   })
 
-  it('GET /api/audit/search returns audit logs', async () => {
+  it('GET /api/v1/audit/search returns audit logs', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/audit/search?limit=5')
+      .get('/api/v1/audit/search?limit=5')
       .set('Authorization', 'Bearer test-token')
       .expect(200)
 

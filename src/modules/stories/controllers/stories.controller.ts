@@ -6,7 +6,10 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseBoolPipe,
+  ParseEnumPipe,
   ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Put,
@@ -37,11 +40,14 @@ import {
   AttachCategoriesDto,
   AttachTagsDto,
   CreateStoryDto,
+  DeleteStoryQueryDto,
   DetachAttachmentsDto,
   DetachCategoriesDto,
   DetachTagsDto,
   StoryFilterDto,
-  UpdateStoryDto
+  StoryListQueryDto,
+  UpdateStoryDto,
+  UpdateStoryStatusDto
 } from '../dto'
 import { UpdateStoryMainImageDto } from '../dto/update-story-main-image.dto'
 import { Story, StoryStatus, StoryType } from '../entities/story.entity'
@@ -68,17 +74,14 @@ export class StoriesController {
 
   @Post()
   @Idempotent()
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new story' })
   @ApiResponse({ status: 201, description: 'Story created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   create(@Body() createStoryDto: CreateStoryDto, @Req() req: AuthenticatedRequest) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.create(createStoryDto, req.user)
+    return this.storiesService.create(createStoryDto, this.viewer(req))
   }
 
   @Get()
@@ -105,56 +108,45 @@ export class StoriesController {
   @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get stories by user ID' })
   @ApiParam({ name: 'userId', description: 'User UUID' })
-  @ApiQuery({ name: 'includeDeleted', required: false, type: Boolean })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of user stories' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByUser(
     @Req() req: AuthenticatedRequest,
-    @Param('userId') userId: string,
-    @Query('includeDeleted') includeDeleted?: boolean,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
-    @Query('page', new ParseIntPipe({ optional: true })) page?: number
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query() query: StoryListQueryDto
   ) {
-    return this.storiesService.findByUser(userId, this.viewer(req), { includeDeleted, limit, page })
+    return this.storiesService.findByUser(userId, this.viewer(req), query)
   }
 
   @Get('status/:status')
   @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get stories by status' })
   @ApiParam({ name: 'status', enum: StoryStatus, description: 'Story status' })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of stories with specified status' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByStatus(
     @Req() req: AuthenticatedRequest,
-    @Param('status') status: StoryStatus,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
-    @Query('page', new ParseIntPipe({ optional: true })) page?: number
+    @Param('status', new ParseEnumPipe(StoryStatus)) status: StoryStatus,
+    @Query() query: StoryListQueryDto
   ) {
-    return this.storiesService.findByStatus(status, this.viewer(req), { limit, page })
+    return this.storiesService.findByStatus(status, this.viewer(req), query)
   }
 
   @Get('type/:type')
   @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get stories by type' })
   @ApiParam({ name: 'type', enum: StoryType, description: 'Story type' })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of stories with specified type' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findByType(
     @Req() req: AuthenticatedRequest,
-    @Param('type') type: StoryType,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
-    @Query('page', new ParseIntPipe({ optional: true })) page?: number
+    @Param('type', new ParseEnumPipe(StoryType)) type: StoryType,
+    @Query() query: StoryListQueryDto
   ) {
-    return this.storiesService.findByType(type, this.viewer(req), { limit, page })
+    return this.storiesService.findByType(type, this.viewer(req), query)
   }
 
   @Get(':id/children')
@@ -169,7 +161,7 @@ export class StoriesController {
   findChildren(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
-    @Query('includeDeleted') includeDeleted?: boolean
+    @Query('includeDeleted', new ParseBoolPipe({ optional: true })) includeDeleted?: boolean
   ) {
     return this.storiesService.findChildren(id, this.viewer(req), includeDeleted)
   }
@@ -187,9 +179,7 @@ export class StoriesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a story' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Story updated successfully' })
@@ -201,14 +191,11 @@ export class StoriesController {
     @Body() updateStoryDto: UpdateStoryDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storiesService.update(id, updateStoryDto, req.user)
+    return this.storiesService.update(id, updateStoryDto, this.viewer(req))
   }
 
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Publish, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update story status (publish/archive)' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Story status updated successfully' })
@@ -217,37 +204,30 @@ export class StoriesController {
   @ApiResponse({ status: 403, description: 'Forbidden - requires publish permission' })
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('status') status: StoryStatus,
+    @Body() dto: UpdateStoryStatusDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyLifecycleService.updateStatus(id, status, req.user)
+    return this.storyLifecycleService.updateStatus(id, dto.status, this.viewer(req))
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Delete, subject: Subject.Story })
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft delete a story' })
   @ApiParam({ name: 'id', description: 'Story ID' })
-  @ApiQuery({ name: 'reason', required: false, description: 'Deletion reason' })
   @ApiResponse({ status: 204, description: 'Story deleted successfully' })
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 403, description: 'Forbidden - not the story owner' })
   remove(
     @Param('id', ParseIntPipe) id: number,
-    @Query('reason') reason: string,
+    @Query() query: DeleteStoryQueryDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyLifecycleService.remove(id, req.user, reason)
+    return this.storyLifecycleService.remove(id, this.viewer(req), query.reason)
   }
 
   @Delete(':id/hard')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Manage, subject: Subject.All })
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Permanently delete a story (admin only)' })
   @ApiParam({ name: 'id', description: 'Story ID' })
@@ -255,14 +235,11 @@ export class StoriesController {
   @ApiResponse({ status: 404, description: 'Story not found' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin only' })
   hardDelete(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyLifecycleService.hardDelete(id, req.user)
+    return this.storyLifecycleService.hardDelete(id, this.viewer(req))
   }
 
   @Post(':id/restore')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Restore, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Restore a soft-deleted story' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Story restored successfully' })
@@ -270,12 +247,11 @@ export class StoriesController {
   @ApiResponse({ status: 400, description: 'Story is not deleted' })
   @ApiResponse({ status: 403, description: 'Forbidden - not the story owner' })
   restore(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyLifecycleService.restore(id, req.user)
+    return this.storyLifecycleService.restore(id, this.viewer(req))
   }
 
-  // Attachment management endpoints
   @Post(':id/attachments')
+  @CheckAbility({ action: Action.Update, subject: Subject.Story })
   @ApiOperation({ summary: 'Attach attachments to story' })
   @ApiResponse({ status: 200, description: 'Attachments attached successfully', type: Story })
   @ApiResponse({ status: 404, description: 'Story not found' })
@@ -286,11 +262,11 @@ export class StoriesController {
     @Body() dto: AttachAttachmentsDto,
     @Req() req: AuthenticatedRequest
   ): Promise<Story> {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyRelationshipService.attachAttachments(id, dto, req.user)
+    return this.storyRelationshipService.attachAttachments(id, dto, this.viewer(req))
   }
 
   @Delete(':id/attachments')
+  @CheckAbility({ action: Action.Update, subject: Subject.Story })
   @ApiOperation({ summary: 'Detach attachments from story' })
   @ApiResponse({ status: 200, description: 'Attachments detached successfully', type: Story })
   @ApiResponse({ status: 404, description: 'Story not found' })
@@ -300,8 +276,7 @@ export class StoriesController {
     @Body() dto: DetachAttachmentsDto,
     @Req() req: AuthenticatedRequest
   ): Promise<Story> {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyRelationshipService.detachAttachments(id, dto, req.user)
+    return this.storyRelationshipService.detachAttachments(id, dto, this.viewer(req))
   }
 
   @Get(':id/attachments')
@@ -316,11 +291,8 @@ export class StoriesController {
     return this.storyRelationshipService.getAttachments(id, this.viewer(req))
   }
 
-  // Tag management endpoints
   @Post(':id/tags')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Attach tags to story' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Tags attached successfully' })
@@ -332,14 +304,11 @@ export class StoriesController {
     @Body() dto: AttachTagsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyRelationshipService.attachTags(id, dto, req.user)
+    return this.storyRelationshipService.attachTags(id, dto, this.viewer(req))
   }
 
   @Delete(':id/tags')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Detach tags from story' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Tags detached successfully' })
@@ -350,8 +319,7 @@ export class StoriesController {
     @Body() dto: DetachTagsDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyRelationshipService.detachTags(id, dto, req.user)
+    return this.storyRelationshipService.detachTags(id, dto, this.viewer(req))
   }
 
   @Get(':id/tags')
@@ -366,11 +334,8 @@ export class StoriesController {
     return this.storyRelationshipService.getTags(id, this.viewer(req))
   }
 
-  // Category management endpoints
   @Post(':id/categories')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Attach categories to story' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Categories attached successfully' })
@@ -382,14 +347,11 @@ export class StoriesController {
     @Body() dto: AttachCategoriesDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyRelationshipService.attachCategories(id, dto, req.user)
+    return this.storyRelationshipService.attachCategories(id, dto, this.viewer(req))
   }
 
   @Delete(':id/categories')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Detach categories from story' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Categories detached successfully' })
@@ -400,8 +362,7 @@ export class StoriesController {
     @Body() dto: DetachCategoriesDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyRelationshipService.detachCategories(id, dto, req.user)
+    return this.storyRelationshipService.detachCategories(id, dto, this.viewer(req))
   }
 
   @Get(':id/categories')
@@ -417,9 +378,7 @@ export class StoriesController {
   }
 
   @Put(':id/main-image')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update story main image' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiBody({ type: UpdateStoryMainImageDto })
@@ -432,24 +391,20 @@ export class StoriesController {
     @Body() dto: UpdateStoryMainImageDto,
     @Req() req: AuthenticatedRequest
   ) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyMediaService.updateMainImage(id, dto.attachmentId, req.user)
+    return this.storyMediaService.updateMainImage(id, dto.attachmentId, this.viewer(req))
   }
 
   @Delete(':id/main-image')
-  @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Story })
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove story main image' })
   @ApiParam({ name: 'id', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Main image removed successfully' })
   @ApiResponse({ status: 404, description: 'Story not found' })
   removeMainImage(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
-    if (!req.user) throw new UnauthorizedException()
-    return this.storyMediaService.removeMainImage(id, req.user)
+    return this.storyMediaService.removeMainImage(id, this.viewer(req))
   }
 
-  /** The signed-in user, whose permissions decide which stories they can read */
+  /** The signed-in user, whose permissions decide what they may read and change */
   private viewer(req: AuthenticatedRequest): User {
     if (!req.user) throw new UnauthorizedException('User not authenticated')
     return req.user

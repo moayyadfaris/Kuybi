@@ -7,7 +7,6 @@ describe('User Entity', () => {
   let adminRole: Role
   let moderatorRole: Role
   let userRole: Role
-  let guestRole: Role
 
   beforeEach(() => {
     // Setup roles with proper hierarchy
@@ -15,7 +14,6 @@ describe('User Entity', () => {
     adminRole = { id: 2, name: 'admin', priority: 80 } as Role
     moderatorRole = { id: 3, name: 'moderator', priority: 60 } as Role
     userRole = { id: 4, name: 'user', priority: 40 } as Role
-    guestRole = { id: 5, name: 'guest', priority: 20 } as Role
   })
 
   describe('getPrimaryRoleName', () => {
@@ -203,82 +201,6 @@ describe('User Entity', () => {
     })
   })
 
-  describe('getRoles', () => {
-    it('should return array with primary role only', () => {
-      const user = new User()
-      user.primaryRole = userRole
-      user.userRoles = []
-
-      expect(user.getRoles()).toEqual(['user'])
-    })
-
-    it('should return array with primary role and active user roles', () => {
-      const user = new User()
-      user.primaryRole = userRole
-      user.userRoles = [
-        {
-          role: moderatorRole,
-          isActive: true,
-          expiresAt: null
-        } as UserRole,
-        {
-          role: adminRole,
-          isActive: true,
-          expiresAt: null
-        } as UserRole
-      ]
-
-      const roles = user.getRoles()
-      expect(roles).toHaveLength(3)
-      expect(roles).toContain('user')
-      expect(roles).toContain('moderator')
-      expect(roles).toContain('admin')
-    })
-
-    it('should not include duplicate roles', () => {
-      const user = new User()
-      user.primaryRole = userRole
-      user.userRoles = [
-        {
-          role: userRole,
-          isActive: true,
-          expiresAt: null
-        } as UserRole
-      ]
-
-      expect(user.getRoles()).toEqual(['user'])
-    })
-
-    it('should filter out inactive and expired roles', () => {
-      const pastDate = new Date('2020-01-01')
-
-      const user = new User()
-      user.primaryRole = userRole
-      user.userRoles = [
-        {
-          role: adminRole,
-          isActive: false,
-          expiresAt: null
-        } as UserRole,
-        {
-          role: moderatorRole,
-          isActive: true,
-          expiresAt: pastDate
-        } as UserRole
-      ]
-
-      expect(user.getRoles()).toEqual(['user'])
-    })
-
-    it('should return empty array when no primary role and no user roles', () => {
-      const user = new User()
-      user.primaryRole = null as unknown as Role // relation not loaded
-      user.userRoles = []
-
-      expect(user.getRoles()).toEqual([])
-    })
-  })
-
   describe('isSuperAdmin', () => {
     it('should return true when user has super-admin as primary role', () => {
       const user = new User()
@@ -308,40 +230,6 @@ describe('User Entity', () => {
       user.userRoles = []
 
       expect(user.isSuperAdmin()).toBe(false)
-    })
-  })
-
-  describe('isAdmin', () => {
-    it('should return true when user is super-admin', () => {
-      const user = new User()
-      user.primaryRole = superAdminRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(true)
-    })
-
-    it('should return true when user is admin', () => {
-      const user = new User()
-      user.primaryRole = adminRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(true)
-    })
-
-    it('should return false when user is moderator', () => {
-      const user = new User()
-      user.primaryRole = moderatorRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(false)
-    })
-
-    it('should return false when user is regular user', () => {
-      const user = new User()
-      user.primaryRole = userRole
-      user.userRoles = []
-
-      expect(user.isAdmin()).toBe(false)
     })
   })
 
@@ -422,87 +310,6 @@ describe('User Entity', () => {
       moderator.userRoles = []
 
       expect(regularUserWithAdminRole.canManageUser(moderator)).toBe(true)
-    })
-  })
-
-  describe('canAssignRole', () => {
-    it('should return true when super-admin assigns any role', () => {
-      const superAdmin = new User()
-      superAdmin.primaryRole = superAdminRole
-      superAdmin.userRoles = []
-
-      expect(superAdmin.canAssignRole(superAdminRole)).toBe(true)
-      expect(superAdmin.canAssignRole(adminRole)).toBe(true)
-      expect(superAdmin.canAssignRole(userRole)).toBe(true)
-    })
-
-    it('should return false when non-super-admin tries to assign super-admin role', () => {
-      const admin = new User()
-      admin.primaryRole = adminRole
-      admin.userRoles = []
-
-      expect(admin.canAssignRole(superAdminRole)).toBe(false)
-    })
-
-    it('should return true when admin assigns lower priority roles', () => {
-      const admin = new User()
-      admin.primaryRole = adminRole
-      admin.userRoles = []
-
-      expect(admin.canAssignRole(moderatorRole)).toBe(true)
-      expect(admin.canAssignRole(userRole)).toBe(true)
-      expect(admin.canAssignRole(guestRole)).toBe(true)
-    })
-
-    it('should return false when admin tries to assign admin role (equal priority)', () => {
-      const admin = new User()
-      admin.primaryRole = adminRole
-      admin.userRoles = []
-
-      expect(admin.canAssignRole(adminRole)).toBe(false)
-    })
-
-    it('should return false when moderator tries to assign admin role', () => {
-      const moderator = new User()
-      moderator.primaryRole = moderatorRole
-      moderator.userRoles = []
-
-      expect(moderator.canAssignRole(adminRole)).toBe(false)
-    })
-
-    it('should return true when moderator assigns user role', () => {
-      const moderator = new User()
-      moderator.primaryRole = moderatorRole
-      moderator.userRoles = []
-
-      expect(moderator.canAssignRole(userRole)).toBe(true)
-      expect(moderator.canAssignRole(guestRole)).toBe(true)
-    })
-
-    it('should return false when regular user tries to assign most roles', () => {
-      const regularUser = new User()
-      regularUser.primaryRole = userRole
-      regularUser.userRoles = []
-
-      expect(regularUser.canAssignRole(moderatorRole)).toBe(false)
-      expect(regularUser.canAssignRole(userRole)).toBe(false)
-      // User (priority 40) CAN assign guest (priority 20) - lower priority
-      expect(regularUser.canAssignRole(guestRole)).toBe(true)
-    })
-
-    it('should consider highest priority role from user roles', () => {
-      const regularUserWithAdminRole = new User()
-      regularUserWithAdminRole.primaryRole = userRole
-      regularUserWithAdminRole.userRoles = [
-        {
-          role: adminRole,
-          isActive: true,
-          expiresAt: null
-        } as UserRole
-      ]
-
-      expect(regularUserWithAdminRole.canAssignRole(moderatorRole)).toBe(true)
-      expect(regularUserWithAdminRole.canAssignRole(superAdminRole)).toBe(false)
     })
   })
 })

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsInt,
@@ -18,6 +19,7 @@ export class AttachAttachmentsDto {
   })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(50)
   @IsUUID('4', { each: true })
   attachmentIds: string[]
 }
@@ -30,6 +32,7 @@ export class AttachTagsDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsInt({ each: true })
   tagIds?: number[]
 
@@ -40,6 +43,7 @@ export class AttachTagsDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   @MinLength(2, { each: true })
   @MaxLength(50, { each: true })
@@ -54,6 +58,7 @@ export class DetachAttachmentsDto {
   })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(50)
   @IsUUID('4', { each: true })
   attachmentIds: string[]
 }
@@ -66,6 +71,7 @@ export class DetachTagsDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsInt({ each: true })
   tagIds?: number[]
 
@@ -76,6 +82,7 @@ export class DetachTagsDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   @MinLength(2, { each: true })
   @MaxLength(50, { each: true })

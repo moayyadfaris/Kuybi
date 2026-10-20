@@ -178,6 +178,32 @@ export const queueConfig = {
       }
     },
 
+    // Content Publishing Queue (scheduled entries going live, every minute)
+    [QueueName.CONTENT_PUBLISHING]: {
+      limiter: {
+        max: 10,
+        duration: 60000
+      },
+      defaultJobOptions: {
+        priority: 5,
+        timeout: 60000,
+        attempts: 2
+      }
+    },
+
+    // Audit Retention Queue (daily purge of expired audit rows)
+    [QueueName.AUDIT_RETENTION]: {
+      limiter: {
+        max: 10,
+        duration: 60000
+      },
+      defaultJobOptions: {
+        priority: 5,
+        timeout: 600000,
+        attempts: 2
+      }
+    },
+
     // Account Security Queue (Critical security operations)
     [QueueName.ACCOUNT_SECURITY]: {
       limiter: {

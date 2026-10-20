@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -99,14 +100,17 @@ export class CreateStoryDto {
     example: { source: 'mobile', verified: true }
   })
   @IsOptional()
+  @IsObject()
   metadata?: Record<string, unknown>
 
   @ApiPropertyOptional({
-    description: 'Internal notes (admin only)',
+    description: 'Staff notes, shown only to those who can edit the story',
+    maxLength: 10000,
     example: 'Needs fact-checking'
   })
   @IsOptional()
   @IsString()
+  @MaxLength(10000)
   internalNotes?: string | null
 
   @ApiPropertyOptional({

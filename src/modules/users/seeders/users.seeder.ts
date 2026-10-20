@@ -43,7 +43,7 @@ export class UsersSeeder {
       await this.userRepository.create({
         name: 'Kuybi Admin',
         email: adminEmail,
-        mobileNumber: '0000000000',
+        mobileNumber: null,
         passwordHash,
         primaryRoleId: 1, // Super-admin role (ID 1 from ACL seeder)
         isActive: true,

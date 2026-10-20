@@ -3,33 +3,24 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { CategoryRepository } from '@modules/categories'
 
 import { WebQueryDto } from '../dto/web-query.dto'
-import { toPublicCategory } from '../web-response.mapper'
+import { toPublicCategory } from '../web.presenter'
 
+/** Active, live categories for the public site */
 @Injectable()
 export class WebCategoriesService {
   constructor(private readonly categoryRepository: CategoryRepository) {}
 
-  /**
-   * Get active categories for public consumption
-   * Only returns active categories
-   */
   async getActiveCategories(query: WebQueryDto) {
-    const { search, page = 1, limit = 50 } = query
-
     const result = await this.categoryRepository.search({
-      search,
+      search: query.search,
       isActive: true,
-      includeDeleted: false,
-      includeCounts: true,
-      page,
-      limit,
+      page: query.page,
+      limit: query.limit,
       orderBy: 'name',
       orderDirection: 'ASC'
     })
-
-    // Sanitize response
     return {
-      data: result.results.map(category => toPublicCategory(category)),
+      data: result.results.map(toPublicCategory),
       total: result.total,
       page: result.pagination.page,
       limit: result.pagination.limit,
@@ -37,37 +28,23 @@ export class WebCategoriesService {
     }
   }
 
-  /**
-   * Get category tree structure for navigation
-   */
-  async getCategoryTree() {
-    const categories = await this.categoryRepository.findAllActive()
-    return categories.map(category => toPublicCategory(category))
+  /** Every active category by name, for navigation (categories are flat) */
+  async getAllActive() {
+    return (await this.categoryRepository.findAllActive()).map(toPublicCategory)
   }
 
-  /**
-   * Get a single active category by ID
-   */
   async getActiveCategoryById(id: string) {
-    const category = await this.categoryRepository.findById(id)
-
-    if (!category || !category.isActive || category.deletedAt) {
-      throw new NotFoundException('Category not found')
-    }
-
-    return toPublicCategory(category)
+    return toPublicCategory(this.visible(await this.categoryRepository.findById(id)))
   }
 
-  /**
-   * Get a single active category by slug
-   */
   async getActiveCategoryBySlug(slug: string) {
-    const category = await this.categoryRepository.findBySlug(slug)
+    return toPublicCategory(this.visible(await this.categoryRepository.findBySlug(slug)))
+  }
 
+  private visible<C extends { isActive: boolean; deletedAt?: Date | null }>(category: C | null) {
     if (!category || !category.isActive || category.deletedAt) {
       throw new NotFoundException('Category not found')
     }
-
-    return toPublicCategory(category)
+    return category
   }
 }

@@ -30,6 +30,8 @@ export const testConfig = {
   // Lowest bcrypt cost: hashing speed is not under test here
   security: { bcryptRounds: 4 },
   auth: {
+    // No calls to Have I Been Pwned from tests
+    enableBreachDetection: false,
     jwtSecret: 'test-secret-key-do-not-use-in-production',
     jwtRefreshSecret: 'test-refresh-secret-key',
     jwtAccessExpiresIn: '1h',

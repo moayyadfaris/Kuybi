@@ -2,7 +2,6 @@
  * AttachmentProcessor with the real image pipeline (sharp) and in-memory S3 and
  * repository: what ends up stored, with which visibility, and what happens on failure.
  */
-import { ConfigService } from '@nestjs/config'
 import { Job, Queue } from 'bullmq'
 import { PinoLogger } from 'nestjs-pino'
 import sharp from 'sharp'
@@ -26,7 +25,6 @@ const logger = {
   error: jest.fn(),
   setContext: jest.fn()
 } as unknown as PinoLogger
-const config = { get: (_key: string, fallback?: unknown) => fallback } as unknown as ConfigService
 
 const geotaggedPhoto = () =>
   sharp({ create: { width: 640, height: 480, channels: 3, background: '#884422' } })
@@ -71,8 +69,8 @@ describe('AttachmentProcessor', () => {
     }
     const pipeline = new ImagePipelineService(
       new ExifProcessorService(logger),
-      new ImageOptimizationService(config, logger),
-      new ImageProcessingService(config),
+      new ImageOptimizationService(logger),
+      new ImageProcessingService(),
       s3 as unknown as S3Service,
       logger
     )

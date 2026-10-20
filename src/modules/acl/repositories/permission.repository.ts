@@ -25,6 +25,26 @@ export class PermissionRepository extends BaseRepository<Permission> {
   /**
    * Find permission by action and subject
    */
+  /**
+   * The permission with exactly this action, subject and conditions (the same action and
+   * subject can exist with different conditions, e.g. update own vs any story)
+   */
+  findEquivalent(
+    action: Action,
+    subject: Subject,
+    conditions: Record<string, unknown> = {}
+  ): Promise<Permission | null> {
+    return this.repository
+      .createQueryBuilder('permission')
+      .where('permission.action = :action', { action })
+      .andWhere('permission.subject = :subject', { subject })
+      .andWhere(`COALESCE(permission.conditions, '{}'::jsonb) = CAST(:conditions AS jsonb)`, {
+        conditions: JSON.stringify(conditions)
+      })
+      .getOne()
+  }
+
+  /** The first permission for this action and subject, whatever its conditions */
   async findByActionAndSubject(action: Action, subject: Subject): Promise<Permission | null> {
     const cacheKey = this.buildCacheKey('action-subject', action, subject)
 
@@ -35,7 +55,8 @@ export class PermissionRepository extends BaseRepository<Permission> {
           where: { action, subject }
         })
       },
-      this.defaultTTL
+      this.defaultTTL,
+      { selection: true }
     )
   }
 
@@ -92,12 +113,5 @@ export class PermissionRepository extends BaseRepository<Permission> {
       },
       this.defaultTTL
     )
-  }
-
-  /**
-   * Drops every cached permission entry
-   */
-  async clearCache(): Promise<void> {
-    await this.invalidateCacheByTag()
   }
 }

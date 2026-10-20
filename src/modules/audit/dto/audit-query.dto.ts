@@ -1,10 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ToArray } from '@shared/decorators/to-array.decorator'
-import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Type } from 'class-transformer'
 import {
   IsArray,
-  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -80,13 +78,6 @@ export class SearchAuditLogsDto {
   @IsDateString()
   endDate?: string
 
-  @ApiPropertyOptional({ description: 'Filter archived logs', default: false })
-  @IsOptional()
-  @ToBoolean()
-  @IsBoolean()
-  @Type(() => Boolean)
-  isArchived?: boolean
-
   @ApiPropertyOptional({ description: 'Page number', default: 1, minimum: 1 })
   @IsOptional()
   @IsInt()
@@ -155,7 +146,8 @@ export class GetByActionDto {
   limit?: number = 100
 }
 
-export class GetByIpAddressDto {
+/** A time range and a cap, for the event lists (critical, failed, per IP, per request) */
+export class GetEventsDto {
   @ApiPropertyOptional({ description: 'Start date (ISO 8601)' })
   @IsOptional()
   @IsDateString()
@@ -165,6 +157,14 @@ export class GetByIpAddressDto {
   @IsOptional()
   @IsDateString()
   endDate?: string
+
+  @ApiPropertyOptional({ description: 'Maximum number of logs', default: 100, maximum: 500 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  @Type(() => Number)
+  limit: number = 100
 }
 
 export class DetectSuspiciousActivityDto {

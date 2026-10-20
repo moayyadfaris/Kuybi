@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { errorMessage } from '@shared/utils/error.util'
 import * as crypto from 'crypto'
 import { PinoLogger } from 'nestjs-pino'
@@ -34,30 +33,32 @@ import {
 } from '../utils/attachment-image.util'
 
 import { AttachmentAccessPolicy } from './attachment-access.policy'
-import { AttachmentVisibilityService } from './attachment-visibility.service'
+import { AttachmentPresenter } from './attachment-presenter'
+import { AttachmentVisibilityService, storageKeys } from './attachment-visibility.service'
 import { FileValidationService, MulterFile } from './file-validation.service'
 import { ImagePipelineService, PreparedImage } from './image-pipeline.service'
 import { S3Service } from './s3.service'
 
+/**
+ * Multipart uploads (images stripped and optimized in the request, or queued with
+ * `async`), reads, downloads, metadata and visibility changes, deletes. Someone else's
+ * private file, and any soft-deleted one, answers 404. Direct uploads are in
+ * DirectUploadService.
+ */
 @Injectable()
 export class AttachmentService {
-  private readonly useAsyncProcessing: boolean
-
   constructor(
     private readonly attachmentRepository: AttachmentRepository,
     private readonly fileValidationService: FileValidationService,
     private readonly imagePipeline: ImagePipelineService,
     private readonly s3Service: S3Service,
     private readonly accessPolicy: AttachmentAccessPolicy,
-    private readonly configService: ConfigService,
+    private readonly presenter: AttachmentPresenter,
     private readonly logger: PinoLogger,
     private readonly outbox: OutboxService,
     private readonly visibility: AttachmentVisibilityService
   ) {
     this.logger.setContext(AttachmentService.name)
-    // Enable async processing via environment variable
-    this.useAsyncProcessing =
-      this.configService.get<string>('ATTACHMENT_ASYNC_PROCESSING') === 'true'
   }
 
   async uploadAttachment(
@@ -128,17 +129,18 @@ export class AttachmentService {
       tags: dto.tags || [],
       isPublic,
       checksum,
-      securityStatus: 'pending',
+      // Stored as final: an image was stripped and optimized above
+      securityStatus: 'completed',
       thumbnailPath,
       metadata
     } as Partial<Attachment>)
 
-    return this.formatAttachmentResponse(attachment)
+    return this.presenter.present(attachment)
   }
 
   /**
-   * Upload attachment with async processing via queue
-   * Creates attachment record immediately but processes image in background
+   * Stores the upload now and processes an image in the worker: the row and its job are
+   * written together (outbox), and the raw image stays private until processed
    */
   async uploadAttachmentAsync(
     file: MulterFile,
@@ -229,7 +231,7 @@ export class AttachmentService {
       this.logger.info({ attachmentId: attachment.id }, 'Image processing job queued')
     }
 
-    return this.formatAttachmentResponse(attachment)
+    return this.presenter.present(attachment)
   }
 
   /**
@@ -250,29 +252,41 @@ export class AttachmentService {
       { checksum, userId, existingId: existing.id },
       'Duplicate upload detected, returning existing attachment'
     )
-    return this.formatAttachmentResponse(await this.visibility.setVisibility(existing, isPublic))
+    return this.presenter.present(await this.visibility.setVisibility(existing, isPublic))
   }
 
   async getById(id: string, currentUser: User): Promise<AttachmentResponseDto> {
-    const attachment = await this.findReadable(id, currentUser)
-    return this.formatAttachmentResponse(attachment)
+    return this.presenter.present(await this.findReadable(id, currentUser))
   }
 
   /**
-   * Loads an attachment the user may read. Someone else's private file answers 404, not
+   * A live attachment the user may read. Someone else's private file answers 404, not
    * 403, so its existence is not revealed.
    */
   private async findReadable(id: string, currentUser: User): Promise<Attachment> {
-    const attachment = await this.attachmentRepository.findById(id)
+    const attachment = await this.attachmentRepository.findLive(id)
     if (!attachment || !this.accessPolicy.can(currentUser, Action.Read, attachment)) {
       throw new NotFoundException('Attachment not found')
     }
     return attachment
   }
 
-  async listAll(query: AttachmentQueryDto, currentUser: User) {
+  /** A live attachment the user may change (404 when they may not even read it) */
+  private async findChangeable(id: string, currentUser: User, action: Action): Promise<Attachment> {
+    const attachment = await this.findReadable(id, currentUser)
+    this.accessPolicy.assertCan(currentUser, action, attachment, 'Access denied')
+    return attachment
+  }
+
+  /**
+   * Files the user may read: their own and public ones, or everyone's for roles that may
+   * read all files. Only the latter may include soft-deleted files.
+   */
+  async listAll(query: AttachmentQueryDto, currentUser: User, ownerId?: string) {
+    const readsAll = this.accessPolicy.canReadAll(currentUser)
     const result = await this.attachmentRepository.listAll({
-      visibleToUserId: this.accessPolicy.canReadAll(currentUser) ? undefined : currentUser.id,
+      userId: ownerId,
+      visibleToUserId: readsAll ? undefined : currentUser.id,
       category: query.category,
       mimeType: query.mimeType,
       isPublic: query.isPublic,
@@ -281,15 +295,15 @@ export class AttachmentService {
       maxSize: query.maxSize,
       startDate: query.startDate,
       endDate: query.endDate,
-      includeDeleted: query.includeDeleted,
-      page: query.page || 1,
-      limit: query.limit || 20,
-      sortBy: query.sortBy || 'createdAt',
-      sortOrder: query.sortOrder || 'DESC'
+      includeDeleted: readsAll && query.includeDeleted,
+      page: query.page,
+      limit: query.limit,
+      sortBy: query.sortBy,
+      sortOrder: query.sortOrder
     })
 
     return {
-      data: result.data.map(a => this.formatAttachmentResponse(a)),
+      data: result.data.map(attachment => this.presenter.present(attachment)),
       total: result.total,
       page: result.page,
       limit: result.limit,
@@ -297,18 +311,12 @@ export class AttachmentService {
     }
   }
 
+  /** One user's files: your own, or anyone's for roles that may read all files */
   async getUserAttachments(userId: string, query: AttachmentQueryDto, currentUser: User) {
-    // Other users' file lists are only for roles that may read their private files
     if (userId !== currentUser.id && !this.accessPolicy.canReadAll(currentUser)) {
       throw new ForbiddenException("You cannot list another user's attachments")
     }
-    const attachments = await this.attachmentRepository.findByUserId(userId, query)
-    return {
-      data: attachments.map(a => this.formatAttachmentResponse(a)),
-      total: attachments.length,
-      page: query.page || 1,
-      limit: query.limit || 20
-    }
+    return this.listAll(query, currentUser, userId)
   }
 
   async updateMetadata(
@@ -316,9 +324,7 @@ export class AttachmentService {
     dto: UpdateAttachmentDto,
     currentUser: User
   ): Promise<AttachmentResponseDto> {
-    const attachment = await this.attachmentRepository.findById(id)
-    if (!attachment) throw new NotFoundException('Attachment not found')
-    this.accessPolicy.assertCan(currentUser, Action.Update, attachment, 'Access denied')
+    const attachment = await this.findChangeable(id, currentUser, Action.Update)
 
     // Visibility changes the stored objects' ACLs too, not just the flag
     const { isPublic, ...fields } = dto
@@ -326,40 +332,36 @@ export class AttachmentService {
     if (isPublic !== undefined) {
       current = await this.visibility.setVisibility(attachment, isPublic)
     }
-    const updated =
-      Object.keys(fields).length > 0
-        ? await this.attachmentRepository.update(id, fields as Partial<Attachment>)
-        : current
-    return this.formatAttachmentResponse(updated!)
+    if (Object.keys(fields).length > 0) {
+      current = (await this.attachmentRepository.update(id, fields)) ?? current
+    }
+    return this.presenter.present(current)
   }
 
   async softDelete(id: string, currentUser: User) {
-    const attachment = await this.attachmentRepository.findById(id)
-    if (!attachment) throw new NotFoundException('Attachment not found')
-    this.accessPolicy.assertCan(currentUser, Action.Delete, attachment, 'Access denied')
-
+    await this.findChangeable(id, currentUser, Action.Delete)
     await this.attachmentRepository.softDelete(id)
     return { message: 'Attachment deleted successfully' }
   }
 
+  /** Removes the row and every stored object (original, thumbnails, placeholder) */
   async hardDelete(id: string, currentUser: User) {
-    const attachment = await this.attachmentRepository.findByIdWithOptions(id, true)
+    const attachment = await this.attachmentRepository.findById(id)
     if (!attachment) throw new NotFoundException('Attachment not found')
     this.accessPolicy.assertCan(currentUser, Action.Delete, attachment, 'Access denied')
 
-    await this.s3Service.delete(attachment.path)
-    await this.attachmentRepository.hardDelete(id)
+    await Promise.all(storageKeys(attachment).map(key => this.s3Service.delete(key)))
+    await this.attachmentRepository.delete(id)
     return { message: 'Attachment permanently deleted' }
   }
 
   async restore(id: string, currentUser: User): Promise<AttachmentResponseDto> {
-    const attachment = await this.attachmentRepository.findByIdWithOptions(id, true)
+    const attachment = await this.attachmentRepository.findById(id)
     if (!attachment) throw new NotFoundException('Attachment not found')
     this.accessPolicy.assertCan(currentUser, Action.Restore, attachment, 'Access denied')
 
     await this.attachmentRepository.restore(id)
-    const restored = await this.attachmentRepository.findById(id)
-    return this.formatAttachmentResponse(restored!)
+    return this.presenter.present({ ...attachment, deletedAt: null })
   }
 
   async generatePresignedUrl(
@@ -368,116 +370,25 @@ export class AttachmentService {
     currentUser: User
   ): Promise<PresignedUrlResponseDto> {
     const attachment = await this.findReadable(id, currentUser)
+    const expiresIn = dto.expiresIn || 3600
 
-    const url = await this.s3Service.getPresignedUrl(attachment.path, dto.expiresIn || 3600)
-    await this.attachmentRepository.incrementDownloadCount(id)
-
-    const expiresAt = new Date()
-    expiresAt.setSeconds(expiresAt.getSeconds() + (dto.expiresIn || 3600))
-
-    return { url, expiresAt, expiresIn: dto.expiresIn || 3600 }
+    const url = await this.s3Service.getPresignedUrl(
+      attachment.path,
+      expiresIn,
+      dto.downloadFilename
+    )
+    await this.attachmentRepository.recordAccess(id)
+    return { url, expiresAt: new Date(Date.now() + expiresIn * 1000), expiresIn }
   }
 
-  async getStatistics(): Promise<AttachmentStatsDto> {
-    return this.attachmentRepository.getStatistics() as Promise<AttachmentStatsDto>
-  }
-
-  async cleanupOrphaned(olderThanDays = 7) {
-    const orphaned = await this.attachmentRepository.findOrphanedAttachments(olderThanDays)
-    let deleted = 0,
-      totalSize = 0
-
-    for (const attachment of orphaned) {
-      try {
-        await this.s3Service.delete(attachment.path)
-        await this.attachmentRepository.hardDelete(attachment.id)
-        deleted++
-        totalSize += attachment.size
-      } catch {
-        this.logger.error(`Failed to delete orphaned attachment ${attachment.id}`)
-      }
-    }
-
-    return { deleted, totalSize }
+  getStatistics(): Promise<AttachmentStatsDto> {
+    return this.attachmentRepository.getStatistics()
   }
 
   async downloadAttachment(id: string, currentUser: User) {
     const attachment = await this.findReadable(id, currentUser)
-
     const buffer = await this.s3Service.download(attachment.path)
-    await this.attachmentRepository.incrementDownloadCount(id)
-
+    await this.attachmentRepository.recordAccess(id)
     return { buffer, attachment }
-  }
-
-  private formatAttachmentResponse(attachment: Attachment): AttachmentResponseDto {
-    const metadata = (attachment.metadata || {}) as AttachmentMetadata
-    const optimization = metadata.optimization
-    const thumbnailsMeta = metadata.thumbnails
-    const allowPublicUrls = attachment.isPublic
-
-    let thumbnails:
-      | Record<
-          string,
-          {
-            key: string
-            url?: string
-            width?: number
-            height?: number
-            size?: number
-            format?: string
-          }
-        >
-      | undefined
-
-    if (thumbnailsMeta && typeof thumbnailsMeta === 'object') {
-      thumbnails = Object.entries(thumbnailsMeta).reduce(
-        (acc, [variant, data]) => {
-          if (data && typeof data === 'object') {
-            const key = data.key
-            if (!key) {
-              return acc
-            }
-            acc[variant] = {
-              key,
-              url: allowPublicUrls ? this.s3Service.getPublicUrl(key) : undefined,
-              width: data.width,
-              height: data.height,
-              size: data.size,
-              format: data.format
-            }
-          }
-          return acc
-        },
-        {} as Record<
-          string,
-          {
-            key: string
-            url?: string
-            width?: number
-            height?: number
-            size?: number
-            format?: string
-          }
-        >
-      )
-    }
-
-    const placeholderKey = optimization?.placeholderKey
-    const placeholderUrl =
-      allowPublicUrls && placeholderKey ? this.s3Service.getPublicUrl(placeholderKey) : undefined
-
-    return {
-      ...attachment,
-      url: allowPublicUrls ? this.s3Service.getPublicUrl(attachment.path) : undefined,
-      originalImageUrl: allowPublicUrls ? this.s3Service.getPublicUrl(attachment.path) : undefined,
-      downloadUrl: `/api/attachments/${attachment.id}/download`,
-      previewUrl:
-        allowPublicUrls && attachment.thumbnailPath
-          ? this.s3Service.getPublicUrl(attachment.thumbnailPath)
-          : undefined,
-      thumbnails,
-      placeholderUrl
-    }
   }
 }

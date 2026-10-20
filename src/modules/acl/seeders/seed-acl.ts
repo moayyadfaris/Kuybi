@@ -4,13 +4,8 @@ import { AppModule } from '@app/app.module'
 import { AclSeeder } from './acl.seeder'
 
 /**
- * Seed ACL (Access Control List) data
- *
- * Usage:
- * npm run seed:acl
- *
- * OR
- * ts-node -r tsconfig-paths/register src/acl/seeders/seed-acl.ts
+ * Seeds roles and permissions (AclSeeder): `npm run db:seed:acl`, or
+ * `npm run db:seed:acl:prod` from the build. Safe to run again after upgrades.
  */
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule)

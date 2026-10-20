@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { containsPattern } from '@shared/utils/like.util'
 import {
   Brackets,
   FindOptionsRelations,
@@ -11,16 +12,11 @@ import {
 import type { RecordScope } from '@modules/acl'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { BaseRepository } from '@core/database/repositories/base.repository'
+import { BaseRepository, cacheRowTag } from '@core/database/repositories/base.repository'
 
 import { STORY_SORT_FIELDS, type StorySortField } from '../constants/story-sort-fields'
 import { Story, StoryPriority, StoryStatus, StoryType } from '../entities/story.entity'
 
-/**
- * Story Repository
- *
- * Handles all database operations for Story entity with caching.
- */
 /**
  * Author columns loaded with stories. Story responses only need to identify the author;
  * contact details and account state stay out of story payloads (and the story cache).
@@ -33,10 +29,31 @@ export const STORY_SCOPE_COLUMNS = ['status', 'userId', 'type', 'priority', 'cou
 /** Every story, for internal reads that are not on behalf of a user */
 export const ALL_STORIES: RecordScope = { all: true }
 
+type ListOptions = { limit?: number; offset?: number; includeDeleted?: boolean }
+
+/**
+ * Row tags of the rows a cached story embeds (entity names of their repositories): a
+ * rename, delete or change of any of them through its repository drops the story entries
+ */
+function embeddedRows(value: Story | Story[] | null): string[] {
+  const stories = Array.isArray(value) ? value : value ? [value] : []
+  return stories.flatMap(story => [
+    ...(story.userId ? [cacheRowTag('user', story.userId)] : []),
+    ...(story.mainImageId ? [cacheRowTag('attachment', story.mainImageId)] : []),
+    ...(story.tags ?? []).map(tag => cacheRowTag('tag', tag.id)),
+    ...(story.categories ?? []).map(category => cacheRowTag('category', category.id))
+  ])
+}
+
+/**
+ * Stories with their tags, categories, main image and author (id and name), cached per
+ * the cache contract and also dropped when an embedded row changes (embeddedRows). Lists
+ * take the reader's scope (StoryAccessPolicy.readScope) and are cached per scope.
+ */
 @Injectable()
 export class StoryRepository extends BaseRepository<Story> {
   protected entityName = 'story'
-  protected defaultTTL = 600 // 10 minutes for stories (more dynamic)
+  protected defaultTTL = 600
 
   constructor(
     @InjectRepository(Story)
@@ -46,226 +63,68 @@ export class StoryRepository extends BaseRepository<Story> {
     super(repository, cacheService)
   }
 
-  /**
-   * Override findById to include tags, categories, mainImage, and user relations
-   * This prevents N+1 queries when accessing these relations
-   */
+  /** One story with its relations, soft-deleted or not (callers decide) */
   async findById(
     id: string | number,
     options?: { ttl?: number; bypassCache?: boolean }
   ): Promise<Story | null> {
-    const cacheKey = this.buildCacheKey('id', id)
-
-    if (!options?.bypassCache && this.cacheService) {
-      return this.cached<Story | null>(
-        cacheKey,
-        async () => {
-          return this.findByIdQuery(id)
-        },
-        options?.ttl ?? this.defaultTTL
-      )
-    }
-
-    return this.findByIdQuery(id)
+    const load = () => this.withRelations().where('story.id = :id', { id }).getOne()
+    if (options?.bypassCache) return load()
+    return this.cached(this.buildCacheKey('id', id), load, options?.ttl ?? this.defaultTTL, {
+      dependsOn: embeddedRows
+    })
   }
 
-  private findByIdQuery(id: string | number): Promise<Story | null> {
-    return this.repository
-      .createQueryBuilder('story')
-      .leftJoinAndSelect('story.tags', 'tags')
-      .leftJoinAndSelect('story.categories', 'categories')
-      .leftJoinAndSelect('story.mainImage', 'mainImage')
-      .leftJoin('story.user', 'user')
-      .addSelect(STORY_AUTHOR_COLUMNS)
-      .where('story.id = :id', { id })
-      .getOne()
+  /** A user's stories, newest first */
+  findByUser(userId: string, scope: RecordScope, options: ListOptions = {}): Promise<Story[]> {
+    return this.list('user', 'story.userId = :value', userId, scope, options)
   }
 
-  /**
-   * Find stories by user with caching
-   * Includes mainImage and user to prevent N+1 queries
-   */
-  async findByUser(
-    userId: string,
-    scope: RecordScope,
-    options?: {
-      includeDeleted?: boolean
-      limit?: number
-      offset?: number
-    }
-  ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'user',
-      userId,
-      this.scopeKey(scope),
-      JSON.stringify(options || {})
-    )
-
-    return this.cached<Story[]>(
-      cacheKey,
-      async () => {
-        const query = this.repository
-          .createQueryBuilder('story')
-          .leftJoinAndSelect('story.tags', 'tags')
-          .leftJoinAndSelect('story.categories', 'categories')
-          .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoin('story.user', 'user')
-          .addSelect(STORY_AUTHOR_COLUMNS)
-          .where('story.userId = :userId', { userId })
-          .orderBy('story.createdAt', 'DESC')
-        this.applyScope(query, scope, options?.includeDeleted)
-
-        if (options?.limit) {
-          query.take(options.limit)
-        }
-
-        if (options?.offset) {
-          query.skip(options.offset)
-        }
-
-        return query.getMany()
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
-   * Find stories by status with caching
-   * Includes mainImage and user to prevent N+1 queries
-   */
-  async findByStatus(
+  /** Stories with a status, newest first (soft-deleted ones never) */
+  findByStatus(
     status: StoryStatus,
     scope: RecordScope,
-    options?: {
-      limit?: number
-      offset?: number
-    }
+    options: Omit<ListOptions, 'includeDeleted'> = {}
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'status',
-      status,
-      this.scopeKey(scope),
-      JSON.stringify(options || {})
-    )
-
-    return this.cached<Story[]>(
-      cacheKey,
-      async () => {
-        const query = this.repository
-          .createQueryBuilder('story')
-          .leftJoinAndSelect('story.tags', 'tags')
-          .leftJoinAndSelect('story.categories', 'categories')
-          .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoin('story.user', 'user')
-          .addSelect(STORY_AUTHOR_COLUMNS)
-          .where('story.status = :status', { status })
-          .orderBy('story.createdAt', 'DESC')
-        this.applyScope(query, scope)
-
-        if (options?.limit) {
-          query.take(options.limit)
-        }
-
-        if (options?.offset) {
-          query.skip(options.offset)
-        }
-
-        return query.getMany()
-      },
-      this.defaultTTL
-    )
+    return this.list('status', 'story.status = :value', status, scope, options)
   }
 
-  /**
-   * Find stories by type with caching
-   * Includes mainImage and user to prevent N+1 queries
-   */
-  async findByType(
+  /** Stories of a type, newest first (soft-deleted ones never) */
+  findByType(
     type: StoryType,
     scope: RecordScope,
-    options?: {
-      limit?: number
-      offset?: number
-    }
+    options: Omit<ListOptions, 'includeDeleted'> = {}
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'type',
-      type,
-      this.scopeKey(scope),
-      JSON.stringify(options || {})
-    )
-
-    return this.cached<Story[]>(
-      cacheKey,
-      async () => {
-        const query = this.repository
-          .createQueryBuilder('story')
-          .leftJoinAndSelect('story.tags', 'tags')
-          .leftJoinAndSelect('story.categories', 'categories')
-          .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoin('story.user', 'user')
-          .addSelect(STORY_AUTHOR_COLUMNS)
-          .where('story.type = :type', { type })
-          .orderBy('story.createdAt', 'DESC')
-        this.applyScope(query, scope)
-
-        if (options?.limit) {
-          query.take(options.limit)
-        }
-
-        if (options?.offset) {
-          query.skip(options.offset)
-        }
-
-        return query.getMany()
-      },
-      this.defaultTTL
-    )
+    return this.list('type', 'story.type = :value', type, scope, options)
   }
 
-  /**
-   * Find child stories (by parent ID)
-   * Includes mainImage and user to prevent N+1 queries
-   */
-
-  async findChildren(
+  /** Direct children of a story (threads), newest first */
+  findChildren(
     parentId: number,
     scope: RecordScope,
-    options?: {
-      includeDeleted?: boolean
-    }
+    options: Pick<ListOptions, 'includeDeleted'> = {}
   ): Promise<Story[]> {
-    const cacheKey = this.buildCacheKey(
-      'children',
-      parentId.toString(),
-      this.scopeKey(scope),
-      JSON.stringify(options || {})
-    )
-
-    return this.cached<Story[]>(
-      cacheKey,
-      async () => {
-        const query = this.repository
-          .createQueryBuilder('story')
-          .leftJoinAndSelect('story.tags', 'tags')
-          .leftJoinAndSelect('story.categories', 'categories')
-          .leftJoinAndSelect('story.mainImage', 'mainImage')
-          .leftJoin('story.user', 'user')
-          .addSelect(STORY_AUTHOR_COLUMNS)
-          .where('story.parentId = :parentId', { parentId })
-          .orderBy('story.createdAt', 'DESC')
-        this.applyScope(query, scope, options?.includeDeleted)
-
-        return query.getMany()
-      },
-      this.defaultTTL
-    )
+    return this.list('children', 'story.parentId = :value', parentId, scope, options)
   }
 
   /**
-   * Search stories with advanced filters
-   * Includes mainImage and user to prevent N+1 queries
+   * The ids of a story and of every story above it (parent, grandparent...). Uncached:
+   * used to refuse a parent that would make a cycle.
    */
+  async findSelfAndAncestorIds(id: number): Promise<number[]> {
+    const rows: Array<{ id: number }> = await this.repository.query(
+      `WITH RECURSIVE chain(id, "parentId") AS (
+         SELECT id, "parentId" FROM stories WHERE id = $1
+         UNION
+         SELECT s.id, s."parentId" FROM stories s JOIN chain c ON s.id = c."parentId"
+       )
+       SELECT id FROM chain`,
+      [id]
+    )
+    return rows.map(row => Number(row.id))
+  }
+
+  /** Filtered, sorted and paginated stories, with the total count */
   async search(filters: {
     /** Which stories the reader may see */
     scope: RecordScope
@@ -297,29 +156,15 @@ export class StoryRepository extends BaseRepository<Story> {
       totalPages: number
     }
   }> {
-    const builder = this.repository
-      .createQueryBuilder('story')
-      .leftJoinAndSelect('story.tags', 'tags')
-      .leftJoinAndSelect('story.categories', 'categories')
-      .leftJoinAndSelect('story.mainImage', 'mainImage')
-      .leftJoin('story.user', 'user')
-      .addSelect(STORY_AUTHOR_COLUMNS)
-
+    const builder = this.withRelations()
     this.applyScope(builder, filters.scope, filters.includeDeleted)
 
-    // Text search
     if (filters.search) {
-      builder.andWhere(
-        new Brackets(qb => {
-          qb.where('story.title ILIKE :search', { search: `%${filters.search}%` }).orWhere(
-            'story.details ILIKE :search',
-            { search: `%${filters.search}%` }
-          )
-        })
-      )
+      builder.andWhere('(story.title ILIKE :search OR story.details ILIKE :search)', {
+        search: containsPattern(filters.search)
+      })
     }
 
-    // Apply filters
     if (filters.status) {
       builder.andWhere('story.status = :status', { status: filters.status })
     }
@@ -344,13 +189,13 @@ export class StoryRepository extends BaseRepository<Story> {
       builder.andWhere('story.parentId = :parentId', { parentId: filters.parentId })
     }
 
-    // Filter by category IDs (stories that have ANY of the specified categories)
-    // EXISTS filters keep each story's full tag/category lists in the result
+    // EXISTS, not a filter on the joined rows: each story keeps all its tags and categories
     if (filters.categorySlug) {
       builder.andWhere(
         `EXISTS (SELECT 1 FROM story_categories sc
                    JOIN categories c ON c.id = sc."categoryId"
-                  WHERE sc."storyId" = story.id AND c.slug = :categorySlug)`,
+                  WHERE sc."storyId" = story.id AND c.slug = :categorySlug
+                    AND c."deletedAt" IS NULL)`,
         { categorySlug: filters.categorySlug }
       )
     }
@@ -359,16 +204,21 @@ export class StoryRepository extends BaseRepository<Story> {
       builder.andWhere(
         `EXISTS (SELECT 1 FROM story_tags st
                    JOIN tags t ON t.id = st."tagId"
-                  WHERE st."storyId" = story.id AND lower(t.name) = lower(:tagName))`,
+                  WHERE st."storyId" = story.id AND lower(t.name) = lower(:tagName)
+                    AND t."deletedAt" IS NULL)`,
         { tagName: filters.tagName }
       )
     }
 
-    if (filters.categoryIds && filters.categoryIds.length > 0) {
-      builder.andWhere('categories.id IN (:...categoryIds)', { categoryIds: filters.categoryIds })
+    // Stories that have any of these categories
+    if (filters.categoryIds?.length) {
+      builder.andWhere(
+        `EXISTS (SELECT 1 FROM story_categories sc
+                  WHERE sc."storyId" = story.id AND sc."categoryId" IN (:...categoryIds))`,
+        { categoryIds: filters.categoryIds }
+      )
     }
 
-    // Date range filters
     if (filters.fromDate) {
       builder.andWhere('story.createdAt >= :fromDate', { fromDate: filters.fromDate })
     }
@@ -377,10 +227,8 @@ export class StoryRepository extends BaseRepository<Story> {
       builder.andWhere('story.createdAt <= :toDate', { toDate: filters.toDate })
     }
 
-    // Get total count
     const total = await builder.getCount()
 
-    // Apply pagination
     const page = filters.page || 1
     const limit = filters.limit || 20
     const offset = (page - 1) * limit
@@ -408,9 +256,7 @@ export class StoryRepository extends BaseRepository<Story> {
     }
   }
 
-  /**
-   * Get story statistics
-   */
+  /** Counts over the stories a scope allows, cached for 5 minutes per scope */
   async getStats(scope: RecordScope): Promise<{
     total: number
     byStatus: Record<StoryStatus, number>
@@ -491,21 +337,6 @@ export class StoryRepository extends BaseRepository<Story> {
   }
 
   /**
-   * Clears the caches a write to these stories can affect (each story's row tag and the
-   * list tag: lists, per-owner/status/type lists, stats). Call it after the transaction
-   * that wrote them commits; writes through save()/update()/delete() need no call.
-   */
-  async invalidateAfterWrite(
-    ...states: Pick<Story, 'id' | 'userId' | 'status' | 'type' | 'priority'>[]
-  ): Promise<void> {
-    // Row tag of each story plus the list tag, which covers every cached list and the
-    // stats (per user, status, type, priority...)
-    for (const state of new Set(states.map(s => s.id))) {
-      await this.invalidateCacheByEntityId(state)
-    }
-  }
-
-  /**
    * Limits a query to the stories a scope allows. Soft-deleted stories are left out
    * unless `includeDeleted`, which only an unrestricted scope may use.
    */
@@ -560,5 +391,36 @@ export class StoryRepository extends BaseRepository<Story> {
   /** Uncached read with the given relations, for read-modify-save of relation arrays */
   findWithRelations(id: number, relations: FindOptionsRelations<Story>): Promise<Story | null> {
     return this.repository.findOne({ where: { id }, relations })
+  }
+
+  private withRelations(): SelectQueryBuilder<Story> {
+    return this.repository
+      .createQueryBuilder('story')
+      .leftJoinAndSelect('story.tags', 'tags', 'tags.deletedAt IS NULL')
+      .leftJoinAndSelect('story.categories', 'categories', 'categories.deletedAt IS NULL')
+      .leftJoinAndSelect('story.mainImage', 'mainImage')
+      .leftJoin('story.user', 'user')
+      .addSelect(STORY_AUTHOR_COLUMNS)
+  }
+
+  /** A cached, scoped list of the stories matching one condition, newest first */
+  private list(
+    name: string,
+    condition: string,
+    value: string | number,
+    scope: RecordScope,
+    options: ListOptions
+  ): Promise<Story[]> {
+    const key = this.buildCacheKey(name, value, this.scopeKey(scope), JSON.stringify(options))
+    const load = () => {
+      const query = this.withRelations()
+        .where(condition, { value })
+        .orderBy('story.createdAt', 'DESC')
+      this.applyScope(query, scope, options.includeDeleted)
+      if (options.limit) query.take(options.limit)
+      if (options.offset) query.skip(options.offset)
+      return query.getMany()
+    }
+    return this.cached(key, load, this.defaultTTL, { dependsOn: embeddedRows })
   }
 }

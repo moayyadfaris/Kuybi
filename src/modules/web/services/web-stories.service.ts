@@ -5,36 +5,32 @@ import { StoryRepository } from '@modules/stories'
 import { StoryStatus } from '@modules/stories/entities'
 
 import { WebStoriesQueryDto } from '../dto/web-query.dto'
-import { toPublicStory } from '../web-response.mapper'
+import { WebPresenter } from '../web.presenter'
 
 /** The public site shows published stories only */
 const PUBLISHED_ONLY: RecordScope = { all: false, anyOf: [{ status: StoryStatus.PUBLISHED }] }
 
+/** Published stories for the public site, newest first, in the public shape */
 @Injectable()
 export class WebStoriesService {
-  constructor(private readonly storyRepository: StoryRepository) {}
+  constructor(
+    private readonly storyRepository: StoryRepository,
+    private readonly presenter: WebPresenter
+  ) {}
 
-  /**
-   * Get published stories for public consumption
-   * Only returns published stories with sanitized data
-   */
   async getPublishedStories(query: WebStoriesQueryDto) {
-    const { search, categorySlug, tag, page = 1, limit = 20 } = query
-
     const result = await this.storyRepository.search({
       scope: PUBLISHED_ONLY,
-      search,
-      categorySlug,
-      tagName: tag,
-      page,
-      limit,
+      search: query.search,
+      categorySlug: query.categorySlug,
+      tagName: query.tag,
+      page: query.page,
+      limit: query.limit,
       sortBy: 'createdAt',
       sortOrder: 'DESC'
     })
-
-    // Sanitize response - remove sensitive fields
     return {
-      data: result.results.map(story => toPublicStory(story)),
+      data: result.results.map(story => this.presenter.story(story)),
       total: result.total,
       page: result.pagination.page,
       limit: result.pagination.limit,
@@ -42,16 +38,11 @@ export class WebStoriesService {
     }
   }
 
-  /**
-   * Get a single published story by ID
-   */
   async getPublishedStoryById(id: number) {
     const story = await this.storyRepository.findById(id)
-
     if (!story || story.deletedAt || story.status !== StoryStatus.PUBLISHED) {
       throw new NotFoundException('Story not found')
     }
-
-    return toPublicStory(story)
+    return this.presenter.story(story)
   }
 }

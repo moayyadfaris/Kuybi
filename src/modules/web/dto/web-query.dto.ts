@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
 
 export class WebQueryDto {
   @ApiPropertyOptional({
@@ -9,6 +9,7 @@ export class WebQueryDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   search?: string
 
   @ApiPropertyOptional({
@@ -45,6 +46,7 @@ export class WebStoriesQueryDto extends WebQueryDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(140)
   categorySlug?: string
 
   @ApiPropertyOptional({
@@ -53,5 +55,6 @@ export class WebStoriesQueryDto extends WebQueryDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   tag?: string
 }

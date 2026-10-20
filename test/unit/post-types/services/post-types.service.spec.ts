@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { Test, TestingModule } from '@nestjs/testing'
 
 import { PostType } from '@modules/post-types/entities/post-type.entity'
+import { PostContentRepository } from '@modules/post-types/repositories/post-content.repository'
 import { PostTypeRepository } from '@modules/post-types/repositories/post-type.repository'
 import { PostTypesService } from '@modules/post-types/services/post-types.service'
 
@@ -42,6 +43,10 @@ describe('PostTypesService', () => {
         {
           provide: PostTypeRepository,
           useValue: mockRepository
+        },
+        {
+          provide: PostContentRepository,
+          useValue: { hasContent: jest.fn().mockResolvedValue(false) }
         },
         {
           provide: CacheService,
@@ -87,7 +92,6 @@ describe('PostTypesService', () => {
           isSystem: false
         })
       )
-      expect(repository.invalidateAllCaches).toHaveBeenCalled()
     })
 
     it('should suffix the generated slug if it is already taken', async () => {
@@ -161,7 +165,6 @@ describe('PostTypesService', () => {
       const result = await service.update('test-id', updateDto, 'user-id')
 
       expect(result.name).toBe(updateDto.name)
-      expect(repository.invalidateCache).toHaveBeenCalled()
     })
 
     it('should throw NotFoundException if post type not found', async () => {
@@ -190,7 +193,6 @@ describe('PostTypesService', () => {
       await service.remove('test-id')
 
       expect(repository.softDelete).toHaveBeenCalledWith('test-id')
-      expect(repository.invalidateCache).toHaveBeenCalled()
     })
 
     it('should throw BadRequestException if trying to delete system post type', async () => {

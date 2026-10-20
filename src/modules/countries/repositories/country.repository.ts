@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { containsPattern } from '@shared/utils/like.util'
 import { Brackets, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
@@ -7,318 +8,103 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 
 import { Country } from '../entities/country.entity'
 
-/**
- * Country Repository
- *
- * Handles all database operations for Country entity with caching.
- */
 /** Columns search() may sort by (they become SQL identifiers) */
 export const COUNTRY_SORT_FIELDS = ['name', 'continent', 'currencyCode', 'phonecode'] as const
 
+export interface CountrySearch {
+  search?: string
+  continent?: string
+  isActive?: boolean
+  fields?: string[]
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
+  /** 0-based */
+  page?: number
+  limit?: number
+}
+
+/** Countries (reference data written by the seeder), cached under ADR 0003 */
 @Injectable()
 export class CountryRepository extends BaseRepository<Country> {
   protected entityName = 'country'
   protected defaultTTL = 3600 // 1 hour for country data (rarely changes)
 
   constructor(
-    @InjectRepository(Country)
-    repository: Repository<Country>,
+    @InjectRepository(Country) repository: Repository<Country>,
     cacheService: CacheService
   ) {
     super(repository, cacheService)
   }
 
-  /**
-   * Find country by ISO code with caching
-   */
-  async findByIso(iso: string): Promise<Country | null> {
-    const cacheKey = this.buildCacheKey('iso', iso.toUpperCase())
-
-    return this.cached<Country | null>(
-      cacheKey,
-      async () => {
-        return this.repository.findOne({ where: { iso: iso.toUpperCase() } })
-      },
-      this.defaultTTL
+  findByIso(iso: string): Promise<Country | null> {
+    const code = iso.toUpperCase()
+    return this.cached(this.buildCacheKey('iso', code), () =>
+      this.repository.findOne({ where: { iso: code } })
     )
   }
 
   /**
-   * Find country by ISO3 code with caching
+   * A page of countries. Free-text searches are not cached: every distinct term would be
+   * its own entry, and the table is small enough to query.
    */
-  async findByIso3(iso3: string): Promise<Country | null> {
-    const cacheKey = this.buildCacheKey('iso3', iso3.toUpperCase())
-
-    return this.cached<Country | null>(
-      cacheKey,
-      async () => {
-        return this.repository.findOne({ where: { iso3: iso3.toUpperCase() } })
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
-   * Find countries by continent with caching
-   */
-  async findByContinent(continent: string): Promise<Country[]> {
-    const cacheKey = this.buildCacheKey('continent', continent)
-
-    return this.cached<Country[]>(
-      cacheKey,
-      async () => {
-        return this.repository.find({
-          where: { continent },
-          order: { name: 'ASC' }
-        })
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
-   * Find countries by region with caching
-   */
-  async findByRegion(region: string): Promise<Country[]> {
-    const cacheKey = this.buildCacheKey('region', region)
-
-    return this.cached<Country[]>(
-      cacheKey,
-      async () => {
-        return this.repository.find({
-          where: { region },
-          order: { name: 'ASC' }
-        })
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
-   * Advanced search with filters, sorting, and pagination
-   */
-  async search(query: {
-    search?: string
-    continent?: string
-    region?: string
-    isActive?: boolean
-    fields?: string[]
-    orderBy?: string
-    orderDirection?: 'ASC' | 'DESC'
-    page?: number
-    limit?: number
-  }): Promise<{
-    results: Country[] | Partial<Country>[]
-    total: number
-    pagination: {
-      page: number
-      limit: number
-      totalPages: number
-    }
-  }> {
+  search(query: CountrySearch) {
+    if (query.search) return this.runSearch(query)
     return this.cached(this.buildCacheKey('search', JSON.stringify(query)), () =>
       this.runSearch(query)
     )
   }
 
-  private async runSearch(query: Parameters<CountryRepository['search']>[0]) {
+  private async runSearch(query: CountrySearch): Promise<{
+    results: Country[] | Partial<Country>[]
+    total: number
+    pagination: { page: number; limit: number; totalPages: number }
+  }> {
     const builder = this.repository.createQueryBuilder('country')
-
-    // Apply search
     if (query.search) {
+      const pattern = containsPattern(query.search)
       builder.where(
         new Brackets(qb => {
-          qb.where('country.name ILIKE :search', { search: `%${query.search}%` })
-            .orWhere('country.nicename ILIKE :search', { search: `%${query.search}%` })
-            .orWhere('country.iso ILIKE :search', { search: `%${query.search}%` })
-            .orWhere('country.iso3 ILIKE :search', { search: `%${query.search}%` })
+          qb.where('country.name ILIKE :pattern', { pattern })
+            .orWhere('country.nicename ILIKE :pattern', { pattern })
+            .orWhere('country.iso ILIKE :pattern', { pattern })
+            .orWhere('country.iso3 ILIKE :pattern', { pattern })
         })
       )
     }
-
-    // Apply filters
     if (query.continent) {
       builder.andWhere('country.continent = :continent', { continent: query.continent })
     }
-
-    if (query.region) {
-      builder.andWhere('country.region = :region', { region: query.region })
-    }
-
     if (query.isActive !== undefined) {
       builder.andWhere('country.isActive = :isActive', { isActive: query.isActive })
     }
 
-    // Apply sorting
     const orderBy = (COUNTRY_SORT_FIELDS as readonly string[]).includes(query.orderBy ?? '')
       ? query.orderBy
       : 'name'
-    const orderDirection = query.orderDirection === 'DESC' ? 'DESC' : 'ASC'
-    builder.orderBy(`country.${orderBy}`, orderDirection)
-
-    // Apply pagination
     const page = query.page ?? 0
     const limit = query.limit ?? 50
-    builder.skip(page * limit).take(limit)
-
-    // Execute query
-    const [results, total] = await builder.getManyAndCount()
-
-    // Select specific fields if requested
-    const finalResults = query.fields ? this.selectFields(results, query.fields) : results
+    const [results, total] = await builder
+      .orderBy(`country.${orderBy}`, query.orderDirection === 'DESC' ? 'DESC' : 'ASC')
+      .addOrderBy('country.id', 'ASC')
+      .skip(page * limit)
+      .take(limit)
+      .getManyAndCount()
 
     return {
-      results: finalResults,
+      results: query.fields?.length ? selectFields(results, query.fields) : results,
       total,
-      pagination: {
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit) || 0
-      }
+      pagination: { page, limit, totalPages: Math.ceil(total / limit) }
     }
   }
+}
 
-  /**
-   * Get all active countries with caching
-   */
-  async findAllActive(): Promise<Country[]> {
-    const cacheKey = this.buildCacheKey('all-active')
-
-    return this.cached<Country[]>(
-      cacheKey,
-      async () => {
-        return this.repository.find({
-          where: { isActive: true },
-          order: { name: 'ASC' }
-        })
-      },
-      this.defaultTTL
+/** Only the requested fields of each country (unknown names are ignored) */
+function selectFields(countries: Country[], fields: string[]): Partial<Country>[] {
+  return countries.map(country =>
+    Object.fromEntries(
+      fields
+        .filter(field => field in country)
+        .map(field => [field, country[field as keyof Country]])
     )
-  }
-
-  /**
-   * Get grouped countries by continent
-   */
-  async findGroupedByContinent(): Promise<Record<string, Country[]>> {
-    const cacheKey = this.buildCacheKey('grouped-by-continent')
-
-    return this.cached(
-      cacheKey,
-      async () => {
-        const countries = await this.repository.find({
-          where: { isActive: true },
-          order: { continent: 'ASC', name: 'ASC' }
-        })
-
-        const grouped: Record<string, Country[]> = {}
-        countries.forEach(country => {
-          const continent = country.continent || 'Unknown'
-          if (!grouped[continent]) {
-            grouped[continent] = []
-          }
-          grouped[continent].push(country)
-        })
-
-        return grouped
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
-   * Get grouped countries by region
-   */
-  async findGroupedByRegion(): Promise<Record<string, Country[]>> {
-    const cacheKey = this.buildCacheKey('grouped-by-region')
-
-    return this.cached(
-      cacheKey,
-      async () => {
-        const countries = await this.repository.find({
-          where: { isActive: true },
-          order: { region: 'ASC', name: 'ASC' }
-        })
-
-        const grouped: Record<string, Country[]> = {}
-        countries.forEach(country => {
-          const region = country.region || 'Unknown'
-          if (!grouped[region]) {
-            grouped[region] = []
-          }
-          grouped[region].push(country)
-        })
-
-        return grouped
-      },
-      this.defaultTTL
-    )
-  }
-
-  /**
-   * Get country statistics
-   */
-  async getStats(): Promise<{
-    total: number
-    active: number
-    byContinent: Record<string, number>
-    byRegion: Record<string, number>
-  }> {
-    const cacheKey = this.buildCacheKey('stats')
-
-    return this.cached(
-      cacheKey,
-      async () => {
-        const [total, active] = await Promise.all([
-          this.repository.count(),
-          this.repository.count({ where: { isActive: true } })
-        ])
-
-        // Count by continent
-        const continentQuery = await this.repository
-          .createQueryBuilder('country')
-          .select('country.continent', 'continent')
-          .addSelect('COUNT(*)', 'count')
-          .groupBy('country.continent')
-          .getRawMany()
-
-        const byContinent: Record<string, number> = {}
-        continentQuery.forEach(row => {
-          byContinent[row.continent || 'Unknown'] = parseInt(row.count, 10)
-        })
-
-        // Count by region
-        const regionQuery = await this.repository
-          .createQueryBuilder('country')
-          .select('country.region', 'region')
-          .addSelect('COUNT(*)', 'count')
-          .groupBy('country.region')
-          .getRawMany()
-
-        const byRegion: Record<string, number> = {}
-        regionQuery.forEach(row => {
-          byRegion[row.region || 'Unknown'] = parseInt(row.count, 10)
-        })
-
-        return { total, active, byContinent, byRegion }
-      },
-      600 // 10 minutes TTL for stats
-    )
-  }
-
-  /**
-   * Select specific fields from results
-   */
-  private selectFields(countries: Country[], fields: string[]): Partial<Country>[] {
-    if (!fields || fields.length === 0) return countries
-
-    return countries.map(country => {
-      const selected: Record<string, unknown> = {}
-      fields.forEach(field => {
-        if (field in country) {
-          selected[field] = country[field as keyof Country]
-        }
-      })
-      return selected
-    })
-  }
+  )
 }

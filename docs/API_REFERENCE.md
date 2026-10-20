@@ -45,7 +45,7 @@ Content-Type: application/json
   "success": true,
   "data": {
     "accessToken": "eyJhbGc...",
-    "refreshToken": "eyJhbGc...",
+    "refreshToken": "<session id>.<secret>",
     "user": {
       "id": "uuid",
       "email": "user@example.com",
@@ -62,7 +62,7 @@ POST /api/v1/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "eyJhbGc..."
+  "refreshToken": "<session id>.<secret>"
 }
 ```
 
@@ -72,6 +72,31 @@ Content-Type: application/json
 POST /api/v1/auth/logout
 Authorization: Bearer <token>
 ```
+
+`refreshToken` is `<session id>.<secret>`, not a JWT. Refreshing rotates it: the old one stops
+working, and of two concurrent refreshes with the same token only one succeeds.
+
+### Sign-up, email verification and password reset
+
+```http
+POST /api/v1/auth/register              { email, password, firstName, lastName, phoneNumber? }
+POST /api/v1/auth/verify-email          { token }
+POST /api/v1/auth/resend-verification   { email }
+POST /api/v1/auth/forgot-password       { email }
+POST /api/v1/auth/validate-reset-token  { token }
+POST /api/v1/auth/reset-password        { token, newPassword }
+```
+
+- Emails link to **frontend pages**, which post the token to the API:
+  `<app.url>/verify-email?token=…` → `POST /verify-email`, and
+  `<app.url>/reset-password?token=…` → `POST /reset-password`.
+- Links are single use; verification links last 24 hours, reset links 1 hour. Only a hash
+  of each token is stored.
+- `forgot-password` and `resend-verification` answer the same whether or not the email is
+  registered, so they cannot be used to find accounts.
+- New passwords must pass the strength check (`POST /password-strength`), may not be one
+  of the last five, and are at most 72 bytes. A reset or a password change ends the other
+  sessions and always emails the account owner.
 
 ---
 
@@ -360,6 +385,19 @@ Authorization: Bearer <token>
 
 ## 📰 Stories
 
+All story routes need a signed-in user. Which stories a user sees comes from their role's
+`read:Story` rules (ADR 0010): the `user` role reads published stories and its own.
+
+**Access rules**
+
+- A story the caller may not read answers `404`, on reads and on changes alike; a story they
+  may read but not change answers `403`.
+- Editor-only fields (`internalNotes`, `deletionReason`, `deletedBy`, `updatedBy`,
+  `lastModifiedBy`, and the exact location `latitude`, `longitude`, `address`) are returned
+  only to callers who may update the story. `city`, `region` and `countryId` stay visible.
+- Page sizes (`limit`) are 1 to 100. Path enums and ids are validated (`400` otherwise).
+- `countryId` must be an existing, active country (`400` otherwise).
+
 ### Create Story
 
 ```http
@@ -369,181 +407,117 @@ Content-Type: application/json
 
 {
   "title": "My Story",
-  "content": "Story content...",
-  "summary": "Brief summary",
-  "status": "draft",
-  "type": "article"
+  "details": "Story content...",
+  "type": "STORY",
+  "priority": "NORMAL",
+  "status": "DRAFT",
+  "categoryIds": ["<uuid>"],
+  "tagIds": [1],
+  "tags": ["new-tag-name"]
 }
 ```
 
-**Required Permission:** `create:Story`
+**Required Permission:** `create:Story`. Authors may create `DRAFT` or `PENDING_REVIEW`;
+other statuses need `publish:Story`.
 
-### List Stories
-
-```http
-GET /api/v1/stories
-Authorization: Bearer <token>
-```
-
-### Get Story Statistics
+### List and Read
 
 ```http
+GET /api/v1/stories?search=&status=&type=&userId=&priority=&countryId=&parentId=&categoryIds=a,b&fromDate=&toDate=&includeDeleted=&page=1&limit=20&sortBy=createdAt&sortOrder=DESC
 GET /api/v1/stories/stats
-Authorization: Bearer <token>
-```
-
-### Get Stories by User
-
-```http
-GET /api/v1/stories/user/:userId
-Authorization: Bearer <token>
-```
-
-### Get Stories by Status
-
-```http
-GET /api/v1/stories/status/:status
-Authorization: Bearer <token>
-```
-
-### Get Stories by Type
-
-```http
-GET /api/v1/stories/type/:type
-Authorization: Bearer <token>
-```
-
-### Get Story Children
-
-```http
-GET /api/v1/stories/:id/children
-Authorization: Bearer <token>
-```
-
-### Get Story by ID
-
-```http
+GET /api/v1/stories/user/:userId?page=&limit=&includeDeleted=
+GET /api/v1/stories/status/:status?page=&limit=
+GET /api/v1/stories/type/:type?page=&limit=
+GET /api/v1/stories/:id/children?includeDeleted=
 GET /api/v1/stories/:id
-Authorization: Bearer <token>
 ```
+
+**Required Permission:** `read:Story`. `search` matches title and details literally (`%`
+and `_` are not wildcards). `includeDeleted` only has an effect for callers who read every
+story.
 
 ### Update Story
 
 ```http
 PATCH /api/v1/stories/:id
-Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "title": "Updated title",
-  "content": "Updated content"
-}
+{ "title": "Updated title", "details": "Updated content" }
 ```
 
-**Required Permission:** `update:Story`
+**Required Permission:** `update:Story` on this story. A non-empty `categoryIds`/`tagIds`/
+`tags` replaces the current set. `parentId` may not be the story itself or one of its
+replies. Each update records an automatic version.
 
 ### Update Story Status
 
 ```http
 PATCH /api/v1/stories/:id/status
-Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "status": "published"
-}
+{ "status": "PUBLISHED" }
 ```
 
-**Required Permission:** `publish:Story`
+**Required Permission:** `publish:Story`. A published story cannot go back to `DRAFT`;
+`DELETED` is set only by `DELETE /stories/:id`.
 
-### Delete Story (Soft Delete)
+### Delete, Restore, Hard Delete
 
 ```http
-DELETE /api/v1/stories/:id
-Authorization: Bearer <token>
+DELETE /api/v1/stories/:id?reason=<up to 255 chars>   # soft delete, 204
+POST   /api/v1/stories/:id/restore                     # back to DRAFT
+DELETE /api/v1/stories/:id/hard                        # super-admin only, 204
 ```
 
-**Required Permission:** `delete:Story`
+**Required Permission:** `delete:Story`, `restore:Story`, `manage:all`.
 
-### Hard Delete Story
+### Tags, Categories, Attachments
 
 ```http
-DELETE /api/v1/stories/:id/hard
-Authorization: Bearer <token>
+POST   /api/v1/stories/:id/tags          { "tagIds": [1], "tags": ["name"] }
+DELETE /api/v1/stories/:id/tags          { "tagIds": [1], "tags": ["name"] }
+POST   /api/v1/stories/:id/categories    { "categoryIds": ["<uuid>"] }
+DELETE /api/v1/stories/:id/categories    { "categoryIds": ["<uuid>"] }
+POST   /api/v1/stories/:id/attachments   { "attachmentIds": ["<uuid>"] }
+DELETE /api/v1/stories/:id/attachments   { "attachmentIds": ["<uuid>"] }
+GET    /api/v1/stories/:id/tags | categories | attachments
 ```
 
-**Required Permission:** `manage:all` (Super Admin only)
+Changes need `update:Story` on the story and return the whole story. Missing tag names are
+created; deleted categories are refused. Attachments must be the caller's own or public.
 
-### Restore Story
+### Main Image
 
 ```http
-POST /api/v1/stories/:id/restore
-Authorization: Bearer <token>
+PUT    /api/v1/stories/:id/main-image    { "attachmentId": "<uuid>" }
+DELETE /api/v1/stories/:id/main-image
 ```
 
-**Required Permission:** `restore:Story`
+The image must be one of the caller's own images; it is made public when set.
 
-### Add Attachments to Story
+### Versions
 
 ```http
-POST /api/v1/stories/:id/attachments
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "attachmentIds": [1, 2, 3]
-}
+GET  /api/v1/stories/:id/versions?limit=&offset=&branchName=
+GET  /api/v1/stories/:id/versions/:versionNumber
+POST /api/v1/stories/:id/versions                    { "commitMessage": "...", "branchName": "main" }
+POST /api/v1/stories/:id/versions/rollback           { "versionNumber": 3, "commitMessage": "...", "createBranch": false }
+POST /api/v1/stories/:id/versions/branch             { "branchName": "draft-2", "fromVersionNumber": 3 }
+POST /api/v1/stories/:id/versions/merge              { "fromBranch": "draft-2", "fromVersionNumber": 5, "targetBranch": "main", "commitMessage": "..." }
+POST /api/v1/stories/:id/versions/compare            { "versionA": 3, "versionB": 5 }
+GET  /api/v1/stories/:id/versions/branches/info
+POST /api/v1/stories/:id/versions/:versionNumber/tag { "tag": "release-1" }
 ```
 
-### Remove Attachments from Story
+Every version route, reads included, needs `update:Story` on the story: old versions keep
+removed content and staff notes. A rollback on `main` restores the content of that version
+(not its status, links or main image) and records one `ROLLBACK` version; with
+`createBranch` it only records the version on a new branch. A merge with conflicting
+changes answers `409` with the conflicts; resend with `resolveConflicts`.
 
-```http
-DELETE /api/v1/stories/:id/attachments
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "attachmentIds": [1, 2]
-}
-```
-
-### Get Story Attachments
-
-```http
-GET /api/v1/stories/:id/attachments
-Authorization: Bearer <token>
-```
-
-### Add Tags to Story
-
-```http
-POST /api/v1/stories/:id/tags
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "tagIds": [1, 2, 3]
-}
-```
-
-### Remove Tags from Story
-
-```http
-DELETE /api/v1/stories/:id/tags
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "tagIds": [1]
-}
-```
-
-### Get Story Tags
-
-```http
-GET /api/v1/stories/:id/tags
-Authorization: Bearer <token>
-```
+Retention: a daily job keeps the newest `STORY_KEEP_AUTO_VERSIONS` (default 50) automatic
+versions per story and branch. Manual, branch, merge and rollback versions, tagged and
+pinned versions, fork points and merge or rollback sources are always kept.
 
 ---
 
@@ -565,12 +539,20 @@ Content-Type: application/json
 
 **Required Permission:** `create:Category`
 
+The slug is derived from the name (with a numeric suffix if taken) unless one is sent. Slugs
+are unique among live categories: a deleted category's slug can be used again. A taken
+explicit slug answers `409`.
+
 ### List Categories
 
 ```http
-GET /api/v1/categories
+GET /api/v1/categories?search=&isActive=&includeCounts=&includeDeleted=&orderBy=name&orderDirection=ASC&page=1&limit=50
 Authorization: Bearer <token>
 ```
+
+`search` matches name, slug and description literally (`%` and `_` are not wildcards).
+`includeCounts` adds `storyCount` (live stories). `includeDeleted` applies only for callers
+with `restore:Category`; for others it is ignored.
 
 ### List Active Categories
 
@@ -615,6 +597,8 @@ Content-Type: application/json
 
 **Required Permission:** `update:Category`
 
+Renaming keeps the slug (it is in public URLs); send `slug` to change it (`409` if taken).
+
 ### Delete Category (Soft Delete)
 
 ```http
@@ -624,6 +608,8 @@ Authorization: Bearer <token>
 
 **Required Permission:** `delete:Category`
 
+The category disappears from stories (their links are kept, so a restore brings it back).
+
 ### Restore Category
 
 ```http
@@ -632,6 +618,9 @@ Authorization: Bearer <token>
 ```
 
 **Required Permission:** `restore:Category`
+
+Restores the category with its active flag as it was. `404` if the category is not deleted,
+`409` if a live category now uses its slug.
 
 ### Hard Delete Category
 
@@ -659,25 +648,29 @@ Content-Type: application/json
 }
 ```
 
+**Required Permission:** `create:Tag`. Names are stored trimmed and lowercase and are unique
+among live tags (`409` otherwise; a deleted tag's name can be used again). System tags
+(`isSystem: true`) are created, changed and deleted by super-admins only (`403` for others).
+
 ### List Tags
 
 ```http
-GET /api/v1/tags
-Authorization: Bearer <token>
+GET /api/v1/tags?search=&sortBy=sortOrder&sortOrder=ASC&limit=100&offset=0
 ```
+
+Public. `search` matches names starting with it; `limit` is 1–500 (default 100). Tags are
+returned without who created or changed them.
 
 ### List System Tags
 
 ```http
 GET /api/v1/tags/system
-Authorization: Bearer <token>
 ```
 
 ### Get Tag by ID
 
 ```http
 GET /api/v1/tags/:id
-Authorization: Bearer <token>
 ```
 
 ### Update Tag
@@ -699,6 +692,8 @@ DELETE /api/v1/tags/:id
 Authorization: Bearer <token>
 ```
 
+The tag disappears from stories and can no longer be attached; its name becomes free.
+
 ### Hard Delete Tag
 
 ```http
@@ -710,117 +705,129 @@ Authorization: Bearer <token>
 
 ## 📎 Attachments
 
-### Upload Attachment
+Uploads are public by default; the uploader can ask for private (ADR 0009). Users read
+their own files and public ones; someone else's private file, and any soft-deleted file,
+answers `404`. Ids must be UUIDs (`400` otherwise).
+
+**Response shape** (`AttachmentResponseDto`): id, owner id, name, type, size, category,
+description, tags, folder, visibility, status, counters, timestamps, a `metadata` subset
+(`width`, `height`, `format`, `hasLocation`, `processingStatus`, `rejectionReasons`),
+`downloadUrl` (`/api/v1/attachments/:id/download`), and for public files only `url`,
+`originalImageUrl`, `previewUrl`, `placeholderUrl` and thumbnail URLs. Storage keys, the
+encryption key, scan results and the uploader's account are never returned.
+
+### Upload
 
 ```http
-POST /api/v1/attachments
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-
-file: <binary>
+POST /api/v1/attachments            # multipart: file, category, description, tags, isPublic, generateThumbnails, allowDuplicates, async
+POST /api/v1/attachments/bulk       # multipart: files (up to 20), same fields
+POST /api/v1/attachments/uploads    # direct upload: returns a presigned POST
+POST /api/v1/attachments/uploads/:id/complete
 ```
 
-**Required Permission:** `create:Attachment`
+**Required Permission:** `create:Attachment`. Images are stripped of EXIF (GPS, camera)
+and optimized before they are stored: in the request, or in the worker with `async`
+(default: `ATTACHMENT_ASYNC_PROCESSING`). A finished upload has `securityStatus`
+`completed`.
 
-### Get Attachment Statistics
-
-```http
-GET /api/v1/attachments/stats
-Authorization: Bearer <token>
-```
-
-### Get Attachment by ID
+### Read
 
 ```http
+GET /api/v1/attachments?category=&mimeType=image/&isPublic=&securityStatus=completed&minSize=&maxSize=&startDate=&endDate=&includeDeleted=&page=1&limit=20&sortBy=createdAt&sortOrder=DESC
+GET /api/v1/attachments/user/:userId?page=&limit=   # your own, or anyone's for readers of all files
 GET /api/v1/attachments/:id
-Authorization: Bearer <token>
-```
-
-### Get Attachments by User
-
-```http
-GET /api/v1/attachments/user/:userId
-Authorization: Bearer <token>
-```
-
-### Update Attachment
-
-```http
-PATCH /api/v1/attachments/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "filename": "new-name.jpg",
-  "alt": "Alt text"
-}
-```
-
-**Required Permission:** `update:Attachment`
-
-### Delete Attachment (Soft Delete)
-
-```http
-DELETE /api/v1/attachments/:id
-Authorization: Bearer <token>
-```
-
-**Required Permission:** `delete:Attachment`
-
-### Hard Delete Attachment
-
-```http
-DELETE /api/v1/attachments/:id/hard
-Authorization: Bearer <token>
-```
-
-**Required Permission:** `manage:all` (Super Admin only)
-
-### Restore Attachment
-
-```http
-POST /api/v1/attachments/:id/restore
-Authorization: Bearer <token>
-```
-
-**Required Permission:** `restore:Attachment`
-
-### Get Presigned URL
-
-```http
-POST /api/v1/attachments/:id/presigned-url
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "expiresIn": 3600
-}
-```
-
-### Download Attachment
-
-```http
 GET /api/v1/attachments/:id/download
-Authorization: Bearer <token>
+POST /api/v1/attachments/:id/presigned-url          { "expiresIn": 3600, "downloadFilename": "report.pdf" }
+GET /api/v1/attachments/stats                       # manage:all
 ```
 
-### Cleanup Orphaned Attachments
+`includeDeleted` only has an effect for callers who may read every file.
+
+### Change
 
 ```http
-POST /api/v1/attachments/cleanup-orphaned
-Authorization: Bearer <token>
+PATCH  /api/v1/attachments/:id          { "description": "...", "tags": ["a"], "folder": "x", "category": "y", "isPublic": false }
+DELETE /api/v1/attachments/:id          # soft delete
+POST   /api/v1/attachments/:id/restore  # restore:Attachment
+DELETE /api/v1/attachments/:id/hard     # manage:all; deletes every stored object
 ```
+
+`isPublic` changes the stored objects' access too. `metadata` cannot be written.
 
 ---
+
+## 🧩 Post Types and Content
+
+Dynamic content types with custom fields (values in a JSONB `field_data`).
+
+```http
+GET    /api/v1/post-types?includeInactive=        # public; inactive types only for update:PostType
+GET    /api/v1/post-types/:id | /slug/:slug
+POST   /api/v1/post-types                          # create:PostType; slug generated from the name
+PATCH  /api/v1/post-types/:id                      # update:PostType; system types are read-only
+DELETE /api/v1/post-types/:id                      # delete:PostType; 409 while it has entries
+
+GET    /api/v1/post-types/:postTypeId/fields       # public
+POST   /api/v1/post-types/:postTypeId/fields       # create:FieldDefinition; snake_case name
+PATCH  /api/v1/post-types/:postTypeId/fields/:id
+POST   /api/v1/post-types/:postTypeId/fields/reorder
+DELETE /api/v1/post-types/:postTypeId/fields/:id
+
+GET    /api/v1/content/:postTypeSlug?status=&search=&limit=20&offset=0&includeDeleted=
+GET    /api/v1/content/:postTypeSlug/:id | /slug/:slug
+POST   /api/v1/content/:postTypeSlug               # create:Content  { title, excerpt, status, field_data, scheduledFor }
+PATCH  /api/v1/content/:postTypeSlug/:id           # update:Content; field_data is merged
+POST   /api/v1/content/:postTypeSlug/:id/publish   # publish:Content
+POST   /api/v1/content/:postTypeSlug/:id/schedule  # publish:Content  { scheduledFor }
+DELETE /api/v1/content/:postTypeSlug/:id           # delete:Content (soft)
+```
+
+- Public readers (no token, or no `update:Content`) see published entries of active post
+  types only; `status` and `includeDeleted` filters are for editors. Lists return the
+  total matching count.
+- Setting `published` or `scheduled` (on create, update or schedule) needs
+  `publish:Content`; `deleted` is set only by DELETE. Scheduled entries are published by
+  the worker within a minute of their time.
+- `PATCH` merges `field_data` into the stored values; values of fields removed from the
+  post type are dropped. File, image and video values must be http(s) URLs.
+- A field marked `isUnique` takes each value once among the live entries of its post type:
+  a repeat answers `409` (with the conflicting `fields`), concurrent writers included.
+  Marking a field unique while entries share a value also answers `409`.
+- Names of post types and fields, and entry slugs, can be reused after a delete.
+- Entries show their author's id and name only.
+
+---
+
+## 🌐 Public Web API
+
+Unauthenticated, read-only and rate limited (100 requests per 15 minutes per client).
+
+```http
+GET /api/web/v1/stories?search=&categorySlug=&tag=&page=1&limit=20
+GET /api/web/v1/stories/:id
+GET /api/web/v1/categories?search=&page=1&limit=20
+GET /api/web/v1/categories/tree        # every active category (flat)
+GET /api/web/v1/categories/slug/:slug
+GET /api/web/v1/categories/:id
+```
+
+Only published stories and active categories are returned, in an allowlisted shape. A
+story's `mainImage` is `{ id, mimeType, width, height, url, previewUrl, placeholderUrl,
+thumbnails }`, given only for a public, live image the security scan cleared (`null`
+otherwise). `metadata.featuredImageUrl` is returned only when it is an http(s) link.
+Filters are capped at 200 characters (`categorySlug` 140).
 
 ## 🌍 Countries
 
 ### List Countries
 
 ```http
-GET /api/v1/countries
-Authorization: Bearer <token>
+GET /api/v1/countries?search=&continent=&isActive=&fields=iso,name&orderBy=name&orderDirection=asc&page=0&limit=50
 ```
+
+Public. `page` is 0-based; `limit` is 1–500. `search` (up to 100 characters) matches name,
+nicename, iso or iso3 literally (`%` and `_` are not wildcards). `fields` returns only the
+listed fields.
 
 ---
 
@@ -842,24 +849,6 @@ GET /api/health/ready
 
 ```http
 GET /api/health/live
-```
-
----
-
-## 🔧 Admin
-
-### Get Cleanup Statistics
-
-```http
-GET /api/v1/admin/cleanup/stats
-Authorization: Bearer <token>
-```
-
-### Trigger Manual Cleanup
-
-```http
-POST /api/v1/admin/cleanup/trigger
-Authorization: Bearer <token>
 ```
 
 ---

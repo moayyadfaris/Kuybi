@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common'
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common'
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { minutes, Throttle } from '@nestjs/throttler'
 
@@ -28,13 +28,13 @@ export class WebCategoriesController {
 
   @Get('tree')
   @ApiOperation({
-    summary: 'Get category tree',
-    description: 'Public endpoint to retrieve hierarchical category tree for navigation'
+    summary: 'Get every active category',
+    description: 'All active categories by name, for navigation (categories are flat)'
   })
-  @ApiResponse({ status: 200, description: 'Category tree structure' })
+  @ApiResponse({ status: 200, description: 'Active categories' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
   async getCategoryTree() {
-    return this.webCategoriesService.getCategoryTree()
+    return this.webCategoriesService.getAllActive()
   }
 
   @Get('slug/:slug')
@@ -59,7 +59,7 @@ export class WebCategoriesController {
   @ApiResponse({ status: 200, description: 'Category found' })
   @ApiResponse({ status: 404, description: 'Category not found' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async getActiveCategoryById(@Param('id') id: string) {
+  async getActiveCategoryById(@Param('id', ParseUUIDPipe) id: string) {
     return this.webCategoriesService.getActiveCategoryById(id)
   }
 }

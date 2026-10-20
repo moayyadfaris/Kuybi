@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -10,20 +11,26 @@ import {
 
 import { User } from '@modules/users/entities'
 
+/**
+ * A story tag. Names are stored trimmed and lowercase, unique among live tags (a deleted
+ * tag's name can be used again). System tags are managed by super-admins only.
+ */
 @Entity({ name: 'tags' })
+@Index('UQ_TAGS_NAME_LIVE', ['name'], { unique: true, where: '"deletedAt" IS NULL' })
 export class Tag {
   @PrimaryGeneratedColumn('increment')
   id: number
 
-  @Column({ length: 200, unique: true })
+  @Column({ length: 200 })
   name: string
 
-  @Column({ type: 'uuid' })
-  createdBy: string
+  /** Null once the creating user is deleted: the tag (and stories' links to it) stay */
+  @Column({ type: 'uuid', nullable: true })
+  createdBy: string | null
 
-  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'createdBy' })
-  creator: User
+  creator?: User
 
   @Column({ type: 'uuid', nullable: true })
   updatedBy?: string

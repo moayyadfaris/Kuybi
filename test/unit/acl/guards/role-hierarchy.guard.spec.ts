@@ -9,6 +9,7 @@ describe('RoleHierarchyGuard', () => {
   let guard: RoleHierarchyGuard
   let mockLogger: jest.Mocked<any>
   let mockRoleRepository: { findById: jest.Mock }
+  let eventBus: { publish: jest.Mock }
   let mockExecutionContext: ExecutionContext
 
   const superAdminRole: Role = { id: 1, name: 'super-admin', priority: 100 } as Role
@@ -27,7 +28,12 @@ describe('RoleHierarchyGuard', () => {
       findById: jest.fn()
     }
 
-    guard = new RoleHierarchyGuard(mockLogger, mockRoleRepository as unknown as RoleRepository)
+    eventBus = { publish: jest.fn().mockResolvedValue(undefined) }
+    guard = new RoleHierarchyGuard(
+      mockLogger,
+      mockRoleRepository as unknown as RoleRepository,
+      eventBus
+    )
 
     mockExecutionContext = {
       switchToHttp: jest.fn().mockReturnValue({
@@ -57,10 +63,6 @@ describe('RoleHierarchyGuard', () => {
       const result = await guard.canActivate(mockExecutionContext)
 
       expect(result).toBe(true)
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        { userId: superAdmin.id },
-        'RoleHierarchyGuard: Super-admin bypass'
-      )
       expect(mockRoleRepository.findById).not.toHaveBeenCalled()
     })
 
@@ -142,13 +144,11 @@ describe('RoleHierarchyGuard', () => {
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
         'Cannot assign or modify super-admin role'
       )
-
-      expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect(eventBus.publish).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: admin.id,
-          targetRoleName: 'super-admin'
-        }),
-        'RoleHierarchyGuard: Blocked super-admin role assignment attempt'
+          actor: expect.objectContaining({ id: 'admin-id' }),
+          request: expect.objectContaining({ endpoint: '/api/v1/user-roles' })
+        })
       )
     })
 
@@ -171,15 +171,6 @@ describe('RoleHierarchyGuard', () => {
       const result = await guard.canActivate(mockExecutionContext)
 
       expect(result).toBe(true)
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: admin.id,
-          userPriority: 80,
-          targetRolePriority: 40,
-          targetRoleName: 'user'
-        }),
-        'RoleHierarchyGuard: Hierarchy check passed'
-      )
     })
 
     it('should block assignment of equal priority role', async () => {
@@ -201,16 +192,6 @@ describe('RoleHierarchyGuard', () => {
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException)
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
         "Cannot assign role 'admin' - insufficient privileges"
-      )
-
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: admin.id,
-          userPriority: 80,
-          targetRolePriority: 80,
-          targetRoleName: 'admin'
-        }),
-        'RoleHierarchyGuard: Blocked - insufficient priority'
       )
     })
 
@@ -324,13 +305,6 @@ describe('RoleHierarchyGuard', () => {
       const result = await guard.canActivate(mockExecutionContext)
 
       expect(result).toBe(true)
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userPriority: 80, // Admin priority, not user priority
-          targetRolePriority: 60
-        }),
-        'RoleHierarchyGuard: Hierarchy check passed'
-      )
     })
   })
 })

@@ -16,7 +16,7 @@ import { DataSource } from 'typeorm'
 import { AclModule } from '@modules/acl/acl.module'
 import { AttachmentsModule } from '@modules/attachments/attachments.module'
 import { AuthModule } from '@modules/auth/auth.module'
-import { Story } from '@modules/stories/entities/story.entity'
+import { Story, StoryStatus } from '@modules/stories/entities/story.entity'
 import {
   StoryVersion,
   VersionStatus,
@@ -231,5 +231,83 @@ describe('Story versions', () => {
     expect(restored.title).toBe('Original title')
     expect(restored.fromTime?.toISOString()).toBe('2026-01-01T10:00:00.000Z')
     expect((await versions()).some(v => v.isRollback)).toBe(true)
+  })
+
+  it('rolls back the content of a published story, not its status, in one version', async () => {
+    await snapshot()
+    await rename('Mistake')
+    await http()
+      .patch(`/api/v1/stories/${story.id}/status`)
+      .set(auth())
+      .send({ status: StoryStatus.PUBLISHED })
+      .expect(200)
+    const before = (await versions()).length
+
+    await http()
+      .post(`${base()}/rollback`)
+      .set(auth())
+      .send({ versionNumber: 1, commitMessage: 'undo' })
+      .expect(200)
+
+    const restored = await dataSource.getRepository(Story).findOneByOrFail({ id: story.id })
+    expect(restored.title).toBe('Original title')
+    expect(restored.status).toBe(StoryStatus.PUBLISHED)
+    const added = (await versions()).slice(before)
+    expect(added.map(v => v.versionType)).toEqual([VersionType.ROLLBACK])
+  })
+
+  it('leaves the story as it is when the rollback goes to a new branch', async () => {
+    await snapshot()
+    await rename('Current')
+
+    await http()
+      .post(`${base()}/rollback`)
+      .set(auth())
+      .send({ versionNumber: 1, commitMessage: 'try old', createBranch: true })
+      .expect(200)
+
+    const current = await dataSource.getRepository(Story).findOneByOrFail({ id: story.id })
+    expect(current.title).toBe('Current')
+    expect((await versions()).find(v => v.isRollback)?.branchName).toBe('rollback-to-v1')
+  })
+
+  it('numbers concurrent versions without duplicates', async () => {
+    await snapshot()
+    const results = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        http()
+          .post(`${base()}/branch`)
+          .set(auth())
+          .send({ branchName: `parallel-${i}` })
+      )
+    )
+    expect(results.map(r => r.status)).toEqual(Array(6).fill(201))
+
+    const numbers = (await versions()).map(v => v.versionNumber)
+    expect(new Set(numbers).size).toBe(numbers.length)
+  })
+
+  it('answers 409 when a merge conflicts', async () => {
+    await snapshot()
+    await http()
+      .post(`${base()}/branch`)
+      .set(auth())
+      .send({ branchName: 'feature', fromVersionNumber: 1 })
+      .expect(201)
+    await rename('Feature title')
+    await snapshot({ branchName: 'feature' })
+    await rename('Main title')
+    const source = (await versions()).filter(v => v.branchName === 'feature').pop()!
+
+    await http()
+      .post(`${base()}/merge`)
+      .set(auth())
+      .send({
+        fromBranch: 'feature',
+        fromVersionNumber: source.versionNumber,
+        targetBranch: 'main',
+        commitMessage: 'merge feature'
+      })
+      .expect(409)
   })
 })

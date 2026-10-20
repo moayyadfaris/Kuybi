@@ -1,62 +1,40 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
-import { Reflector } from '@nestjs/core'
+import { Request } from 'express'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
+import { EventBus } from '@core/events'
+
+import { AccessDeniedEvent } from '../events/access-denied.event'
 import { AclPrincipal } from '../types/acl-principal'
 
 /**
- * Guard to restrict access to super-admin users only
- *
- * Usage:
- * @UseGuards(JwtAuthGuard, SuperAdminGuard)
- *
- * IMPORTANT: Must be used AFTER JwtAuthGuard
+ * Super-admins only, for global administration (other users' sessions, user edits,
+ * password resets). Put it after JwtAuthGuard: it reads the authenticated user. Refusals
+ * are published (AccessDeniedEvent) for the audit trail.
  */
 @Injectable()
 export class SuperAdminGuard implements CanActivate {
   constructor(
     @InjectPinoLogger(SuperAdminGuard.name)
     private readonly logger: PinoLogger,
-    private reflector: Reflector
+    private readonly eventBus: EventBus
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest()
-    const user: AclPrincipal = request.user
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request & { user?: AclPrincipal }>()
+    const user = request.user
 
     if (!user) {
-      this.logger.warn('SuperAdminGuard: No user in request')
       throw new ForbiddenException('Authentication required')
     }
-
-    // Check using the principal's role methods (authoritative)
-    const isSuperAdmin = user.isSuperAdmin()
-
-    if (!isSuperAdmin) {
+    if (!user.isSuperAdmin()) {
       this.logger.warn(
-        {
-          userId: user.id,
-          email: user.email,
-          primaryRole: user.getPrimaryRoleName(),
-          path: request.url,
-          method: request.method
-        },
-        'SuperAdminGuard: Access denied - super-admin required'
+        { userId: user.id, path: request.url, method: request.method },
+        'Super-admin route refused'
       )
-
+      await this.eventBus.publish(AccessDeniedEvent.fromRequest(request, user, 'super-admin'))
       throw new ForbiddenException('Super Admin access required')
     }
-
-    this.logger.info(
-      {
-        userId: user.id,
-        email: user.email,
-        path: request.url,
-        method: request.method
-      },
-      'SuperAdminGuard: Access granted'
-    )
-
     return true
   }
 }

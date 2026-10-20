@@ -10,17 +10,19 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
+import { Request } from 'express'
 
 import { JwtAuthGuard } from '@core/auth'
 
-import { CheckAbility } from '../abilities/ability.decorator'
 import { CreatePermissionDto } from '../dto/create-permission.dto'
 import { UpdatePermissionDto } from '../dto/update-permission.dto'
 import { SuperAdminGuard } from '../guards/super-admin.guard'
 import { PermissionsService } from '../services/permissions.service'
+import { AclPrincipal } from '../types/acl-principal'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
 
@@ -32,18 +34,16 @@ export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 
   @Post()
-  @CheckAbility({ action: Action.Create, subject: Subject.Permission })
   @ApiOperation({ summary: 'Create a new permission' })
   @ApiResponse({ status: 201, description: 'Permission created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request - permission already exists' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  async create(@Body() createPermissionDto: CreatePermissionDto) {
-    return this.permissionsService.create(createPermissionDto)
+  async create(@Body() createPermissionDto: CreatePermissionDto, @Req() req: Request) {
+    return this.permissionsService.create(createPermissionDto, actorOf(req))
   }
 
   @Get()
-  @CheckAbility({ action: Action.Read, subject: Subject.Permission })
   @ApiOperation({ summary: 'Get all permissions or filter by action/subject' })
   @ApiQuery({ name: 'action', required: false, enum: Action, description: 'Filter by action' })
   @ApiQuery({ name: 'subject', required: false, enum: Subject, description: 'Filter by subject' })
@@ -68,7 +68,6 @@ export class PermissionsController {
   }
 
   @Get(':id')
-  @CheckAbility({ action: Action.Read, subject: Subject.Permission })
   @ApiOperation({ summary: 'Get permission by ID' })
   @ApiResponse({ status: 200, description: 'Permission retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -79,7 +78,6 @@ export class PermissionsController {
   }
 
   @Put(':id')
-  @CheckAbility({ action: Action.Update, subject: Subject.Permission })
   @ApiOperation({ summary: 'Update a permission' })
   @ApiResponse({ status: 200, description: 'Permission updated successfully' })
   @ApiResponse({ status: 400, description: 'Bad request - duplicate permission' })
@@ -88,20 +86,23 @@ export class PermissionsController {
   @ApiResponse({ status: 404, description: 'Permission not found' })
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updatePermissionDto: UpdatePermissionDto
+    @Body() updatePermissionDto: UpdatePermissionDto,
+    @Req() req: Request
   ) {
-    return this.permissionsService.update(id, updatePermissionDto)
+    return this.permissionsService.update(id, updatePermissionDto, actorOf(req))
   }
 
   @Delete(':id')
-  @CheckAbility({ action: Action.Delete, subject: Subject.Permission })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a permission' })
   @ApiResponse({ status: 204, description: 'Permission deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Permission not found' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.permissionsService.remove(id)
+  async remove(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+    await this.permissionsService.remove(id, actorOf(req))
   }
 }
+
+/** JwtAuthGuard and SuperAdminGuard guard the controller, so the user is set */
+const actorOf = (req: Request) => (req as unknown as { user: AclPrincipal }).user

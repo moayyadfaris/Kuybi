@@ -37,7 +37,11 @@ export class Permission {
   conditions?: Record<string, unknown> // e.g., { userId: '${userId}' } for ownership
 
   @Column({ type: 'simple-array', nullable: true })
-  fields?: string[] // Specific fields allowed/denied
+  /**
+   * Fields the rule is limited to. Stored and passed to CASL, but no route checks access
+   * per field yet: a field-limited permission grants the whole subject.
+   */
+  fields?: string[]
 
   @Column({ default: false })
   inverted: boolean // If true, represents a "cannot" instead of "can"

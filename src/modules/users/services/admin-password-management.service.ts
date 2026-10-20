@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { EmailQueueService } from '@infrastructure/email'
+import { randomInt } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+
+import { AuditService } from '@modules/audit'
+import { AuditAction, AuditSeverity } from '@modules/audit/entities'
 
 import { EventBus } from '@core/events'
 import { PasswordHasher } from '@core/security'
@@ -10,19 +14,37 @@ import {
   AdminResetPasswordDto,
   AdminSetPasswordDto
 } from '../dto/admin-password-management.dto'
+import { User } from '../entities/user.entity'
 import { UserCredentialsResetEvent } from '../events/user-credentials-reset.event'
 import { UserRepository } from '../repositories/user.repository'
 
+const CHARACTER_SETS = [
+  { chars: 'ABCDEFGHJKLMNPQRSTUVWXYZ', count: 4 },
+  { chars: 'abcdefghijkmnopqrstuvwxyz', count: 4 },
+  { chars: '23456789', count: 2 },
+  { chars: '@$!%*?&', count: 2 }
+]
+
 /**
- * Admin Password Management Service
- *
- * Handles administrative password operations with security best practices:
- * - System-generated secure passwords
- * - Admin-defined passwords (with validation)
- * - Force password change on next login
- * - Complete audit trail
- * - Session invalidation
- * - Optional email notifications
+ * Generated temporary password: 12 characters with every class the password rules require.
+ * Drawn with crypto.randomInt (Math.random is predictable) and shuffled without bias
+ * (Fisher-Yates); look-alike characters (I, l, O, 0, 1) are left out.
+ */
+export function generateTemporaryPassword(): string {
+  const characters = CHARACTER_SETS.flatMap(({ chars, count }) =>
+    Array.from({ length: count }, () => chars[randomInt(chars.length)])
+  )
+  for (let i = characters.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1)
+    ;[characters[i], characters[j]] = [characters[j], characters[i]]
+  }
+  return characters.join('')
+}
+
+/**
+ * Super-admin password operations (POST /admin/users/reset-password and set-password).
+ * Both end the user's sessions (UserCredentialsResetEvent), usually require a password
+ * change at the next login, and are audited.
  */
 @Injectable()
 export class AdminPasswordManagementService {
@@ -31,107 +53,30 @@ export class AdminPasswordManagementService {
     private readonly userRepository: UserRepository,
     private readonly eventBus: EventBus,
     private readonly emailQueueService: EmailQueueService,
+    private readonly auditService: AuditService,
     @InjectPinoLogger(AdminPasswordManagementService.name)
     private readonly logger: PinoLogger
   ) {}
 
-  /**
-   * Generate a secure random password
-   *
-   * Pattern: 4 uppercase + 4 lowercase + 2 digits + 2 special chars = 12 chars
-   * Shuffled for randomness
-   */
-  private generateSecurePassword(): string {
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz'
-    const numbers = '0123456789'
-    const special = '@$!%*?&'
-
-    const getRandomChars = (str: string, count: number): string => {
-      let result = ''
-      for (let i = 0; i < count; i++) {
-        result += str.charAt(Math.floor(Math.random() * str.length))
-      }
-      return result
-    }
-
-    // Generate password parts
-    const parts = [
-      getRandomChars(uppercase, 4),
-      getRandomChars(lowercase, 4),
-      getRandomChars(numbers, 2),
-      getRandomChars(special, 2)
-    ]
-
-    // Shuffle all characters
-    const password = parts
-      .join('')
-      .split('')
-      .sort(() => Math.random() - 0.5)
-      .join('')
-
-    return password
-  }
-
-  /**
-   * Admin resets user password (system-generated)
-   *
-   * Use Case: User forgot password, emergency access
-   * Returns temporary password to admin
-   */
+  /** Generates a temporary password and returns it to the admin (only time it is shown) */
   async resetPassword(
     dto: AdminResetPasswordDto,
     adminId: string,
     adminEmail: string
   ): Promise<AdminPasswordResetResponseDto> {
     const { userId, forcePasswordChange = true, reason } = dto
+    const user = await this.activeUser(userId)
+    const temporaryPassword = generateTemporaryPassword()
 
-    // Find user
-    const user = await this.userRepository.findById(userId, { bypassCache: true })
-
-    if (!user) {
-      throw new NotFoundException('User not found')
-    }
-
-    if (!user.isActive) {
-      throw new BadRequestException('Cannot reset password for inactive user')
-    }
-
-    // Generate secure random password
-    const temporaryPassword = this.generateSecurePassword()
-
-    // Hash password
-    const passwordHash = await this.passwordHasher.hash(temporaryPassword)
-
-    // Update user
-    await this.userRepository.update(userId, { passwordHash, forcePasswordChange })
-
-    // Invalidate all user sessions (force re-login); fails the request if revocation fails
-    await this.eventBus.publish(
-      new UserCredentialsResetEvent(userId, adminId, `Password reset by admin: ${adminEmail}`)
-    )
-
-    this.logger.warn(
-      {
-        userId: user.id,
-        userEmail: user.email,
-        adminId,
-        adminEmail,
-        reason,
-        sessionsRevoked: true,
-        forcePasswordChange,
-        action: 'admin_password_reset'
-      },
-      'Admin reset user password (system-generated)'
-    )
-
-    // Optional: Send email notification to user
-    // (Disabled by default for security - admin should communicate directly)
+    await this.replacePassword(user, temporaryPassword, forcePasswordChange, adminId, adminEmail, {
+      operation: 'reset',
+      reason
+    })
 
     return {
       userId: user.id,
       email: user.email,
-      temporaryPassword, // Only returned in reset (system-generated)
+      temporaryPassword,
       forcePasswordChange,
       changedBy: adminEmail,
       changedAt: new Date(),
@@ -139,69 +84,20 @@ export class AdminPasswordManagementService {
     }
   }
 
-  /**
-   * Admin sets specific password for user
-   *
-   * Use Case: Emergency access, specific requirements
-   * Admin defines the password (still validated)
-   */
+  /** Sets the password the admin chose; optionally emails the user about the change */
   async setPassword(
     dto: AdminSetPasswordDto,
     adminId: string,
     adminEmail: string
   ): Promise<AdminPasswordResetResponseDto> {
-    const {
-      userId,
-      newPassword,
-      forcePasswordChange = true,
-      reason,
-      sendNotification = false
-    } = dto
+    const { userId, newPassword, forcePasswordChange = true, reason, sendNotification } = dto
+    const user = await this.activeUser(userId)
 
-    // Find user
-    const user = await this.userRepository.findById(userId, { bypassCache: true })
+    await this.replacePassword(user, newPassword, forcePasswordChange, adminId, adminEmail, {
+      operation: 'set',
+      reason
+    })
 
-    if (!user) {
-      throw new NotFoundException('User not found')
-    }
-
-    if (!user.isActive) {
-      throw new BadRequestException('Cannot set password for inactive user')
-    }
-
-    // Prevent admin from setting password for another super admin
-    // (Optional security measure - uncomment if needed)
-    // if (user.hasRole('Super Admin') && user.id !== adminId) {
-    //   throw new BadRequestException('Cannot set password for another super admin')
-    // }
-
-    // Hash password
-    const passwordHash = await this.passwordHasher.hash(newPassword)
-
-    // Update user
-    await this.userRepository.update(userId, { passwordHash, forcePasswordChange })
-
-    // Invalidate all user sessions (force re-login); fails the request if revocation fails
-    await this.eventBus.publish(
-      new UserCredentialsResetEvent(userId, adminId, `Password set by admin: ${adminEmail}`)
-    )
-
-    this.logger.warn(
-      {
-        userId: user.id,
-        userEmail: user.email,
-        adminId,
-        adminEmail,
-        reason,
-        sessionsRevoked: true,
-        forcePasswordChange,
-        sendNotification,
-        action: 'admin_password_set'
-      },
-      'Admin set user password (admin-defined)'
-    )
-
-    // Send notification email if requested
     if (sendNotification) {
       await this.emailQueueService.sendPasswordChangedEmail({
         to: user.email,
@@ -209,21 +105,72 @@ export class AdminPasswordManagementService {
         resetTime: new Date().toISOString(),
         resetIpAddress: 'Admin Action'
       })
-
-      this.logger.info(
-        { userId: user.id, userEmail: user.email },
-        'Password change notification email sent'
-      )
     }
 
     return {
       userId: user.id,
       email: user.email,
-      // No temporaryPassword in response (admin set it, they know it)
       forcePasswordChange,
       changedBy: adminEmail,
       changedAt: new Date(),
       reason
     }
+  }
+
+  private async activeUser(userId: string): Promise<User> {
+    const user = await this.userRepository.findById(userId, { bypassCache: true })
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+    if (!user.isActive) {
+      throw new BadRequestException('Cannot change the password of an inactive user')
+    }
+    return user
+  }
+
+  /** Stores the hash, ends every session (fails the request if that fails) and audits */
+  private async replacePassword(
+    user: User,
+    password: string,
+    forcePasswordChange: boolean,
+    adminId: string,
+    adminEmail: string,
+    details: { operation: 'reset' | 'set'; reason?: string }
+  ): Promise<void> {
+    const passwordHash = await this.passwordHasher.hash(password)
+    await this.userRepository.update(user.id, { passwordHash, forcePasswordChange })
+    await this.eventBus.publish(
+      new UserCredentialsResetEvent(
+        user.id,
+        adminId,
+        `Password ${details.operation} by admin: ${adminEmail}`
+      )
+    )
+
+    this.logger.warn(
+      {
+        userId: user.id,
+        adminId,
+        forcePasswordChange,
+        action: `admin_password_${details.operation}`
+      },
+      `Super-admin ${details.operation === 'reset' ? 'reset' : 'set'} a user's password`
+    )
+    await this.auditService.logAction(
+      { userId: adminId, email: adminEmail },
+      {
+        action: AuditAction.RESET_PASSWORD,
+        entityType: 'User',
+        entityId: user.id,
+        severity: AuditSeverity.HIGH,
+        description: `Super-admin ${details.operation === 'reset' ? 'reset' : 'set'} the password of ${user.email}`,
+        metadata: {
+          operation: details.operation,
+          targetUserId: user.id,
+          forcePasswordChange,
+          reason: details.reason
+        }
+      }
+    )
   }
 }

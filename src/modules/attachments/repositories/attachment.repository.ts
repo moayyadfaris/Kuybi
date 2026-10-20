@@ -1,15 +1,20 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DeepPartial, EntityManager, LessThan, Repository, SelectQueryBuilder } from 'typeorm'
+import { startsWithPattern } from '@shared/utils/like.util'
+import { LessThan, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
 import { Attachment } from '../entities/attachment.entity'
 
-export interface AttachmentQueryOptions {
+export interface AttachmentListOptions {
+  /** Only this user's files */
   userId?: string
+  /** Only files this user owns or that are public */
+  visibleToUserId?: string
   category?: string
+  /** Prefix, e.g. "image/" */
   mimeType?: string
   isPublic?: boolean
   securityStatus?: string
@@ -18,15 +23,23 @@ export interface AttachmentQueryOptions {
   startDate?: Date
   endDate?: Date
   includeDeleted?: boolean
-  tags?: string[]
-  /** Only files this user owns or that are public */
-  visibleToUserId?: string
+  page?: number
+  limit?: number
+  sortBy?: string
+  sortOrder?: 'ASC' | 'DESC'
 }
 
+const SORT_FIELDS = ['createdAt', 'size', 'originalName', 'downloadCount', 'updatedAt']
+
+/**
+ * Attachment rows, cached per the cache contract. Rows are loaded without the uploader's
+ * account; responses go through AttachmentPresenter. `findById` (BaseRepository) also
+ * returns soft-deleted rows: reads on behalf of users use findLive.
+ */
 @Injectable()
 export class AttachmentRepository extends BaseRepository<Attachment> {
   protected entityName = 'attachment'
-  protected defaultTTL = 600 // 10 minutes cache
+  protected defaultTTL = 600
 
   constructor(
     @InjectRepository(Attachment)
@@ -36,141 +49,50 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     super(repository, cacheService)
   }
 
-  /**
-   * Find attachment by ID with optional soft delete inclusion
-   */
-  async findByIdWithOptions(id: string, includeDeleted = false): Promise<Attachment | null> {
-    if (!includeDeleted) {
-      // Use base findById for normal queries
-      return this.findById(id)
-    }
-
-    // For queries including deleted records
-    const query = this.repository
-      .createQueryBuilder('attachment')
-      .where('attachment.id = :id', { id })
-      .leftJoinAndSelect('attachment.user', 'user')
-
-    if (!includeDeleted) {
-      query.andWhere('attachment.deletedAt IS NULL')
-    }
-
-    return query.getOne()
+  /** The attachment unless it is missing or soft-deleted */
+  async findLive(id: string): Promise<Attachment | null> {
+    const attachment = await this.findById(id)
+    return attachment && !attachment.deletedAt ? attachment : null
   }
 
-  /**
-   * List all attachments with pagination and filters
-   */
+  /** Filtered, sorted and paginated, with the total count */
   async listAll(
-    options: Partial<AttachmentQueryOptions> & {
-      page?: number
-      limit?: number
-      sortBy?: string
-      sortOrder?: 'ASC' | 'DESC'
-    } = {}
+    options: AttachmentListOptions = {}
   ): Promise<{ data: Attachment[]; total: number; page: number; limit: number }> {
     const page = options.page || 1
     const limit = options.limit || 20
-    const sortBy = options.sortBy || 'createdAt'
-    const sortOrder = options.sortOrder || 'DESC'
-
-    const cacheKey = this.buildCacheKey('list', JSON.stringify(options))
+    const sortField = SORT_FIELDS.includes(options.sortBy ?? '') ? options.sortBy : 'createdAt'
+    const sortOrder = options.sortOrder === 'ASC' ? 'ASC' : 'DESC'
 
     return this.cached(
-      cacheKey,
+      this.buildCacheKey('list', JSON.stringify(options)),
       async () => {
-        const query = this.repository
-          .createQueryBuilder('attachment')
-          .leftJoinAndSelect('attachment.user', 'user')
-
+        const query = this.repository.createQueryBuilder('attachment')
         this.applyFilters(query, options)
-
-        // Add sorting
-        const validSortFields = ['createdAt', 'size', 'originalName', 'downloadCount', 'updatedAt']
-        const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt'
         query.orderBy(`attachment.${sortField}`, sortOrder)
 
-        // Get total count
         const total = await query.getCount()
-
-        // Apply pagination
-        query.skip((page - 1) * limit).take(limit)
-
-        const data = await query.getMany()
-
-        return {
-          data,
-          total,
-          page,
-          limit
-        }
+        const data = await query
+          .skip((page - 1) * limit)
+          .take(limit)
+          .getMany()
+        return { data, total, page, limit }
       },
       300
-    ) // 5 minutes cache for lists
+    )
   }
 
-  /**
-   * Find all attachments by user ID
-   */
-  async findByUserId(
-    userId: string,
-    options: Partial<AttachmentQueryOptions> = {}
-  ): Promise<Attachment[]> {
-    const cacheKey = this.buildCacheKey('user', userId, JSON.stringify(options))
-
-    return this.cached(cacheKey, async () => {
-      const query = this.repository
-        .createQueryBuilder('attachment')
-        .where('attachment.userId = :userId', { userId })
-        .leftJoinAndSelect('attachment.user', 'user')
-
-      this.applyFilters(query, options)
-
-      return query.orderBy('attachment.createdAt', 'DESC').getMany()
-    })
-  }
-
-  /**
-   * Find orphaned attachments (not attached to any story)
-   */
-  async findOrphanedAttachments(olderThanDays = 7): Promise<Attachment[]> {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
-
-    const cacheKey = this.buildCacheKey('orphaned', olderThanDays.toString())
-
-    return this.cached(cacheKey, async () => {
-      // Query for attachments that:
-      // 1. Are older than X days
-      // 2. Have no story associations
-      // 3. Are not deleted
-      return this.repository
-        .createQueryBuilder('attachment')
-        .leftJoin('story_attachments', 'sa', 'sa.attachmentId = attachment.id')
-        .where('attachment.createdAt < :cutoffDate', { cutoffDate })
-        .andWhere('sa.attachmentId IS NULL')
-        .andWhere('attachment.deletedAt IS NULL')
-        .orderBy('attachment.createdAt', 'ASC')
-        .getMany()
-    })
-  }
-
-  /**
-   * Find attachment by checksum for duplicate detection
-   */
+  /** The user's newest live upload with this content (duplicate detection) */
   async findByChecksum(userId: string, checksum: string): Promise<Attachment | null> {
-    const cacheKey = this.buildCacheKey('checksum', userId, checksum)
-
     // The newest match, not a unique key: a selection
     return this.cached(
-      cacheKey,
+      this.buildCacheKey('checksum', userId, checksum),
       () =>
         this.repository
           .createQueryBuilder('attachment')
           .where('attachment.userId = :userId', { userId })
           .andWhere('attachment.checksum = :checksum', { checksum })
           .andWhere('attachment.deletedAt IS NULL')
-          .leftJoinAndSelect('attachment.user', 'user')
           .orderBy('attachment.createdAt', 'DESC')
           .getOne(),
       undefined,
@@ -178,9 +100,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     )
   }
 
-  /**
-   * Get attachment statistics
-   */
+  /** Counts and total size of live attachments, cached for 5 minutes */
   async getStatistics(): Promise<{
     total: number
     totalSize: number
@@ -188,79 +108,44 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     byMimeType: Record<string, number>
     bySecurityStatus: Record<string, number>
   }> {
-    const cacheKey = this.buildCacheKey('stats')
-
     return this.cached(
-      cacheKey,
+      this.buildCacheKey('stats'),
       async () => {
-        const query = this.repository
-          .createQueryBuilder('attachment')
-          .where('attachment.deletedAt IS NULL')
+        const live = () =>
+          this.repository.createQueryBuilder('attachment').where('attachment.deletedAt IS NULL')
+        const countBy = async (column: string) => {
+          const rows = await live()
+            .select(`attachment.${column}`, 'value')
+            .addSelect('COUNT(*)', 'count')
+            .groupBy(`attachment.${column}`)
+            .getRawMany<{ value: string | null; count: string }>()
+          return Object.fromEntries(
+            rows.map(row => [row.value ?? 'uncategorized', Number(row.count)])
+          )
+        }
 
-        const [total, totalSizeResult, categoryStats, mimeTypeStats, securityStats] =
-          await Promise.all([
-            query.getCount(),
-            this.repository
-              .createQueryBuilder('attachment')
-              .select('SUM(attachment.size)', 'totalSize')
-              .where('attachment.deletedAt IS NULL')
-              .getRawOne(),
-            this.repository
-              .createQueryBuilder('attachment')
-              .select('attachment.category', 'category')
-              .addSelect('COUNT(*)', 'count')
-              .where('attachment.deletedAt IS NULL')
-              .groupBy('attachment.category')
-              .getRawMany(),
-            this.repository
-              .createQueryBuilder('attachment')
-              .select('attachment.mimeType', 'mimeType')
-              .addSelect('COUNT(*)', 'count')
-              .where('attachment.deletedAt IS NULL')
-              .groupBy('attachment.mimeType')
-              .getRawMany(),
-            this.repository
-              .createQueryBuilder('attachment')
-              .select('attachment.securityStatus', 'status')
-              .addSelect('COUNT(*)', 'count')
-              .where('attachment.deletedAt IS NULL')
-              .groupBy('attachment.securityStatus')
-              .getRawMany()
-          ])
+        const [totals, byCategory, byMimeType, bySecurityStatus] = await Promise.all([
+          live()
+            .select('COUNT(*)', 'total')
+            .addSelect('COALESCE(SUM(attachment.size), 0)', 'totalSize')
+            .getRawOne<{ total: string; totalSize: string }>(),
+          countBy('category'),
+          countBy('mimeType'),
+          countBy('securityStatus')
+        ])
 
         return {
-          total,
-          totalSize: parseInt(totalSizeResult?.totalSize || '0', 10),
-          byCategory: categoryStats.reduce(
-            (acc, item) => {
-              acc[item.category || 'uncategorized'] = parseInt(item.count, 10)
-              return acc
-            },
-            {} as Record<string, number>
-          ),
-          byMimeType: mimeTypeStats.reduce(
-            (acc, item) => {
-              acc[item.mimeType] = parseInt(item.count, 10)
-              return acc
-            },
-            {} as Record<string, number>
-          ),
-          bySecurityStatus: securityStats.reduce(
-            (acc, item) => {
-              acc[item.status] = parseInt(item.count, 10)
-              return acc
-            },
-            {} as Record<string, number>
-          )
+          total: Number(totals?.total ?? 0),
+          totalSize: Number(totals?.totalSize ?? 0),
+          byCategory,
+          byMimeType,
+          bySecurityStatus
         }
       },
       300
-    ) // 5 minutes cache for stats
+    )
   }
 
-  /**
-   * Override create to invalidate list caches on new uploads
-   */
   // ---- Direct upload lifecycle: fresh reads and compare-and-set status changes ----
 
   /** Uncached read, for state machines that must not act on a stale status */
@@ -293,154 +178,75 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   async deleteIfStatus(id: string, status: string): Promise<boolean> {
     const result = await this.repository.delete({ id, securityStatus: status })
     await this.invalidateCacheByEntityId(id)
-    await this.invalidateListCaches()
     return (result.affected ?? 0) > 0
   }
 
-  /**
-   * Runs work in a transaction and clears the list caches once it commits (for writes
-   * that must be atomic with other rows, such as an outbox message)
-   */
-  async transaction<T>(work: (manager: EntityManager) => Promise<T>): Promise<T> {
-    const result = await this.repository.manager.transaction(work)
-    await this.invalidateListCaches()
-    await this.invalidateCacheByTag()
-    return result
-  }
-
-  async create(data: Partial<Attachment>): Promise<Attachment> {
-    const attachment = await super.create(data as DeepPartial<Attachment>)
-    await this.invalidateListCaches()
-    return attachment
-  }
-
-  /**
-   * Soft delete an attachment
-   */
+  /** Soft delete (deletedAt is a plain column here, not a @DeleteDateColumn) */
   async softDelete(id: string): Promise<boolean> {
     const result = await this.repository.update({ id }, { deletedAt: new Date() })
-
-    if (result.affected && result.affected > 0) {
-      await this.invalidateCacheForEntity(id)
-      return true
-    }
-
-    return false
+    await this.invalidateCacheByEntityId(id)
+    return (result.affected ?? 0) > 0
   }
 
-  /**
-   * Restore a soft-deleted attachment
-   */
   async restore(id: string): Promise<boolean> {
     const result = await this.repository.update({ id }, { deletedAt: null })
-
-    if (result.affected && result.affected > 0) {
-      await this.invalidateCacheForEntity(id)
-      return true
-    }
-
-    return false
+    await this.invalidateCacheByEntityId(id)
+    return (result.affected ?? 0) > 0
   }
 
-  /**
-   * Hard delete an attachment
-   */
-  async hardDelete(id: string): Promise<boolean> {
-    const result = await this.repository.delete({ id })
-
-    if (result.affected && result.affected > 0) {
-      await this.invalidateCacheForEntity(id)
-      return true
-    }
-
-    return false
+  /** Counts a download (or presigned URL) and records when the file was last accessed */
+  async recordAccess(id: string): Promise<void> {
+    await this.repository
+      .createQueryBuilder()
+      .update(Attachment)
+      .set({ downloadCount: () => '"downloadCount" + 1', lastAccessedAt: new Date() })
+      .where('id = :id', { id })
+      .execute()
+    await this.invalidateCacheByEntityId(id)
   }
 
-  /**
-   * Update attachment metadata
-   */
-  async updateMetadata(id: string, metadata: Record<string, unknown>): Promise<Attachment | null> {
-    const attachment = await this.findById(id)
-    if (!attachment) {
-      return null
-    }
-
-    attachment.metadata = { ...attachment.metadata, ...metadata }
-    attachment.version += 1
-
-    const updated = await this.repository.save(attachment)
-    await this.invalidateCacheForEntity(id)
-
-    return updated
-  }
-
-  /**
-   * Increment download count
-   */
-  async incrementDownloadCount(id: string): Promise<void> {
-    await this.repository.increment({ id }, 'downloadCount', 1)
-    await this.repository.update({ id }, { lastAccessedAt: new Date() })
-    await this.invalidateCacheForEntity(id)
-  }
-
-  /**
-   * Apply common filters to a query
-   */
   private applyFilters(
     query: SelectQueryBuilder<Attachment>,
-    options: Partial<AttachmentQueryOptions>
+    options: AttachmentListOptions
   ): void {
     if (!options.includeDeleted) {
       query.andWhere('attachment.deletedAt IS NULL')
     }
-
+    if (options.userId) {
+      query.andWhere('attachment.userId = :userId', { userId: options.userId })
+    }
     if (options.visibleToUserId) {
       query.andWhere('(attachment.userId = :viewerId OR attachment.isPublic = true)', {
         viewerId: options.visibleToUserId
       })
     }
-
     if (options.category) {
       query.andWhere('attachment.category = :category', { category: options.category })
     }
-
     if (options.mimeType) {
-      query.andWhere('attachment.mimeType LIKE :mimeType', { mimeType: `${options.mimeType}%` })
+      query.andWhere('attachment.mimeType LIKE :mimeType', {
+        mimeType: startsWithPattern(options.mimeType)
+      })
     }
-
     if (options.isPublic !== undefined) {
       query.andWhere('attachment.isPublic = :isPublic', { isPublic: options.isPublic })
     }
-
     if (options.securityStatus) {
       query.andWhere('attachment.securityStatus = :securityStatus', {
         securityStatus: options.securityStatus
       })
     }
-
     if (options.minSize) {
       query.andWhere('attachment.size >= :minSize', { minSize: options.minSize })
     }
-
     if (options.maxSize) {
       query.andWhere('attachment.size <= :maxSize', { maxSize: options.maxSize })
     }
-
     if (options.startDate) {
       query.andWhere('attachment.createdAt >= :startDate', { startDate: options.startDate })
     }
-
     if (options.endDate) {
       query.andWhere('attachment.createdAt <= :endDate', { endDate: options.endDate })
     }
-
-    if (options.tags && options.tags.length > 0) {
-      query.andWhere('attachment.tags && :tags', { tags: options.tags })
-    }
-  }
-
-  /** Its cached row (by id or checksum) and every list */
-  private async invalidateCacheForEntity(id: string): Promise<void> {
-    await this.invalidateCacheByEntityId(id)
   }
 }

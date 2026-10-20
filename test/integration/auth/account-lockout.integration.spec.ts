@@ -30,6 +30,7 @@ import { AuthModule } from '../../../src/modules/auth/auth.module'
 import { AccountSecurityProcessor } from '../../../src/modules/auth/jobs/account-security.processor'
 import { AccountLockoutService } from '../../../src/modules/auth/services/account-lockout.service'
 import { User } from '../../../src/modules/users/entities/user.entity'
+import { AdminUserManagementService } from '../../../src/modules/users/services/admin-user-management.service'
 import { UsersModule } from '../../../src/modules/users/users.module'
 import { InMemoryCacheService } from '../../helpers/in-memory-cache.service'
 import { seedDefaultRoles, SeededRoles } from '../../helpers/role-seeder'
@@ -76,7 +77,6 @@ describe('Account Lockout Integration Tests', () => {
                   maxAttempts: 5,
                   lockDuration: 5000, // 5 seconds for testing
                   resetAttemptsPeriod: 3000, // 3 seconds for testing
-                  trackByIpAddress: true,
                   // Emails are queued in the outbox, so notifications can stay on
                   notifyOnLockout: true,
                   notifyOnUnlock: true
@@ -416,9 +416,10 @@ describe('Account Lockout Integration Tests', () => {
       let user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
 
-      // Admin unlocks
-      const adminId = 'admin-user-id'
-      await accountLockoutService.adminUnlockAccount(testUser.id, adminId)
+      // Admin unlocks (PATCH /admin/users/:id { isLocked: false })
+      await app
+        .get(AdminUserManagementService)
+        .updateUser(testUser.id, { isLocked: false }, testUser.id, 'admin@test.com')
 
       user = await dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(false)
@@ -432,6 +433,30 @@ describe('Account Lockout Integration Tests', () => {
           password: userPassword
         })
         .expect(201)
+    })
+
+    it('locks again after an admin unlock (the counter does not stay past the threshold)', async () => {
+      await lockAccountDirectly()
+      await app
+        .get(AdminUserManagementService)
+        .updateUser(testUser.id, { isLocked: false }, testUser.id, 'admin@test.com')
+
+      await lockAccountDirectly()
+
+      const user = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
+      expect(user.isLocked).toBe(true)
+    })
+
+    it('locks an account whose counter is already past the threshold', async () => {
+      await dataSource.getRepository(User).update(testUser.id, { failedLoginAttempts: 9 })
+      await recordFailedAttempts(1)
+
+      const user = await dataSource
+        .getRepository(User)
+        .findOneOrFail({ where: { id: testUser.id } })
+      expect(user.isLocked).toBe(true)
     })
   })
 
@@ -526,19 +551,6 @@ describe('Account Lockout Integration Tests', () => {
 
       expect(unlockedUser2.isLocked).toBe(false)
       expect(unlockedUser3.isLocked).toBe(false)
-    })
-  })
-
-  describe('Get Locked Accounts (Admin)', () => {
-    it('should return list of locked accounts', async () => {
-      await lockAccountDirectly()
-
-      const lockedAccounts = await accountLockoutService.getLockedAccounts(10, 0)
-
-      expect(lockedAccounts.users.length).toBeGreaterThan(0)
-      const lockedUser = lockedAccounts.users.find(u => u.id === testUser.id)!
-      expect(lockedUser).toBeDefined()
-      expect(lockedUser.isLocked).toBe(true)
     })
   })
 

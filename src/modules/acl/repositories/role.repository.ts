@@ -47,6 +47,13 @@ export class RoleRepository extends BaseRepository<Role> {
   /**
    * Find all active roles
    */
+  /** Every role except deleted ones (deleted roles stay in the table for history) */
+  async findAll(): Promise<Role[]> {
+    return this.cached(this.buildCacheKey('all'), () =>
+      this.repository.find({ where: { deletedAt: IsNull() }, order: { priority: 'DESC' } })
+    )
+  }
+
   async findActive(): Promise<Role[]> {
     const cacheKey = this.buildCacheKey('active')
 
@@ -145,27 +152,22 @@ export class RoleRepository extends BaseRepository<Role> {
   }
 
   /**
-   * Soft delete a role
+   * Soft-deletes the role and deactivates it: users who hold it (as primary or additional
+   * role) lose its permissions at once, since abilities skip inactive roles
+   * @returns false when there was no live role with this id
    */
   async softDelete(id: number): Promise<boolean> {
-    const role = await this.findById(id)
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(Role)
+      .set({ deletedAt: new Date(), isActive: false })
+      .where('id = :id', { id })
+      .andWhere('"deletedAt" IS NULL')
+      .execute()
 
-    if (!role) {
-      return false
-    }
-
-    if (role.isSystem) {
-      throw new Error('Cannot delete system roles')
-    }
-
-    const result = await this.repository.update({ id }, { deletedAt: new Date() })
-
-    if (result.affected && result.affected > 0) {
-      await this.clearCache()
-      return true
-    }
-
-    return false
+    if (!result.affected) return false
+    await this.clearCache()
+    return true
   }
 
   /**

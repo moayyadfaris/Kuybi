@@ -4,33 +4,26 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { isUniqueViolation } from '@shared/utils/database-error.util'
 
 import { FieldDefinition } from '../entities/field-definition.entity'
 import { FieldType } from '../enums/field-type.enum'
 import { FieldDefinitionRepository } from '../repositories/field-definition.repository'
+import { PostContentRepository } from '../repositories/post-content.repository'
 
 import { PostTypesService } from './post-types.service'
 
 /**
- * FieldDefinitionsService
- *
- * Business logic for managing field definitions (custom fields for post types).
- * Handles CRUD operations, validation, ordering, and cache invalidation.
- *
- * Key Responsibilities:
- * - Create/Read/Update/Delete field definitions
- * - Validate field configuration and rules
- * - Reorder fields within a post type
- * - Prevent duplicate field names per post type
- * - Cache invalidation on mutations
- *
- * Part of: Phase 1 - Dynamic Post Types System
- * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
+ * The custom fields of a post type: snake_case names unique per type (among live fields),
+ * type-specific configuration checks, ordering. Changes also drop the cached post type,
+ * which embeds its fields. Removing a field leaves entries' stored values in place; they
+ * are dropped the next time the entry's field_data is updated.
  */
 @Injectable()
 export class FieldDefinitionsService {
   constructor(
     private readonly fieldDefinitionRepository: FieldDefinitionRepository,
+    private readonly postContentRepository: PostContentRepository,
     private readonly postTypesService: PostTypesService
   ) {}
 
@@ -78,31 +71,40 @@ export class FieldDefinitionsService {
       )
     }
 
-    // Validate field definition
     this.validateFieldDefinition(data)
+    // Entries may still hold values under this name (from a deleted field of the same name)
+    if (data.isUnique) await this.assertNoDuplicates(postTypeId, data.name)
 
     // Get next display order if not provided
     const displayOrder =
       data.displayOrder ?? (await this.fieldDefinitionRepository.getNextDisplayOrder(postTypeId))
 
-    // Create field definition
-    const fieldDefinition = await this.fieldDefinitionRepository.save({
-      ...data,
-      postTypeId,
-      createdBy,
-      displayOrder,
-      isRequired: data.isRequired ?? false,
-      isUnique: data.isUnique ?? false,
-      isSearchable: data.isSearchable ?? true,
-      isFilterable: data.isFilterable ?? true,
-      isSortable: data.isSortable ?? true,
-      validationRules: data.validationRules ?? {},
-      fieldOptions: data.fieldOptions ?? {},
-      metadata: data.metadata ?? {}
-    })
+    let fieldDefinition: FieldDefinition
+    try {
+      fieldDefinition = await this.fieldDefinitionRepository.save({
+        ...data,
+        postTypeId,
+        createdBy,
+        displayOrder,
+        isRequired: data.isRequired ?? false,
+        isUnique: data.isUnique ?? false,
+        isSearchable: data.isSearchable ?? true,
+        isFilterable: data.isFilterable ?? true,
+        isSortable: data.isSortable ?? true,
+        validationRules: data.validationRules ?? {},
+        fieldOptions: data.fieldOptions ?? {},
+        metadata: data.metadata ?? {}
+      })
+    } catch (error) {
+      // Another request took the name since the check above
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(
+          `Field with name '${data.name}' already exists for this post type`
+        )
+      }
+      throw error
+    }
 
-    // Invalidate caches
-    await this.fieldDefinitionRepository.invalidateCacheForPostType(postTypeId)
     await this.postTypesService.dropCached(postTypeId)
 
     return fieldDefinition
@@ -114,14 +116,6 @@ export class FieldDefinitionsService {
    */
   async findByPostType(postTypeId: string): Promise<FieldDefinition[]> {
     return this.fieldDefinitionRepository.findByPostType(postTypeId)
-  }
-
-  /**
-   * Find required fields for a post type
-   * @param postTypeId - Post type UUID
-   */
-  async findRequiredFields(postTypeId: string): Promise<FieldDefinition[]> {
-    return this.fieldDefinitionRepository.findRequiredFields(postTypeId)
   }
 
   /**
@@ -168,8 +162,9 @@ export class FieldDefinitionsService {
   ): Promise<FieldDefinition> {
     const field = await this.findOne(id)
 
-    // Validate field definition
     this.validateFieldDefinition({ ...field, ...data })
+    if (data.isUnique && !field.isUnique)
+      await this.assertNoDuplicates(field.postTypeId, field.name)
 
     // Update field
     Object.assign(field, {
@@ -234,6 +229,15 @@ export class FieldDefinitionsService {
     // Reorder fields
     await this.fieldDefinitionRepository.reorderFields(postTypeId, fieldOrders)
     await this.postTypesService.dropCached(postTypeId)
+  }
+
+  /** A field can be made unique only while no two live entries share a value of it */
+  private async assertNoDuplicates(postTypeId: string, name: string): Promise<void> {
+    if (await this.postContentRepository.hasDuplicateValues(postTypeId, name)) {
+      throw new ConflictException(
+        `Entries already share values of '${name}'; make them distinct before making it unique`
+      )
+    }
   }
 
   /**

@@ -6,6 +6,10 @@ import { ContextUser } from '../types/context-user.interface'
 
 import { AuditContext } from './audit.service'
 
+/**
+ * Builds the request part of an audit entry (who, from where, which route). Metadata
+ * values under sensitive keys (password, token, secret...) are redacted.
+ */
 @Injectable()
 export class AuditContextFactory {
   private sanitizeMetadata(
@@ -78,7 +82,8 @@ export class AuditContextFactory {
       ipAddress: this.extractIpAddress(req),
       userAgent: req.get('user-agent') ?? null,
       method: req.method,
-      endpoint: req.originalUrl || req.url,
+      // The path only: a query string can carry tokens (reset and verification links)
+      endpoint: (req.originalUrl || req.url).split('?')[0],
       requestId:
         (req.headers['x-request-id'] as string) ||
         (req.headers['x-correlation-id'] as string) ||

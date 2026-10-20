@@ -49,6 +49,7 @@ export class InitiateUploadDto {
   @IsArray()
   @ArrayMaxSize(20)
   @IsString({ each: true })
+  @MaxLength(50, { each: true })
   tags?: string[]
 
   @ApiPropertyOptional({ default: true, description: 'Public unless false is sent' })

@@ -248,7 +248,7 @@ The worker boots `QueueWorkerModule`, registers processors, and keeps the repeat
 - [x] `SessionCleanupScheduler` adds repeatable jobs (hourly cleanup + 30-minute expiring check)
 - [x] Worker bootstrap (`src/worker.ts`) + PM2 entry (`susanoo-worker`)
 - [ ] Producers hooked into API/manual triggers
-- [ ] Legacy `@Cron` decorators removed from `SessionCleanupService`
+- [x] Legacy `@Cron` decorators removed (scheduling lives in `AuthJobsScheduler`)
 - [ ] E2E tests covering queue-driven cleanup flows
 
 Once producers are in place we can delete the cron jobs and rely entirely on the queue for lifecycle management.

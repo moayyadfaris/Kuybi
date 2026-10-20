@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
@@ -10,6 +11,8 @@ import {
 import { Story } from '@modules/stories/entities'
 
 @Entity({ name: 'categories' })
+// Unique among live categories: a deleted category's slug can be used again
+@Index('UQ_CATEGORIES_SLUG_LIVE', ['slug'], { unique: true, where: '"deletedAt" IS NULL' })
 export class Category {
   @PrimaryGeneratedColumn('uuid')
   id: string
@@ -17,7 +20,7 @@ export class Category {
   @Column({ length: 120 })
   name: string
 
-  @Column({ length: 140, unique: true })
+  @Column({ length: 140 })
   slug: string
 
   @Column({ type: 'varchar', length: 500, nullable: true })
@@ -50,7 +53,6 @@ export class Category {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date
 
-  // Many-to-many relationship with stories
   @ManyToMany(() => Story, story => story.categories)
   stories?: Story[]
 }

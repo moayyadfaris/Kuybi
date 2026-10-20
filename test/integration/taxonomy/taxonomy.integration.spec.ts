@@ -96,7 +96,7 @@ describe('Taxonomy (categories and tags)', () => {
       await t.http().delete(`/api/v1/categories/${created.id}`).set(member.auth).expect(403)
     })
 
-    it('serves the update, not the cached copy (renaming moves the slug)', async () => {
+    it('serves the update, not the cached copy (a new slug moves it)', async () => {
       const created = (await createCategory('Economy').expect(201)).body.data
       await t.http().get(`/api/v1/categories/${created.id}`).set(admin.auth).expect(200) // cache
       await t.http().get(`/api/v1/categories/slug/${created.slug}`).set(admin.auth).expect(200)
@@ -105,7 +105,7 @@ describe('Taxonomy (categories and tags)', () => {
         .http()
         .patch(`/api/v1/categories/${created.id}`)
         .set(admin.auth)
-        .send({ name: 'Markets' })
+        .send({ name: 'Markets', slug: 'markets' })
         .expect(200)
       expect(updated.body.data.slug).toBe('markets')
 
@@ -211,7 +211,14 @@ describe('Taxonomy (categories and tags)', () => {
 
     it('lists tags and system tags', async () => {
       await createTag('regular').expect(201)
-      await createTag('pinned', { isSystem: true }).expect(201)
+      // System tags are created by super-admins
+      const root = await t.signUp(`tags-${Date.now()}@taxonomy.test`, 'super-admin')
+      await t
+        .http()
+        .post('/api/v1/tags')
+        .set(root.auth)
+        .send({ name: 'pinned', isSystem: true })
+        .expect(201)
 
       const all = await t.http().get('/api/v1/tags').set(member.auth).expect(200)
       expect(JSON.stringify(all.body.data)).toContain('regular')

@@ -17,7 +17,7 @@ import { plainToInstance } from 'class-transformer'
 
 import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 
-import { JwtAuthGuard } from '@core/auth'
+import { GetUser, JwtAuthGuard } from '@core/auth'
 
 import {
   CreateFieldDefinitionDto,
@@ -92,9 +92,14 @@ export class FieldDefinitionsController {
   @ApiResponse({ status: 409, description: 'Field name already exists' })
   async create(
     @Param('postTypeId', ParseUUIDPipe) postTypeId: string,
-    @Body() createFieldDefinitionDto: CreateFieldDefinitionDto
+    @Body() createFieldDefinitionDto: CreateFieldDefinitionDto,
+    @GetUser('id') userId: string
   ): Promise<ResponseFieldDefinitionDto> {
-    const field = await this.fieldDefinitionsService.create(postTypeId, createFieldDefinitionDto)
+    const field = await this.fieldDefinitionsService.create(
+      postTypeId,
+      createFieldDefinitionDto,
+      userId
+    )
     return plainToInstance(ResponseFieldDefinitionDto, field, {
       excludeExtraneousValues: true
     })
@@ -120,14 +125,15 @@ export class FieldDefinitionsController {
   async update(
     @Param('postTypeId', ParseUUIDPipe) postTypeId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateFieldDefinitionDto: UpdateFieldDefinitionDto
+    @Body() updateFieldDefinitionDto: UpdateFieldDefinitionDto,
+    @GetUser('id') userId: string
   ): Promise<ResponseFieldDefinitionDto> {
     // Verify field belongs to post type first
     const existingField = await this.fieldDefinitionsService.findOne(id)
     if (existingField.postTypeId !== postTypeId) {
       throw new NotFoundException('Field definition not found for this post type')
     }
-    const field = await this.fieldDefinitionsService.update(id, updateFieldDefinitionDto)
+    const field = await this.fieldDefinitionsService.update(id, updateFieldDefinitionDto, userId)
     return plainToInstance(ResponseFieldDefinitionDto, field, {
       excludeExtraneousValues: true
     })

@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Transform } from 'class-transformer'
-import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator'
+import { ArrayMaxSize, IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class UploadAttachmentDto {
   @ApiPropertyOptional({ description: 'Attachment category', example: 'image' })
@@ -36,7 +36,9 @@ export class UploadAttachmentDto {
     return []
   })
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
+  @MaxLength(50, { each: true })
   tags: string[] = []
 
   @ApiPropertyOptional({ description: 'Generate thumbnails for images/videos', default: true })

@@ -1,5 +1,3 @@
-import { PinoLogger } from 'nestjs-pino'
-
 import { UserRepository } from '@modules/users/repositories/user.repository'
 import { UserAvailabilityService } from '@modules/users/services/user-availability.service'
 
@@ -9,10 +7,7 @@ describe('UserAvailabilityService', () => {
       isEmailTaken: jest.fn().mockResolvedValue(taken),
       isMobileTaken: jest.fn().mockResolvedValue(taken)
     }
-    const service = new UserAvailabilityService(
-      userRepository as unknown as UserRepository,
-      { debug: jest.fn() } as unknown as PinoLogger
-    )
+    const service = new UserAvailabilityService(userRepository as unknown as UserRepository)
     return { service, userRepository }
   }
 

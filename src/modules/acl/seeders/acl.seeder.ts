@@ -46,17 +46,11 @@ export class AclSeeder {
   async seed(): Promise<void> {
     this.logger.log('Starting ACL seeder...')
 
-    // Create permissions first
+    // Idempotent: existing permissions, roles and grants are kept, missing ones added
     const permissions = await this.createPermissions()
-    this.logger.log(`Created ${permissions.length} permissions`)
-
-    // Create roles
     const roles = await this.createRoles()
-    this.logger.log(`Created ${roles.length} roles`)
-
-    // Assign permissions to roles
     await this.assignPermissions(roles, permissions)
-    this.logger.log('Permissions assigned to roles')
+    this.logger.log(`Ensured ${permissions.length} permissions and ${roles.length} roles`)
 
     this.logger.log('ACL seeder completed successfully')
   }

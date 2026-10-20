@@ -18,7 +18,6 @@ export interface AuditLogFilters {
   startDate?: Date
   endDate?: Date
   tags?: string[]
-  isArchived?: boolean
 }
 
 export interface AuditLogStatistics {
@@ -31,6 +30,11 @@ export interface AuditLogStatistics {
   failedCount: number
 }
 
+/**
+ * The audit trail: append-only rows and read-only queries for the super-admin API. Every
+ * list query takes a cap. Rows are never updated; the retention job deletes expired ones
+ * (deleteExpired).
+ */
 @Injectable()
 export class AuditLogRepository extends BaseRepository<AuditLog> {
   protected entityName = 'audit_log'
@@ -51,6 +55,30 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
    */
   async append(data: DeepPartial<AuditLog>): Promise<AuditLog> {
     return this.repository.save(this.repository.create(data))
+  }
+
+  /**
+   * Deletes up to `batch` rows created before their cutoff: `criticalBefore` for critical
+   * rows, `before` for the others (null keeps them). Returns how many were deleted.
+   */
+  async deleteExpired(
+    before: Date | null,
+    criticalBefore: Date | null,
+    batch: number
+  ): Promise<number> {
+    if (!before && !criticalBefore) return 0
+    const [, deleted] = await this.repository.query(
+      `DELETE FROM audit_logs WHERE id IN (
+         SELECT id FROM audit_logs
+         WHERE (severity <> 'critical' AND "createdAt" < $1)
+            OR (severity = 'critical' AND "createdAt" < $2)
+         LIMIT $3
+       )`,
+      [before, criticalBefore, batch]
+    )
+    // findById is cached; a deleted row must not be served from it
+    if (deleted > 0) await this.invalidateCacheByTag()
+    return deleted
   }
 
   async findByUserId(
@@ -127,11 +155,17 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return qb.getMany()
   }
 
-  async findByIpAddress(ipAddress: string, startDate?: Date, endDate?: Date): Promise<AuditLog[]> {
+  async findByIpAddress(
+    ipAddress: string,
+    startDate: Date | undefined,
+    endDate: Date | undefined,
+    take: number
+  ): Promise<AuditLog[]> {
     const qb = this.repository
       .createQueryBuilder('log')
       .where('log.ipAddress = :ipAddress', { ipAddress })
       .orderBy('log.createdAt', 'DESC')
+      .take(take)
 
     if (startDate) {
       qb.andWhere('log.createdAt >= :startDate', { startDate })
@@ -144,13 +178,18 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return qb.getMany()
   }
 
-  async findCriticalEvents(startDate?: Date, endDate?: Date): Promise<AuditLog[]> {
+  async findCriticalEvents(
+    startDate: Date | undefined,
+    endDate: Date | undefined,
+    take: number
+  ): Promise<AuditLog[]> {
     const severities = [AuditSeverity.HIGH, AuditSeverity.CRITICAL]
 
     const qb = this.repository
       .createQueryBuilder('log')
       .where('log.severity IN (:...severities)', { severities })
       .orderBy('log.createdAt', 'DESC')
+      .take(take)
 
     if (startDate) {
       qb.andWhere('log.createdAt >= :startDate', { startDate })
@@ -192,11 +231,12 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return qb.getMany()
   }
 
-  async findByRequestId(requestId: string): Promise<AuditLog[]> {
+  async findByRequestId(requestId: string, take: number): Promise<AuditLog[]> {
     return this.repository
       .createQueryBuilder('log')
       .where('log.requestId = :requestId', { requestId })
       .orderBy('log.createdAt', 'DESC')
+      .take(take)
       .getMany()
   }
 
@@ -335,10 +375,6 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
 
     if (filters.tags && filters.tags.length > 0) {
       qb.andWhere('log.tags @> :tags', { tags: JSON.stringify(filters.tags) })
-    }
-
-    if (filters.isArchived !== undefined) {
-      qb.andWhere('log.isArchived = :isArchived', { isArchived: filters.isArchived })
     }
 
     return qb
