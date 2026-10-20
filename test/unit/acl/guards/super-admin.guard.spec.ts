@@ -24,7 +24,8 @@ describe('SuperAdminGuard', () => {
       primaryRole: primary,
       userRoles: extra.map(role => ({ role, isActive: true, expiresAt: null }) as UserRole)
     })
-  const role = (name: string, priority: number) => ({ id: priority, name, priority }) as Role
+  const role = (name: string, priority: number) =>
+    ({ id: priority, name, priority, isActive: true }) as Role
 
   beforeEach(() => jest.clearAllMocks())
 

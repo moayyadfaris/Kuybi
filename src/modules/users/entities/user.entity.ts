@@ -11,7 +11,7 @@ import {
 } from 'typeorm'
 
 import type { AclPrincipal } from '@modules/acl'
-import { Role, UserRole } from '@modules/acl/entities'
+import { liveRoles, Role, UserRole } from '@modules/acl/entities'
 import { Attachment } from '@modules/attachments/entities'
 
 @Index('IDX_USERS_PROFILE_IMAGE', ['profileImageId'])
@@ -108,51 +108,17 @@ export class User implements AclPrincipal {
     return this.primaryRole?.name || 'user'
   }
 
-  /** The highest-ranking of the primary role and the active, unexpired additional roles */
+  /** The highest-ranking live role (see liveRoles); null when none is live */
   getHighestPriorityRole(): Role | null {
-    if (!this.userRoles || this.userRoles.length === 0) {
-      return this.primaryRole
-    }
-
-    const now = new Date()
-    const activeRoles = this.userRoles
-      .filter(
-        userRole =>
-          userRole.isActive && userRole.role && (!userRole.expiresAt || userRole.expiresAt > now)
-      )
-      .map(userRole => userRole.role)
-
-    if (activeRoles.length === 0) {
-      return this.primaryRole
-    }
-
-    return activeRoles.reduce(
-      (highest, role) => (role.priority > (highest?.priority || 0) ? role : highest),
-      this.primaryRole
+    return liveRoles(this).reduce<Role | null>(
+      (highest, role) => (!highest || role.priority > highest.priority ? role : highest),
+      null
     )
   }
 
-  /**
-   * Check if user has a specific role
-   */
+  /** Whether a live role (primary or additional) has this name */
   hasRole(roleName: string): boolean {
-    // Check primary role
-    if (this.primaryRole?.name === roleName) {
-      return true
-    }
-
-    // Check user roles
-    if (!this.userRoles) {
-      return false
-    }
-
-    const now = new Date()
-    return this.userRoles.some(
-      userRole =>
-        userRole.role?.name === roleName &&
-        userRole.isActive &&
-        (!userRole.expiresAt || userRole.expiresAt > now)
-    )
+    return liveRoles(this).some(role => role.name === roleName)
   }
 
   /**

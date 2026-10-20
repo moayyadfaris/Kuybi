@@ -8,7 +8,7 @@ import {
   subject as tagSubject
 } from '@casl/ability'
 
-import { Role } from '../entities/role.entity'
+import { liveRoles } from '../entities/live-roles'
 import { AclPrincipal } from '../types/acl-principal'
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
@@ -50,32 +50,16 @@ export class AbilityFactory {
       return createMongoAbility<AppAbility>([])
     }
 
-    // Super-admin gets unrestricted access to everything
-    if (user.isSuperAdmin?.()) {
-      return createMongoAbility<AppAbility>([{ action: Action.Manage, subject: Subject.All }])
-    }
+    const roles = liveRoles(user)
 
-    // Roles grant permissions while active and not deleted; additional role assignments
-    // also while the assignment is active and unexpired
-    const now = new Date()
-    const isLive = (role?: Role | null): role is Role => !!role?.isActive && !role.deletedAt
-    const rolesById = new Map<number, Role>()
-    if (isLive(user.primaryRole)) {
-      rolesById.set(user.primaryRole.id, user.primaryRole)
-    }
-    for (const userRole of user.userRoles ?? []) {
-      const isCurrent =
-        userRole.isActive &&
-        isLive(userRole.role) &&
-        (!userRole.expiresAt || new Date(userRole.expiresAt) > now)
-      if (isCurrent) {
-        rolesById.set(userRole.role.id, userRole.role)
-      }
+    // A live super-admin role is unrestricted access to everything
+    if (roles.some(role => role.name === 'super-admin')) {
+      return createMongoAbility<AppAbility>([{ action: Action.Manage, subject: Subject.All }])
     }
 
     // Collect all permissions from all active roles
     const rules: RawRuleOf<AppAbility>[] = []
-    for (const role of rolesById.values()) {
+    for (const role of roles) {
       if (!role.rolePermissions) {
         continue
       }
