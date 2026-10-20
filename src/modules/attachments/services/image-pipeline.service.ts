@@ -70,9 +70,6 @@ export class ImagePipelineService {
       quality: 85,
       stripMetadata: true,
       autoRotate: false, // already applied while stripping
-      // WebP/AVIF copies were encoded and thrown away (nothing stores or serves them)
-      generateWebP: false,
-      generateAVIF: false,
       generatePlaceholder: true
     })
 

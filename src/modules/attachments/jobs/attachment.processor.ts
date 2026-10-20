@@ -17,6 +17,7 @@ export interface ProcessImageJobData {
   originalName: string
   userId: string
   category?: string
+  /** Visibility when queued; the row's current value is what gets applied */
   isPublic?: boolean
   generateThumbnails?: boolean
 }
@@ -40,9 +41,6 @@ export class AttachmentProcessor extends BaseProcessor {
     super(logger, deadLetterQueue)
   }
 
-  /**
-   * Central dispatch for BullMQ jobs
-   */
   async process(job: Job): Promise<unknown> {
     switch (job.name) {
       case AttachmentJobType.PROCESS_IMAGE:
@@ -57,19 +55,24 @@ export class AttachmentProcessor extends BaseProcessor {
   }
 
   private async handleProcessImage(job: Job<ProcessImageJobData>) {
-    const { attachmentId, s3Key, isPublic, generateThumbnails } = job.data
+    const { attachmentId, s3Key, generateThumbnails } = job.data
     this.logger.info({ jobId: job.id, attachmentId, s3Key }, 'Processing image')
 
     // Fresh read: the visibility may have changed while the job waited
     const attachment = await this.attachmentRepository.findById(attachmentId, {
       bypassCache: true
     })
-    const existing = { ...(attachment?.metadata as AttachmentMetadata) }
+    if (!attachment || attachment.deletedAt) {
+      // Deleted while the job waited: nothing to publish
+      this.logger.info({ jobId: job.id, attachmentId }, 'Attachment gone, image not processed')
+      return { attachmentId, skipped: true }
+    }
+    const existing = { ...(attachment.metadata as AttachmentMetadata) }
 
     try {
       const original = await this.s3Service.download(s3Key)
       const prepared = await this.imagePipeline.prepare(original)
-      const publicAccess = attachment?.isPublic ?? isPublic ?? false
+      const publicAccess = attachment.isPublic
 
       // Replaces the original (with its metadata) under the same key
       await this.s3Service.upload({
@@ -87,7 +90,7 @@ export class AttachmentProcessor extends BaseProcessor {
 
       await this.attachmentRepository.update(attachmentId, {
         size: prepared.buffer.length,
-        thumbnailPath: thumbnailPath ?? attachment?.thumbnailPath,
+        thumbnailPath: thumbnailPath ?? attachment.thumbnailPath,
         metadata: { ...existing, ...metadata, processingStatus: 'completed' },
         mimeType: prepared.contentType,
         isPublic: publicAccess,

@@ -13,6 +13,7 @@ import { Attachment } from './entities/attachment.entity'
 import { AttachmentRepository } from './repositories/attachment.repository'
 import { AttachmentService } from './services/attachment.service'
 import { AttachmentAccessPolicy } from './services/attachment-access.policy'
+import { AttachmentPresenter } from './services/attachment-presenter'
 import { AttachmentVisibilityService } from './services/attachment-visibility.service'
 import { DirectUploadService } from './services/direct-upload.service'
 import { ExifProcessorService } from './services/exif-processor.service'
@@ -37,6 +38,7 @@ import { S3Service } from './services/s3.service'
     AttachmentService,
     AttachmentVisibilityService,
     AttachmentAccessPolicy,
+    AttachmentPresenter,
     DirectUploadService,
     AttachmentRepository,
     FileValidationService,
@@ -46,13 +48,11 @@ import { S3Service } from './services/s3.service'
     ImagePipelineService,
     S3Service
   ],
+  // Other modules link and present files; the worker's processor runs the image pipeline
   exports: [
-    AttachmentService,
-    AttachmentVisibilityService,
     AttachmentRepository,
-    ImageProcessingService,
-    ImageOptimizationService,
-    ExifProcessorService,
+    AttachmentVisibilityService,
+    AttachmentPresenter,
     ImagePipelineService,
     S3Service
   ]

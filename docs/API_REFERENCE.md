@@ -683,106 +683,54 @@ Authorization: Bearer <token>
 
 ## 📎 Attachments
 
-### Upload Attachment
+Uploads are public by default; the uploader can ask for private (ADR 0009). Users read
+their own files and public ones; someone else's private file, and any soft-deleted file,
+answers `404`. Ids must be UUIDs (`400` otherwise).
+
+**Response shape** (`AttachmentResponseDto`): id, owner id, name, type, size, category,
+description, tags, folder, visibility, status, counters, timestamps, a `metadata` subset
+(`width`, `height`, `format`, `hasLocation`, `processingStatus`, `rejectionReasons`),
+`downloadUrl` (`/api/v1/attachments/:id/download`), and for public files only `url`,
+`originalImageUrl`, `previewUrl`, `placeholderUrl` and thumbnail URLs. Storage keys, the
+encryption key, scan results and the uploader's account are never returned.
+
+### Upload
 
 ```http
-POST /api/v1/attachments
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-
-file: <binary>
+POST /api/v1/attachments            # multipart: file, category, description, tags, isPublic, generateThumbnails, allowDuplicates, async
+POST /api/v1/attachments/bulk       # multipart: files (up to 20), same fields
+POST /api/v1/attachments/uploads    # direct upload: returns a presigned POST
+POST /api/v1/attachments/uploads/:id/complete
 ```
 
-**Required Permission:** `create:Attachment`
+**Required Permission:** `create:Attachment`. Images are stripped of EXIF (GPS, camera)
+and optimized before they are stored: in the request, or in the worker with `async`
+(default: `ATTACHMENT_ASYNC_PROCESSING`). A finished upload has `securityStatus`
+`completed`.
 
-### Get Attachment Statistics
-
-```http
-GET /api/v1/attachments/stats
-Authorization: Bearer <token>
-```
-
-### Get Attachment by ID
+### Read
 
 ```http
+GET /api/v1/attachments?category=&mimeType=image/&isPublic=&securityStatus=completed&minSize=&maxSize=&startDate=&endDate=&includeDeleted=&page=1&limit=20&sortBy=createdAt&sortOrder=DESC
+GET /api/v1/attachments/user/:userId?page=&limit=   # your own, or anyone's for readers of all files
 GET /api/v1/attachments/:id
-Authorization: Bearer <token>
-```
-
-### Get Attachments by User
-
-```http
-GET /api/v1/attachments/user/:userId
-Authorization: Bearer <token>
-```
-
-### Update Attachment
-
-```http
-PATCH /api/v1/attachments/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "filename": "new-name.jpg",
-  "alt": "Alt text"
-}
-```
-
-**Required Permission:** `update:Attachment`
-
-### Delete Attachment (Soft Delete)
-
-```http
-DELETE /api/v1/attachments/:id
-Authorization: Bearer <token>
-```
-
-**Required Permission:** `delete:Attachment`
-
-### Hard Delete Attachment
-
-```http
-DELETE /api/v1/attachments/:id/hard
-Authorization: Bearer <token>
-```
-
-**Required Permission:** `manage:all` (Super Admin only)
-
-### Restore Attachment
-
-```http
-POST /api/v1/attachments/:id/restore
-Authorization: Bearer <token>
-```
-
-**Required Permission:** `restore:Attachment`
-
-### Get Presigned URL
-
-```http
-POST /api/v1/attachments/:id/presigned-url
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "expiresIn": 3600
-}
-```
-
-### Download Attachment
-
-```http
 GET /api/v1/attachments/:id/download
-Authorization: Bearer <token>
+POST /api/v1/attachments/:id/presigned-url          { "expiresIn": 3600, "downloadFilename": "report.pdf" }
+GET /api/v1/attachments/stats                       # manage:all
 ```
 
-### Cleanup Orphaned Attachments
+`includeDeleted` only has an effect for callers who may read every file.
+
+### Change
 
 ```http
-POST /api/v1/attachments/cleanup-orphaned
-Authorization: Bearer <token>
+PATCH  /api/v1/attachments/:id          { "description": "...", "tags": ["a"], "folder": "x", "category": "y", "isPublic": false }
+DELETE /api/v1/attachments/:id          # soft delete
+POST   /api/v1/attachments/:id/restore  # restore:Attachment
+DELETE /api/v1/attachments/:id/hard     # manage:all; deletes every stored object
 ```
+
+`isPublic` changes the stored objects' access too. `metadata` cannot be written.
 
 ---
 

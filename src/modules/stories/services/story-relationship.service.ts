@@ -4,11 +4,7 @@ import { PinoLogger } from 'nestjs-pino'
 import { In, IsNull } from 'typeorm'
 
 import { Action } from '@modules/acl'
-import {
-  assertAttachmentUsable,
-  AttachmentRepository,
-  toAttachmentResponse
-} from '@modules/attachments'
+import { assertAttachmentUsable, AttachmentRepository } from '@modules/attachments'
 import { Attachment } from '@modules/attachments/entities'
 import { CategoryRepository } from '@modules/categories'
 import { Category } from '@modules/categories/entities'
@@ -166,7 +162,7 @@ export class StoryRelationshipService {
     const story = await this.loadReadable(storyId, 'attachments', viewer)
     return (story.attachments ?? [])
       .filter(attachment => !attachment.deletedAt)
-      .map(attachment => toAttachmentResponse(attachment) as unknown as Attachment)
+      .map(attachment => this.storyEnrichmentService.present(attachment))
   }
 
   async getTags(storyId: number, viewer: User): Promise<Tag[]> {

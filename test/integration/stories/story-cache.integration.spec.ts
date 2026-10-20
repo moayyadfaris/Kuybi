@@ -122,7 +122,7 @@ describe('Story cache and embedded entities', () => {
     await getStory()
     await t.app.get(AttachmentRepository).update(image.id, { thumbnailPath: 'thumbs/cover.webp' })
 
-    expect((await getStory()).mainImage.thumbnailPath).toBe('thumbs/cover.webp')
+    expect((await getStory()).mainImage.previewUrl).toMatch(/thumbs\/cover\.webp$/)
   })
 
   it("shows the author's new name", async () => {

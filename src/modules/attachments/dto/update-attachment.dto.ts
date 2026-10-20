@@ -1,7 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
-import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator'
+import { ArrayMaxSize, IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator'
 
+/**
+ * What the owner may change. Not metadata: it holds the storage keys of the derived
+ * objects, which visibility changes and deletes act on.
+ */
 export class UpdateAttachmentDto {
   @ApiPropertyOptional({ description: 'Attachment category', example: 'documents' })
   @IsOptional()
@@ -22,7 +26,9 @@ export class UpdateAttachmentDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
+  @MaxLength(50, { each: true })
   tags?: string[]
 
   @ApiPropertyOptional({
@@ -39,11 +45,4 @@ export class UpdateAttachmentDto {
   @ToBoolean()
   @IsBoolean()
   isPublic?: boolean
-
-  @ApiPropertyOptional({
-    description: 'Additional metadata as JSON object',
-    example: { projectId: '123', documentType: 'invoice' }
-  })
-  @IsOptional()
-  metadata?: Record<string, unknown>
 }

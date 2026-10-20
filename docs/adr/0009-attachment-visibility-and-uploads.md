@@ -26,6 +26,11 @@ serving "private" files publicly and answering 403 for "public" ones.
   private until processing has replaced them with an EXIF-stripped copy, then take their
   requested visibility from the current row.
 
+- Responses are built by `AttachmentPresenter`, an allowlist, for this module and every
+  module that embeds an attachment (stories). Storage URLs are given for public files
+  only. Clients cannot write `metadata`: it holds the storage keys that visibility
+  changes and deletes act on. (2026-10-20)
+
 ## Consequences
 
 - Public by default suits the product's media-first use; users must opt into private.
@@ -36,4 +41,6 @@ serving "private" files publicly and answering 403 for "public" ones.
 
 - Tests: `direct-upload.integration.spec.ts` (default public, private ↔ public changes the
   stored object, profile images stay public, re-upload takes the requested visibility)
-  and `attachment-visibility.service.spec.ts`.
+  and `attachment-visibility.service.spec.ts`; `attachment-api-hardening.integration.spec.ts`
+  (response allowlist, metadata not writable, soft-deleted files, permanent delete removes
+  every object).

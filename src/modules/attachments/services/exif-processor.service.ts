@@ -5,29 +5,10 @@ import sharp from 'sharp'
 
 import { hasGpsData } from '../utils/exif-gps.util'
 
+/** What is read from an image's metadata: dimensions and whether it records a location */
 export interface ExifData {
-  camera?: {
-    make?: string
-    model?: string
-    software?: string
-  }
-  settings?: {
-    iso?: number
-    exposureTime?: string
-    fNumber?: number
-    focalLength?: number
-    flash?: boolean
-  }
-  location?: {
-    latitude?: number
-    longitude?: number
-    altitude?: number
-  }
-  datetime?: {
-    original?: string
-    digitized?: string
-    modified?: string
-  }
+  /** Present (empty) when the image has GPS data; coordinates are never read */
+  location?: Record<string, never>
   dimensions?: {
     width: number
     height: number
@@ -52,8 +33,9 @@ export interface ExifProcessingResult {
 }
 
 /**
- * Service for processing image EXIF metadata
- * Handles extraction, stripping sensitive data, and orientation correction
+ * Image metadata: strips EXIF/XMP/IPTC (GPS, camera serials, timestamps) while applying
+ * the orientation, and keeps a safe summary (dimensions, format, whether a location was
+ * recorded)
  */
 @Injectable()
 export class ExifProcessorService {
@@ -143,18 +125,6 @@ export class ExifProcessorService {
   }
 
   /**
-   * Check if image has GPS location data
-   */
-  async hasLocationData(buffer: Buffer): Promise<boolean> {
-    try {
-      const metadata = await sharp(buffer).metadata()
-      return hasGpsData(metadata.exif)
-    } catch {
-      return false
-    }
-  }
-
-  /**
    * Generate metadata summary for storage
    */
   async generateMetadataSummary(buffer: Buffer): Promise<Record<string, unknown>> {
@@ -177,21 +147,7 @@ export class ExifProcessorService {
         hasAlpha: metadata.hasAlpha,
         hasProfile: !!metadata.icc,
 
-        // File size
         size: metadata.size,
-
-        // Safe camera info (not sensitive)
-        camera:
-          exifData.camera?.make && exifData.camera?.model
-            ? `${exifData.camera.make} ${exifData.camera.model}`
-            : undefined,
-
-        // Technical settings (not sensitive)
-        iso: exifData.settings?.iso,
-        focalLength: exifData.settings?.focalLength,
-
-        // Date taken (might be sensitive, but useful for organization)
-        dateTaken: exifData.datetime?.original,
 
         // Location flag (coordinates are never read or stored)
         hasLocation: exifData.location !== undefined

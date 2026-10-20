@@ -1,6 +1,5 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import sharp, { type FitEnum, type Metadata } from 'sharp'
+import { Injectable, InternalServerErrorException } from '@nestjs/common'
+import sharp, { type FitEnum } from 'sharp'
 
 export interface ThumbnailSize {
   name: string
@@ -31,6 +30,7 @@ export interface ThumbnailResult {
   }
 }
 
+/** Thumbnails of a stored image: small and medium squares, large and preview fitted */
 @Injectable()
 export class ImageProcessingService {
   // Predefined thumbnail sizes
@@ -40,19 +40,6 @@ export class ImageProcessingService {
     { name: 'large', width: 600, height: 600, fit: 'inside' },
     { name: 'preview', width: 1200, fit: 'inside' }
   ]
-
-  constructor(private readonly configService: ConfigService) {}
-
-  /**
-   * Get image metadata
-   */
-  async getMetadata(buffer: Buffer): Promise<Metadata> {
-    try {
-      return await sharp(buffer).metadata()
-    } catch {
-      throw new BadRequestException('Invalid image file or corrupted data')
-    }
-  }
 
   /**
    * Resize image to specific dimensions
@@ -153,159 +140,6 @@ export class ImageProcessingService {
       return results
     } catch {
       throw new InternalServerErrorException('Failed to generate thumbnails')
-    }
-  }
-
-  /**
-   * Convert image to different format
-   */
-  async convertFormat(
-    buffer: Buffer,
-    format: 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff',
-    quality = 90
-  ): Promise<Buffer> {
-    try {
-      let image = sharp(buffer)
-
-      switch (format) {
-        case 'jpeg':
-          image = image.jpeg({ quality, progressive: true })
-          break
-        case 'png':
-          image = image.png({ quality, compressionLevel: 9 })
-          break
-        case 'webp':
-          image = image.webp({ quality })
-          break
-        case 'avif':
-          image = image.avif({ quality })
-          break
-        case 'tiff':
-          image = image.tiff({ quality })
-          break
-      }
-
-      return await image.toBuffer()
-    } catch {
-      throw new InternalServerErrorException(`Failed to convert image to ${format}`)
-    }
-  }
-
-  /**
-   * Optimize image (reduce file size while maintaining quality)
-   */
-  async optimize(
-    buffer: Buffer,
-    options: {
-      maxWidth?: number
-      maxHeight?: number
-      quality?: number
-      convertToWebP?: boolean
-    } = {}
-  ): Promise<ImageProcessingResult> {
-    try {
-      const { maxWidth = 2000, maxHeight = 2000, quality = 85, convertToWebP = false } = options
-
-      let image = sharp(buffer)
-
-      // Get original metadata
-      const metadata = await image.metadata()
-
-      // Resize if needed
-      if (
-        (metadata.width && metadata.width > maxWidth) ||
-        (metadata.height && metadata.height > maxHeight)
-      ) {
-        image = image.resize({
-          width: maxWidth,
-          height: maxHeight,
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-      }
-
-      // Apply format-specific optimization
-      if (convertToWebP) {
-        image = image.webp({ quality, effort: 6 })
-      } else if (metadata.format === 'jpeg') {
-        image = image.jpeg({ quality, progressive: true, mozjpeg: true })
-      } else if (metadata.format === 'png') {
-        image = image.png({ quality, compressionLevel: 9, adaptiveFiltering: true })
-      }
-
-      const result = await image.toBuffer({ resolveWithObject: true })
-
-      return {
-        buffer: result.data,
-        metadata: {
-          width: result.info.width,
-          height: result.info.height,
-          format: result.info.format,
-          size: result.data.length,
-          hasAlpha: result.info.channels === 4
-        }
-      }
-    } catch {
-      throw new InternalServerErrorException('Failed to optimize image')
-    }
-  }
-
-  /**
-   * Crop image
-   */
-  async crop(buffer: Buffer, x: number, y: number, width: number, height: number): Promise<Buffer> {
-    try {
-      return await sharp(buffer).extract({ left: x, top: y, width, height }).toBuffer()
-    } catch {
-      throw new InternalServerErrorException('Failed to crop image')
-    }
-  }
-
-  /**
-   * Rotate image
-   */
-  async rotate(buffer: Buffer, angle: number): Promise<Buffer> {
-    try {
-      return await sharp(buffer).rotate(angle).toBuffer()
-    } catch {
-      throw new InternalServerErrorException('Failed to rotate image')
-    }
-  }
-
-  /**
-   * Apply blur effect
-   */
-  async blur(buffer: Buffer, sigma = 5): Promise<Buffer> {
-    try {
-      return await sharp(buffer).blur(sigma).toBuffer()
-    } catch {
-      throw new InternalServerErrorException('Failed to apply blur effect')
-    }
-  }
-
-  /**
-   * Convert to grayscale
-   */
-  async grayscale(buffer: Buffer): Promise<Buffer> {
-    try {
-      return await sharp(buffer).grayscale().toBuffer()
-    } catch {
-      throw new InternalServerErrorException('Failed to convert to grayscale')
-    }
-  }
-
-  /**
-   * Get image dimensions
-   */
-  async getDimensions(buffer: Buffer): Promise<{ width: number; height: number }> {
-    try {
-      const metadata = await sharp(buffer).metadata()
-      return {
-        width: metadata.width || 0,
-        height: metadata.height || 0
-      }
-    } catch {
-      throw new BadRequestException('Failed to get image dimensions')
     }
   }
 }

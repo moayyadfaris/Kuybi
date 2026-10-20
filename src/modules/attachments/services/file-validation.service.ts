@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { isUtf8 } from 'buffer'
 import { fileTypeFromBuffer } from 'file-type'
 import * as mime from 'mime-types'
@@ -43,6 +42,10 @@ export interface FileValidationOptions {
  */
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
+/**
+ * Decides whether a file may be stored: allowed type, content that matches the declared
+ * type (magic numbers, or UTF-8 for text), safe name and extension, size per type
+ */
 @Injectable()
 export class FileValidationService {
   // Allowed MIME types by category
@@ -140,8 +143,6 @@ export class FileValidationService {
     archive: 50 * 1024 * 1024, // 50MB
     default: 10 * 1024 * 1024 // 10MB
   }
-
-  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Validate a file comprehensively
@@ -392,44 +393,6 @@ export class FileValidationService {
     if (this.allowedMimeTypes.documents.includes(mimeType)) return 'document'
     if (this.allowedMimeTypes.archives.includes(mimeType)) return 'archive'
     return 'default'
-  }
-
-  /**
-   * Check if file is an image
-   */
-  isImage(mimeType: string): boolean {
-    return this.allowedMimeTypes.images.includes(mimeType)
-  }
-
-  /**
-   * Sanitize filename
-   */
-  sanitizeFilename(filename: string): string {
-    // Remove path components
-    let sanitized = path.basename(filename)
-
-    // Replace unsafe characters with underscores
-    sanitized = sanitized.replace(/[^a-zA-Z0-9._-]/g, '_')
-
-    // Remove multiple consecutive underscores
-    sanitized = sanitized.replace(/_{2,}/g, '_')
-
-    // Remove leading/trailing underscores
-    sanitized = sanitized.replace(/^_+|_+$/g, '')
-
-    // Ensure it has a name
-    if (!sanitized || sanitized === '.') {
-      sanitized = `file_${Date.now()}`
-    }
-
-    // Limit length
-    if (sanitized.length > 255) {
-      const ext = path.extname(sanitized)
-      const name = sanitized.substring(0, 255 - ext.length)
-      sanitized = name + ext
-    }
-
-    return sanitized.toLowerCase()
   }
 }
 

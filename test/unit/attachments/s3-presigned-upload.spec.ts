@@ -45,4 +45,15 @@ describe('S3Service.createPresignedUpload', () => {
     expect(expiresInMs).toBeGreaterThan(14 * 60 * 1000)
     expect(expiresInMs).toBeLessThanOrEqual(15 * 60 * 1000)
   })
+
+  it('builds keys from client input without extra path segments or odd extensions', () => {
+    const key = s3.generateKey('u1', 'report.p hp', '../profile/u2')
+    const [category, owner] = key.split('/')
+
+    expect(category).toBe('-profile-u2')
+    expect(owner).toBe('u1')
+    expect(key.split('/')).toHaveLength(6)
+    expect(key).toMatch(/\/\d+-[0-9a-f-]{36}\.bin$/)
+    expect(s3.generateKey('u1', 'photo.JPG')).toMatch(/^uploads\/u1\/.+\.jpg$/)
+  })
 })

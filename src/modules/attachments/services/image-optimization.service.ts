@@ -1,15 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import sharp, { type Sharp } from 'sharp'
-
-export interface ImageFormat {
-  format: 'jpeg' | 'png' | 'webp' | 'avif'
-  quality: number
-  progressive?: boolean
-  compressionLevel?: number
-}
 
 export interface OptimizationOptions {
   maxWidth?: number
@@ -17,10 +9,7 @@ export interface OptimizationOptions {
   quality?: number
   stripMetadata?: boolean
   autoRotate?: boolean
-  generateWebP?: boolean
-  generateAVIF?: boolean
   generatePlaceholder?: boolean
-  formats?: ImageFormat[]
 }
 
 export interface OptimizationResult {
@@ -31,17 +20,18 @@ export interface OptimizationResult {
   size: number
   originalSize: number
   compressionRatio: number
-  webp?: Buffer
-  avif?: Buffer
   placeholder?: Buffer
 }
 
+/**
+ * Resizes and recompresses an image (PNG stays PNG for transparency, everything else
+ * becomes JPEG) and makes a tiny blurred placeholder for progressive loading
+ */
 @Injectable()
 export class ImageOptimizationService {
   private readonly defaultQuality = 85
   private readonly placeholderWidth = 20
   constructor(
-    private readonly configService: ConfigService,
     @InjectPinoLogger(ImageOptimizationService.name)
     private readonly logger: PinoLogger
   ) {}
@@ -95,45 +85,6 @@ export class ImageOptimizationService {
         compressionRatio: parseFloat(((1 - optimized.length / originalSize) * 100).toFixed(2))
       }
 
-      // Generate WebP version
-      if (options.generateWebP !== false) {
-        result.webp = await sharp(buffer)
-          .rotate()
-          .resize({
-            width: options.maxWidth,
-            height: options.maxHeight,
-            fit: 'inside',
-            withoutEnlargement: true
-          })
-          .webp({ quality: quality - 5 })
-          .toBuffer()
-
-        this.logger.debug({ originalSize, webpSize: result.webp.length }, 'Generated WebP version')
-      }
-
-      // Generate AVIF version (next-gen format)
-      if (options.generateAVIF) {
-        try {
-          result.avif = await sharp(buffer)
-            .rotate()
-            .resize({
-              width: options.maxWidth,
-              height: options.maxHeight,
-              fit: 'inside',
-              withoutEnlargement: true
-            })
-            .avif({ quality: quality - 10 })
-            .toBuffer()
-
-          this.logger.debug(
-            { originalSize, avifSize: result.avif.length },
-            'Generated AVIF version'
-          )
-        } catch {
-          this.logger.warn('Failed to generate AVIF format, skipping')
-        }
-      }
-
       // Generate tiny placeholder for lazy loading
       if (options.generatePlaceholder !== false) {
         result.placeholder = await this.generatePlaceholder(buffer)
@@ -177,35 +128,6 @@ export class ImageOptimizationService {
   }
 
   /**
-   * Convert image to specific format with optimization
-   */
-  async convertFormat(
-    buffer: Buffer,
-    targetFormat: 'jpeg' | 'png' | 'webp' | 'avif',
-    quality = this.defaultQuality
-  ): Promise<Buffer> {
-    try {
-      const image = sharp(buffer).rotate()
-
-      switch (targetFormat) {
-        case 'jpeg':
-          return await image.jpeg({ quality, progressive: true }).toBuffer()
-        case 'png':
-          return await image.png({ quality, compressionLevel: 9 }).toBuffer()
-        case 'webp':
-          return await image.webp({ quality }).toBuffer()
-        case 'avif':
-          return await image.avif({ quality }).toBuffer()
-        default:
-          throw new BadRequestException(`Unsupported format: ${targetFormat}`)
-      }
-    } catch (error) {
-      this.logger.error({ error: errorMessage(error), targetFormat }, 'Format conversion failed')
-      throw new BadRequestException(`Failed to convert to ${targetFormat}`)
-    }
-  }
-
-  /**
    * Apply smart compression based on image format and content
    */
   private async applySmartCompression(
@@ -234,14 +156,6 @@ export class ImageOptimizationService {
           })
           .toBuffer()
 
-      case 'webp':
-        return await image
-          .webp({
-            quality: quality - 5,
-            effort: 6
-          })
-          .toBuffer()
-
       default:
         // Default to JPEG
         return await image.jpeg({ quality, progressive: true }).toBuffer()
@@ -251,7 +165,7 @@ export class ImageOptimizationService {
   /**
    * Select best format for optimization
    */
-  private selectBestFormat(originalFormat: string | undefined): 'jpeg' | 'png' | 'webp' {
+  private selectBestFormat(originalFormat: string | undefined): 'jpeg' | 'png' {
     if (!originalFormat) return 'jpeg'
 
     // Keep PNG for images with transparency
@@ -259,16 +173,5 @@ export class ImageOptimizationService {
 
     // Convert everything else to JPEG
     return 'jpeg'
-  }
-
-  /**
-   * Get image dimensions without loading full image
-   */
-  async getDimensions(buffer: Buffer): Promise<{ width: number; height: number }> {
-    const metadata = await sharp(buffer).metadata()
-    return {
-      width: metadata.width || 0,
-      height: metadata.height || 0
-    }
   }
 }

@@ -96,6 +96,10 @@ export default () => {
         idleTimeoutMillis: parseNumber(process.env.DB_POOL_IDLE_TIMEOUT, 30000)
       }
     },
+    attachments: {
+      // Multipart image uploads are processed in the worker unless a request says otherwise
+      asyncProcessing: parseBoolean(process.env.ATTACHMENT_ASYNC_PROCESSING, false)
+    },
     stories: {
       // Automatic versions kept per story and branch (the daily prune deletes older ones)
       keepAutoVersions: parseNumber(process.env.STORY_KEEP_AUTO_VERSIONS, 50)

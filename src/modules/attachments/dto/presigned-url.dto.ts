@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
 
 export class PresignedUrlDto {
   @ApiPropertyOptional({
@@ -23,6 +23,7 @@ export class PresignedUrlDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   downloadFilename?: string
 }
 
