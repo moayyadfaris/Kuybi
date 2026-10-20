@@ -798,6 +798,25 @@ DELETE /api/v1/content/:postTypeSlug/:id           # delete:Content (soft)
 
 ---
 
+## 🌐 Public Web API
+
+Unauthenticated, read-only and rate limited (100 requests per 15 minutes per client).
+
+```http
+GET /api/web/v1/stories?search=&categorySlug=&tag=&page=1&limit=20
+GET /api/web/v1/stories/:id
+GET /api/web/v1/categories?search=&page=1&limit=20
+GET /api/web/v1/categories/tree        # every active category (flat)
+GET /api/web/v1/categories/slug/:slug
+GET /api/web/v1/categories/:id
+```
+
+Only published stories and active categories are returned, in an allowlisted shape. A
+story's `mainImage` is `{ id, mimeType, width, height, url, previewUrl, placeholderUrl,
+thumbnails }`, given only for a public, live image the security scan cleared (`null`
+otherwise). `metadata.featuredImageUrl` is returned only when it is an http(s) link.
+Filters are capped at 200 characters (`categorySlug` 140).
+
 ## 🌍 Countries
 
 ### List Countries
