@@ -1,10 +1,15 @@
 import { ConfigService } from '@nestjs/config'
 import { Queue } from 'bullmq'
 
+import { AuditRetentionScheduler } from '@modules/audit/jobs/audit-retention.scheduler'
 import { AuthJobsScheduler } from '@modules/auth/jobs/auth-jobs.scheduler'
 import { VersionCleanupScheduler } from '@modules/stories/jobs/version-cleanup.scheduler'
 
-import { SessionCleanupJobType, VersionCleanupJobType } from '@core/queues/jobs/types'
+import {
+  AuditRetentionJobType,
+  SessionCleanupJobType,
+  VersionCleanupJobType
+} from '@core/queues/jobs/types'
 
 import { testConfig } from '../../test.config'
 
@@ -20,11 +25,14 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
   const sessionQueue = new Queue('session-cleanup', { connection, prefix })
   const versionQueue = new Queue('version-cleanup', { connection, prefix })
   const accountQueue = new Queue('account-security', { connection, prefix })
+  const auditQueue = new Queue('audit-retention', { connection, prefix })
 
   afterAll(async () => {
     await sessionQueue.obliterate({ force: true })
     await versionQueue.obliterate({ force: true })
     await accountQueue.obliterate({ force: true })
+    await auditQueue.obliterate({ force: true })
+    await auditQueue.close()
     await accountQueue.close()
     await sessionQueue.close()
     await versionQueue.close()
@@ -72,5 +80,22 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
     expect(prune?.template?.data).toEqual({ keepAutoVersions: 7 })
     expect(await versionQueue.getJobScheduler('version-archive-weekly')).toBeFalsy()
     expect(await versionQueue.getJobSchedulersCount()).toBe(1)
+  })
+
+  it('schedules the daily audit purge with the configured retention', async () => {
+    const settings: Record<string, number> = {
+      'audit.retentionDays': 180,
+      'audit.criticalRetentionDays': 365
+    }
+    const config = { get: (key: string) => settings[key] } as unknown as ConfigService
+    const scheduler = new AuditRetentionScheduler(auditQueue, config)
+    await scheduler.onModuleInit()
+    await scheduler.onModuleInit()
+
+    const purge = await auditQueue.getJobScheduler('audit-retention-daily')
+    expect(purge?.pattern).toBe('0 3 * * *')
+    expect(purge?.name).toBe(AuditRetentionJobType.PURGE_EXPIRED)
+    expect(purge?.template?.data).toEqual({ retentionDays: 180, criticalRetentionDays: 365 })
+    expect(await auditQueue.getJobSchedulersCount()).toBe(1)
   })
 })

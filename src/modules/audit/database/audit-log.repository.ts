@@ -18,7 +18,6 @@ export interface AuditLogFilters {
   startDate?: Date
   endDate?: Date
   tags?: string[]
-  isArchived?: boolean
 }
 
 export interface AuditLogStatistics {
@@ -33,7 +32,8 @@ export interface AuditLogStatistics {
 
 /**
  * The audit trail: append-only rows and read-only queries for the super-admin API. Every
- * list query takes a cap; nothing here updates or deletes a row.
+ * list query takes a cap. Rows are never updated; the retention job deletes expired ones
+ * (deleteExpired).
  */
 @Injectable()
 export class AuditLogRepository extends BaseRepository<AuditLog> {
@@ -55,6 +55,30 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
    */
   async append(data: DeepPartial<AuditLog>): Promise<AuditLog> {
     return this.repository.save(this.repository.create(data))
+  }
+
+  /**
+   * Deletes up to `batch` rows created before their cutoff: `criticalBefore` for critical
+   * rows, `before` for the others (null keeps them). Returns how many were deleted.
+   */
+  async deleteExpired(
+    before: Date | null,
+    criticalBefore: Date | null,
+    batch: number
+  ): Promise<number> {
+    if (!before && !criticalBefore) return 0
+    const [, deleted] = await this.repository.query(
+      `DELETE FROM audit_logs WHERE id IN (
+         SELECT id FROM audit_logs
+         WHERE (severity <> 'critical' AND "createdAt" < $1)
+            OR (severity = 'critical' AND "createdAt" < $2)
+         LIMIT $3
+       )`,
+      [before, criticalBefore, batch]
+    )
+    // findById is cached; a deleted row must not be served from it
+    if (deleted > 0) await this.invalidateCacheByTag()
+    return deleted
   }
 
   async findByUserId(
@@ -351,10 +375,6 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
 
     if (filters.tags && filters.tags.length > 0) {
       qb.andWhere('log.tags @> :tags', { tags: JSON.stringify(filters.tags) })
-    }
-
-    if (filters.isArchived !== undefined) {
-      qb.andWhere('log.isArchived = :isArchived', { isArchived: filters.isArchived })
     }
 
     return qb

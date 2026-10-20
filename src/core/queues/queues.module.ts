@@ -47,6 +47,7 @@ import { QueueName } from './jobs/types'
         name: QueueName.CONTENT_PUBLISHING,
         ...queueConfig.queues[QueueName.CONTENT_PUBLISHING]
       },
+      { name: QueueName.AUDIT_RETENTION, ...queueConfig.queues[QueueName.AUDIT_RETENTION] },
       { name: QueueName.ACCOUNT_SECURITY, ...queueConfig.queues[QueueName.ACCOUNT_SECURITY] },
       { name: QueueName.DEAD_LETTER, ...queueConfig.queues[QueueName.DEAD_LETTER] }
     )

@@ -37,7 +37,6 @@ export interface LogActionOptions {
   severity?: AuditSeverity
   tags?: string[]
   description?: string
-  retentionDays?: number
   metadata?: Record<string, unknown>
 }
 
@@ -121,8 +120,7 @@ export class AuditService {
         metadata: options.metadata
           ? { ...(context.metadata ?? {}), ...options.metadata }
           : context.metadata,
-        description: options.description || null,
-        retentionDays: options.retentionDays || 0
+        description: options.description || null
       })
 
       // Log to Pino for immediate visibility

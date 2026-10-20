@@ -97,9 +97,6 @@ Found 5 audit logs:
     "sessionType": "standard"
   },
   "description": "User logged in",
-  "retentionDays": 0,
-  "isArchived": false,
-  "archivedAt": null,
   "createdAt": "2025-10-29T11:30:16.968Z"
 }
 ```

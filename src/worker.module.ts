@@ -6,6 +6,7 @@ import { EmailModule } from '@infrastructure/email/email.module'
 import { LoggerModule } from 'nestjs-pino'
 
 import { AttachmentsJobsModule } from '@modules/attachments'
+import { AuditJobsModule } from '@modules/audit'
 import { AuthJobsModule } from '@modules/auth'
 import { PostTypesJobsModule } from '@modules/post-types'
 import { StoriesJobsModule } from '@modules/stories'
@@ -54,7 +55,8 @@ import { ShutdownModule } from '@core/shutdown/shutdown.module'
     AuthJobsModule,
     AttachmentsJobsModule,
     StoriesJobsModule,
-    PostTypesJobsModule
+    PostTypesJobsModule,
+    AuditJobsModule
   ],
   providers: [EmailProcessor]
 })

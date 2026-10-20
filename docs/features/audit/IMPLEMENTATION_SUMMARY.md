@@ -15,7 +15,7 @@
   - Request context (ipAddress, userAgent, method, endpoint, requestId)
   - Status & errors (status, statusCode, errorMessage, errorStack)
   - Security (severity, tags, metadata)
-  - Compliance (retentionDays, isArchived)
+  - Retention: a setting, not per-row columns (see README, Retention)
 
 - **Database Migration**: CreateAuditLogsTable1730150000000
   - 3 PostgreSQL ENUM types (action, severity, status)
@@ -299,7 +299,7 @@ Create `docs/features/audit/AUDIT_LOGGING.md`:
 - ✅ Purpose of processing (action types)
 - ✅ Categories of data subjects (user info)
 - ✅ Recipients of personal data (audit trail)
-- ✅ Retention periods (configurable per log)
+- ✅ Retention periods (AUDIT_RETENTION_DAYS, AUDIT_CRITICAL_RETENTION_DAYS)
 - ✅ Right to erasure (soft delete + archiving)
 
 ### SOC 2 Requirements

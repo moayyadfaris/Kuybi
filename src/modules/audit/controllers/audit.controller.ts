@@ -54,8 +54,7 @@ export class AuditController {
       severity: dto.severity,
       status: dto.status,
       startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-      isArchived: dto.isArchived
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined
     }
 
     const pagination = {

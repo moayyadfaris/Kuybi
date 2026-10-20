@@ -158,7 +158,11 @@ export default () => {
       }
     },
     audit: {
-      enabled: parseBoolean(process.env.AUDIT_ENABLED, true)
+      enabled: parseBoolean(process.env.AUDIT_ENABLED, true),
+      // Days rows are kept (the daily purge deletes older ones); 0 keeps them forever
+      retentionDays: parseNumber(process.env.AUDIT_RETENTION_DAYS, 180),
+      // Days critical rows are kept; never less than retentionDays
+      criticalRetentionDays: parseNumber(process.env.AUDIT_CRITICAL_RETENTION_DAYS, 365)
     },
     resilience: {
       s3: {

@@ -176,17 +176,7 @@ export class AuditLog {
   @Column({ type: 'text', nullable: true })
   description: string | null
 
-  // Compliance & Retention
-  @Column({ type: 'int', default: 0 })
-  retentionDays: number // 0 = keep forever, positive = delete after N days
-
-  @Column({ type: 'boolean', default: false })
-  isArchived: boolean
-
-  @Column({ type: 'timestamptz', nullable: true })
-  archivedAt: Date | null
-
-  // Timestamps
+  // Timestamps (rows are deleted after AUDIT_RETENTION_DAYS, see AuditRetentionProcessor)
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 
@@ -197,15 +187,5 @@ export class AuditLog {
 
   get isCritical(): boolean {
     return this.severity === AuditSeverity.CRITICAL || this.severity === AuditSeverity.HIGH
-  }
-
-  get shouldRetain(): boolean {
-    if (this.retentionDays === 0) return true
-    if (!this.createdAt) return true
-
-    const retentionDate = new Date(this.createdAt)
-    retentionDate.setDate(retentionDate.getDate() + this.retentionDays)
-
-    return new Date() < retentionDate
   }
 }

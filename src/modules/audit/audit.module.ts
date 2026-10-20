@@ -23,6 +23,6 @@ import { AuditQueryService } from './services/audit-query.service'
     AuditQueryService,
     AclAuditListener
   ],
-  exports: [AuditService, AuditQueryService]
+  exports: [AuditService, AuditQueryService, AuditLogRepository]
 })
 export class AuditModule {}

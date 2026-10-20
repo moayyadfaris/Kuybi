@@ -17,13 +17,12 @@ This document captures the current iteration of the audit logging stack, the API
 1. **Prefer facade helpers** – in feature modules, call `auditService.log…FromRequest(req, user, metadata)` rather than composing contexts manually. This guarantees consistent enrichment of user, request, and correlation metadata.
 2. **Decorators for REST endpoints** – for CRUD-style endpoints that already use the `@AuditLog` decorator, ensure the interceptor is registered globally or at controller level.
 3. **Domain events (future)** – longer term, migrate auth and other modules to emit events (`LoginSucceeded`, `PasswordReset`) that the audit module subscribes to. The current direct service usage is a stopgap.
-4. **Retention & archiving** – the repository exposes `search` and statistics primitives; background cleanup and archiving jobs still need to be scheduled.
+4. **Retention** – a daily worker job (`AuditRetentionProcessor`, 03:00 UTC) deletes rows older than `AUDIT_RETENTION_DAYS` (default 180) and critical rows older than `AUDIT_CRITICAL_RETENTION_DAYS` (default 365, never less than the general period). `AUDIT_RETENTION_DAYS=0` keeps everything.
 
 ## Outstanding Tasks
 
 - Add integration tests that exercise `/api/v1/audit/search`, `/statistics`, and `/critical-events` against seeded data.
 - Wire additional modules (stories, attachments, etc.) to the new facade methods or interceptors.
-- Build a background worker that leverages `AuditLogRepository` for retention enforcement (see `findCriticalEvents` / `findFailedOperations`).
 - Expand documentation for the Postman collection and shell scripts (`test-audit-api.sh`, `test-audit-integration.sh`).
 
 ## Testing
@@ -40,6 +39,7 @@ This document captures the current iteration of the audit logging stack, the API
 ## Configuration
 
 - `AUDIT_ENABLED` (`true` by default): toggles whether audit logs are persisted. When disabled, facade methods exit early.
+- `AUDIT_RETENTION_DAYS` (180) and `AUDIT_CRITICAL_RETENTION_DAYS` (365): see Retention above. The worker applies changed values on its next start.
 
 ## References
 

@@ -175,6 +175,16 @@ class EnvironmentVariables {
   AUDIT_ENABLED?: string
 
   @IsInt()
+  @Min(0)
+  @IsOptional()
+  AUDIT_RETENTION_DAYS?: number
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  AUDIT_CRITICAL_RETENTION_DAYS?: number
+
+  @IsInt()
   @IsOptional()
   S3_TIMEOUT_MS?: number
 

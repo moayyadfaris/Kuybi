@@ -13,6 +13,7 @@ export enum QueueName {
   REPORT_GENERATION = 'report-generation-queue',
   VERSION_CLEANUP = 'version-cleanup-queue',
   CONTENT_PUBLISHING = 'content-publishing-queue',
+  AUDIT_RETENTION = 'audit-retention-queue',
   ACCOUNT_SECURITY = 'account-security-queue',
   DEAD_LETTER = 'dead-letter-queue'
 }
@@ -83,6 +84,13 @@ export enum VersionCleanupJobType {
  */
 export enum ContentJobType {
   PUBLISH_DUE = 'publish-due-content'
+}
+
+/**
+ * Audit Retention Job Types
+ */
+export enum AuditRetentionJobType {
+  PURGE_EXPIRED = 'purge-expired-audit-logs'
 }
 
 /**
