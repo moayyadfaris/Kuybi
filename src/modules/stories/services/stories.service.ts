@@ -3,6 +3,7 @@ import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 
 import { Action } from '@modules/acl'
+import { CountryRepository } from '@modules/countries'
 import { User } from '@modules/users/entities'
 
 import { MetricsService } from '@core/observability/metrics.service'
@@ -42,7 +43,8 @@ export class StoriesService {
     private readonly logger: PinoLogger,
     private readonly versionService: StoryVersionService,
     private readonly accessPolicy: StoryAccessPolicy,
-    private readonly metricsService: MetricsService
+    private readonly metricsService: MetricsService,
+    private readonly countryRepository: CountryRepository
   ) {
     this.logger.setContext(StoriesService.name)
   }
@@ -63,6 +65,7 @@ export class StoriesService {
     if (storyData.parentId) {
       await this.assertParentExists(storyData.parentId)
     }
+    if (storyData.countryId) await this.assertCountryUsable(storyData.countryId)
     const categories = categoryIds?.length
       ? await this.storyRelationshipService.resolveCategories(categoryIds)
       : []
@@ -214,6 +217,9 @@ export class StoriesService {
     if (updateData.parentId && updateData.parentId !== story.parentId) {
       await this.assertParentExists(updateData.parentId, id)
     }
+    if (updateData.countryId && updateData.countryId !== story.countryId) {
+      await this.assertCountryUsable(updateData.countryId)
+    }
 
     // A non-empty list replaces the current set; omitted or empty leaves it unchanged
     const categories = categoryIds?.length
@@ -291,6 +297,14 @@ export class StoriesService {
    * The parent must be a live story and, when `childId` is given (re-parenting), must not
    * be that story or one of its descendants: the thread would become a cycle.
    */
+  /** An existing, active country (a retired one stays on the stories that have it) */
+  private async assertCountryUsable(countryId: number): Promise<void> {
+    const country = await this.countryRepository.findById(countryId)
+    if (!country?.isActive) {
+      throw new BadRequestException(`Country with ID ${countryId} not found`)
+    }
+  }
+
   private async assertParentExists(parentId: number, childId?: number): Promise<void> {
     const parent = await this.storyRepository.findById(parentId)
     if (!parent || parent.deletedAt) {

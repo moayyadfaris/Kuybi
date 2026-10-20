@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 
+/** Reference data, written by CountriesSeeder (data/enhanced-countries.ts) */
 @Entity({ name: 'countries' })
 export class Country {
   @PrimaryGeneratedColumn()
@@ -65,9 +66,9 @@ export class Country {
   @Column({ type: 'text', nullable: true })
   metadata?: string
 
-  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 
-  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date
 }

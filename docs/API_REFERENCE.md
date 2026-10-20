@@ -396,6 +396,7 @@ All story routes need a signed-in user. Which stories a user sees comes from the
   `lastModifiedBy`, and the exact location `latitude`, `longitude`, `address`) are returned
   only to callers who may update the story. `city`, `region` and `countryId` stay visible.
 - Page sizes (`limit`) are 1 to 100. Path enums and ids are validated (`400` otherwise).
+- `countryId` must be an existing, active country (`400` otherwise).
 
 ### Create Story
 
@@ -802,9 +803,12 @@ DELETE /api/v1/content/:postTypeSlug/:id           # delete:Content (soft)
 ### List Countries
 
 ```http
-GET /api/v1/countries
-Authorization: Bearer <token>
+GET /api/v1/countries?search=&continent=&isActive=&fields=iso,name&orderBy=name&orderDirection=asc&page=0&limit=50
 ```
+
+Public. `page` is 0-based; `limit` is 1–500. `search` (up to 100 characters) matches name,
+nicename, iso or iso3 literally (`%` and `_` are not wildcards). `fields` returns only the
+listed fields.
 
 ---
 

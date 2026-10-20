@@ -2,7 +2,15 @@ import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { PaginationQueryDto } from '@shared/dto/pagination-query.dto'
 import { Transform } from 'class-transformer'
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator'
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength
+} from 'class-validator'
 
 import { COUNTRY_SORT_FIELDS } from '../repositories/country.repository'
 
@@ -10,14 +18,18 @@ const ORDER_FIELDS = [...COUNTRY_SORT_FIELDS]
 const ORDER_DIRECTIONS = ['asc', 'desc'] as const
 
 export class ListCountriesQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ description: 'Fuzzy search across name, nicename, iso, iso3' })
+  @ApiPropertyOptional({
+    description: 'Matches name, nicename, iso or iso3 (contains, case-insensitive)'
+  })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   search?: string
 
   @ApiPropertyOptional({ description: 'Filter by continent', example: 'Europe' })
   @IsOptional()
   @IsString()
+  @MaxLength(30)
   continent?: string
 
   @ApiPropertyOptional({ description: 'Filter active countries only', type: Boolean })
@@ -38,6 +50,7 @@ export class ListCountriesQueryDto extends PaginationQueryDto {
     return value
   })
   @IsArray()
+  @ArrayMaxSize(25)
   @IsString({ each: true })
   fields?: string[]
 
