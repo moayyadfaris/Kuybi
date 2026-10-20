@@ -12,7 +12,7 @@ describe('SuperAdminGuard', () => {
   const contextFor = (user?: User) =>
     ({
       switchToHttp: () => ({
-        getRequest: () => ({ user, url: '/api/admin/users/1', method: 'PATCH' })
+        getRequest: () => ({ user, url: '/api/v1/admin/users/1', method: 'PATCH' })
       })
     }) as unknown as ExecutionContext
 

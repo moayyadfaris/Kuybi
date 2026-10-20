@@ -31,6 +31,10 @@ export interface AuditLogStatistics {
   failedCount: number
 }
 
+/**
+ * The audit trail: append-only rows and read-only queries for the super-admin API. Every
+ * list query takes a cap; nothing here updates or deletes a row.
+ */
 @Injectable()
 export class AuditLogRepository extends BaseRepository<AuditLog> {
   protected entityName = 'audit_log'
@@ -127,11 +131,17 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return qb.getMany()
   }
 
-  async findByIpAddress(ipAddress: string, startDate?: Date, endDate?: Date): Promise<AuditLog[]> {
+  async findByIpAddress(
+    ipAddress: string,
+    startDate: Date | undefined,
+    endDate: Date | undefined,
+    take: number
+  ): Promise<AuditLog[]> {
     const qb = this.repository
       .createQueryBuilder('log')
       .where('log.ipAddress = :ipAddress', { ipAddress })
       .orderBy('log.createdAt', 'DESC')
+      .take(take)
 
     if (startDate) {
       qb.andWhere('log.createdAt >= :startDate', { startDate })
@@ -144,13 +154,18 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return qb.getMany()
   }
 
-  async findCriticalEvents(startDate?: Date, endDate?: Date): Promise<AuditLog[]> {
+  async findCriticalEvents(
+    startDate: Date | undefined,
+    endDate: Date | undefined,
+    take: number
+  ): Promise<AuditLog[]> {
     const severities = [AuditSeverity.HIGH, AuditSeverity.CRITICAL]
 
     const qb = this.repository
       .createQueryBuilder('log')
       .where('log.severity IN (:...severities)', { severities })
       .orderBy('log.createdAt', 'DESC')
+      .take(take)
 
     if (startDate) {
       qb.andWhere('log.createdAt >= :startDate', { startDate })
@@ -192,11 +207,12 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     return qb.getMany()
   }
 
-  async findByRequestId(requestId: string): Promise<AuditLog[]> {
+  async findByRequestId(requestId: string, take: number): Promise<AuditLog[]> {
     return this.repository
       .createQueryBuilder('log')
       .where('log.requestId = :requestId', { requestId })
       .orderBy('log.createdAt', 'DESC')
+      .take(take)
       .getMany()
   }
 

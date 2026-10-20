@@ -7,6 +7,7 @@
 ## ✅ Recommended: Jest Integration Tests
 
 ### Location & Structure
+
 ```
 test/
 ├── integration/
@@ -30,13 +31,15 @@ test/
    - All story-related tests in `stories.integration.spec.ts`
 
 2. **Factories for Test Data**
+
    ```typescript
    const testUser = await UserFactory.createWithHashedPassword({
-     password: TEST_PASSWORD,
-   });
+     password: TEST_PASSWORD
+   })
    ```
 
 3. **Shared Setup/Teardown**
+
    ```typescript
    beforeEach(async () => {
      // Clear database tables
@@ -54,35 +57,36 @@ test/
    - Truncates tables between tests
    ```
 
-1. **Automated Testing**
+   ```
+5. **Automated Testing**
    - Runs with `npm run test:e2e`
    - Integrates with CI/CD pipelines
    - Part of the standard test suite
 
-2. **Better Assertions**
+6. **Better Assertions**
    - TypeScript type safety
    - Rich assertion library
    - Clear test descriptions
 
-3. **Test Isolation**
+7. **Test Isolation**
    - Setup and teardown hooks
    - Database cleanup
    - No side effects
 
-4. **Developer Experience**
+8. **Developer Experience**
    - IDE integration
    - Debugging support
    - Watch mode for development
 
-5. **Coverage Reports**
+9. **Coverage Reports**
    - Tracks test coverage
    - Identifies untested code
    - Quality metrics
 
-4. **Real Database & Redis**
-   - Uses test database (configured in `test.config.ts`)
-   - Uses ioredis-mock for Redis
-   - Truncates tables between tests
+10. **Real Database & Redis**
+    - Uses test database (configured in `test.config.ts`)
+    - Uses ioredis-mock for Redis
+    - Truncates tables between tests
 
 ### Admin Password Management Example
 
@@ -90,40 +94,42 @@ All admin password tests are in `test/integration/auth/auth.integration.spec.ts`
 
 ```typescript
 describe('Admin Password Management', () => {
-  describe('POST /api/admin/users/reset-password', () => {
+  describe('POST /api/v1/admin/users/reset-password', () => {
     it('should reset user password with system-generated password', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/admin/users/reset-password')
+        .post('/api/v1/admin/users/reset-password')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           userId: testUser.id,
           forcePasswordChange: true,
-          reason: 'Integration test',
+          reason: 'Integration test'
         })
-        .expect(201);
+        .expect(201)
 
-      expect(response.body).toHaveProperty('temporaryPassword');
-      expect(response.body.temporaryPassword).toHaveLength(12);
-    });
-  });
+      expect(response.body).toHaveProperty('temporaryPassword')
+      expect(response.body.temporaryPassword).toHaveLength(12)
+    })
+  })
 
   describe('Force Password Change Flow', () => {
     it('should detect force password change flag on login', async () => {
       // Test implementation
-    });
-  });
-});
+    })
+  })
+})
 ```
 
 ### Advantages
 
 ### Location
+
 - `test/scripts/*.sh`
 - Example: `test/scripts/test-admin-password.sh`
 
 ### Why They Were Created
 
 Shell scripts were initially created for:
+
 - Quick manual testing during development
 - Demonstrating API flows to non-developers
 - Debugging authentication issues quickly
@@ -158,6 +164,7 @@ Shell scripts were initially created for:
 ### When to Use Shell Scripts
 
 Shell scripts are acceptable ONLY for:
+
 - **Manual exploratory testing** - Quick API exploration
 - **Local debugging** - Debugging auth flows manually
 - **Documentation** - Showing API usage examples
@@ -186,16 +193,19 @@ test/
 ### Recommended Actions
 
 1. **Primary Testing**: Use integration tests following existing patterns
+
    ```bash
    npm run test:integration
    ```
 
 2. **Manual Testing**: Use shell scripts only when needed
+
    ```bash
    ./test/scripts/test-admin-password.sh
    ```
 
 3. **CI/CD**: Configure integration tests
+
    ```yaml
    # .github/workflows/test.yml
    - name: Run Integration tests
@@ -241,32 +251,35 @@ npm run start:dev
 ### For Integration Tests
 
 1. **Add tests to existing files**
+
    ```typescript
    // Add to test/integration/auth/auth.integration.spec.ts
    describe('New Auth Feature', () => {
      it('should work correctly', async () => {
        // Test implementation
-     });
-   });
+     })
+   })
    ```
 
 2. **Use factories for test data**
+
    ```typescript
    const testUser = await UserFactory.createWithHashedPassword({
      email: `test${testCounter}@example.com`,
-     password: TEST_PASSWORD,
-   });
+     password: TEST_PASSWORD
+   })
    ```
 
 3. **Follow existing cleanup patterns**
+
    ```typescript
    beforeEach(async () => {
      // Truncate tables
-     await dataSource.query(`TRUNCATE TABLE ...`);
+     await dataSource.query(`TRUNCATE TABLE ...`)
      // Clear cache
-     await TestRedis.clearCache();
+     await TestRedis.clearCache()
      // Create test data
-   });
+   })
    ```
 
 4. **Test full user flows**
@@ -282,6 +295,7 @@ npm run start:dev
 ### For Shell Scripts (If Used)
 
 1. **Add disclaimer at top**
+
    ```bash
    # ⚠️  FOR MANUAL TESTING ONLY
    # Use Jest E2E tests for automated testing
@@ -307,5 +321,6 @@ npm run start:dev
 - Comprehensive test coverage
 
 For this admin password management feature:
+
 - ✅ **Use**: `test/integration/auth/auth.integration.spec.ts` (all tests added here)
-- ⚠️  **Rarely use**: `test/scripts/test-*.sh` (manual only)
+- ⚠️ **Rarely use**: `test/scripts/test-*.sh` (manual only)

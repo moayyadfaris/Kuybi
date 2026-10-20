@@ -362,10 +362,10 @@ describe('Auth Integration Tests', () => {
   })
 
   describe('Admin Password Management', () => {
-    describe('POST /api/admin/users/reset-password (System-Generated)', () => {
+    describe('POST /api/v1/admin/users/reset-password (System-Generated)', () => {
       it('should reset user password with system-generated password', async () => {
         const response = await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -405,7 +405,7 @@ describe('Auth Integration Tests', () => {
 
         // Reset password
         await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -422,7 +422,7 @@ describe('Auth Integration Tests', () => {
 
       it('should fail to reset password for non-existent user', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: '00000000-0000-0000-0000-000000000000',
@@ -433,7 +433,7 @@ describe('Auth Integration Tests', () => {
 
       it('should fail without admin authorization', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/reset-password')
+          .post('/api/v1/admin/users/reset-password')
           .send({
             userId: testUser.id,
             reason: 'Unauthorized test'
@@ -442,12 +442,12 @@ describe('Auth Integration Tests', () => {
       })
     })
 
-    describe('POST /api/admin/users/set-password (Admin-Defined)', () => {
+    describe('POST /api/v1/admin/users/set-password (Admin-Defined)', () => {
       const adminDefinedPassword = 'AdminSet@456'
 
       it('should set specific password for user', async () => {
         const response = await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -468,7 +468,7 @@ describe('Auth Integration Tests', () => {
       it('should allow login with admin-defined password', async () => {
         // Set password
         await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -493,7 +493,7 @@ describe('Auth Integration Tests', () => {
 
       it('should validate password complexity', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .set('Authorization', `Bearer ${adminToken}`)
           .send({
             userId: testUser.id,
@@ -505,7 +505,7 @@ describe('Auth Integration Tests', () => {
 
       it('should fail without admin authorization', async () => {
         await request(app.getHttpServer())
-          .post('/api/admin/users/set-password')
+          .post('/api/v1/admin/users/set-password')
           .send({
             userId: testUser.id,
             newPassword: adminDefinedPassword,
@@ -522,7 +522,7 @@ describe('Auth Integration Tests', () => {
     beforeEach(async () => {
       // Reset password with force change flag
       const response = await request(app.getHttpServer())
-        .post('/api/admin/users/reset-password')
+        .post('/api/v1/admin/users/reset-password')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           userId: testUser.id,

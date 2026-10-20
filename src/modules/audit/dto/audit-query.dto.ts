@@ -155,7 +155,8 @@ export class GetByActionDto {
   limit?: number = 100
 }
 
-export class GetByIpAddressDto {
+/** A time range and a cap, for the event lists (critical, failed, per IP, per request) */
+export class GetEventsDto {
   @ApiPropertyOptional({ description: 'Start date (ISO 8601)' })
   @IsOptional()
   @IsDateString()
@@ -165,6 +166,14 @@ export class GetByIpAddressDto {
   @IsOptional()
   @IsDateString()
   endDate?: string
+
+  @ApiPropertyOptional({ description: 'Maximum number of logs', default: 100, maximum: 500 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  @Type(() => Number)
+  limit: number = 100
 }
 
 export class DetectSuspiciousActivityDto {

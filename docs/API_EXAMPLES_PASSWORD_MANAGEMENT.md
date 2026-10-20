@@ -4,7 +4,7 @@
 
 Super-admin users can reset or set user passwords with full control over whether users must change their password on first login.
 
-**Base URL:** `http://localhost:4040/api/admin/users`
+**Base URL:** `http://localhost:4040/api/v1/admin/users`
 
 **Authentication:** Super-admin JWT token required
 
@@ -21,6 +21,7 @@ Super-admin users can reset or set user passwords with full control over whether
 **Description:** System generates a secure random password and returns it to the admin. Best practice for security.
 
 **Use Cases:**
+
 - User forgot password
 - Emergency account recovery
 - Security incident response
@@ -37,11 +38,11 @@ Super-admin users can reset or set user passwords with full control over whether
 
 #### Parameters
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `userId` | string (UUID) | Yes | - | The ID of the user to reset password for |
-| `forcePasswordChange` | boolean | No | `true` | Force user to change password on next login |
-| `reason` | string | No | - | Reason for password reset (audit trail, max 500 chars) |
+| Field                 | Type          | Required | Default | Description                                            |
+| --------------------- | ------------- | -------- | ------- | ------------------------------------------------------ |
+| `userId`              | string (UUID) | Yes      | -       | The ID of the user to reset password for               |
+| `forcePasswordChange` | boolean       | No       | `true`  | Force user to change password on next login            |
+| `reason`              | string        | No       | -       | Reason for password reset (audit trail, max 500 chars) |
 
 #### Response
 
@@ -60,7 +61,7 @@ Super-admin users can reset or set user passwords with full control over whether
 #### Curl Example
 
 ```bash
-curl -X POST "http://localhost:4040/api/admin/users/reset-password" \
+curl -X POST "http://localhost:4040/api/v1/admin/users/reset-password" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -79,6 +80,7 @@ curl -X POST "http://localhost:4040/api/admin/users/reset-password" \
 **Description:** Admin sets a specific password for the user. Useful for creating temporary access credentials.
 
 **Use Cases:**
+
 - Emergency access with known password
 - Temporary password for specific purpose
 - Account setup with initial password
@@ -97,13 +99,13 @@ curl -X POST "http://localhost:4040/api/admin/users/reset-password" \
 
 #### Parameters
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `userId` | string (UUID) | Yes | - | The ID of the user to set password for |
-| `newPassword` | string | Yes | - | New password (must meet security requirements) |
-| `forcePasswordChange` | boolean | No | `true` | Force user to change password on next login |
-| `reason` | string | No | - | Reason for setting password (audit trail, max 500 chars) |
-| `sendNotification` | boolean | No | `false` | Send email notification to user |
+| Field                 | Type          | Required | Default | Description                                              |
+| --------------------- | ------------- | -------- | ------- | -------------------------------------------------------- |
+| `userId`              | string (UUID) | Yes      | -       | The ID of the user to set password for                   |
+| `newPassword`         | string        | Yes      | -       | New password (must meet security requirements)           |
+| `forcePasswordChange` | boolean       | No       | `true`  | Force user to change password on next login              |
+| `reason`              | string        | No       | -       | Reason for setting password (audit trail, max 500 chars) |
+| `sendNotification`    | boolean       | No       | `false` | Send email notification to user                          |
 
 #### Password Requirements
 
@@ -116,11 +118,13 @@ curl -X POST "http://localhost:4040/api/admin/users/reset-password" \
   - At least one special character (@$!%*?&)
 
 **Valid examples:**
+
 - `SecurePass@123`
 - `MyTemp!Pass99`
 - `Admin$2024Pass`
 
 **Invalid examples:**
+
 - `password` (no uppercase, no digit, no special char)
 - `PASSWORD123` (no lowercase, no special char)
 - `Pass@123` (less than 8 characters)
@@ -143,7 +147,7 @@ curl -X POST "http://localhost:4040/api/admin/users/reset-password" \
 #### Curl Example
 
 ```bash
-curl -X POST "http://localhost:4040/api/admin/users/set-password" \
+curl -X POST "http://localhost:4040/api/v1/admin/users/set-password" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -162,18 +166,18 @@ curl -X POST "http://localhost:4040/api/admin/users/set-password" \
 ### Using Axios
 
 ```typescript
-import axios from 'axios';
+import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:4040/api';
-const token = localStorage.getItem('accessToken');
+const API_BASE_URL = 'http://localhost:4040/api'
+const token = localStorage.getItem('accessToken')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Authorization': `Bearer ${token}`,
+    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json'
   }
-});
+})
 
 // 1. Reset user password (system generates password)
 async function resetUserPassword(
@@ -186,13 +190,13 @@ async function resetUserPassword(
       userId,
       forcePasswordChange,
       reason
-    });
-    
-    console.log('Temporary password:', response.data.temporaryPassword);
-    return response.data;
+    })
+
+    console.log('Temporary password:', response.data.temporaryPassword)
+    return response.data
   } catch (error) {
-    console.error('Failed to reset password:', error);
-    throw error;
+    console.error('Failed to reset password:', error)
+    throw error
   }
 }
 
@@ -211,47 +215,47 @@ async function setUserPassword(
       forcePasswordChange,
       reason,
       sendNotification
-    });
-    
-    return response.data;
+    })
+
+    return response.data
   } catch (error) {
-    console.error('Failed to set password:', error);
-    throw error;
+    console.error('Failed to set password:', error)
+    throw error
   }
 }
 
 // 3. Validate password before setting (frontend validation)
 function validatePassword(password: string): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-  
+  const errors: string[] = []
+
   if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
+    errors.push('Password must be at least 8 characters long')
   }
-  
+
   if (password.length > 128) {
-    errors.push('Password must not exceed 128 characters');
+    errors.push('Password must not exceed 128 characters')
   }
-  
+
   if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
+    errors.push('Password must contain at least one lowercase letter')
   }
-  
+
   if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
+    errors.push('Password must contain at least one uppercase letter')
   }
-  
+
   if (!/\d/.test(password)) {
-    errors.push('Password must contain at least one digit');
+    errors.push('Password must contain at least one digit')
   }
-  
+
   if (!/[@$!%*?&]/.test(password)) {
-    errors.push('Password must contain at least one special character (@$!%*?&)');
+    errors.push('Password must contain at least one special character (@$!%*?&)')
   }
-  
+
   return {
     valid: errors.length === 0,
     errors
-  };
+  }
 }
 
 // Usage examples:
@@ -261,8 +265,8 @@ const result1 = await resetUserPassword(
   '550e8400-e29b-41d4-a716-446655440000',
   true,
   'User forgot password'
-);
-console.log('New temporary password:', result1.temporaryPassword);
+)
+console.log('New temporary password:', result1.temporaryPassword)
 
 // Set specific password
 const result2 = await setUserPassword(
@@ -271,15 +275,15 @@ const result2 = await setUserPassword(
   true,
   'Emergency access required',
   false
-);
-console.log('Password changed by:', result2.changedBy);
+)
+console.log('Password changed by:', result2.changedBy)
 
 // Validate password before setting
-const validation = validatePassword('MyPass@123');
+const validation = validatePassword('MyPass@123')
 if (validation.valid) {
-  await setUserPassword(userId, 'MyPass@123', true);
+  await setUserPassword(userId, 'MyPass@123', true)
 } else {
-  console.error('Invalid password:', validation.errors);
+  console.error('Invalid password:', validation.errors)
 }
 ```
 
@@ -313,11 +317,11 @@ export function UserPasswordReset({ userId, userEmail }: { userId: string; userE
   const handleResetPassword = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const token = localStorage.getItem('accessToken');
       const response = await axios.post(
-        'http://localhost:4040/api/admin/users/reset-password',
+        'http://localhost:4040/api/v1/admin/users/reset-password',
         {
           userId,
           forcePasswordChange: forceChange,
@@ -330,7 +334,7 @@ export function UserPasswordReset({ userId, userEmail }: { userId: string; userE
           }
         }
       );
-      
+
       setResult(response.data);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to reset password');
@@ -347,7 +351,7 @@ export function UserPasswordReset({ userId, userEmail }: { userId: string; userE
   return (
     <div className="password-reset-container">
       <h3>Reset Password for {userEmail}</h3>
-      
+
       {!result ? (
         <>
           <div className="form-group">
@@ -383,7 +387,7 @@ export function UserPasswordReset({ userId, userEmail }: { userId: string; userE
       ) : (
         <div className="success-result">
           <h4>Password Reset Successful!</h4>
-          
+
           <div className="temp-password">
             <label>Temporary Password:</label>
             <div className="password-display">
@@ -445,14 +449,14 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
 
   const validatePassword = (pwd: string): string[] => {
     const errors: string[] = [];
-    
+
     if (pwd.length < 8) errors.push('At least 8 characters');
     if (pwd.length > 128) errors.push('Maximum 128 characters');
     if (!/[a-z]/.test(pwd)) errors.push('One lowercase letter');
     if (!/[A-Z]/.test(pwd)) errors.push('One uppercase letter');
     if (!/\d/.test(pwd)) errors.push('One digit');
     if (!/[@$!%*?&]/.test(pwd)) errors.push('One special character (@$!%*?&)');
-    
+
     return errors;
   };
 
@@ -461,14 +465,14 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
 
   const handleSetPassword = async () => {
     if (!isValid) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const token = localStorage.getItem('accessToken');
       const response = await axios.post(
-        'http://localhost:4040/api/admin/users/set-password',
+        'http://localhost:4040/api/v1/admin/users/set-password',
         {
           userId,
           newPassword: password,
@@ -483,7 +487,7 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
           }
         }
       );
-      
+
       setResult(response.data);
       setPassword('');
       setConfirmPassword('');
@@ -497,7 +501,7 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
   return (
     <div className="password-set-container">
       <h3>Set Password for {userEmail}</h3>
-      
+
       {!result ? (
         <>
           <div className="form-group">
@@ -513,7 +517,7 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
-            
+
             {password && passwordErrors.length > 0 && (
               <ul className="validation-errors">
                 {passwordErrors.map((err, idx) => (
@@ -580,7 +584,7 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
       ) : (
         <div className="success-result">
           <h4>Password Set Successfully!</h4>
-          
+
           <div className="info">
             <p><strong>User:</strong> {result.email}</p>
             <p><strong>Force Change:</strong> {result.forcePasswordChange ? 'Yes' : 'No'}</p>
@@ -642,6 +646,7 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
 ## Error Responses
 
 ### 401 Unauthorized
+
 ```json
 {
   "statusCode": 401,
@@ -649,9 +654,11 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
   "error": "Unauthorized"
 }
 ```
+
 **Solution:** Provide valid super-admin JWT token
 
 ### 403 Forbidden
+
 ```json
 {
   "statusCode": 403,
@@ -659,9 +666,11 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
   "error": "Forbidden"
 }
 ```
+
 **Solution:** User must be super-admin
 
 ### 404 User Not Found
+
 ```json
 {
   "statusCode": 404,
@@ -669,9 +678,11 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
   "error": "Not Found"
 }
 ```
+
 **Solution:** Verify the userId is correct
 
 ### 400 Bad Request (Inactive User)
+
 ```json
 {
   "statusCode": 400,
@@ -679,9 +690,11 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
   "error": "Bad Request"
 }
 ```
+
 **Solution:** Activate user account first
 
 ### 400 Bad Request (Weak Password)
+
 ```json
 {
   "statusCode": 400,
@@ -692,6 +705,7 @@ export function UserPasswordSet({ userId, userEmail }: { userId: string; userEma
   "error": "Bad Request"
 }
 ```
+
 **Solution:** Use a stronger password that meets all requirements
 
 ---

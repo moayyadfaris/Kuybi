@@ -3,6 +3,7 @@
 Complete reference for super-admin user management operations with practical examples.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Authentication](#authentication)
 - [Update User Endpoint](#update-user-endpoint)
@@ -20,6 +21,7 @@ Complete reference for super-admin user management operations with practical exa
 **Base URL**: `http://localhost:4040/api`
 
 The Admin User Management API allows super-administrators to:
+
 - ✅ Update any user field including sensitive settings
 - ✅ Change user roles and permissions
 - ✅ Activate/deactivate accounts
@@ -29,6 +31,7 @@ The Admin User Management API allows super-administrators to:
 - ✅ Update personal information with validation
 
 **All operations**:
+
 - Are super-admin only (SuperAdminGuard)
 - Create HIGH severity audit logs
 - Include detailed change tracking
@@ -68,21 +71,21 @@ Update any user field. All fields are optional - only send fields you want to ch
   name?: string                    // 1-50 chars
   email?: string                   // Valid email, max 50 chars, must be unique
   mobileNumber?: string            // E.164 format (+1234567890), must be unique
-  
+
   // Role & Permissions
   primaryRoleId?: number           // Valid role ID (validated against roles table)
-  
+
   // Account Status
   isActive?: boolean               // Enable/disable account
   isVerified?: boolean             // Mark as verified
   isEmailVerified?: boolean        // Mark email as verified
-  
+
   // Security Settings
   forcePasswordChange?: boolean    // Require password change on next login
   isLocked?: boolean               // Lock/unlock account
   lockReason?: string              // Reason for lock (max 100 chars)
   failedLoginAttempts?: number     // Reset failed login counter (min 0)
-  
+
   // Audit Trail
   reason?: string                  // Reason for this update (max 500 chars)
 }
@@ -116,14 +119,14 @@ Update any user field. All fields are optional - only send fields you want to ch
 
 #### Status Codes
 
-| Code | Description |
-|------|-------------|
-| 200 | User updated successfully |
-| 400 | Invalid data or role not found |
-| 401 | Not authenticated |
-| 403 | Not super-admin |
-| 404 | User not found |
-| 409 | Email or mobile number already in use |
+| Code | Description                           |
+| ---- | ------------------------------------- |
+| 200  | User updated successfully             |
+| 400  | Invalid data or role not found        |
+| 401  | Not authenticated                     |
+| 403  | Not super-admin                       |
+| 404  | User not found                        |
+| 409  | Email or mobile number already in use |
 
 ---
 
@@ -132,7 +135,7 @@ Update any user field. All fields are optional - only send fields you want to ch
 ### 1. Update Personal Information
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -146,7 +149,7 @@ curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb
 ### 2. Change User Role
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -158,7 +161,7 @@ curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb
 ### 3. Deactivate Account
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -170,7 +173,7 @@ curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb
 ### 4. Lock Account (Security Incident)
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -183,7 +186,7 @@ curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb
 ### 5. Unlock Account and Reset Failed Logins
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -196,7 +199,7 @@ curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb
 ### 6. Force Password Change
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -208,7 +211,7 @@ curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb
 ### 7. Verify User and Email
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -221,7 +224,7 @@ curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb
 ### 8. Comprehensive Update (Multiple Fields)
 
 ```bash
-curl -X PATCH "http://localhost:4040/api/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
+curl -X PATCH "http://localhost:4040/api/v1/admin/users/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" \
   -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -292,16 +295,12 @@ export async function updateUser(
   data: AdminUpdateUserRequest,
   token: string
 ): Promise<AdminUpdateUserResponse> {
-  const response = await axios.patch(
-    `${API_BASE_URL}/admin/users/${userId}`,
-    data,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+  const response = await axios.patch(`${API_BASE_URL}/admin/users/${userId}`, data, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
     }
-  )
+  })
   return response.data
 }
 
@@ -316,11 +315,7 @@ export async function updateUserInfo(
   reason: string,
   token: string
 ): Promise<AdminUpdateUserResponse> {
-  return updateUser(
-    userId,
-    { name, email, mobileNumber: mobile, reason },
-    token
-  )
+  return updateUser(userId, { name, email, mobileNumber: mobile, reason }, token)
 }
 
 /**
@@ -356,11 +351,7 @@ export async function lockAccount(
   adminReason: string,
   token: string
 ): Promise<AdminUpdateUserResponse> {
-  return updateUser(
-    userId,
-    { isLocked: true, lockReason, reason: adminReason },
-    token
-  )
+  return updateUser(userId, { isLocked: true, lockReason, reason: adminReason }, token)
 }
 
 /**
@@ -371,11 +362,7 @@ export async function unlockAccount(
   reason: string,
   token: string
 ): Promise<AdminUpdateUserResponse> {
-  return updateUser(
-    userId,
-    { isLocked: false, failedLoginAttempts: 0, reason },
-    token
-  )
+  return updateUser(userId, { isLocked: false, failedLoginAttempts: 0, reason }, token)
 }
 
 /**
@@ -397,11 +384,7 @@ export async function verifyUser(
   reason: string,
   token: string
 ): Promise<AdminUpdateUserResponse> {
-  return updateUser(
-    userId,
-    { isVerified: true, isEmailVerified: true, reason },
-    token
-  )
+  return updateUser(userId, { isVerified: true, isEmailVerified: true, reason }, token)
 }
 
 // Example usage
@@ -423,12 +406,7 @@ async function example() {
     console.log('Updated by:', result.updatedBy)
 
     // Change role
-    const roleResult = await changeUserRole(
-      userId,
-      2,
-      'Promotion to admin',
-      token
-    )
+    const roleResult = await changeUserRole(userId, 2, 'Promotion to admin', token)
     console.log('Role changed:', roleResult.user.primaryRoleId)
 
     // Lock account
@@ -492,9 +470,10 @@ export function isValidLockReason(reason: string): boolean {
 /**
  * Pre-validate update request
  */
-export function validateUpdateRequest(
-  data: AdminUpdateUserRequest
-): { valid: boolean; errors: string[] } {
+export function validateUpdateRequest(data: AdminUpdateUserRequest): {
+  valid: boolean
+  errors: string[]
+} {
   const errors: string[] = []
 
   if (data.name !== undefined && !isValidName(data.name)) {
@@ -626,7 +605,10 @@ export const UserEditForm: React.FC<UserEditFormProps> = ({
       return
     }
 
-    if (Object.keys(updates).length === 0 || (Object.keys(updates).length === 1 && updates.reason)) {
+    if (
+      Object.keys(updates).length === 0 ||
+      (Object.keys(updates).length === 1 && updates.reason)
+    ) {
       setError('No changes detected')
       return
     }
@@ -674,7 +656,7 @@ export const UserEditForm: React.FC<UserEditFormProps> = ({
       {/* Personal Information */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Personal Information</h3>
-        
+
         <div>
           <label className="block text-sm font-medium mb-1">Name</label>
           <input
@@ -698,9 +680,7 @@ export const UserEditForm: React.FC<UserEditFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Mobile Number (E.164 format)
-          </label>
+          <label className="block text-sm font-medium mb-1">Mobile Number (E.164 format)</label>
           <input
             type="tel"
             value={formData.mobileNumber}
@@ -731,7 +711,7 @@ export const UserEditForm: React.FC<UserEditFormProps> = ({
       {/* Account Status */}
       <div className="space-y-2">
         <h3 className="text-lg font-semibold">Account Status</h3>
-        
+
         <label className="flex items-center space-x-2">
           <input
             type="checkbox"
@@ -763,7 +743,7 @@ export const UserEditForm: React.FC<UserEditFormProps> = ({
       {/* Security Settings */}
       <div className="space-y-2">
         <h3 className="text-lg font-semibold">Security Settings</h3>
-        
+
         <label className="flex items-center space-x-2">
           <input
             type="checkbox"
@@ -783,13 +763,13 @@ export const UserEditForm: React.FC<UserEditFormProps> = ({
         </label>
 
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Failed Login Attempts
-          </label>
+          <label className="block text-sm font-medium mb-1">Failed Login Attempts</label>
           <input
             type="number"
             value={formData.failedLoginAttempts}
-            onChange={e => setFormData({ ...formData, failedLoginAttempts: Number(e.target.value) })}
+            onChange={e =>
+              setFormData({ ...formData, failedLoginAttempts: Number(e.target.value) })
+            }
             className="w-full px-3 py-2 border rounded"
             min="0"
           />
@@ -809,9 +789,7 @@ export const UserEditForm: React.FC<UserEditFormProps> = ({
           maxLength={500}
           placeholder="Explain why you're making this update (required for audit trail)"
         />
-        <div className="text-sm text-gray-500 mt-1">
-          {formData.reason.length}/500 characters
-        </div>
+        <div className="text-sm text-gray-500 mt-1">{formData.reason.length}/500 characters</div>
       </div>
 
       {/* Actions */}
@@ -869,10 +847,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleAction = async (
-    action: () => Promise<any>,
-    successMessage: string
-  ) => {
+  const handleAction = async (action: () => Promise<any>, successMessage: string) => {
     setError(null)
     setLoading(true)
 
@@ -901,8 +876,13 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         <button
           onClick={() =>
             handleAction(
-              () => setAccountStatus(userId, !currentStatus.isActive, 
-                `Quick ${currentStatus.isActive ? 'deactivation' : 'activation'} by admin`, token),
+              () =>
+                setAccountStatus(
+                  userId,
+                  !currentStatus.isActive,
+                  `Quick ${currentStatus.isActive ? 'deactivation' : 'activation'} by admin`,
+                  token
+                ),
               `Account ${currentStatus.isActive ? 'deactivated' : 'activated'}`
             )
           }
@@ -919,9 +899,10 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         <button
           onClick={() =>
             handleAction(
-              () => currentStatus.isLocked
-                ? unlockAccount(userId, 'Admin unlocked account', token)
-                : lockAccount(userId, 'ADMIN_LOCK', 'Admin locked account', token),
+              () =>
+                currentStatus.isLocked
+                  ? unlockAccount(userId, 'Admin unlocked account', token)
+                  : lockAccount(userId, 'ADMIN_LOCK', 'Admin locked account', token),
               `Account ${currentStatus.isLocked ? 'unlocked' : 'locked'}`
             )
           }
@@ -975,60 +956,73 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 ### Common Errors
 
 #### 401 Unauthorized
+
 ```json
 {
   "statusCode": 401,
   "message": "Unauthorized"
 }
 ```
+
 **Solution**: Verify JWT token is valid and not expired.
 
 #### 403 Forbidden
+
 ```json
 {
   "statusCode": 403,
   "message": "Forbidden resource"
 }
 ```
+
 **Solution**: Ensure authenticated user has super-admin role. Regular admins cannot access this endpoint.
 
 #### 404 Not Found
+
 ```json
 {
   "statusCode": 404,
   "message": "User with ID a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 not found"
 }
 ```
+
 **Solution**: Verify the user ID exists in the database.
 
 #### 400 Bad Request - Invalid Role
+
 ```json
 {
   "statusCode": 400,
   "message": "Role with ID 999 not found"
 }
 ```
+
 **Solution**: Verify the role ID exists. Fetch available roles first.
 
 #### 409 Conflict - Email Already Exists
+
 ```json
 {
   "statusCode": 409,
   "message": "Email john@example.com is already in use"
 }
 ```
+
 **Solution**: Choose a different email or check if the user already has an account.
 
 #### 409 Conflict - Mobile Already Exists
+
 ```json
 {
   "statusCode": 409,
   "message": "Mobile number +1234567890 is already in use"
 }
 ```
+
 **Solution**: Choose a different mobile number.
 
 #### 400 Bad Request - Validation Error
+
 ```json
 {
   "statusCode": 400,
@@ -1040,6 +1034,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   "error": "Bad Request"
 }
 ```
+
 **Solution**: Fix validation errors in request data.
 
 ---
@@ -1051,6 +1046,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 Every user update creates a HIGH severity audit log with:
 
 **Logged Information**:
+
 - **Admin**: Who made the change (userId, email)
 - **Target**: Which user was modified (userId, email)
 - **Changes**: Previous and new values for all modified fields
@@ -1058,6 +1054,7 @@ Every user update creates a HIGH severity audit log with:
 - **Metadata**: Change count, timestamp, context
 
 **Audit Log Entry Example**:
+
 ```typescript
 {
   userId: "admin-uuid",
@@ -1091,6 +1088,7 @@ Every user update creates a HIGH severity audit log with:
 ### PinoLogger Output
 
 All updates also log to application logs:
+
 ```json
 {
   "level": "warn",
@@ -1123,6 +1121,7 @@ All updates also log to application logs:
 ## Best Practices
 
 ### 1. Always Provide a Reason
+
 ```typescript
 // ❌ Bad - No reason
 await updateUser(userId, { isActive: false }, token)
@@ -1139,6 +1138,7 @@ await updateUser(
 ```
 
 ### 2. Validate Before Sending
+
 ```typescript
 // Pre-validate to provide better UX
 const validation = validateUpdateRequest(updateData)
@@ -1153,6 +1153,7 @@ await updateUser(userId, updateData, token)
 ```
 
 ### 3. Only Send Changed Fields
+
 ```typescript
 // Build update object with only modified fields
 const updates: AdminUpdateUserRequest = {}
@@ -1167,6 +1168,7 @@ if (Object.keys(updates).length > 0) {
 ```
 
 ### 4. Handle Conflicts Gracefully
+
 ```typescript
 try {
   await updateUser(userId, { email: newEmail }, token)
@@ -1182,27 +1184,37 @@ try {
 ```
 
 ### 5. Lock/Unlock Pattern
+
 ```typescript
 // When locking, always provide reason
 if (shouldLock) {
-  await updateUser(userId, {
-    isLocked: true,
-    lockReason: 'SECURITY_VIOLATION',
-    reason: 'Multiple failed login attempts from suspicious IPs'
-  }, token)
+  await updateUser(
+    userId,
+    {
+      isLocked: true,
+      lockReason: 'SECURITY_VIOLATION',
+      reason: 'Multiple failed login attempts from suspicious IPs'
+    },
+    token
+  )
 }
 
 // When unlocking, reset failed attempts
 if (shouldUnlock) {
-  await updateUser(userId, {
-    isLocked: false,
-    failedLoginAttempts: 0,
-    reason: 'User identity verified via phone call'
-  }, token)
+  await updateUser(
+    userId,
+    {
+      isLocked: false,
+      failedLoginAttempts: 0,
+      reason: 'User identity verified via phone call'
+    },
+    token
+  )
 }
 ```
 
 ### 6. Role Changes
+
 ```typescript
 // Fetch available roles first
 const roles = await getRoles(token)
@@ -1214,28 +1226,38 @@ if (!roleExists) {
   return
 }
 
-await updateUser(userId, {
-  primaryRoleId: newRoleId,
-  reason: `Role changed to ${roles.find(r => r.id === newRoleId)?.name} per HR approval`
-}, token)
+await updateUser(
+  userId,
+  {
+    primaryRoleId: newRoleId,
+    reason: `Role changed to ${roles.find(r => r.id === newRoleId)?.name} per HR approval`
+  },
+  token
+)
 ```
 
 ### 7. Comprehensive Updates
+
 ```typescript
 // When making multiple changes, include all in one request
-await updateUser(userId, {
-  name: 'Jane Doe',
-  email: 'jane@company.com',
-  primaryRoleId: 3,
-  isActive: true,
-  isVerified: true,
-  isEmailVerified: true,
-  forcePasswordChange: false,
-  reason: 'Onboarding new team lead with verified credentials'
-}, token)
+await updateUser(
+  userId,
+  {
+    name: 'Jane Doe',
+    email: 'jane@company.com',
+    primaryRoleId: 3,
+    isActive: true,
+    isVerified: true,
+    isEmailVerified: true,
+    forcePasswordChange: false,
+    reason: 'Onboarding new team lead with verified credentials'
+  },
+  token
+)
 ```
 
 ### 8. Error Boundaries
+
 ```typescript
 // Wrap update operations in try-catch with specific error handling
 async function safeUpdateUser(userId: string, data: AdminUpdateUserRequest, token: string) {
@@ -1288,6 +1310,6 @@ The Admin User Management API provides comprehensive user administration with:
 ✅ **Security Enforcement**: Force password changes, reset failed attempts  
 ✅ **Complete Audit Trail**: HIGH severity logs with detailed change tracking  
 ✅ **Validation**: Email/mobile uniqueness, role existence checks  
-✅ **Safe Operations**: Only super-admins can execute updates  
+✅ **Safe Operations**: Only super-admins can execute updates
 
 All operations are logged for compliance and security auditing with full context of who, what, when, and why changes were made.

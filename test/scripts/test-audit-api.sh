@@ -22,29 +22,29 @@ echo "✅ Token obtained"
 echo ""
 
 # Test 1: Search
-echo "1️⃣  Testing /api/audit/search"
-SEARCH_RESULT=$(curl -s -X GET "http://localhost:4040/api/audit/search?limit=5" \
+echo "1️⃣  Testing /api/v1/audit/search"
+SEARCH_RESULT=$(curl -s -X GET "http://localhost:4040/api/v1/audit/search?limit=5" \
   -H "Authorization: Bearer $TOKEN")
 echo "$SEARCH_RESULT" | python3 -m json.tool | head -15
 echo ""
 
 # Test 2: Statistics
-echo "2️⃣  Testing /api/audit/statistics"
-STATS_RESULT=$(curl -s -X GET "http://localhost:4040/api/audit/statistics" \
+echo "2️⃣  Testing /api/v1/audit/statistics"
+STATS_RESULT=$(curl -s -X GET "http://localhost:4040/api/v1/audit/statistics" \
   -H "Authorization: Bearer $TOKEN")
 echo "$STATS_RESULT" | python3 -m json.tool | head -20
 echo ""
 
 # Test 3: Critical Events
-echo "3️⃣  Testing /api/audit/critical-events"
-CRITICAL_RESULT=$(curl -s -X GET "http://localhost:4040/api/audit/critical-events" \
+echo "3️⃣  Testing /api/v1/audit/critical-events"
+CRITICAL_RESULT=$(curl -s -X GET "http://localhost:4040/api/v1/audit/critical-events" \
   -H "Authorization: Bearer $TOKEN")
 echo "$CRITICAL_RESULT" | python3 -m json.tool | head -10
 echo ""
 
 # Test 4: Failed Operations
-echo "4️⃣  Testing /api/audit/failed-operations"
-FAILED_RESULT=$(curl -s -X GET "http://localhost:4040/api/audit/failed-operations" \
+echo "4️⃣  Testing /api/v1/audit/failed-operations"
+FAILED_RESULT=$(curl -s -X GET "http://localhost:4040/api/v1/audit/failed-operations" \
   -H "Authorization: Bearer $TOKEN")
 echo "$FAILED_RESULT" | python3 -m json.tool | head -10
 echo ""

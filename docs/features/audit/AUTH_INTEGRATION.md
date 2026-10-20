@@ -144,21 +144,21 @@ This integration helps meet compliance requirements:
 **Query recent authentication events:**
 
 ```bash
-curl -X GET "http://localhost:4040/api/audit/search?limit=10" \
+curl -X GET "http://localhost:4040/api/v1/audit/search?limit=10" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 **Get user activity:**
 
 ```bash
-curl -X GET "http://localhost:4040/api/audit/user/{userId}/activity" \
+curl -X GET "http://localhost:4040/api/v1/audit/user/{userId}/activity" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 **Monitor failed logins (future):**
 
 ```bash
-curl -X GET "http://localhost:4040/api/audit/failed-operations" \
+curl -X GET "http://localhost:4040/api/v1/audit/failed-operations" \
   -H "Authorization: Bearer $TOKEN"
 ```
 

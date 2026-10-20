@@ -38,6 +38,10 @@ export interface EntityHistorySummary {
   changeFrequency: Record<string, number>
 }
 
+/** Rows read to look for suspicious patterns in a user's recent activity */
+const SUSPICIOUS_SCAN_LIMIT = 1000
+
+/** Read side of the audit trail for the super-admin API: searches, summaries, lookups */
 @Injectable()
 export class AuditQueryService {
   constructor(
@@ -55,8 +59,6 @@ export class AuditQueryService {
     endDate?: Date,
     limit: number = 50
   ): Promise<UserActivitySummary> {
-    this.logger.info({ userId, startDate, endDate, limit }, 'Fetching user activity')
-
     const logs = await this.auditLogRepository.findByUserId(userId, startDate, endDate, {
       take: limit
     })
@@ -92,8 +94,6 @@ export class AuditQueryService {
       failedActionsCount
     }
 
-    this.logger.info({ userId, totalActions: summary.totalActions }, 'User activity fetched')
-
     return summary
   }
 
@@ -105,8 +105,6 @@ export class AuditQueryService {
     entityId: string,
     limit: number = 100
   ): Promise<EntityHistorySummary> {
-    this.logger.info({ entityType, entityId, limit }, 'Fetching entity history')
-
     const history = await this.auditLogRepository.findEntityHistory(entityType, entityId, {
       take: limit
     })
@@ -122,24 +120,19 @@ export class AuditQueryService {
       changeFrequency[log.action] = (changeFrequency[log.action] || 0) + 1
     })
 
-    // Find creation event
-    const creationLog = history.reverse().find(log => log.action === AuditAction.CREATE)
+    // history is newest first; the creation is the oldest CREATE
+    const creationLog = [...history].reverse().find(log => log.action === AuditAction.CREATE)
 
     const summary: EntityHistorySummary = {
       entityType,
       entityId,
       totalChanges: history.length,
-      history: history.reverse(), // Most recent first
+      history,
       createdAt: creationLog?.createdAt || null,
       lastModifiedAt: history[0]?.createdAt || null,
       modifiedByUsers: Array.from(modifiedByUsers),
       changeFrequency
     }
-
-    this.logger.info(
-      { entityType, entityId, totalChanges: summary.totalChanges },
-      'Entity history fetched'
-    )
 
     return summary
   }
@@ -151,8 +144,6 @@ export class AuditQueryService {
     filters: AuditLogFilters,
     pagination: PaginationQueryDto
   ): Promise<AuditLogSearchResult> {
-    this.logger.info({ filters, pagination }, 'Searching audit logs')
-
     const { page = 1, limit = 50 } = pagination
     const skip = (page - 1) * limit
 
@@ -173,8 +164,6 @@ export class AuditQueryService {
       hasPrevious: page > 1
     }
 
-    this.logger.info({ total, page, totalPages }, 'Audit logs search completed')
-
     return result
   }
 
@@ -182,26 +171,14 @@ export class AuditQueryService {
    * Get audit log statistics
    */
   async getStatistics(startDate?: Date, endDate?: Date) {
-    this.logger.info({ startDate, endDate }, 'Fetching audit statistics')
-
-    const stats = await this.auditLogRepository.getStatistics(startDate, endDate)
-
-    this.logger.info({ total: stats.total }, 'Audit statistics fetched')
-
-    return stats
+    return this.auditLogRepository.getStatistics(startDate, endDate)
   }
 
   /**
    * Get critical/high-severity events for security monitoring
    */
-  async getCriticalEvents(startDate?: Date, endDate?: Date): Promise<AuditLog[]> {
-    this.logger.info({ startDate, endDate }, 'Fetching critical events')
-
-    const events = await this.auditLogRepository.findCriticalEvents(startDate, endDate)
-
-    this.logger.warn({ count: events.length }, 'Critical security events fetched')
-
-    return events
+  async getCriticalEvents(startDate?: Date, endDate?: Date, limit = 100): Promise<AuditLog[]> {
+    return this.auditLogRepository.findCriticalEvents(startDate, endDate, limit)
   }
 
   /**
@@ -212,70 +189,40 @@ export class AuditQueryService {
     endDate?: Date,
     limit: number = 100
   ): Promise<AuditLog[]> {
-    this.logger.info({ startDate, endDate, limit }, 'Fetching failed operations')
-
-    const failed = await this.auditLogRepository.findFailedOperations(startDate, endDate, {
-      take: limit
-    })
-
-    this.logger.info({ count: failed.length }, 'Failed operations fetched')
-
-    return failed
+    return this.auditLogRepository.findFailedOperations(startDate, endDate, { take: limit })
   }
 
   /**
    * Get logs by specific action type(s)
    */
-  async getByAction(action: AuditAction | AuditAction[], limit: number = 100): Promise<AuditLog[]> {
-    const actions = Array.isArray(action) ? action : [action]
-    this.logger.info({ actions, limit }, 'Fetching logs by action')
-
-    const logs = await this.auditLogRepository.findByAction(action, { take: limit })
-
-    this.logger.info({ count: logs.length }, 'Logs by action fetched')
-
-    return logs
+  getByAction(action: AuditAction | AuditAction[], limit: number = 100): Promise<AuditLog[]> {
+    return this.auditLogRepository.findByAction(action, { take: limit })
   }
 
   /**
    * Get logs by IP address for security analysis
    */
-  async getByIpAddress(ipAddress: string, startDate?: Date, endDate?: Date): Promise<AuditLog[]> {
-    this.logger.info({ ipAddress, startDate, endDate }, 'Fetching logs by IP')
-
-    const logs = await this.auditLogRepository.findByIpAddress(ipAddress, startDate, endDate)
-
-    this.logger.info({ ipAddress, count: logs.length }, 'Logs by IP fetched')
-
-    return logs
+  async getByIpAddress(
+    ipAddress: string,
+    startDate?: Date,
+    endDate?: Date,
+    limit = 100
+  ): Promise<AuditLog[]> {
+    return this.auditLogRepository.findByIpAddress(ipAddress, startDate, endDate, limit)
   }
 
   /**
    * Get logs by request ID for distributed tracing
    */
-  async getByRequestId(requestId: string): Promise<AuditLog[]> {
-    this.logger.info({ requestId }, 'Fetching logs by request ID')
-
-    const logs = await this.auditLogRepository.findByRequestId(requestId)
-
-    this.logger.info({ requestId, count: logs.length }, 'Logs by request ID fetched')
-
-    return logs
+  async getByRequestId(requestId: string, limit = 100): Promise<AuditLog[]> {
+    return this.auditLogRepository.findByRequestId(requestId, limit)
   }
 
   /**
    * Get single audit log by ID
    */
   async getById(id: string): Promise<AuditLog | null> {
-    this.logger.info({ id }, 'Fetching audit log by ID')
-
-    const log = await this.auditLogRepository.findById(id)
-
-    if (!log) {
-      this.logger.warn({ id }, 'Audit log not found')
-    }
-
-    return log
+    return this.auditLogRepository.findById(id)
   }
 
   /**
@@ -291,7 +238,10 @@ export class AuditQueryService {
   }> {
     const startDate = new Date(Date.now() - timeWindowMinutes * 60 * 1000)
 
-    const logs = await this.auditLogRepository.findByUserId(userId, startDate)
+    // Enough rows for every rule below (the busiest one flags more than 100)
+    const logs = await this.auditLogRepository.findByUserId(userId, startDate, undefined, {
+      take: SUSPICIOUS_SCAN_LIMIT
+    })
 
     const reasons: string[] = []
     let isSuspicious = false

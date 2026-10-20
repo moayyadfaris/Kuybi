@@ -41,6 +41,10 @@ export interface LogActionOptions {
   metadata?: Record<string, unknown>
 }
 
+/**
+ * Writes the audit trail: one row per security-relevant or administrative action, with
+ * who did it, from where, what changed and how severe it is. Read through AuditQueryService.
+ */
 @Injectable()
 export class AuditService {
   constructor(
@@ -69,7 +73,9 @@ export class AuditService {
   }
 
   /**
-   * Main logging method - logs any action with full context
+   * Records an action. Best effort: the action it describes has already happened, so a
+   * failed write is reported (Sentry, error log) and returns null instead of failing the
+   * request that did the action.
    */
   async logAction(context: AuditContext, options: LogActionOptions): Promise<AuditLog | null> {
     if (!this.isAuditEnabled()) {
@@ -135,14 +141,10 @@ export class AuditService {
       })
 
       this.logger.error(
-        {
-          action: options.action,
-          error: errorMessage(error),
-          context
-        },
+        { action: options.action, userId: context.userId, error: errorMessage(error) },
         'Failed to create audit log'
       )
-      throw error
+      return null
     }
   }
 

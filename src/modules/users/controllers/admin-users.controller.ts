@@ -27,7 +27,7 @@ import { AdminUserManagementService } from '../services/admin-user-management.se
 
 @ApiTags('Admin - Users')
 @ApiBearerAuth()
-@Controller('admin/users')
+@Controller('v1/admin/users')
 @UseGuards(JwtAuthGuard, SuperAdminGuard)
 export class AdminUsersController {
   constructor(

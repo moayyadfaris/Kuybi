@@ -27,7 +27,7 @@ describe('Admin user administration', () => {
   let root: Actor
 
   const patch = (userId: string, body: Record<string, unknown>) =>
-    t.http().patch(`/api/admin/users/${userId}`).set(root.auth).send(body).expect(200)
+    t.http().patch(`/api/v1/admin/users/${userId}`).set(root.auth).send(body).expect(200)
   const me = (as: Actor) => t.http().get('/api/v1/users/me').set(as.auth)
 
   beforeAll(async () => {
@@ -71,7 +71,7 @@ describe('Admin user administration', () => {
 
     const res = await t
       .http()
-      .post('/api/admin/users/reset-password')
+      .post('/api/v1/admin/users/reset-password')
       .set(root.auth)
       .send({ userId: member.user.id, reason: 'support ticket 42' })
       .expect(200)

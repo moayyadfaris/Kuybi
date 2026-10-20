@@ -149,9 +149,9 @@ describe('Audit Integration (controller)', () => {
     await app.close()
   })
 
-  it('GET /api/audit/search returns audit logs', async () => {
+  it('GET /api/v1/audit/search returns audit logs', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/audit/search?limit=5')
+      .get('/api/v1/audit/search?limit=5')
       .set('Authorization', 'Bearer test-token')
       .expect(200)
 

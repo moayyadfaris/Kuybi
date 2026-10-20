@@ -21,7 +21,7 @@ This document captures the current iteration of the audit logging stack, the API
 
 ## Outstanding Tasks
 
-- Add integration tests that exercise `/api/audit/search`, `/statistics`, and `/critical-events` against seeded data.
+- Add integration tests that exercise `/api/v1/audit/search`, `/statistics`, and `/critical-events` against seeded data.
 - Wire additional modules (stories, attachments, etc.) to the new facade methods or interceptors.
 - Build a background worker that leverages `AuditLogRepository` for retention enforcement (see `findCriticalEvents` / `findFailedOperations`).
 - Expand documentation for the Postman collection and shell scripts (`test-audit-api.sh`, `test-audit-integration.sh`).
