@@ -24,7 +24,7 @@ import { User } from './user.entity'
  * - Tracks verification status and timestamp
  */
 @Entity('email_verifications')
-@Index(['token'], { unique: true })
+// token: unique through its column constraint
 @Index(['userId', 'verified'])
 @Index(['expiresAt'])
 @Index(['email']) // Email index defined here - not on property level

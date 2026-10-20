@@ -37,8 +37,6 @@ import { FieldDefinition } from './field-definition.entity'
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */
 @Entity({ name: 'post_types' })
-@Index('IDX_POST_TYPES_SLUG', ['slug'], { unique: true })
-@Index('IDX_POST_TYPES_NAME', ['name'])
 @Index('IDX_POST_TYPES_ACTIVE', ['isActive'])
 @Index('IDX_POST_TYPES_SYSTEM', ['isSystem'])
 @Index('IDX_POST_TYPES_DELETED_AT', ['deletedAt'])
@@ -47,11 +45,9 @@ export class PostType {
   id: string
 
   @Column({ length: 100, unique: true })
-  @Index()
   name: string
 
   @Column({ length: 120, unique: true })
-  @Index()
   slug: string
 
   @Column({ length: 100, name: 'singularLabel' })
@@ -91,11 +87,9 @@ export class PostType {
   capabilityType?: string
 
   @Column({ type: 'boolean', default: true, name: 'isActive' })
-  @Index()
   isActive: boolean
 
   @Column({ type: 'boolean', default: false, name: 'isSystem' })
-  @Index()
   isSystem: boolean
 
   /**
@@ -145,7 +139,6 @@ export class PostType {
   updatedAt: Date
 
   @DeleteDateColumn({ type: 'timestamptz', nullable: true, name: 'deletedAt' })
-  @Index()
   deletedAt?: Date
 
   // ========== Optimistic Locking ==========

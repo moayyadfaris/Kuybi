@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn
@@ -15,6 +16,8 @@ import { Role } from './role.entity'
  * Junction table for User-Role many-to-many relationship
  * Allows users to have multiple roles with optional expiration
  */
+@Index('IDX_USER_ROLES_USER', ['userId'])
+@Index('IDX_USER_ROLES_ROLE', ['roleId'])
 @Entity({ name: 'user_roles' })
 export class UserRole {
   @PrimaryGeneratedColumn('increment')

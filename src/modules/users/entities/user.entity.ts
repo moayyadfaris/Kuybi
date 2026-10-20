@@ -14,6 +14,7 @@ import type { AclPrincipal } from '@modules/acl'
 import { Role, UserRole } from '@modules/acl/entities'
 import { Attachment } from '@modules/attachments/entities'
 
+@Index('IDX_USERS_PROFILE_IMAGE', ['profileImageId'])
 @Entity({ name: 'users' })
 export class User implements AclPrincipal {
   @PrimaryGeneratedColumn('uuid')

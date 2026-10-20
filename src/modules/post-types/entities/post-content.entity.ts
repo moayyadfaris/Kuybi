@@ -56,6 +56,7 @@ import { PostType } from './post-type.entity'
 @Index('IDX_POST_CONTENT_FEATURED', ['isFeatured'])
 @Index('IDX_POST_CONTENT_PINNED', ['isPinned'])
 @Index('IDX_POST_CONTENT_DELETED_AT', ['deletedAt'])
+@Index('IDX_POST_CONTENT_FEATURED_IMAGE', ['featuredImageId'])
 export class PostContent {
   @PrimaryGeneratedColumn('uuid')
   id: string
@@ -75,7 +76,6 @@ export class PostContent {
   title: string
 
   @Column({ length: 320 })
-  @Index()
   slug: string
 
   @Column({ type: 'text', nullable: true })
@@ -113,7 +113,6 @@ export class PostContent {
     enum: ContentStatus,
     default: ContentStatus.DRAFT
   })
-  @Index()
   status: ContentStatus
 
   @Column({ type: 'uuid', name: 'authorId' })
@@ -124,11 +123,9 @@ export class PostContent {
   author: User
 
   @Column({ type: 'timestamptz', nullable: true, name: 'publishedAt' })
-  @Index()
   publishedAt?: Date
 
   @Column({ type: 'timestamptz', nullable: true, name: 'scheduledAt' })
-  @Index()
   scheduledAt?: Date
 
   // ========== Hierarchical Support ==========
@@ -147,7 +144,6 @@ export class PostContent {
   hierarchyLevel: number
 
   @Column({ length: 500, nullable: true, name: 'hierarchyPath' })
-  @Index()
   hierarchyPath?: string
 
   @Column({ type: 'integer', default: 0, name: 'displayOrder' })
@@ -178,11 +174,9 @@ export class PostContent {
   // ========== Features ==========
 
   @Column({ type: 'boolean', default: false, name: 'isFeatured' })
-  @Index()
   isFeatured: boolean
 
   @Column({ type: 'boolean', default: false, name: 'isPinned' })
-  @Index()
   isPinned: boolean
 
   @Column({ type: 'boolean', default: true, name: 'allowComments' })
@@ -227,7 +221,6 @@ export class PostContent {
   updatedAt: Date
 
   @DeleteDateColumn({ type: 'timestamptz', nullable: true, name: 'deletedAt' })
-  @Index()
   deletedAt?: Date
 
   // ========== Optimistic Locking ==========

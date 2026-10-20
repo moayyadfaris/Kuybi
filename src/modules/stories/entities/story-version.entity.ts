@@ -41,6 +41,10 @@ export enum VersionStatus {
  * - Rollback capabilities
  * - Change summary
  */
+// Latest version of a branch; the self references are checked when versions are deleted
+@Index('IDX_STORY_VERSIONS_BRANCH_NUMBER', ['storyId', 'branchName', 'versionNumber'])
+@Index('IDX_STORY_VERSIONS_PARENT', ['parentVersionId'])
+@Index('IDX_STORY_VERSIONS_MERGED_FROM', ['mergedFromVersionId'])
 @Entity('story_versions')
 @Index(['storyId', 'versionNumber'])
 @Index(['storyId', 'createdAt'])
