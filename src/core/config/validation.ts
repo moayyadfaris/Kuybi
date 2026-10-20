@@ -170,6 +170,11 @@ class EnvironmentVariables {
   @IsOptional()
   SMTP_PASSWORD?: string
 
+  // Public site for emailed links; required (http/https) outside development and test
+  @IsString()
+  @IsOptional()
+  APP_PUBLIC_URL?: string
+
   // Prefix of every cache key; letters, digits, dot, dash and underscore
   @Matches(/^[A-Za-z0-9._-]+$/)
   @IsOptional()
@@ -287,14 +292,21 @@ export function assertProductionSecrets(
 
   // Only when validating the app's own config (custom key lists check just those keys)
   if (required.includes('JWT_SECRET')) {
-    const rounds = config.BCRYPT_ROUNDS
-    if (typeof rounds === 'number' && rounds < MIN_DEPLOYED_BCRYPT_ROUNDS) {
+    // Environment values are strings; validate() converts only its own copy
+    const rounds = Number(config.BCRYPT_ROUNDS)
+    if (config.BCRYPT_ROUNDS !== undefined && rounds < MIN_DEPLOYED_BCRYPT_ROUNDS) {
       problems.push(`BCRYPT_ROUNDS must be at least ${MIN_DEPLOYED_BCRYPT_ROUNDS} in ${env}`)
     }
 
     const corsOrigin = config.CORS_ORIGIN
     if (typeof corsOrigin !== 'string' || corsOrigin.split(',').some(o => o.trim() === '*')) {
       problems.push(`CORS_ORIGIN must list the allowed origins in ${env} (no "*")`)
+    }
+
+    // Emailed links would otherwise point at localhost
+    const publicUrl = config.APP_PUBLIC_URL
+    if (typeof publicUrl !== 'string' || !/^https?:\/\/[^\s/]+/.test(publicUrl)) {
+      problems.push(`APP_PUBLIC_URL must be the site's http(s) URL in ${env}`)
     }
   }
 

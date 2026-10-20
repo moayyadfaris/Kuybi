@@ -303,7 +303,7 @@ export class EmailService implements OnModuleInit {
     ipAddress?: string
   ): Promise<void> {
     const appName = 'Kuybi'
-    const appUrl = this.configService.get<string>('app.url', 'https://kuybi.dev')
+    const appUrl = this.configService.get<string>('app.publicUrl')
     const supportEmail = this.configService.get<string>('email.supportEmail', 'support@kuybi.dev')
     const securityEmail = this.configService.get<string>(
       'email.securityEmail',
@@ -325,7 +325,7 @@ export class EmailService implements OnModuleInit {
         lockedUntil: lockedUntil.toLocaleString(),
         failedAttempts: failedAttempts.toString(),
         ipAddress: ipAddress || 'Unknown',
-        resetPasswordUrl: `${appUrl}/auth/reset-password`,
+        resetPasswordUrl: `${appUrl}/reset-password`,
         year: new Date().getFullYear()
       }
     })
@@ -342,7 +342,7 @@ export class EmailService implements OnModuleInit {
     previousAttempts?: number
   ): Promise<void> {
     const appName = 'Kuybi'
-    const appUrl = this.configService.get<string>('app.url', 'https://kuybi.dev')
+    const appUrl = this.configService.get<string>('app.publicUrl')
     const supportEmail = this.configService.get<string>('email.supportEmail', 'support@kuybi.dev')
     const securityEmail = this.configService.get<string>(
       'email.securityEmail',
@@ -364,8 +364,8 @@ export class EmailService implements OnModuleInit {
         unlockType: unlockType === 'automatic' ? 'Automatic (Timer Expired)' : 'Manual (Admin)',
         wasAutomatic: unlockType === 'automatic',
         previousAttempts: previousAttempts?.toString() || undefined,
-        loginUrl: `${appUrl}/auth/login`,
-        changePasswordUrl: `${appUrl}/auth/change-password`,
+        loginUrl: `${appUrl}/login`,
+        changePasswordUrl: `${appUrl}/change-password`,
         year: new Date().getFullYear()
       }
     })

@@ -38,7 +38,10 @@ describe('RegistrationService.register', () => {
       {} as EmailVerificationRepository,
       roleRepository as unknown as RoleRepository,
       emailQueueService as never,
-      { get: (_k: string, d?: unknown) => d } as unknown as ConfigService,
+      {
+        get: (_k: string, d?: unknown) => d,
+        getOrThrow: () => 'https://www.kuybi.test'
+      } as unknown as ConfigService,
       { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as PinoLogger
     )
     return { service, userRepository, manager, emailQueueService }

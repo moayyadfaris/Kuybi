@@ -33,7 +33,10 @@ export default () => {
   return {
     app: {
       name: process.env.APP_NAME || 'kuybi-nest',
-      env
+      env,
+      // The public site emailed links point at (verify email, reset password, sign in);
+      // required outside development and test
+      publicUrl: (process.env.APP_PUBLIC_URL || 'http://localhost:4040').replace(/\/+$/, '')
     },
     http: {
       host: process.env.APP_HOST || '0.0.0.0',

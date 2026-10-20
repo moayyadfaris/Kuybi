@@ -45,7 +45,7 @@ export class PasswordResetService {
   ) {
     // Shorter than email verification: a reset link is a password
     this.resetTokenExpiry = 60 * 60 * 1000
-    this.appUrl = this.configService.get<string>('app.url', 'http://localhost:4040')
+    this.appUrl = this.configService.getOrThrow<string>('app.publicUrl')
   }
 
   /**

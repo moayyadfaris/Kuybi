@@ -8,7 +8,8 @@ describe('assertProductionSecrets', () => {
   const deployed = {
     JWT_SECRET: strongSecret,
     DB_PASSWORD: 'a-real-database-password',
-    CORS_ORIGIN: 'https://admin.kuybi.com,https://kuybi.com'
+    CORS_ORIGIN: 'https://admin.kuybi.com,https://kuybi.com',
+    APP_PUBLIC_URL: 'https://www.kuybi.com'
   }
 
   it.each(['development', 'test', undefined])('is a no-op for NODE_ENV=%s', env => {
@@ -28,6 +29,24 @@ describe('assertProductionSecrets', () => {
     ).not.toThrow()
     expect(() => assertProductionSecrets({ NODE_ENV: 'test', BCRYPT_ROUNDS: 4 })).not.toThrow()
   })
+
+  it('reads BCRYPT_ROUNDS as the environment gives it: a string', () => {
+    expect(() =>
+      assertProductionSecrets({ NODE_ENV: 'production', ...deployed, BCRYPT_ROUNDS: '4' })
+    ).toThrow(/BCRYPT_ROUNDS must be at least 10/)
+    expect(() =>
+      assertProductionSecrets({ NODE_ENV: 'production', ...deployed, BCRYPT_ROUNDS: '12' })
+    ).not.toThrow()
+  })
+
+  it.each([undefined, '', 'www.kuybi.com', 'ftp://kuybi.com'])(
+    'requires APP_PUBLIC_URL as an http(s) URL outside development/test (%s)',
+    url => {
+      expect(() =>
+        assertProductionSecrets({ NODE_ENV: 'production', ...deployed, APP_PUBLIC_URL: url })
+      ).toThrow(/APP_PUBLIC_URL/)
+    }
+  )
 
   it('applies to staging too, not only production', () => {
     expect(() => assertProductionSecrets({ NODE_ENV: 'staging' })).toThrow(
