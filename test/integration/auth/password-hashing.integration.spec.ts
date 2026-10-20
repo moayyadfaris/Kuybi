@@ -60,6 +60,14 @@ describe('Password and token hashing', () => {
     await refresh(refreshToken).expect(201)
   })
 
+  it('rotates a refresh token once: of two concurrent refreshes only one succeeds', async () => {
+    const { refreshToken } = await login()
+
+    const results = await Promise.all([refresh(refreshToken), refresh(refreshToken)])
+
+    expect(results.map(r => r.status).sort()).toEqual([201, 401])
+  })
+
   it('still accepts a refresh token whose session stored a bcrypt hash', async () => {
     const { refreshToken } = await login()
     const [tokenId, secret] = refreshToken.split('.')

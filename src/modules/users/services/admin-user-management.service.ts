@@ -164,6 +164,8 @@ export class AdminUserManagementService {
         updateData.lockedAt = null
         updateData.lockedUntil = null
         updateData.lockReason = null
+        // A fresh start: left at the threshold, the counter would never lock again
+        updateData.failedLoginAttempts = 0
       }
     }
     if (dto.failedLoginAttempts !== undefined)

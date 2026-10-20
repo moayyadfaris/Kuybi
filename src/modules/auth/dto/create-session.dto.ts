@@ -20,10 +20,13 @@ export enum SessionType {
   GUEST = 'guest'
 }
 
+/** The values detectDeviceType() (sessions.service) assigns */
 export enum DeviceType {
   DESKTOP = 'desktop',
   MOBILE = 'mobile',
   TABLET = 'tablet',
+  API_CLIENT = 'api-client',
+  BOT = 'bot',
   UNKNOWN = 'unknown'
 }
 

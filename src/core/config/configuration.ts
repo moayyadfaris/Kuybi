@@ -110,7 +110,6 @@ export default () => {
         maxAttempts: parseNumber(process.env.ACCOUNT_LOCKOUT_MAX_ATTEMPTS, 5),
         lockDuration: parseNumber(process.env.ACCOUNT_LOCKOUT_DURATION, 30 * 60 * 1000), // 30 minutes
         resetAttemptsPeriod: parseNumber(process.env.ACCOUNT_LOCKOUT_RESET_PERIOD, 15 * 60 * 1000), // 15 minutes
-        trackByIpAddress: parseBoolean(process.env.ACCOUNT_LOCKOUT_TRACK_IP, true),
         notifyOnLockout: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_LOCK, true),
         notifyOnUnlock: parseBoolean(process.env.ACCOUNT_LOCKOUT_NOTIFY_UNLOCK, true)
       }

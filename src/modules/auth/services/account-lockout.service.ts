@@ -7,7 +7,6 @@ import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { UserRepository } from '@modules/users'
-import { User } from '@modules/users/entities'
 
 import {
   AccountSecurityJobType,
@@ -18,10 +17,12 @@ import {
 
 export interface AccountLockoutConfig {
   enabled: boolean
+  /** Failed logins in a row that lock the account */
   maxAttempts: number
-  lockDuration: number // milliseconds
-  resetAttemptsPeriod: number // milliseconds
-  trackByIpAddress: boolean
+  /** How long a lock lasts (milliseconds) */
+  lockDuration: number
+  /** Failed attempts are forgotten this long after the last one (milliseconds) */
+  resetAttemptsPeriod: number
   notifyOnLockout: boolean
   notifyOnUnlock: boolean
 }
@@ -38,10 +39,17 @@ export interface LockoutInfo {
 
 export enum LockReason {
   FAILED_ATTEMPTS = 'FAILED_ATTEMPTS',
-  ADMIN_LOCK = 'ADMIN_LOCK',
-  SECURITY_VIOLATION = 'SECURITY_VIOLATION'
+  ADMIN_LOCK = 'ADMIN_LOCK'
 }
 
+/**
+ * Locks an account after `maxAttempts` failed logins in a row, for `lockDuration`.
+ *
+ * The counter lives on the user row and is incremented atomically. A delayed job unlocks
+ * the account when the lock ends (isAccountLocked() also unlocks an expired lock on the
+ * next login); another forgets failed attempts after `resetAttemptsPeriod` of quiet.
+ * Admins lock and unlock through the users module (PATCH /admin/users/:id).
+ */
 @Injectable()
 export class AccountLockoutService {
   private readonly config: AccountLockoutConfig
@@ -58,17 +66,14 @@ export class AccountLockoutService {
     this.config = this.configService.get<AccountLockoutConfig>('security.accountLockout', {
       enabled: true,
       maxAttempts: 5,
-      lockDuration: 30 * 60 * 1000, // 30 minutes
-      resetAttemptsPeriod: 15 * 60 * 1000, // 15 minutes
-      trackByIpAddress: true,
+      lockDuration: 30 * 60 * 1000,
+      resetAttemptsPeriod: 15 * 60 * 1000,
       notifyOnLockout: true,
       notifyOnUnlock: true
     })
   }
 
-  /**
-   * Record a failed login attempt and potentially lock the account
-   */
+  /** Counts a failed login; at the threshold, locks the account */
   async recordFailedAttempt(userId: string, ipAddress?: string): Promise<void> {
     if (!this.config.enabled) {
       return
@@ -92,85 +97,59 @@ export class AccountLockoutService {
       `Failed login attempt ${failedAttempts}/${this.config.maxAttempts}`
     )
 
-    // Exactly one attempt reaches the threshold, so the account is locked (and the
-    // unlock job and email sent) once, however many requests race past it
-    if (failedAttempts === this.config.maxAttempts) {
-      const user = await this.userRepository.findById(userId, { bypassCache: true })
-      if (!user) throw new NotFoundException(`User ${userId} not found`)
-      await this.lockAccount(user, LockReason.FAILED_ATTEMPTS)
-    } else if (failedAttempts < this.config.maxAttempts) {
-      // Schedule reset of failed attempts after reset period
+    // At or past the threshold (the counter can be past it, e.g. after an unlock that kept
+    // it); lockAccount locks once however many requests race here
+    if (failedAttempts >= this.config.maxAttempts) {
+      await this.lockAccount(userId, failedAttempts)
+    } else {
       await this.scheduleResetFailedAttempts(userId)
     }
   }
 
   /**
-   * Lock an account
+   * Locks the account for `lockDuration`, schedules the unlock and emails the user. Only
+   * the caller whose conditional update locked it does the last two.
    */
-  async lockAccount(user: User, reason: LockReason = LockReason.FAILED_ATTEMPTS): Promise<void> {
-    const now = new Date()
-    const unlockAt = new Date(now.getTime() + this.config.lockDuration)
+  async lockAccount(userId: string, failedAttempts: number): Promise<void> {
+    const lockedAt = new Date()
+    const lockedUntil = new Date(lockedAt.getTime() + this.config.lockDuration)
 
-    user.isLocked = true
-    user.lockedAt = now
-    user.lockedUntil = unlockAt
-    user.lockReason = reason
-
-    // Only the lock columns: saving the whole entity would overwrite failedLoginAttempts
-    // with the value read earlier, undoing increments made concurrently
-    await this.userRepository.update(user.id, {
-      isLocked: true,
-      lockedAt: now,
-      lockedUntil: unlockAt,
-      lockReason: reason
+    const locked = await this.userRepository.lockIfUnlocked(userId, {
+      lockedAt,
+      lockedUntil,
+      lockReason: LockReason.FAILED_ATTEMPTS
     })
+    if (!locked) return
 
     this.logger.warn(
-      {
-        userId: user.id,
-        email: user.email,
-        failedAttempts: user.failedLoginAttempts,
-        lockedAt: now,
-        lockedUntil: unlockAt,
-        lockReason: reason,
-        action: 'account_locked'
-      },
-      `Account locked due to ${reason}`
+      { userId, failedAttempts, lockedAt, lockedUntil, action: 'account_locked' },
+      'Account locked after failed logins'
     )
 
-    // Schedule automatic unlock
-    await this.scheduleUnlock(user.id, unlockAt, reason)
+    await this.scheduleUnlock(userId, lockedUntil)
 
-    // Send email notification
     if (this.config.notifyOnLockout) {
+      const user = await this.userRepository.findById(userId, { bypassCache: true })
+      if (!user) return
       try {
         // Queued, not sent inline: this runs inside the login request
         await this.emailQueueService.queueAccountLockedEmail({
           to: user.email,
           userName: user.name,
-          lockedAt: now,
-          lockedUntil: unlockAt,
-          failedAttempts: user.failedLoginAttempts
+          lockedAt,
+          lockedUntil,
+          failedAttempts
         })
-        this.logger.info({ userId: user.id }, 'Lockout email queued')
       } catch (error) {
-        this.logger.error(
-          { userId: user.id, email: user.email, error: errorMessage(error) },
-          'Failed to send lockout email'
-        )
-        // Don't throw - email failure shouldn't prevent lockout
+        // An email failure must not undo the lock
+        this.logger.error({ userId, error: errorMessage(error) }, 'Failed to queue lockout email')
       }
     }
   }
 
-  /**
-   * Schedule automatic unlock in the queue
-   */
-  private async scheduleUnlock(userId: string, unlockAt: Date, _lockReason: string): Promise<void> {
+  private async scheduleUnlock(userId: string, unlockAt: Date): Promise<void> {
     const delay = unlockAt.getTime() - Date.now()
-
     if (delay <= 0) {
-      // Already past unlock time, unlock immediately
       await this.unlockAccount(userId, 'AUTO_UNLOCK')
       return
     }
@@ -181,60 +160,39 @@ export class AccountLockoutService {
       lockedAt: new Date(),
       timestamp: new Date().toISOString()
     }
-
     await this.accountSecurityQueue.add(AccountSecurityJobType.UNLOCK_ACCOUNT, jobData, {
       delay,
-      jobId: `unlock-${userId}-${Date.now()}` // Unique job ID
+      jobId: `unlock-${userId}-${Date.now()}`
     })
-
-    this.logger.info(
-      {
-        userId,
-        unlockAt,
-        delayMs: delay,
-        action: 'scheduled_unlock'
-      },
-      `Scheduled automatic unlock in ${Math.round(delay / 1000)} seconds`
-    )
+    this.logger.info({ userId, unlockAt, delayMs: delay }, 'Scheduled automatic unlock')
   }
 
-  /**
-   * Schedule reset of failed attempts counter
-   */
+  /** (Re)starts the quiet period after which failed attempts are forgotten */
   private async scheduleResetFailedAttempts(userId: string): Promise<void> {
-    const delay = this.config.resetAttemptsPeriod
-
     const jobData: ResetFailedAttemptsJobData = {
       userId,
       lastFailedAttempt: new Date(),
       timestamp: new Date().toISOString()
     }
-
+    // Same job id per user: a newer failure replaces the pending reset
     await this.accountSecurityQueue.add(AccountSecurityJobType.RESET_FAILED_ATTEMPTS, jobData, {
-      delay,
-      jobId: `reset-attempts-${userId}`, // Overwrite previous reset job
+      delay: this.config.resetAttemptsPeriod,
+      jobId: `reset-attempts-${userId}`,
       removeOnComplete: true
     })
-
-    this.logger.debug({ userId, delayMs: delay }, 'Scheduled reset of failed attempts counter')
   }
 
-  /**
-   * Unlock an account
-   */
+  /** Unlocks and resets the counter (no-op when not locked); emails the user */
   async unlockAccount(userId: string, reason: 'AUTO_UNLOCK' | 'ADMIN_UNLOCK'): Promise<void> {
     const user = await this.userRepository.findById(userId, { bypassCache: true })
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`)
     }
-
     if (!user.isLocked) {
-      this.logger.debug({ userId }, 'Account already unlocked, skipping')
       return
     }
 
     const previousAttempts = user.failedLoginAttempts
-
     await this.userRepository.update(userId, {
       isLocked: false,
       failedLoginAttempts: 0,
@@ -242,18 +200,8 @@ export class AccountLockoutService {
       lockedUntil: null,
       lockReason: null
     })
+    this.logger.info({ userId, reason, action: 'account_unlocked' }, `Account unlocked: ${reason}`)
 
-    this.logger.info(
-      {
-        userId,
-        email: user.email,
-        reason,
-        action: 'account_unlocked'
-      },
-      `Account unlocked: ${reason}`
-    )
-
-    // Send email notification
     if (this.config.notifyOnUnlock) {
       try {
         await this.emailQueueService.queueAccountUnlockedEmail({
@@ -263,54 +211,34 @@ export class AccountLockoutService {
           unlockType: reason === 'AUTO_UNLOCK' ? 'automatic' : 'manual',
           previousAttempts
         })
-        this.logger.info({ userId }, 'Unlock email queued')
       } catch (error) {
-        this.logger.error(
-          { userId, email: user.email, error: errorMessage(error) },
-          'Failed to send unlock email'
-        )
-        // Don't throw - email failure shouldn't prevent unlock
+        // An email failure must not undo the unlock
+        this.logger.error({ userId, error: errorMessage(error) }, 'Failed to queue unlock email')
       }
     }
   }
 
-  /**
-   * Check if an account is currently locked
-   */
+  /** Whether the account is locked now; unlocks it on the way if its lock has ended */
   async isAccountLocked(userId: string): Promise<boolean> {
     const user = await this.userRepository.findLockState(userId)
-
     if (!user) {
       return false
     }
 
-    // Check if lock has expired
     if (user.isLocked && user.lockedUntil && user.lockedUntil < new Date()) {
-      // Lock expired, unlock automatically
       await this.unlockAccount(userId, 'AUTO_UNLOCK')
       return false
     }
-
     return user.isLocked
   }
 
-  /**
-   * Reset failed login attempts counter
-   */
+  /** After a successful login */
   async resetFailedAttempts(userId: string): Promise<void> {
-    await this.userRepository.update(userId, {
-      failedLoginAttempts: 0
-    })
-
-    this.logger.debug({ userId, action: 'reset_failed_attempts' }, 'Reset failed attempts counter')
+    await this.userRepository.update(userId, { failedLoginAttempts: 0 })
   }
 
-  /**
-   * Get account lockout information
-   */
   async getAccountLockInfo(userId: string): Promise<LockoutInfo> {
     const user = await this.userRepository.findLockState(userId)
-
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`)
     }
@@ -326,52 +254,15 @@ export class AccountLockoutService {
     }
   }
 
-  /**
-   * Get all locked accounts (for admin)
-   */
-  async getLockedAccounts(limit = 50, offset = 0): Promise<{ users: User[]; total: number }> {
-    const [users, total] = await this.userRepository.findLocked(limit, offset)
-
-    return { users, total }
-  }
-
-  /**
-   * Check and unlock expired locks (periodic cleanup job)
-   */
+  /** Unlocks every account whose lock has ended (backstop for missed unlock jobs) */
   async unlockExpiredAccounts(): Promise<number> {
     const expiredUsers = await this.userRepository.findExpiredLocks()
-
-    let unlockedCount = 0
     for (const user of expiredUsers) {
       await this.unlockAccount(user.id, 'AUTO_UNLOCK')
-      unlockedCount++
     }
-
-    if (unlockedCount > 0) {
-      this.logger.info({ unlockedCount }, `Unlocked ${unlockedCount} expired accounts`)
+    if (expiredUsers.length > 0) {
+      this.logger.info({ unlockedCount: expiredUsers.length }, 'Unlocked expired accounts')
     }
-
-    return unlockedCount
-  }
-
-  /**
-   * Admin manual unlock
-   */
-  async adminUnlockAccount(userId: string, adminId: string): Promise<void> {
-    const user = await this.userRepository.findById(userId, { bypassCache: true })
-    if (!user) {
-      throw new NotFoundException(`User ${userId} not found`)
-    }
-
-    this.logger.warn(
-      {
-        userId,
-        adminId,
-        action: 'admin_unlock'
-      },
-      'Admin manually unlocked account'
-    )
-
-    await this.unlockAccount(userId, 'ADMIN_UNLOCK')
+    return expiredUsers.length
   }
 }

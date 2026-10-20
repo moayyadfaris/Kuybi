@@ -62,53 +62,38 @@ describe('CacheService key patterns (real Redis)', () => {
     expect(await cache.get(`${ns}:keep:1`)).toEqual({ keep: true })
   })
 
-  describe('TokenBlacklistService stats and cleanup', () => {
+  describe('TokenBlacklistService', () => {
     // Unsigned JWT-shaped token; the service only decodes `exp`
-    const issued: string[] = []
-    const token = (id: string, expSeconds: number) => {
-      const jwt = [
+    const token = (id: string, expSeconds: number) =>
+      [
         Buffer.from('{"alg":"none"}').toString('base64url'),
         Buffer.from(JSON.stringify({ sub: id, jti: `${ns}-${id}`, exp: expSeconds })).toString(
           'base64url'
         ),
         'sig'
       ].join('.')
-      issued.push(jwt)
-      return jwt
-    }
-    const inOneHour = () => Math.floor(Date.now() / 1000) + 3600
+    const now = () => Math.floor(Date.now() / 1000)
 
-    afterAll(async () => {
+    it('rejects a blacklisted token until it would have expired', async () => {
       const blacklist = moduleRef.get(TokenBlacklistService)
-      await Promise.all(issued.map(jwt => blacklist.removeFromBlacklist(jwt)))
-      await cache.del(`token:blacklist:${ns}-stale`)
-    })
+      const live = token('live', now() + 3600)
 
-    it('counts blacklisted tokens', async () => {
-      const blacklist = moduleRef.get(TokenBlacklistService)
-      const before = (await blacklist.getBlacklistStats()).estimatedCount
-
-      await blacklist.blacklistTokens(['a', 'b', 'c'].map(id => token(id, inOneHour())))
-
-      expect((await blacklist.getBlacklistStats()).estimatedCount).toBe(before + 3)
-    })
-
-    it('removes entries past their recorded expiry and keeps live ones', async () => {
-      const blacklist = moduleRef.get(TokenBlacklistService)
-      const live = token('live', inOneHour())
-      await blacklist.blacklistToken(live)
-      // An entry whose Redis TTL outlived the token (e.g. written with a longer TTL)
-      await cache.set(
-        `token:blacklist:${ns}-stale`,
-        { tokenHash: 'stale', blacklistedAt: new Date().toISOString(), expiresAt: '2000-01-01' },
-        60
-      )
-
-      const { cleaned } = await blacklist.cleanupExpiredEntries()
-
-      expect(cleaned).toBeGreaterThanOrEqual(1)
-      expect(await cache.get(`token:blacklist:${ns}-stale`)).toBeUndefined()
+      expect(await blacklist.isTokenBlacklisted(live)).toBe(false)
+      const { tokenHash } = await blacklist.blacklistToken(live, { reason: 'logout' })
       expect(await blacklist.isTokenBlacklisted(live)).toBe(true)
+
+      // Stored under the token's hash, never the token itself
+      const [key] = await cache.scanKeys(`token:blacklist:${tokenHash}`)
+      expect(key).toBe(`token:blacklist:${tokenHash}`)
+      await cache.del(key)
+    })
+
+    it('skips a token that has already expired', async () => {
+      const blacklist = moduleRef.get(TokenBlacklistService)
+      const expired = token('expired', now() - 60)
+
+      await blacklist.blacklistToken(expired)
+      expect(await blacklist.isTokenBlacklisted(expired)).toBe(false)
     })
   })
 })

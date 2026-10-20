@@ -9,30 +9,18 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 import { Session } from '../entities/session.entity'
 
 /**
- * Session Repository - Enterprise Session Data Access Layer
- *
- * Features:
- * - Multi-device session management with fingerprinting
- * - Security risk assessment and anomaly detection
- * - Session lifecycle management (create, validate, revoke, cleanup)
- * - Advanced analytics and statistics
- * - Automatic caching with 5-minute TTL for active sessions
- * - 15-minute TTL for statistics
- *
- * Performance:
- * - Cached session validation: ~1ms (vs ~15ms DB query)
- * - Cached stats: ~1ms (vs ~50ms DB query)
- * - Expected cache hit rate: 85-90% for active sessions
+ * Records the revocation reason and time in metadata. The reason is bound as a parameter
+ * (`:revocationReason`), never interpolated: it can contain user-controlled text such as
+ * an administrator's email address.
  */
-/**
- * Records the revocation reason in metadata. The reason is bound as a parameter
- * (`:revocationReason`), never interpolated: it can contain user-controlled text
- * such as an administrator's email address.
- */
-const REVOCATION_REASON_SQL = `jsonb_set(COALESCE(metadata, '{}'::jsonb), '{revocationReason}', to_jsonb(CAST(:revocationReason AS text)))`
+const REVOCATION_METADATA_SQL = `COALESCE(metadata, '{}'::jsonb)
+  || jsonb_build_object('revocationReason', CAST(:revocationReason AS text), 'revokedAt', to_jsonb(now()))`
 
 /** Upper bound on serving a cached access status if an invalidation is missed (seconds) */
 const ACCESS_STATUS_TTL = 30
+
+/** Activity is recorded at most this often per session, so reads do not become writes */
+const ACTIVITY_WRITE_INTERVAL_MS = 60_000
 
 interface AccessStatus {
   active: boolean
@@ -40,10 +28,15 @@ interface AccessStatus {
   expiresAt: number
 }
 
+/**
+ * Sessions table. A session is live while isActive, not soft-deleted (deletedAt) and not
+ * expired; revocation sets isActive = false and deletedAt, and records the reason in
+ * metadata. Revoked rows are kept until cleanupExpired().
+ */
 @Injectable()
 export class SessionRepository extends BaseRepository<Session> {
   protected entityName = 'session'
-  protected defaultTTL = 300 // 5 minutes for active sessions
+  protected defaultTTL = 300
 
   constructor(
     @InjectPinoLogger(SessionRepository.name)
@@ -55,72 +48,48 @@ export class SessionRepository extends BaseRepository<Session> {
     super(repository, cacheService)
   }
 
-  /**
-   * Find all sessions for a specific user
-   * @param userId - User ID
-   * @param includeInactive - Include inactive sessions
-   * @returns Promise<Session[]>
-   */
+  /** The user's live sessions (most recently used first), or all of them */
   async findByUserId(userId: string, includeInactive = false): Promise<Session[]> {
     const cacheKey = this.buildCacheKey('user', userId, includeInactive ? 'all' : 'active')
 
-    return this.cached(
-      cacheKey,
-      async () => {
-        const query = this.repository
-          .createQueryBuilder('session')
-          .where('session.userId = :userId', { userId })
+    return this.cached(cacheKey, async () => {
+      const query = this.repository
+        .createQueryBuilder('session')
+        .where('session.userId = :userId', { userId })
 
-        if (!includeInactive) {
-          query.andWhere('session.deletedAt IS NULL')
-          query.andWhere('session.isActive = :isActive', { isActive: true })
-          query.andWhere('session.expiresAt > :now', { now: new Date() })
-        }
+      if (!includeInactive) {
+        query.andWhere('session.deletedAt IS NULL')
+        query.andWhere('session.isActive = :isActive', { isActive: true })
+        query.andWhere('session.expiresAt > :now', { now: new Date() })
+      }
 
-        return query.orderBy('session.lastActivityAt', 'DESC').getMany()
-      },
-      this.defaultTTL
-    )
+      return query.orderBy('session.lastActivityAt', 'DESC').getMany()
+    })
   }
 
-  /**
-   * Find active sessions for a user
-   * @param userId - User ID
-   * @returns Promise<Session[]>
-   */
   async findActiveByUserId(userId: string): Promise<Session[]> {
     return this.findByUserId(userId, false)
   }
 
-  /**
-   * Find sessions expiring soon (within specified minutes)
-   * @param withinMinutes - Time window in minutes (default: 60)
-   * @returns Promise<Session[]>
-   */
+  /** Live sessions that expire within the next `withinMinutes` */
   async findExpiringSoon(withinMinutes = 60): Promise<Session[]> {
     const now = new Date()
-    const futureTime = new Date(now.getTime() + withinMinutes * 60 * 1000)
-
     return this.repository.find({
       where: {
         isActive: true,
         deletedAt: IsNull(),
-        expiresAt: Between(now, futureTime)
+        expiresAt: Between(now, new Date(now.getTime() + withinMinutes * 60 * 1000))
       },
-      order: {
-        expiresAt: 'ASC'
-      }
+      order: { expiresAt: 'ASC' }
     })
   }
 
   /**
-   * Validate session and update last activity
-   * @param sessionId - Session ID
-   * @returns Promise<Session | null>
+   * The session if it is live (fresh read), recording the activity. An expired session is
+   * revoked on the way. Activity is written at most once a minute: each write clears the
+   * session caches.
    */
   async validateSession(sessionId: string): Promise<Session | null> {
-    // Bypass cache to ensure we get fresh Session entity with all properties
-    // Critical for logout flow where userId comparison is required
     const session = await this.findById(sessionId, { bypassCache: true })
 
     if (!session || session.deletedAt || !session.isActive) {
@@ -132,105 +101,81 @@ export class SessionRepository extends BaseRepository<Session> {
       return null
     }
 
-    // Update last activity
-    session.lastActivityAt = new Date()
-    await this.repository.save(session)
-
-    // Invalidate cache
-    await this.invalidateEntityCache(sessionId)
+    if (Date.now() - session.lastActivityAt.getTime() > ACTIVITY_WRITE_INTERVAL_MS) {
+      session.lastActivityAt = new Date()
+      await this.repository.update(sessionId, { lastActivityAt: session.lastActivityAt })
+      await this.invalidateEntityCache(sessionId)
+    }
 
     return session
   }
 
   /**
-   * Revoke a specific session
-   * @param sessionId - Session ID
-   * @param reason - Revocation reason
-   * @returns Promise<boolean>
+   * Revokes a live session in one conditional UPDATE, so a stale cached copy can never
+   * be written back over newer columns.
+   * @returns false when there was no live session with this id
    */
-  async revokeSession(sessionId: string, reason?: string): Promise<boolean> {
-    const session = await this.findById(sessionId)
-    if (!session) {
-      this.logger.warn(
-        { sessionId, reason, action: 'revoke_session_not_found' },
-        'Session not found for revocation'
-      )
-      return false
-    }
+  async revokeSession(sessionId: string, reason = 'revoked'): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(Session)
+      .set({ isActive: false, deletedAt: new Date(), metadata: () => REVOCATION_METADATA_SQL })
+      .setParameter('revocationReason', reason)
+      .where('id = :sessionId', { sessionId })
+      .andWhere('isActive = true')
+      .andWhere('deletedAt IS NULL')
+      .execute()
 
-    session.isActive = false
-    session.deletedAt = new Date()
-    if (reason) {
-      session.metadata = {
-        ...session.metadata,
-        revocationReason: reason,
-        revokedAt: new Date().toISOString()
-      }
-    }
-
-    await this.repository.save(session)
+    const revoked = (result.affected ?? 0) > 0
     // Its row, and every list: counts, per-user lists and access statuses
-    await this.invalidateEntityCache(sessionId)
-
+    if (revoked) await this.invalidateEntityCache(sessionId)
     this.logger.debug(
-      { sessionId, reason, userId: session.userId, action: 'session_revoked' },
-      'Session revoked in repository'
+      { sessionId, reason, revoked, action: 'session_revoked' },
+      revoked ? 'Session revoked' : 'No live session to revoke'
     )
-    return true
+    return revoked
   }
 
   /**
-   * Revoke all sessions for a user
-   * @param userId - User ID
-   * @param excludeSessionId - Session ID to exclude (e.g., current session)
-   * @param reason - Revocation reason
-   * @returns Promise<number> - Number of sessions revoked
+   * Revokes every live session of the user, except `excludeSessionId` when given
+   * @returns how many were revoked
    */
   async revokeAllUserSessions(
     userId: string,
     excludeSessionId?: string,
-    reason?: string
+    reason = 'user_logout_all'
   ): Promise<number> {
     const query = this.repository
-      .createQueryBuilder('session')
+      .createQueryBuilder()
       .update(Session)
-      .set({
-        isActive: false,
-        deletedAt: new Date(),
-        metadata: () => REVOCATION_REASON_SQL
-      })
-      .setParameter('revocationReason', reason || 'user_logout_all')
+      .set({ isActive: false, deletedAt: new Date(), metadata: () => REVOCATION_METADATA_SQL })
+      .setParameter('revocationReason', reason)
       .where('userId = :userId', { userId })
-      .andWhere('isActive = :isActive', { isActive: true })
+      .andWhere('isActive = true')
       .andWhere('deletedAt IS NULL')
 
     if (excludeSessionId) {
       query.andWhere('id != :excludeSessionId', { excludeSessionId })
     }
 
-    const result = await query.execute()
-
-    const count = result.affected || 0
+    const count = (await query.execute()).affected ?? 0
     this.logger.info(
       { userId, count, excludeSessionId, reason, action: 'revoke_all_user_sessions' },
-      'Revoked all user sessions in repository'
+      'Revoked all user sessions'
     )
 
     // A bulk update touches rows this repository did not read: drop every cached
     // session entry (rows by id, lists, access statuses), not just the lists
     await this.invalidateCacheByTag()
-
     return count
   }
 
   /**
-   * Cleanup expired sessions (hard delete)
-   * @param olderThanDays - Delete sessions older than X days (default: 30)
-   * @returns Promise<number> - Number of sessions deleted
+   * Hard-deletes sessions that expired, or were revoked, more than `olderThanDays` ago
+   * @returns how many were deleted
    */
   async cleanupExpired(olderThanDays = 30): Promise<number> {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
+    const cutoffDate = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000)
 
     const result = await this.repository
       .createQueryBuilder('session')
@@ -239,46 +184,25 @@ export class SessionRepository extends BaseRepository<Session> {
       .orWhere('(deletedAt IS NOT NULL AND deletedAt < :cutoffDate)', { cutoffDate })
       .execute()
 
-    const count = result.affected || 0
+    const count = result.affected ?? 0
     this.logger.info(
       { count, olderThanDays, cutoffDate, action: 'cleanup_expired_sessions' },
-      'Cleaned up expired sessions in repository'
+      'Cleaned up expired sessions'
     )
 
     await this.invalidateAllCaches()
-
     return count
   }
 
-  /**
-   * Get active session count for a user
-   * @param userId - User ID
-   * @returns Promise<number>
-   */
   async getActiveSessionCount(userId: string): Promise<number> {
-    const cacheKey = this.buildCacheKey('count', 'active', userId)
-
-    return this.cached(
-      cacheKey,
-      async () => {
-        return this.repository.count({
-          where: {
-            userId,
-            isActive: true,
-            deletedAt: IsNull(),
-            expiresAt: MoreThan(new Date())
-          }
-        })
-      },
-      this.defaultTTL
+    return this.cached(this.buildCacheKey('count', 'active', userId), () =>
+      this.repository.count({
+        where: { userId, isActive: true, deletedAt: IsNull(), expiresAt: MoreThan(new Date()) }
+      })
     )
   }
 
-  /**
-   * Get comprehensive session statistics for a user
-   * @param userId - User ID
-   * @returns Promise<object>
-   */
+  /** Counts of the user's sessions (all of them, not only live ones) */
   async getUserSessionStats(userId: string): Promise<{
     total: number
     active: number
@@ -287,59 +211,66 @@ export class SessionRepository extends BaseRepository<Session> {
     byDevice: Record<string, number>
     bySecurityLevel: Record<string, number>
     bySessionType: Record<string, number>
+    /** Live sessions that expire within 24 hours */
+    expiringSoon: number
+    /** Live sessions labelled high or critical, or of type 'suspicious' */
+    suspicious: number
+    /** Mean age of the live sessions, in hours */
+    averageAgeHours: number
     oldestActive?: Date
     newestActive?: Date
   }> {
-    const cacheKey = this.buildCacheKey('stats', 'user', userId)
-
     return this.cached(
-      cacheKey,
+      this.buildCacheKey('stats', 'user', userId),
       async () => {
-        const sessions = await this.repository.find({
-          where: { userId }
-        })
+        const sessions = await this.repository.find({ where: { userId } })
+        const now = Date.now()
+        const isRevoked = (s: Session) => !s.isActive || !!s.deletedAt
+        const active = sessions
+          .filter(s => !isRevoked(s) && s.expiresAt.getTime() > now)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
 
-        const now = new Date()
-        const active = sessions.filter(
-          s => s.isActive && !s.deletedAt && s.expiresAt.getTime() > now.getTime()
-        )
-        const expired = sessions.filter(s => s.expiresAt.getTime() <= now.getTime())
-        const revoked = sessions.filter(s => !s.isActive || s.deletedAt)
-
-        const byDevice: Record<string, number> = {}
-        const bySecurityLevel: Record<string, number> = {}
-        const bySessionType: Record<string, number> = {}
-
-        sessions.forEach(session => {
-          if (session.deviceType) {
-            byDevice[session.deviceType] = (byDevice[session.deviceType] || 0) + 1
-          }
-          bySecurityLevel[session.securityLevel] = (bySecurityLevel[session.securityLevel] || 0) + 1
-          bySessionType[session.sessionType] = (bySessionType[session.sessionType] || 0) + 1
-        })
-
-        const activeSessions = active.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        const tally = (key: (s: Session) => string | undefined) =>
+          sessions.reduce<Record<string, number>>((counts, s) => {
+            const value = key(s)
+            if (value) counts[value] = (counts[value] ?? 0) + 1
+            return counts
+          }, {})
 
         return {
           total: sessions.length,
           active: active.length,
-          expired: expired.length,
-          revoked: revoked.length,
-          byDevice,
-          bySecurityLevel,
-          bySessionType,
-          oldestActive: activeSessions[0]?.createdAt,
-          newestActive: activeSessions[activeSessions.length - 1]?.createdAt
+          expired: sessions.filter(s => !isRevoked(s) && s.expiresAt.getTime() <= now).length,
+          revoked: sessions.filter(isRevoked).length,
+          byDevice: tally(s => s.deviceType),
+          bySecurityLevel: tally(s => s.securityLevel),
+          bySessionType: tally(s => s.sessionType),
+          expiringSoon: active.filter(s => s.expiresAt.getTime() - now <= 24 * 60 * 60 * 1000)
+            .length,
+          suspicious: active.filter(
+            s =>
+              s.securityLevel === 'high' ||
+              s.securityLevel === 'critical' ||
+              s.sessionType === 'suspicious'
+          ).length,
+          averageAgeHours: active.length
+            ? Math.round(
+                active.reduce((sum, s) => sum + (now - s.createdAt.getTime()), 0) /
+                  active.length /
+                  (60 * 60 * 1000)
+              )
+            : 0,
+          oldestActive: active[0]?.createdAt,
+          newestActive: active[active.length - 1]?.createdAt
         }
       },
-      900 // 15 minutes for stats
+      900
     )
   }
 
   /**
-   * Assess session security risk
-   * @param sessionId - Session ID
-   * @returns Promise<object>
+   * Heuristic risk of one session, for display: age, inactivity and its stored security
+   * level. Nothing is enforced on it.
    */
   async assessSecurityRisk(sessionId: string): Promise<{
     riskLevel: string
@@ -347,112 +278,85 @@ export class SessionRepository extends BaseRepository<Session> {
     factors: string[]
     recommendations: string[]
   }> {
-    const session = await this.findById(sessionId)
+    // Fresh read: cached rows have string dates
+    const session = await this.findById(sessionId, { bypassCache: true })
     if (!session) {
       throw new Error('Session not found')
     }
 
     const factors: string[] = []
     let riskScore = 0
+    const hoursSince = (date: Date) => (Date.now() - date.getTime()) / (60 * 60 * 1000)
 
-    // Check session age
-    const ageHours = (Date.now() - session.createdAt.getTime()) / (1000 * 60 * 60)
-    if (ageHours > 168) {
-      // > 7 days
+    if (hoursSince(session.createdAt) > 7 * 24) {
       factors.push('Session older than 7 days')
       riskScore += 20
     }
-
-    // Check activity
-    const inactiveHours = (Date.now() - session.lastActivityAt.getTime()) / (1000 * 60 * 60)
-    if (inactiveHours > 24) {
+    if (hoursSince(session.lastActivityAt) > 24) {
       factors.push('No activity for 24+ hours')
       riskScore += 15
     }
+    if (session.securityLevel === 'high') riskScore += 20
+    else if (session.securityLevel === 'critical') riskScore += 40
 
-    // Check IP changes (if tracked in metadata)
-    if (session.metadata?.ipHistory && Array.isArray(session.metadata.ipHistory)) {
-      if (session.metadata.ipHistory.length > 5) {
-        factors.push('Multiple IP addresses detected')
-        riskScore += 25
-      }
-    }
-
-    // Current security level
-    if (session.securityLevel === 'high') {
-      riskScore += 20
-    } else if (session.securityLevel === 'critical') {
-      riskScore += 40
-    }
-
-    // Determine risk level
     let riskLevel = 'low'
     if (riskScore >= 60) riskLevel = 'critical'
     else if (riskScore >= 40) riskLevel = 'high'
     else if (riskScore >= 20) riskLevel = 'medium'
 
-    const recommendations: string[] = []
-    if (riskLevel === 'critical') {
-      recommendations.push('Revoke session immediately')
-      recommendations.push('Require re-authentication')
-    } else if (riskLevel === 'high') {
-      recommendations.push('Monitor closely')
-      recommendations.push('Consider requiring additional verification')
-    }
+    const recommendations =
+      riskLevel === 'critical'
+        ? ['Revoke session immediately', 'Require re-authentication']
+        : riskLevel === 'high'
+          ? ['Monitor closely', 'Consider requiring additional verification']
+          : []
 
-    return {
-      riskLevel,
-      riskScore,
-      factors,
-      recommendations
-    }
+    return { riskLevel, riskScore, factors, recommendations }
   }
 
-  /**
-   * Get device statistics across all sessions
-   * @returns Promise<object>
-   */
+  /** Live sessions across all users, by device type and security level */
   async getDeviceStats(): Promise<{
     totalDevices: number
     byType: Record<string, number>
     bySecurityLevel: Record<string, number>
     activeDevices: number
   }> {
-    const cacheKey = this.buildCacheKey('stats', 'devices', 'all')
-
     return this.cached(
-      cacheKey,
+      this.buildCacheKey('stats', 'devices', 'all'),
       async () => {
-        const sessions = await this.repository.find({
-          where: {
-            isActive: true,
-            deletedAt: IsNull(),
-            expiresAt: MoreThan(new Date())
-          }
-        })
+        const live = () =>
+          this.repository
+            .createQueryBuilder('session')
+            .where('session.isActive = true')
+            .andWhere('session.deletedAt IS NULL')
+            .andWhere('session.expiresAt > now()')
+        const countBy = async (column: 'deviceType' | 'securityLevel') => {
+          const rows = await live()
+            .select(`session.${column}`, 'value')
+            .addSelect('COUNT(*)', 'count')
+            .andWhere(`session.${column} IS NOT NULL`)
+            .groupBy(`session.${column}`)
+            .getRawMany<{ value: string; count: string }>()
+          return Object.fromEntries(rows.map(r => [r.value, Number(r.count)]))
+        }
 
-        const byType: Record<string, number> = {}
-        const bySecurityLevel: Record<string, number> = {}
-        const uniqueDevices = new Set<string>()
-
-        sessions.forEach(session => {
-          if (session.fingerprint) {
-            uniqueDevices.add(session.fingerprint)
-          }
-          if (session.deviceType) {
-            byType[session.deviceType] = (byType[session.deviceType] || 0) + 1
-          }
-          bySecurityLevel[session.securityLevel] = (bySecurityLevel[session.securityLevel] || 0) + 1
-        })
+        const [totals, byType, bySecurityLevel] = await Promise.all([
+          live()
+            .select('COUNT(*)', 'sessions')
+            .addSelect('COUNT(DISTINCT session.fingerprint)', 'devices')
+            .getRawOne<{ sessions: string; devices: string }>(),
+          countBy('deviceType'),
+          countBy('securityLevel')
+        ])
 
         return {
-          totalDevices: uniqueDevices.size,
+          totalDevices: Number(totals?.devices ?? 0),
           byType,
           bySecurityLevel,
-          activeDevices: sessions.length
+          activeDevices: Number(totals?.sessions ?? 0)
         }
       },
-      900 // 15 minutes
+      900
     )
   }
 

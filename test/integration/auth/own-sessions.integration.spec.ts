@@ -4,6 +4,7 @@
  * of extend and the super-admin cleanup.
  */
 import { Session } from '@modules/auth/entities/session.entity'
+import { SessionRepository } from '@modules/auth/repositories/session.repository'
 
 import { Actor, createHttpTestApp, HttpTestApp } from '../../helpers/http-test-app'
 import { resetDatabase } from '../../helpers/reset-database'
@@ -170,6 +171,41 @@ describe('Own sessions', () => {
       expect(res.body.data).toMatchObject({ id: mine.id, riskAssessment: expect.any(Object) })
 
       await t.http().get(`/api/v1/sessions/${mine.id}`).set(other.auth).expect(403)
+    })
+  })
+
+  describe('repository behaviour behind these endpoints', () => {
+    it('reads a session that is also cached by id (dates come back as strings from the cache)', async () => {
+      const [mine] = await sessionsOf(owner.user.id)
+      await t.app.get(SessionRepository).findById(mine.id) // cached now
+
+      const res = await t.http().get(`/api/v1/sessions/${mine.id}`).set(owner.auth).expect(200)
+      expect(res.body.data.riskAssessment).toMatchObject({ riskLevel: expect.any(String) })
+    })
+
+    it('revokes with one conditional update: never writes a stale copy back, only once', async () => {
+      const viewer = await t.signUp('revoker@own-sessions.test', 'user')
+      const [session] = await sessionsOf(viewer.user.id)
+      const repo = t.app.get(SessionRepository)
+      await repo.findById(session.id) // a cached copy with the old expiry
+
+      const extended = new Date(Date.now() + 20 * DAY)
+      await t.dataSource.getRepository(Session).update(session.id, { expiresAt: extended })
+
+      expect(await repo.revokeSession(session.id, 'test')).toBe(true)
+      expect(await repo.revokeSession(session.id, 'test')).toBe(false)
+
+      const stored = await t.dataSource.getRepository(Session).findOneByOrFail({ id: session.id })
+      expect(stored.isActive).toBe(false)
+      expect(stored.expiresAt.getTime()).toBe(extended.getTime())
+      expect(stored.metadata).toMatchObject({ revocationReason: 'test' })
+    })
+
+    it('reports real statistics', async () => {
+      const res = await t.http().get('/api/v1/sessions/stats').set(owner.auth).expect(200)
+      expect(res.body.data.activeSessions).toBeGreaterThan(0)
+      expect(res.body.data.averageSessionAge).toEqual(expect.any(Number))
+      expect(res.body.data.expiringSoon).toEqual(expect.any(Number))
     })
   })
 

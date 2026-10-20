@@ -9,10 +9,10 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseEnumPipe,
   Post,
   Query,
   Req,
-  UnauthorizedException,
   UseGuards
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
@@ -45,13 +45,15 @@ import {
   toListedSession
 } from '../utils/session-list.util'
 
-// The controller is guarded by JwtAuthGuard, so the user is always present
+// JwtAuthGuard guards the whole controller, so the user is always present
 interface AuthenticatedRequest extends Request {
   user: User
 }
 
 /**
- * SessionsController with Pino Structured Logging
+ * The signed-in user's sessions (list, inspect, revoke, extend), plus super-admin
+ * endpoints for any user's sessions and the manual cleanup. Requests are logged by the
+ * HTTP logger; handlers log only what an audit needs (revocations, denied access).
  */
 @ApiTags('sessions')
 @Controller('v1/sessions')
@@ -67,40 +69,33 @@ export class SessionsController {
 
   @Get('me')
   @Throttle({ default: { limit: 30, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'List my sessions (current user)' })
+  @ApiOperation({ summary: 'List my sessions (same as GET /v1/sessions)' })
   @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
-  async getMySessionsExplicit(@Query() filter: SessionFilterDto, @Req() req: AuthenticatedRequest) {
+  async listMySessions(@Query() filter: SessionFilterDto, @Req() req: AuthenticatedRequest) {
     return this.listSessions(filter, req)
   }
 
   @Get()
   @Throttle({ default: { limit: 30, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'List user sessions' })
+  @ApiOperation({ summary: 'List my sessions' })
   @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
   async listSessions(@Query() filter: SessionFilterDto, @Req() req: AuthenticatedRequest) {
-    const startTime = Date.now()
-    const userId = this.getUserId(req)
-
-    this.logger.info({ userId, filter, action: 'list_sessions' }, 'Listing user sessions')
-
     const filtered = filterAndSortSessions(
-      await this.sessionsService.getActiveSessions(userId, needsEndedSessions(filter)),
+      await this.sessionsService.getActiveSessions(req.user.id, needsEndedSessions(filter)),
       filter
     )
 
-    // Paginate
     const page = filter.page || 1
     const limit = filter.limit || 10
-    const startIndex = (page - 1) * limit
-    const paginated = filtered.slice(startIndex, startIndex + limit)
+    const pageOfSessions = filtered.slice((page - 1) * limit, page * limit)
 
-    // Add risk assessment if requested
-    const mapped = await Promise.all(
-      paginated.map(async session => {
-        const sessionData: Record<string, unknown> = toListedSession(session, filter)
+    const sessions = await Promise.all(
+      pageOfSessions.map(async session => {
+        const listed: Record<string, unknown> = toListedSession(session, filter)
         if (filter.includeRiskAssessment) {
+          // Optional extra: a failed assessment must not fail the list
           try {
-            sessionData.riskAssessment = await this.sessionsService.assessSessionRisk(session.id)
+            listed.riskAssessment = await this.sessionsService.assessSessionRisk(session.id)
           } catch (error) {
             this.logger.warn(
               { sessionId: session.id, error: errorMessage(error) },
@@ -108,14 +103,8 @@ export class SessionsController {
             )
           }
         }
-        return sessionData
+        return listed
       })
-    )
-
-    const duration = Date.now() - startTime
-    this.logger.info(
-      { userId, count: mapped.length, total: filtered.length, duration },
-      'Sessions listed'
     )
 
     return {
@@ -125,13 +114,13 @@ export class SessionsController {
         limit,
         totalPages: Math.ceil(filtered.length / limit) || 1
       },
-      sessions: mapped
+      sessions
     }
   }
 
   @Get('me/stats')
   @Throttle({ default: { limit: 20, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Get my session statistics (current user)' })
+  @ApiOperation({ summary: 'My session statistics (same as GET /v1/sessions/stats)' })
   @ApiResponse({ status: 200, description: 'Statistics retrieved', type: SessionStatsDto })
   async getMySessionStats(@Req() req: AuthenticatedRequest) {
     return this.getSessionStats(req)
@@ -139,46 +128,34 @@ export class SessionsController {
 
   @Get('stats')
   @Throttle({ default: { limit: 20, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Get session statistics' })
+  @ApiOperation({ summary: 'My session statistics' })
   @ApiResponse({ status: 200, description: 'Statistics retrieved', type: SessionStatsDto })
-  async getSessionStats(@Req() req: AuthenticatedRequest) {
-    const userId = this.getUserId(req)
-    this.logger.info({ userId, action: 'get_stats' }, 'Fetching session stats')
-
-    const stats = await this.sessionsService.getSessionStats(userId)
-    const result: SessionStatsDto = {
+  async getSessionStats(@Req() req: AuthenticatedRequest): Promise<SessionStatsDto> {
+    const stats = await this.sessionsService.getSessionStats(req.user.id)
+    return {
       totalSessions: stats.total,
       activeSessions: stats.active,
       expiredSessions: stats.expired,
-      revokedSessions: stats.revoked || 0,
-      expiringSoon: 0,
-      suspiciousSessions: 0,
+      revokedSessions: stats.revoked,
+      expiringSoon: stats.expiringSoon,
+      suspiciousSessions: stats.suspicious,
       deviceStats: shareOf('deviceType', stats.byDevice, stats.total),
       securityStats: shareOf('securityLevel', stats.bySecurityLevel, stats.total),
       typeStats: shareOf('sessionType', stats.bySessionType, stats.total),
-      averageSessionAge: 0,
+      averageSessionAge: stats.averageAgeHours,
       mostRecentSession: stats.newestActive || null,
       oldestSession: stats.oldestActive || null,
       metadata: {}
     }
-
-    this.logger.info(
-      { userId, totalSessions: result.totalSessions, activeSessions: result.activeSessions },
-      'Stats retrieved'
-    )
-    return result
   }
 
   @Get(':id')
   @Throttle({ default: { limit: 30, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Get session by ID' })
+  @ApiOperation({ summary: 'One of my sessions, with its risk assessment' })
   @ApiParam({ name: 'id', description: 'Session ID', type: 'string' })
   @ApiResponse({ status: 200, description: 'Session retrieved' })
   async getSession(@Param('id') sessionId: string, @Req() req: AuthenticatedRequest) {
-    const userId = this.getUserId(req)
-    this.logger.info({ userId, sessionId, action: 'get_session' }, 'Fetching session')
-
-    const session = await this.findOwnSession(sessionId, userId)
+    const session = await this.findOwnSession(sessionId, req.user.id)
     const riskAssessment = await this.sessionsService.assessSessionRisk(sessionId)
     return { ...session, riskAssessment }
   }
@@ -186,7 +163,7 @@ export class SessionsController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 20, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Revoke session' })
+  @ApiOperation({ summary: 'Revoke one of my sessions' })
   @ApiParam({ name: 'id', type: 'string' })
   @ApiResponse({ status: 200, type: RevokeSessionResponseDto })
   async revokeSession(
@@ -194,45 +171,33 @@ export class SessionsController {
     @Body() dto: RevokeSessionDto,
     @Req() req: AuthenticatedRequest
   ): Promise<RevokeSessionResponseDto> {
-    const userId = this.getUserId(req)
-    this.logger.info(
-      { userId, sessionId, reason: dto.reason, action: 'revoke_session' },
-      'Revoking session'
-    )
-
-    await this.findOwnSession(sessionId, userId)
-    const revoked = await this.sessionsService.revokeSession(sessionId, dto.reason || 'user_logout')
-    if (!revoked) {
+    const reason = dto.reason || 'user_logout'
+    await this.findOwnSession(sessionId, req.user.id)
+    if (!(await this.sessionsService.revokeSession(sessionId, reason))) {
       // Revoked by another request since the check above
       throw new NotFoundException('Session not found or already revoked')
     }
-    this.logger.info({ userId, sessionId }, 'Session revoked')
 
     return {
       sessionsRevoked: 1,
       logoutType: 'current_device' as const,
       revokedSessionIds: [sessionId],
       cacheCleared: true,
-      message: `Session revoked (${dto.reason || 'user_logout'})`
+      message: `Session revoked (${reason})`
     }
   }
 
   @Delete('all/revoke')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Revoke all sessions' })
+  @ApiOperation({ summary: 'Revoke all my sessions, this one included' })
   @ApiResponse({ status: 200 })
   async revokeAllSessions(@Body() dto: RevokeSessionDto, @Req() req: AuthenticatedRequest) {
-    const userId = this.getUserId(req)
-    this.logger.info({ userId, reason: dto.reason, action: 'revoke_all' }, 'Revoking all sessions')
-
     const count = await this.sessionsService.revokeAllSessions(
-      userId,
+      req.user.id,
       undefined,
       dto.reason || 'user_logout_all'
     )
-    this.logger.info({ userId, count }, 'All sessions revoked')
-
     return {
       sessionsRevoked: count,
       logoutType: 'all_devices',
@@ -243,54 +208,36 @@ export class SessionsController {
   @Delete('device/:type')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 15, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Revoke sessions by device' })
+  @ApiOperation({ summary: 'Revoke my sessions on one device type' })
   @ApiParam({ name: 'type', enum: DeviceType })
   @ApiResponse({ status: 200, type: RevokeSessionResponseDto })
   async revokeByDeviceType(
-    @Param('type') deviceType: string,
+    @Param('type', new ParseEnumPipe(DeviceType)) deviceType: DeviceType,
     @Body() dto: RevokeByDeviceDto,
     @Req() req: AuthenticatedRequest
   ): Promise<RevokeSessionResponseDto> {
-    const userId = this.getUserId(req)
-    this.logger.info({ userId, deviceType, action: 'revoke_by_device' }, 'Revoking by device')
+    const sessions = await this.sessionsService.getActiveSessions(req.user.id, false)
+    const revokedSessionIds: string[] = []
 
-    const validTypes = Object.values(DeviceType)
-    if (!validTypes.includes(deviceType as DeviceType)) {
-      throw new BadRequestException(`Invalid type. Must be: ${validTypes.join(', ')}`)
-    }
-
-    const sessions = await this.sessionsService.getActiveSessions(userId, false)
-    const matching = sessions.filter(s => s.deviceType?.toLowerCase() === deviceType.toLowerCase())
-
-    let revokedCount = 0
-    const revokedIds: string[] = []
-
-    for (const session of matching) {
-      const success = await this.sessionsService.revokeSession(
-        session.id,
-        dto.reason || 'device_change'
-      )
-      if (success) {
-        revokedCount++
-        revokedIds.push(session.id)
+    for (const session of sessions.filter(s => s.deviceType?.toLowerCase() === deviceType)) {
+      if (await this.sessionsService.revokeSession(session.id, dto.reason || 'device_change')) {
+        revokedSessionIds.push(session.id)
       }
     }
 
-    this.logger.info({ userId, deviceType, count: revokedCount }, 'Device sessions revoked')
-
     return {
-      sessionsRevoked: revokedCount,
+      sessionsRevoked: revokedSessionIds.length,
       logoutType: 'by_device_type' as const,
-      revokedSessionIds: revokedIds,
+      revokedSessionIds,
       cacheCleared: true,
-      message: `Revoked ${revokedCount} ${deviceType} session(s)`
+      message: `Revoked ${revokedSessionIds.length} ${deviceType} session(s)`
     }
   }
 
   @Post(':id/extend')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Extend session expiration' })
+  @ApiOperation({ summary: 'Extend one of my sessions (at most 30 days from now)' })
   @ApiParam({ name: 'id', type: 'string' })
   @ApiResponse({ status: 200 })
   async extendSession(
@@ -298,10 +245,7 @@ export class SessionsController {
     @Query() { days }: ExtendSessionQueryDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const userId = this.getUserId(req)
-    this.logger.info({ userId, sessionId, days, action: 'extend_session' }, 'Extending session')
-
-    const session = await this.findOwnSession(sessionId, userId)
+    const session = await this.findOwnSession(sessionId, req.user.id)
     const oldExpiresAt = new Date(session.expiresAt)
     const newExpiresAt = await this.sessionsService.extendSession(session, days)
 
@@ -317,48 +261,16 @@ export class SessionsController {
   @Get('users/:userId')
   @UseGuards(SuperAdminGuard)
   @Throttle({ default: { limit: 30, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'List sessions for any user (super-admin only)' })
+  @ApiOperation({ summary: 'List any user’s sessions (super-admin only)' })
   @ApiParam({ name: 'userId', description: 'User ID to list sessions for' })
-  @ApiResponse({ status: 200, description: 'User sessions retrieved successfully' })
+  @ApiResponse({ status: 200, description: 'User sessions (empty for an unknown user)' })
   @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async listUserSessions(
-    @Param('userId') userId: string,
-    @Query() filter: SessionFilterDto,
-    @Req() req: AuthenticatedRequest
-  ) {
-    const startTime = Date.now()
-    const adminUser = req.user
-
-    this.logger.info(
-      {
-        adminUserId: adminUser.id,
-        targetUserId: userId,
-        filter,
-        action: 'admin_list_user_sessions'
-      },
-      'Super-admin listing user sessions'
-    )
-
+  async listUserSessions(@Param('userId') userId: string, @Query() filter: SessionFilterDto) {
     const allSessions = await this.sessionsService.getActiveSessions(
       userId,
       needsEndedSessions(filter)
     )
     const filtered = filterAndSortSessions(allSessions, filter)
-
-    const duration = Date.now() - startTime
-
-    this.logger.info(
-      {
-        adminUserId: adminUser.id,
-        targetUserId: userId,
-        totalSessions: allSessions.length,
-        filteredSessions: filtered.length,
-        duration,
-        action: 'admin_list_user_sessions_success'
-      },
-      'Super-admin user sessions list completed'
-    )
 
     return {
       userId,
@@ -373,37 +285,23 @@ export class SessionsController {
   @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 20, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Revoke specific session for any user (super-admin only)' })
+  @ApiOperation({ summary: 'Revoke one session of any user (super-admin only)' })
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiParam({ name: 'sessionId', description: 'Session ID to revoke' })
   @ApiResponse({ status: 200, description: 'Session revoked successfully' })
+  @ApiResponse({ status: 400, description: 'Session does not belong to the user' })
   @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
-  @ApiResponse({ status: 404, description: 'Session not found' })
+  @ApiResponse({ status: 404, description: 'Session not found or already revoked' })
   async revokeUserSession(
     @Param('userId') userId: string,
     @Param('sessionId') sessionId: string,
     @Body() body: RevokeSessionDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const adminUser = req.user
-
-    this.logger.info(
-      {
-        adminUserId: adminUser.id,
-        targetUserId: userId,
-        sessionId,
-        reason: body.reason,
-        action: 'admin_revoke_user_session'
-      },
-      'Super-admin revoking user session'
-    )
-
-    // Verify the session belongs to the specified user
     const session = await this.sessionsService.getSessionById(sessionId)
     if (!session) {
       throw new NotFoundException('Session not found')
     }
-
     if (session.userId !== userId) {
       throw new BadRequestException('Session does not belong to specified user')
     }
@@ -417,15 +315,9 @@ export class SessionsController {
     }
 
     this.logger.info(
-      {
-        adminUserId: adminUser.id,
-        targetUserId: userId,
-        sessionId,
-        action: 'admin_revoke_user_session_success'
-      },
-      'Super-admin revoked user session'
+      { adminUserId: req.user.id, targetUserId: userId, sessionId, action: 'admin_revoke_session' },
+      'Super-admin revoked a user session'
     )
-
     return { sessionId, userId, message: 'Session revoked successfully' }
   }
 
@@ -433,7 +325,7 @@ export class SessionsController {
   @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
-  @ApiOperation({ summary: 'Revoke all sessions for any user (super-admin only)' })
+  @ApiOperation({ summary: 'Revoke all sessions of any user (super-admin only)' })
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'All user sessions revoked successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
@@ -442,33 +334,21 @@ export class SessionsController {
     @Body() body: RevokeSessionDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const adminUser = req.user
-
-    this.logger.info(
-      {
-        adminUserId: adminUser.id,
-        targetUserId: userId,
-        reason: body.reason,
-        action: 'admin_revoke_all_user_sessions'
-      },
-      'Super-admin revoking all user sessions'
-    )
-
-    const count = await this.sessionsService.revokeAllUserSessions(
+    const count = await this.sessionsService.revokeAllSessions(
       userId,
+      undefined,
       body.notes || body.reason || 'All sessions revoked by super-admin'
     )
 
     this.logger.info(
       {
-        adminUserId: adminUser.id,
+        adminUserId: req.user.id,
         targetUserId: userId,
         sessionsRevoked: count,
-        action: 'admin_revoke_all_user_sessions_success'
+        action: 'admin_revoke_all_sessions'
       },
       'Super-admin revoked all user sessions'
     )
-
     return {
       userId,
       sessionsRevoked: count,
@@ -480,26 +360,21 @@ export class SessionsController {
   @UseGuards(SuperAdminGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: seconds(300) } })
-  @ApiOperation({ summary: 'Manual cleanup (super-admin only)' })
+  @ApiOperation({ summary: 'Delete sessions that ended long ago (super-admin only)' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 403, description: 'Forbidden - Super-admin access required' })
   async manualCleanup(
     @Query() { olderThanDays }: SessionCleanupQueryDto,
     @Req() req: AuthenticatedRequest
   ) {
-    const user = req.user
-
-    this.logger.info(
-      { adminUserId: user.id, olderThanDays, action: 'manual_cleanup' },
-      'Starting cleanup'
-    )
-
     const startTime = Date.now()
     const deletedCount = await this.cleanupService.manualCleanup(olderThanDays)
     const duration = Date.now() - startTime
 
-    this.logger.info({ adminUserId: user.id, deletedCount, duration }, 'Cleanup completed')
-
+    this.logger.info(
+      { adminUserId: req.user.id, olderThanDays, deletedCount, duration },
+      'Manual session cleanup completed'
+    )
     return {
       sessionsDeleted: deletedCount,
       olderThanDays,
@@ -508,7 +383,10 @@ export class SessionsController {
     }
   }
 
-  /** A live session of the caller: 404 when missing or ended, 403 when someone else's */
+  /**
+   * A live session of the caller: 404 when missing or ended, 403 when someone else's
+   * (session ids are random UUIDs, so the 403 reveals nothing guessable)
+   */
   private async findOwnSession(sessionId: string, userId: string): Promise<Session> {
     const validation = await this.sessionsService.validateSession(sessionId)
     if (!validation.valid || !validation.session) {
@@ -522,14 +400,5 @@ export class SessionsController {
       throw new ForbiddenException('Access denied')
     }
     return validation.session
-  }
-
-  private getUserId(req: AuthenticatedRequest): string {
-    const user = req.user
-    if (!user?.id) {
-      this.logger.error('User not authenticated')
-      throw new UnauthorizedException('Not authenticated')
-    }
-    return user.id
   }
 }

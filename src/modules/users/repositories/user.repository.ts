@@ -263,6 +263,25 @@ export class UserRepository extends BaseRepository<User> {
     return rows[0]?.failedLoginAttempts ?? null
   }
 
+  /**
+   * Locks the account unless it is locked already, in one conditional UPDATE: of several
+   * concurrent callers exactly one gets true (and sends the unlock job and email)
+   */
+  async lockIfUnlocked(
+    id: string,
+    lock: { lockedAt: Date; lockedUntil: Date; lockReason: string }
+  ): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(User)
+      .set({ isLocked: true, ...lock })
+      .where('id = :id', { id })
+      .andWhere('"isLocked" = false')
+      .execute()
+    await this.invalidateCacheByEntityId(id)
+    return (result.affected ?? 0) > 0
+  }
+
   findLockState(
     id: string
   ): Promise<Pick<

@@ -35,11 +35,11 @@ function hashEmail(email: string): string {
 type AccountLockInfo = Awaited<ReturnType<AccountLockoutService['getAccountLockInfo']>>
 
 /**
- * Sign-in and the session lifecycle it starts: credential checks (with lockout),
- * login, refresh-token rotation and logout.
+ * Sign-in and the session lifecycle it starts: credential checks (with lockout), login,
+ * refresh-token rotation and logout.
  *
- * Related: PasswordChangeService (self-service password change)
- * (listing a user's sessions), AccessTokenService (JWT issuing).
+ * Related: SessionsService (sessions behind refresh tokens), AccessTokenService (JWTs),
+ * PasswordChangeService (self-service password change).
  */
 @Injectable()
 export class AuthService {
@@ -67,7 +67,8 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_CREDENTIALS)
     }
 
-    // Check if account is locked
+    // Checked before the password, so a locked account cannot be probed further. Known
+    // trade-off: only existing accounts lock, so a 423 tells the caller the email exists.
     const isLocked = await this.accountLockoutService.isAccountLocked(user.id)
     if (isLocked) {
       const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
@@ -157,11 +158,16 @@ export class AuthService {
     )
   }
 
+  /**
+   * Starts a session for a user whose credentials were checked (validateUser). A user who
+   * must change their password gets no session, only a token limited to the
+   * password-change endpoints.
+   */
   async login(user: User, context: SessionContext = {}) {
+    // Logged by id only: the email is personal data (see recordFailedLogin)
     this.logger.info(
       {
         userId: user.id,
-        email: user.email,
         ipAddress: context.ipAddress,
         deviceType: context.deviceType,
         action: 'user_login'
@@ -169,25 +175,20 @@ export class AuthService {
       'User login'
     )
 
-    // Check if user must change password
     if (user.forcePasswordChange) {
       this.logger.warn(
-        { userId: user.id, email: user.email, action: 'password_change_required' },
+        { userId: user.id, action: 'password_change_required' },
         'User must change password before accessing system'
       )
-
-      // Return special response indicating password change is required
-      // Do NOT create session until password is changed
       return {
         requiresPasswordChange: true,
         userId: user.id,
         message:
           'Password change required. Please change your password before accessing the system.',
-        tempAccessToken: await this.accessTokenService.issuePasswordChangeToken(user) // Limited token for password change only
+        tempAccessToken: await this.accessTokenService.issuePasswordChangeToken(user)
       }
     }
 
-    // Create session using SessionsService
     const { session, refreshToken } = await this.sessionsService.createSession({
       userId: user.id,
       ipAddress: context.ipAddress,
@@ -196,15 +197,7 @@ export class AuthService {
       sessionType: 'standard'
     })
 
-    // Generate access token
     const accessToken = await this.accessTokenService.issueForSession(user, session.id)
-
-    this.logger.info(
-      { sessionId: session.id, userId: user.id, action: 'session_created' },
-      'Session created for user'
-    )
-
-    // Metric: Log successful login
     this.metricsService.incrementUserLogin(user.getPrimaryRoleName())
 
     return {
@@ -220,6 +213,10 @@ export class AuthService {
     }
   }
 
+  /**
+   * Rotates a refresh token: checks its secret, revokes its session and starts a new one.
+   * A wrong secret revokes the session (the token may have leaked).
+   */
   async refresh(refreshToken: string, context: SessionContext) {
     const [tokenId, tokenSecret] = refreshToken.split('.')
     if (!tokenId || !tokenSecret) {
@@ -250,7 +247,6 @@ export class AuthService {
       throw new UnauthorizedException(refreshTokenInvalid('User unavailable'))
     }
 
-    // Refresh session (creates new session, revokes old one)
     const { session: newSession, refreshToken: newRefreshToken } =
       await this.sessionsService.refreshSession(tokenId, {
         ipAddress: context.ipAddress,
@@ -258,7 +254,6 @@ export class AuthService {
         deviceType: context.deviceType
       })
 
-    // Generate new access token
     const accessToken = await this.accessTokenService.issueForSession(user, newSession.id)
 
     this.logger.info(
@@ -277,6 +272,11 @@ export class AuthService {
     }
   }
 
+  /**
+   * Ends the session of the given refresh token (or every session of the user with
+   * `logoutAll`) and blacklists the presented access token, so it stops working before it
+   * expires. The refresh token must belong to the caller.
+   */
   async logout(
     refreshToken: string,
     options: SessionContext & {

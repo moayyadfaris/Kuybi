@@ -1,8 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ErrorCode } from '@shared/errors'
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
+import { isIP } from 'net'
 
 import { hashTokenSecret } from '@core/security'
 
@@ -30,32 +31,14 @@ export interface SessionValidationResult {
   reason?: string
 }
 
-export interface DeviceSessionsFilter {
-  userId: string
-  deviceType: string
-}
-
 /**
- * Sessions Service - Enterprise Session Management Business Logic
+ * Server-side sessions behind refresh tokens.
  *
- * Features:
- * - Multi-device session management with device fingerprinting
- * - Automatic security risk assessment
- * - Concurrent session limiting
- * - Session lifecycle management (create, validate, refresh, revoke)
- * - Device detection and IP geolocation
- * - Comprehensive analytics and statistics
- *
- * Security:
- * - Automatic risk scoring based on session patterns
- * - Suspicious session detection
- * - IP-based anomaly detection
- * - Session replay attack prevention
- *
- * Performance:
- * - Automatic caching via SessionRepository
- * - Batch operations for mass revocation
- * - Efficient cleanup of expired sessions
+ * A session is created at login and replaced on every refresh (rotation: the old one is
+ * revoked). Its id is the public half of the refresh token (`<id>.<secret>`); only a hash
+ * of the secret is stored. Access tokens carry the session id and die with the session.
+ * Each user has at most `auth.maxConcurrentSessions` live sessions: a new login revokes
+ * the oldest ones beyond that.
  */
 @Injectable()
 export class SessionsService {
@@ -72,11 +55,7 @@ export class SessionsService {
     this.defaultSessionDays = this.configService.get<number>('auth.sessionDays', 7)
   }
 
-  /**
-   * Create a new session with security assessment
-   * @param options - Session creation options
-   * @returns Promise<{ session: Session; refreshToken: string }>
-   */
+  /** Creates a session and its refresh token (returned once, never stored in clear) */
   async createSession(
     options: CreateSessionOptions
   ): Promise<{ session: Session; refreshToken: string }> {
@@ -91,58 +70,22 @@ export class SessionsService {
       metadata = {}
     } = options
 
-    // Check concurrent session limit
-    const activeCount = await this.sessionRepository.getActiveSessionCount(userId)
-    if (activeCount >= this.maxConcurrentSessions) {
-      this.logger.warn(
-        {
-          userId,
-          activeCount,
-          limit: this.maxConcurrentSessions,
-          action: 'concurrent_limit_exceeded'
-        },
-        'User exceeded concurrent session limit'
-      )
-      // Revoke oldest session
-      const sessions = (await this.sessionRepository.findActiveByUserId(userId)).map(session =>
-        this.normalizeSessionDates(session)
-      )
-      if (sessions.length > 0) {
-        const oldest = sessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0]
-        await this.sessionRepository.revokeSession(oldest.id, 'concurrent_limit_exceeded')
-      }
-    }
+    await this.makeRoomForNewSession(userId)
 
-    // Generate refresh token
     const tokenId = randomUUID()
     const tokenSecret = randomUUID()
-    const refreshToken = `${tokenId}.${tokenSecret}`
-    const refreshTokenHash = hashTokenSecret(tokenSecret)
-
-    // Assess security risk
-    const securityLevel = this.assessSecurityLevel({
-      ipAddress,
-      userAgent,
-      fingerprint,
-      sessionType
-    })
-
-    // Detect device type if not provided
-    const detectedDeviceType = deviceType || this.detectDeviceType(userAgent)
-
-    // Create session
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + expiresInDays)
+    const detectedDeviceType = deviceType || detectDeviceType(userAgent)
+    const expiresAt = new Date(Date.now() + expiresInDays * DAY_MS)
 
     const session = await this.sessionRepository.create({
       id: tokenId,
       userId,
-      refreshTokenHash,
-      fingerprint: fingerprint || this.generateFingerprint({ ipAddress, userAgent }),
+      refreshTokenHash: hashTokenSecret(tokenSecret),
+      fingerprint: fingerprint || deviceFingerprint(ipAddress, userAgent),
       deviceType: detectedDeviceType,
       userAgent,
       ipAddress,
-      securityLevel,
+      securityLevel: assessSecurityLevel({ ipAddress, userAgent, fingerprint, sessionType }),
       sessionType,
       isActive: true,
       lastActivityAt: new Date(),
@@ -159,7 +102,7 @@ export class SessionsService {
       {
         userId,
         sessionId: session.id,
-        securityLevel,
+        securityLevel: session.securityLevel,
         sessionType,
         deviceType: detectedDeviceType,
         action: 'create_session'
@@ -167,44 +110,26 @@ export class SessionsService {
       'Session created'
     )
 
-    return {
-      session,
-      refreshToken
-    }
+    return { session, refreshToken: `${tokenId}.${tokenSecret}` }
   }
 
-  /**
-   * Validate and refresh session activity
-   * @param sessionId - Session ID
-   * @returns Promise<SessionValidationResult>
-   */
+  /** A live session (also records the activity), or why there is none */
   async validateSession(sessionId: string): Promise<SessionValidationResult> {
     const session = await this.sessionRepository.validateSession(sessionId)
-
-    if (!session) {
-      return {
-        valid: false,
-        reason: 'Session not found or expired'
-      }
-    }
-
-    return {
-      valid: true,
-      session
-    }
+    return session
+      ? { valid: true, session }
+      : { valid: false, reason: 'Session not found or expired' }
   }
 
   /**
-   * Refresh session and rotate tokens
-   * @param sessionId - Current session ID
-   * @param options - Refresh options
-   * @returns Promise<{ session: Session; refreshToken: string }>
+   * Rotation: revokes the session and creates its successor (same device, fresh expiry).
+   * The caller has already checked the refresh token's secret.
    */
   async refreshSession(
     sessionId: string,
     options: Partial<CreateSessionOptions>
   ): Promise<{ session: Session; refreshToken: string }> {
-    // Bypass cache to ensure we get fresh Session entity with all properties
+    // Fresh read: the cached copy has string dates and may predate a revocation
     const currentSession = await this.sessionRepository.findById(sessionId, { bypassCache: true })
 
     if (!currentSession || !currentSession.isActive) {
@@ -222,10 +147,15 @@ export class SessionsService {
       })
     }
 
-    // Revoke old session
-    await this.sessionRepository.revokeSession(sessionId, 'refreshed')
+    // The conditional revoke succeeds once: of two concurrent refreshes with the same
+    // token, only the first gets a new session
+    if (!(await this.sessionRepository.revokeSession(sessionId, 'refreshed'))) {
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_REFRESH_TOKEN_INVALID,
+        message: 'Refresh token already used'
+      })
+    }
 
-    // Create new session
     return this.createSession({
       userId: currentSession.userId,
       ipAddress: options.ipAddress || currentSession.ipAddress,
@@ -258,109 +188,56 @@ export class SessionsService {
     return expiresAt
   }
 
-  /**
-   * Revoke a specific session
-   * @param sessionId - Session ID
-   * @param reason - Revocation reason
-   * @returns Promise<boolean>
-   */
-  async revokeSession(sessionId: string, reason?: string): Promise<boolean> {
-    const result = await this.sessionRepository.revokeSession(
-      sessionId,
-      reason || 'manual_revocation'
-    )
+  /** @returns false when the session was already gone or revoked */
+  async revokeSession(sessionId: string, reason = 'manual_revocation'): Promise<boolean> {
+    const result = await this.sessionRepository.revokeSession(sessionId, reason)
     if (result) {
-      this.logger.info(
-        { sessionId, reason: reason || 'manual_revocation', action: 'revoke_session' },
-        'Session revoked'
-      )
+      this.logger.info({ sessionId, reason, action: 'revoke_session' }, 'Session revoked')
     }
     return result
   }
 
   /**
-   * Revoke all sessions for a user
-   * @param userId - User ID
-   * @param excludeSessionId - Session ID to keep active
-   * @param reason - Revocation reason
-   * @returns Promise<number> - Number of sessions revoked
+   * Revokes every live session of the user, except `excludeSessionId` when given
+   * @returns how many were revoked
    */
   async revokeAllSessions(
     userId: string,
     excludeSessionId?: string,
-    reason?: string
+    reason = 'revoke_all_request'
   ): Promise<number> {
     const count = await this.sessionRepository.revokeAllUserSessions(
       userId,
       excludeSessionId,
-      reason || 'revoke_all_request'
+      reason
     )
     this.logger.info(
-      {
-        userId,
-        count,
-        excludeSessionId,
-        reason: reason || 'revoke_all_request',
-        action: 'revoke_all_sessions'
-      },
+      { userId, count, excludeSessionId, reason, action: 'revoke_all_sessions' },
       'Revoked all user sessions'
     )
     return count
   }
 
-  /**
-   * Get session by ID
-   * @param sessionId - Session ID
-   * @returns Promise<Session | null>
-   */
+  /** Any session by id, revoked ones included (fresh read) */
   async getSessionById(sessionId: string) {
     return this.sessionRepository.findById(sessionId, { bypassCache: true })
   }
 
-  /**
-   * Revoke all sessions for a user (admin function)
-   * @param userId - User ID
-   * @param reason - Revocation reason
-   * @returns Promise<number> - Number of sessions revoked
-   */
-  async revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
-    return this.revokeAllSessions(userId, undefined, reason)
-  }
-
-  /**
-   * Get active sessions for a user
-   * @param userId - User ID
-   * @param includeInactive - Include inactive sessions
-   * @returns Promise<Session[]>
-   */
+  /** The user's live sessions, or all of them with `includeInactive` */
   async getActiveSessions(userId: string, includeInactive = false): Promise<Session[]> {
     const sessions = await this.sessionRepository.findByUserId(userId, includeInactive)
-    return sessions.map(session => this.normalizeSessionDates(session))
+    return sessions.map(withDatesAndRevokedAt)
   }
 
-  /**
-   * Get comprehensive session statistics for a user
-   * @param userId - User ID
-   * @returns Promise<object>
-   */
   async getSessionStats(userId: string) {
     return this.sessionRepository.getUserSessionStats(userId)
   }
 
-  /**
-   * Assess security risk for a specific session
-   * @param sessionId - Session ID
-   * @returns Promise<object>
-   */
   async assessSessionRisk(sessionId: string) {
     return this.sessionRepository.assessSecurityRisk(sessionId)
   }
 
-  /**
-   * Cleanup expired sessions (hard delete)
-   * @param olderThanDays - Delete sessions older than X days
-   * @returns Promise<{ deleted: number; timestamp: string }>
-   */
+  /** Hard-deletes sessions that ended more than `olderThanDays` ago */
   async cleanupExpiredSessions(
     olderThanDays = 30
   ): Promise<{ deleted: number; timestamp: string }> {
@@ -373,179 +250,130 @@ export class SessionsService {
     return { deleted, timestamp }
   }
 
-  /**
-   * Get global device statistics
-   * @returns Promise<object>
-   */
+  /** Live sessions per device type, across all users */
   async getDeviceStats() {
     return this.sessionRepository.getDeviceStats()
   }
 
   /**
-   * Normalize all date fields in a session object
-   * Ensures all date values are proper Date objects, not strings or numbers
-   * Also computes dynamic revokedAt property from metadata or deletedAt
-   *
-   * @param session - Session entity to normalize
-   * @returns Session with normalized dates and computed revokedAt property
-   * @private
+   * Keeps the user under the concurrent-session limit once the new session exists:
+   * revokes the oldest live sessions beyond `maxConcurrentSessions - 1`
    */
-  private normalizeSessionDates(session: Session): Session {
-    const ensureDate = (value?: Date | string | number | null): Date => {
-      if (value instanceof Date) return value
-      if (typeof value === 'string' || typeof value === 'number') {
-        const date = new Date(value)
-        return isNaN(date.getTime()) ? new Date(0) : date
-      }
-      return new Date(0)
-    }
+  private async makeRoomForNewSession(userId: string): Promise<void> {
+    const activeCount = await this.sessionRepository.getActiveSessionCount(userId)
+    if (activeCount < this.maxConcurrentSessions) return
 
-    session.createdAt = ensureDate(session.createdAt)
-    session.updatedAt = ensureDate(session.updatedAt)
-    session.lastActivityAt = ensureDate(session.lastActivityAt)
-    session.expiresAt = ensureDate(session.expiresAt)
-    session.deletedAt = session.deletedAt ? ensureDate(session.deletedAt) : undefined
+    const oldestFirst = (await this.sessionRepository.findActiveByUserId(userId))
+      .map(withDatesAndRevokedAt)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    const excess = oldestFirst.slice(0, oldestFirst.length - this.maxConcurrentSessions + 1)
 
-    // Add dynamic revokedAt property if session has been revoked
-    this.addRevokedAtProperty(session, ensureDate)
-
-    return session
-  }
-
-  /**
-   * Dynamically adds revokedAt property to session objects for API responses
-   *
-   * Checks multiple sources in priority order for backward compatibility:
-   * 1. metadata.revokedAt (preferred format)
-   * 2. metadata.revoked_at (snake_case legacy format)
-   * 3. deletedAt (fallback for sessions without metadata)
-   *
-   * The property is only added if revocation data exists, maintaining a clean API response.
-   * Uses type-safe casting to extend the Session interface without modifying the entity schema.
-   *
-   * @param session - Session entity to enhance with revokedAt property
-   * @param ensureDate - Date normalization function to ensure consistent Date objects
-   * @private
-   */
-  private addRevokedAtProperty(
-    session: Session,
-    ensureDate: (value?: Date | string | number | null) => Date
-  ): void {
-    // Check multiple sources for revocation timestamp (backward compatibility)
-    // metadata is free-form jsonb: only accept values that can actually be a date
-    const fromMetadata = [session.metadata?.revokedAt, session.metadata?.revoked_at].find(
-      (value): value is string | number => typeof value === 'string' || typeof value === 'number'
+    this.logger.warn(
+      {
+        userId,
+        activeCount,
+        limit: this.maxConcurrentSessions,
+        revoking: excess.length,
+        action: 'concurrent_limit_exceeded'
+      },
+      'User reached the concurrent session limit; revoking the oldest sessions'
     )
-    const revokedAtSource = fromMetadata ?? (session.deletedAt ? session.deletedAt : undefined)
-
-    if (revokedAtSource) {
-      const revokedAtDate = ensureDate(revokedAtSource)
-
-      // Log revocation detection for debugging
-      this.logger.debug(
-        {
-          sessionId: session.id,
-          userId: session.userId,
-          revokedAtSource: typeof revokedAtSource,
-          revokedAtDate: revokedAtDate.toISOString(),
-          source: session.metadata?.revokedAt
-            ? 'metadata.revokedAt'
-            : session.metadata?.revoked_at
-              ? 'metadata.revoked_at'
-              : 'deletedAt',
-          action: 'add_revoked_at_property'
-        },
-        'Added dynamic revokedAt property to session'
-      )
-
-      // Type-safe extension: add revokedAt without modifying entity schema
-      ;(session as Session & { revokedAt?: Date }).revokedAt = revokedAtDate
+    for (const session of excess) {
+      await this.sessionRepository.revokeSession(session.id, 'concurrent_limit_exceeded')
     }
   }
+}
 
-  /**
-   * Assess security level based on session characteristics
-   * @private
-   */
-  private assessSecurityLevel(context: {
-    ipAddress?: string
-    userAgent?: string
-    fingerprint?: string
-    sessionType?: string
-  }): 'low' | 'medium' | 'high' | 'critical' {
-    let riskScore = 0
-
-    // Check for missing security indicators
-    if (!context.fingerprint) riskScore += 20
-    if (!context.ipAddress) riskScore += 15
-    if (!context.userAgent) riskScore += 10
-
-    // Check session type
-    if (context.sessionType === 'admin') riskScore += 15
-    if (context.sessionType === 'api') riskScore += 10
-    if (context.sessionType === 'suspicious') riskScore += 40
-
-    // Basic IP analysis (simplified)
-    if (context.ipAddress) {
-      // Check for private IPs (lower risk)
-      if (
-        context.ipAddress.startsWith('192.168.') ||
-        context.ipAddress.startsWith('10.') ||
-        context.ipAddress.startsWith('172.')
-      ) {
-        riskScore -= 10
-      }
-      // Check for localhost
-      if (context.ipAddress === '127.0.0.1' || context.ipAddress === '::1') {
-        riskScore -= 15
-      }
-    }
-
-    // Determine level
-    if (riskScore >= 50) return 'critical'
-    if (riskScore >= 30) return 'high'
-    if (riskScore >= 10) return 'medium'
-    return 'low'
+/**
+ * Sessions read from the cache are plain JSON (dates as strings). Restores the dates and
+ * adds `revokedAt` for revoked sessions: from metadata (written by revocation; older rows
+ * used snake_case), else deletedAt.
+ */
+function withDatesAndRevokedAt(session: Session): Session {
+  const toDate = (value?: Date | string | number | null): Date => {
+    const date = value instanceof Date ? value : new Date(value ?? 0)
+    return isNaN(date.getTime()) ? new Date(0) : date
   }
 
-  /**
-   * Detect device type from user agent
-   * @private
-   */
-  private detectDeviceType(userAgent?: string): string {
-    if (!userAgent) return 'unknown'
+  session.createdAt = toDate(session.createdAt)
+  session.updatedAt = toDate(session.updatedAt)
+  session.lastActivityAt = toDate(session.lastActivityAt)
+  session.expiresAt = toDate(session.expiresAt)
+  session.deletedAt = session.deletedAt ? toDate(session.deletedAt) : undefined
 
-    const ua = userAgent.toLowerCase()
-
-    if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
-      return 'mobile'
-    }
-    if (ua.includes('tablet') || ua.includes('ipad')) {
-      return 'tablet'
-    }
-    if (ua.includes('postman') || ua.includes('insomnia') || ua.includes('curl')) {
-      return 'api-client'
-    }
-    if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) {
-      return 'bot'
-    }
-
-    return 'desktop'
+  // metadata is free-form jsonb: only accept values that can be a date
+  const fromMetadata = [session.metadata?.revokedAt, session.metadata?.revoked_at].find(
+    (value): value is string | number => typeof value === 'string' || typeof value === 'number'
+  )
+  const revokedAt = fromMetadata ?? session.deletedAt
+  if (revokedAt) {
+    ;(session as Session & { revokedAt?: Date }).revokedAt = toDate(revokedAt)
   }
+  return session
+}
 
-  /**
-   * Generate device fingerprint
-   * @private
-   */
-  private generateFingerprint(context: { ipAddress?: string; userAgent?: string }): string {
-    const parts = [
-      context.ipAddress || 'unknown',
-      context.userAgent || 'unknown',
-      Date.now().toString()
-    ]
+/**
+ * A coarse risk label stored with the session (shown in session lists, filterable).
+ * Heuristic only: missing client signals and privileged session types score higher,
+ * private-network and loopback addresses lower. Nothing is blocked on it.
+ */
+function assessSecurityLevel(context: {
+  ipAddress?: string
+  userAgent?: string
+  fingerprint?: string
+  sessionType?: string
+}): 'low' | 'medium' | 'high' | 'critical' {
+  let riskScore = 0
 
-    // Simple hash (in production, use a proper fingerprinting library)
-    const hash = Buffer.from(parts.join('|')).toString('base64').substring(0, 32)
-    return `fp_${hash}`
+  if (!context.fingerprint) riskScore += 20
+  if (!context.ipAddress) riskScore += 15
+  if (!context.userAgent) riskScore += 10
+
+  if (context.sessionType === 'admin') riskScore += 15
+  if (context.sessionType === 'api') riskScore += 10
+  if (context.sessionType === 'suspicious') riskScore += 40
+
+  if (context.ipAddress && isLoopback(context.ipAddress)) riskScore -= 15
+  else if (context.ipAddress && isPrivateIpv4(context.ipAddress)) riskScore -= 10
+
+  if (riskScore >= 50) return 'critical'
+  if (riskScore >= 30) return 'high'
+  if (riskScore >= 10) return 'medium'
+  return 'low'
+}
+
+const isLoopback = (ip: string) => ip === '::1' || ip.startsWith('127.')
+
+/** RFC 1918: 10/8, 172.16/12, 192.168/16 */
+export function isPrivateIpv4(ip: string): boolean {
+  if (isIP(ip) !== 4) return false
+  const [a, b] = ip.split('.').map(Number)
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
+}
+
+/** Device class from the user agent (substring heuristics) */
+export function detectDeviceType(userAgent?: string): string {
+  if (!userAgent) return 'unknown'
+  const ua = userAgent.toLowerCase()
+
+  // Tablets first: iPad and Android tablet user agents also say "mobile" or "android"
+  if (ua.includes('tablet') || ua.includes('ipad')) return 'tablet'
+  if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) return 'mobile'
+  if (ua.includes('postman') || ua.includes('insomnia') || ua.includes('curl')) {
+    return 'api-client'
   }
+  if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) return 'bot'
+  return 'desktop'
+}
+
+/**
+ * Stand-in fingerprint when the client sends none: the same address and browser give the
+ * same value, so sessions from one device can be grouped. A hash, so the stored value
+ * does not reveal the address.
+ */
+export function deviceFingerprint(ipAddress?: string, userAgent?: string): string {
+  const digest = createHash('sha256')
+    .update(`${ipAddress ?? 'unknown'}|${userAgent ?? 'unknown'}`)
+    .digest('hex')
+  return `fp_${digest.slice(0, 32)}`
 }
