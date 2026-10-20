@@ -538,12 +538,20 @@ Content-Type: application/json
 
 **Required Permission:** `create:Category`
 
+The slug is derived from the name (with a numeric suffix if taken) unless one is sent. Slugs
+are unique among live categories: a deleted category's slug can be used again. A taken
+explicit slug answers `409`.
+
 ### List Categories
 
 ```http
-GET /api/v1/categories
+GET /api/v1/categories?search=&isActive=&includeCounts=&includeDeleted=&orderBy=name&orderDirection=ASC&page=1&limit=50
 Authorization: Bearer <token>
 ```
+
+`search` matches name, slug and description literally (`%` and `_` are not wildcards).
+`includeCounts` adds `storyCount` (live stories). `includeDeleted` applies only for callers
+with `restore:Category`; for others it is ignored.
 
 ### List Active Categories
 
@@ -588,6 +596,8 @@ Content-Type: application/json
 
 **Required Permission:** `update:Category`
 
+Renaming keeps the slug (it is in public URLs); send `slug` to change it (`409` if taken).
+
 ### Delete Category (Soft Delete)
 
 ```http
@@ -597,6 +607,8 @@ Authorization: Bearer <token>
 
 **Required Permission:** `delete:Category`
 
+The category disappears from stories (their links are kept, so a restore brings it back).
+
 ### Restore Category
 
 ```http
@@ -605,6 +617,9 @@ Authorization: Bearer <token>
 ```
 
 **Required Permission:** `restore:Category`
+
+Restores the category with its active flag as it was. `404` if the category is not deleted,
+`409` if a live category now uses its slug.
 
 ### Hard Delete Category
 

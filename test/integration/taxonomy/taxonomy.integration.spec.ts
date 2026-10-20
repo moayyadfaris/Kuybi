@@ -96,7 +96,7 @@ describe('Taxonomy (categories and tags)', () => {
       await t.http().delete(`/api/v1/categories/${created.id}`).set(member.auth).expect(403)
     })
 
-    it('serves the update, not the cached copy (renaming moves the slug)', async () => {
+    it('serves the update, not the cached copy (a new slug moves it)', async () => {
       const created = (await createCategory('Economy').expect(201)).body.data
       await t.http().get(`/api/v1/categories/${created.id}`).set(admin.auth).expect(200) // cache
       await t.http().get(`/api/v1/categories/slug/${created.slug}`).set(admin.auth).expect(200)
@@ -105,7 +105,7 @@ describe('Taxonomy (categories and tags)', () => {
         .http()
         .patch(`/api/v1/categories/${created.id}`)
         .set(admin.auth)
-        .send({ name: 'Markets' })
+        .send({ name: 'Markets', slug: 'markets' })
         .expect(200)
       expect(updated.body.data.slug).toBe('markets')
 
