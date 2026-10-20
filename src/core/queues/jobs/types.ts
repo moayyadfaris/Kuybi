@@ -75,8 +75,7 @@ export enum NotificationJobType {
  */
 export enum VersionCleanupJobType {
   CLEANUP_EXPIRED = 'cleanup-expired-versions',
-  ARCHIVE_OLD = 'archive-old-versions',
-  MANUAL_CLEANUP = 'manual-cleanup-versions'
+  ARCHIVE_OLD = 'archive-old-versions'
 }
 
 /**

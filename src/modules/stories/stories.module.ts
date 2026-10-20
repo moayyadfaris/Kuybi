@@ -57,13 +57,7 @@ import { StoryVersionBranchService } from './services/versioning/story-version-b
     StoryEnrichmentService
   ],
 
-  exports: [
-    StoriesService,
-    StoryVersionService,
-    StoryRepository,
-    StoryVersionRepository,
-    StoryRelationshipService,
-    StoryEnrichmentService
-  ]
+  // The web module reads published stories; the version jobs use the version repository
+  exports: [StoryRepository, StoryVersionRepository]
 })
 export class StoriesModule {}

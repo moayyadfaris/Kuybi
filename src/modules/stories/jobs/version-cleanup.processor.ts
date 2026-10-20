@@ -1,4 +1,5 @@
 import { InjectQueue, Processor } from '@nestjs/bullmq'
+import { errorMessage } from '@shared/utils/error.util'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -16,37 +17,29 @@ interface ArchiveOldJobData {
   olderThanDays?: number
 }
 
-interface ManualCleanupJobData {
-  dryRun?: boolean
-}
-
+/**
+ * Story version retention, scheduled by VersionCleanupScheduler: deletes archived versions
+ * whose expiresAt has passed, and archives active ones older than a cutoff. Pinned
+ * versions are never touched.
+ */
 @Processor(QueueName.VERSION_CLEANUP)
 export class VersionCleanupProcessor extends BaseProcessor {
   constructor(
     private readonly versionRepository: StoryVersionRepository,
     @InjectPinoLogger(VersionCleanupProcessor.name)
     logger: PinoLogger,
-    @InjectQueue(QueueName.VERSION_CLEANUP)
-    private readonly versionQueue: Queue,
     @InjectQueue(QueueName.DEAD_LETTER)
     deadLetterQueue: Queue
   ) {
     super(logger, deadLetterQueue)
   }
 
-  /**
-   * Central dispatch for BullMQ jobs
-   */
-  async process(
-    job: Job<CleanupExpiredJobData | ArchiveOldJobData | ManualCleanupJobData>
-  ): Promise<unknown> {
+  async process(job: Job<CleanupExpiredJobData | ArchiveOldJobData>): Promise<unknown> {
     switch (job.name) {
       case VersionCleanupJobType.CLEANUP_EXPIRED:
         return this.handleCleanupExpired(job as Job<CleanupExpiredJobData>)
       case VersionCleanupJobType.ARCHIVE_OLD:
         return this.handleArchiveOld(job as Job<ArchiveOldJobData>)
-      case VersionCleanupJobType.MANUAL_CLEANUP:
-        return this.handleManualCleanup(job as Job<ManualCleanupJobData>)
       default:
         this.logger.warn(
           { jobId: job.id, jobName: job.name },
@@ -56,9 +49,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
     }
   }
 
-  /**
-   * Handle cleanup of expired versions
-   */
+  /** Deletes archived, unpinned versions past their expiresAt (dryRun: only lists them) */
   private async handleCleanupExpired(job: Job<CleanupExpiredJobData>) {
     const dryRun = job.data?.dryRun ?? false
     this.logger.info({ jobId: job.id, dryRun }, 'Running version cleanup job')
@@ -66,7 +57,6 @@ export class VersionCleanupProcessor extends BaseProcessor {
     try {
       const now = new Date()
 
-      // Find expired versions that can be deleted
       const expiredVersions = await this.versionRepository.findExpiredArchived(now)
 
       if (expiredVersions.length === 0) {
@@ -93,7 +83,6 @@ export class VersionCleanupProcessor extends BaseProcessor {
         }
       }
 
-      // Delete expired versions
       let deletedCount = 0
       let failedCount = 0
 
@@ -117,21 +106,20 @@ export class VersionCleanupProcessor extends BaseProcessor {
             {
               versionId: version.id,
               storyId: version.storyId,
-              error: error instanceof Error ? error.message : 'Unknown error'
+              error: errorMessage(error)
             },
             'Failed to delete expired version'
           )
         }
       }
 
-      // Invalidate caches after cleanup
       if (deletedCount > 0) {
         try {
           await this.versionRepository.invalidateAllCaches()
           this.logger.debug('Invalidated version caches after cleanup')
         } catch (cacheError) {
           this.logger.warn(
-            { error: cacheError instanceof Error ? cacheError.message : 'Unknown error' },
+            { error: errorMessage(cacheError) },
             'Failed to invalidate caches after cleanup'
           )
         }
@@ -146,17 +134,12 @@ export class VersionCleanupProcessor extends BaseProcessor {
       this.logger.info(result, 'Version cleanup job completed')
       return result
     } catch (error) {
-      this.logger.error(
-        { error: error instanceof Error ? error.message : 'Unknown error' },
-        'Version cleanup job failed'
-      )
+      this.logger.error({ error: errorMessage(error) }, 'Version cleanup job failed')
       throw error
     }
   }
 
-  /**
-   * Handle archiving of old versions
-   */
+  /** Archives active, unpinned versions without an expiry that are older than the cutoff */
   private async handleArchiveOld(job: Job<ArchiveOldJobData>) {
     const olderThanDays = job.data?.olderThanDays ?? 90
     this.logger.info({ jobId: job.id, olderThanDays }, 'Archiving old versions')
@@ -165,7 +148,6 @@ export class VersionCleanupProcessor extends BaseProcessor {
       const cutoffDate = new Date()
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
 
-      // Find old versions that are still ACTIVE
       const oldVersions = await this.versionRepository.findActiveCreatedBefore(cutoffDate)
 
       if (oldVersions.length === 0) {
@@ -196,7 +178,7 @@ export class VersionCleanupProcessor extends BaseProcessor {
           this.logger.error(
             {
               versionId: version.id,
-              error: error instanceof Error ? error.message : 'Unknown error'
+              error: errorMessage(error)
             },
             'Failed to archive version'
           )
@@ -217,36 +199,8 @@ export class VersionCleanupProcessor extends BaseProcessor {
       this.logger.info(result, 'Version archiving completed')
       return result
     } catch (error) {
-      this.logger.error(
-        { error: error instanceof Error ? error.message : 'Unknown error' },
-        'Version archiving job failed'
-      )
+      this.logger.error({ error: errorMessage(error) }, 'Version archiving job failed')
       throw error
     }
-  }
-
-  /**
-   * Handle manual cleanup trigger
-   */
-  private async handleManualCleanup(job: Job<ManualCleanupJobData>) {
-    const dryRun = job.data?.dryRun ?? false
-    this.logger.info({ jobId: job.id, dryRun }, 'Running manual version cleanup')
-
-    // Manual cleanup is the same as regular cleanup, just triggered differently
-    return this.handleCleanupExpired(job as Job<CleanupExpiredJobData>)
-  }
-
-  /**
-   * Utility to enqueue cleanup jobs (used by API for manual triggers)
-   */
-  async enqueueCleanup(dryRun = false) {
-    await this.versionQueue.add(VersionCleanupJobType.CLEANUP_EXPIRED, { dryRun })
-  }
-
-  /**
-   * Utility to enqueue archive jobs
-   */
-  async enqueueArchive(olderThanDays = 90) {
-    await this.versionQueue.add(VersionCleanupJobType.ARCHIVE_OLD, { olderThanDays })
   }
 }

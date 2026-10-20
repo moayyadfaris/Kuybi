@@ -7,7 +7,7 @@ import { AttachmentsModule } from '@modules/attachments/attachments.module'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { CategoriesModule } from '@modules/categories/categories.module'
 import { Category } from '@modules/categories/entities/category.entity'
-import { Story } from '@modules/stories/entities/story.entity'
+import { Story, StoryStatus } from '@modules/stories/entities/story.entity'
 import { StoriesModule } from '@modules/stories/stories.module'
 import { Tag } from '@modules/tags/entities/tag.entity'
 import { TagsModule } from '@modules/tags/tags.module'
@@ -206,8 +206,9 @@ describe('Story relationships', () => {
     })
   })
 
-  it("refuses changes to another user's story", async () => {
+  it("refuses changes to another user's story (403 once they can read it)", async () => {
     const news = await category('news')
+    await t.dataSource.getRepository(Story).update(story.id, { status: StoryStatus.PUBLISHED })
 
     await t
       .http()

@@ -385,6 +385,17 @@ Authorization: Bearer <token>
 
 ## 📰 Stories
 
+All story routes need a signed-in user. Which stories a user sees comes from their role's
+`read:Story` rules (ADR 0010): the `user` role reads published stories and its own.
+
+**Access rules**
+
+- A story the caller may not read answers `404`, on reads and on changes alike; a story they
+  may read but not change answers `403`.
+- Staff fields (`internalNotes`, `deletionReason`, `deletedBy`, `updatedBy`,
+  `lastModifiedBy`) are returned only to callers who may update the story.
+- Page sizes (`limit`) are 1 to 100. Path enums and ids are validated (`400` otherwise).
+
 ### Create Story
 
 ```http
@@ -394,181 +405,113 @@ Content-Type: application/json
 
 {
   "title": "My Story",
-  "content": "Story content...",
-  "summary": "Brief summary",
-  "status": "draft",
-  "type": "article"
+  "details": "Story content...",
+  "type": "STORY",
+  "priority": "NORMAL",
+  "status": "DRAFT",
+  "categoryIds": ["<uuid>"],
+  "tagIds": [1],
+  "tags": ["new-tag-name"]
 }
 ```
 
-**Required Permission:** `create:Story`
+**Required Permission:** `create:Story`. Authors may create `DRAFT` or `PENDING_REVIEW`;
+other statuses need `publish:Story`.
 
-### List Stories
-
-```http
-GET /api/v1/stories
-Authorization: Bearer <token>
-```
-
-### Get Story Statistics
+### List and Read
 
 ```http
+GET /api/v1/stories?search=&status=&type=&userId=&priority=&countryId=&parentId=&categoryIds=a,b&fromDate=&toDate=&includeDeleted=&page=1&limit=20&sortBy=createdAt&sortOrder=DESC
 GET /api/v1/stories/stats
-Authorization: Bearer <token>
-```
-
-### Get Stories by User
-
-```http
-GET /api/v1/stories/user/:userId
-Authorization: Bearer <token>
-```
-
-### Get Stories by Status
-
-```http
-GET /api/v1/stories/status/:status
-Authorization: Bearer <token>
-```
-
-### Get Stories by Type
-
-```http
-GET /api/v1/stories/type/:type
-Authorization: Bearer <token>
-```
-
-### Get Story Children
-
-```http
-GET /api/v1/stories/:id/children
-Authorization: Bearer <token>
-```
-
-### Get Story by ID
-
-```http
+GET /api/v1/stories/user/:userId?page=&limit=&includeDeleted=
+GET /api/v1/stories/status/:status?page=&limit=
+GET /api/v1/stories/type/:type?page=&limit=
+GET /api/v1/stories/:id/children?includeDeleted=
 GET /api/v1/stories/:id
-Authorization: Bearer <token>
 ```
+
+**Required Permission:** `read:Story`. `search` matches title and details literally (`%`
+and `_` are not wildcards). `includeDeleted` only has an effect for callers who read every
+story.
 
 ### Update Story
 
 ```http
 PATCH /api/v1/stories/:id
-Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "title": "Updated title",
-  "content": "Updated content"
-}
+{ "title": "Updated title", "details": "Updated content" }
 ```
 
-**Required Permission:** `update:Story`
+**Required Permission:** `update:Story` on this story. A non-empty `categoryIds`/`tagIds`/
+`tags` replaces the current set. `parentId` may not be the story itself or one of its
+replies. Each update records an automatic version.
 
 ### Update Story Status
 
 ```http
 PATCH /api/v1/stories/:id/status
-Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "status": "published"
-}
+{ "status": "PUBLISHED" }
 ```
 
-**Required Permission:** `publish:Story`
+**Required Permission:** `publish:Story`. A published story cannot go back to `DRAFT`;
+`DELETED` is set only by `DELETE /stories/:id`.
 
-### Delete Story (Soft Delete)
+### Delete, Restore, Hard Delete
 
 ```http
-DELETE /api/v1/stories/:id
-Authorization: Bearer <token>
+DELETE /api/v1/stories/:id?reason=<up to 255 chars>   # soft delete, 204
+POST   /api/v1/stories/:id/restore                     # back to DRAFT
+DELETE /api/v1/stories/:id/hard                        # super-admin only, 204
 ```
 
-**Required Permission:** `delete:Story`
+**Required Permission:** `delete:Story`, `restore:Story`, `manage:all`.
 
-### Hard Delete Story
+### Tags, Categories, Attachments
 
 ```http
-DELETE /api/v1/stories/:id/hard
-Authorization: Bearer <token>
+POST   /api/v1/stories/:id/tags          { "tagIds": [1], "tags": ["name"] }
+DELETE /api/v1/stories/:id/tags          { "tagIds": [1], "tags": ["name"] }
+POST   /api/v1/stories/:id/categories    { "categoryIds": ["<uuid>"] }
+DELETE /api/v1/stories/:id/categories    { "categoryIds": ["<uuid>"] }
+POST   /api/v1/stories/:id/attachments   { "attachmentIds": ["<uuid>"] }
+DELETE /api/v1/stories/:id/attachments   { "attachmentIds": ["<uuid>"] }
+GET    /api/v1/stories/:id/tags | categories | attachments
 ```
 
-**Required Permission:** `manage:all` (Super Admin only)
+Changes need `update:Story` on the story and return the whole story. Missing tag names are
+created; deleted categories are refused. Attachments must be the caller's own or public.
 
-### Restore Story
+### Main Image
 
 ```http
-POST /api/v1/stories/:id/restore
-Authorization: Bearer <token>
+PUT    /api/v1/stories/:id/main-image    { "attachmentId": "<uuid>" }
+DELETE /api/v1/stories/:id/main-image
 ```
 
-**Required Permission:** `restore:Story`
+The image must be one of the caller's own images; it is made public when set.
 
-### Add Attachments to Story
+### Versions
 
 ```http
-POST /api/v1/stories/:id/attachments
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "attachmentIds": [1, 2, 3]
-}
+GET  /api/v1/stories/:id/versions?limit=&offset=&branchName=
+GET  /api/v1/stories/:id/versions/:versionNumber
+POST /api/v1/stories/:id/versions                    { "commitMessage": "...", "branchName": "main" }
+POST /api/v1/stories/:id/versions/rollback           { "versionNumber": 3, "commitMessage": "...", "createBranch": false }
+POST /api/v1/stories/:id/versions/branch             { "branchName": "draft-2", "fromVersionNumber": 3 }
+POST /api/v1/stories/:id/versions/merge              { "fromBranch": "draft-2", "fromVersionNumber": 5, "targetBranch": "main", "commitMessage": "..." }
+POST /api/v1/stories/:id/versions/compare            { "versionA": 3, "versionB": 5 }
+GET  /api/v1/stories/:id/versions/branches/info
+POST /api/v1/stories/:id/versions/:versionNumber/tag { "tag": "release-1" }
 ```
 
-### Remove Attachments from Story
-
-```http
-DELETE /api/v1/stories/:id/attachments
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "attachmentIds": [1, 2]
-}
-```
-
-### Get Story Attachments
-
-```http
-GET /api/v1/stories/:id/attachments
-Authorization: Bearer <token>
-```
-
-### Add Tags to Story
-
-```http
-POST /api/v1/stories/:id/tags
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "tagIds": [1, 2, 3]
-}
-```
-
-### Remove Tags from Story
-
-```http
-DELETE /api/v1/stories/:id/tags
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "tagIds": [1]
-}
-```
-
-### Get Story Tags
-
-```http
-GET /api/v1/stories/:id/tags
-Authorization: Bearer <token>
-```
+Every version route, reads included, needs `update:Story` on the story: old versions keep
+removed content and staff notes. A rollback on `main` restores the content of that version
+(not its status, links or main image) and records one `ROLLBACK` version; with
+`createBranch` it only records the version on a new branch. A merge with conflicting
+changes answers `409` with the conflicts; resend with `resolveConflicts`.
 
 ---
 

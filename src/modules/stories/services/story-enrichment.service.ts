@@ -5,6 +5,7 @@ import { Attachment } from '@modules/attachments/entities'
 
 import { Story } from '../entities/story.entity'
 
+/** Puts a story's main image and attachments in their API shape (toAttachmentResponse) */
 @Injectable()
 export class StoryEnrichmentService {
   enrichStoryAttachment(attachment?: Attachment | null): Attachment | undefined {

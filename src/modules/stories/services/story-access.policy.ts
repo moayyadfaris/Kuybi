@@ -7,6 +7,15 @@ import { Story, StoryStatus } from '../entities/story.entity'
 import { STORY_SCOPE_COLUMNS } from '../repositories/story.repository'
 import { AUTHOR_STATUSES } from '../story-status.rules'
 
+/** Fields shown only to those who may edit the story: staff notes and who did what */
+const STAFF_FIELDS = [
+  'internalNotes',
+  'deletionReason',
+  'deletedBy',
+  'updatedBy',
+  'lastModifiedBy'
+] as const satisfies ReadonlyArray<keyof Story>
+
 /**
  * Per-story authorization (e.g. the 'user' role may update only its own stories).
  *
@@ -50,6 +59,23 @@ export class StoryAccessPolicy {
     if (!this.can(user, action, story)) {
       throw new ForbiddenException(message)
     }
+  }
+
+  /**
+   * For changes: 404 when the user may not even read the story (as for reads), 403 when
+   * they may read but not do `action`
+   */
+  assertCanChange(user: User, action: Action, story: Story, message: string): void {
+    this.assertCanRead(user, story)
+    this.assertCan(user, action, story, message)
+  }
+
+  /** The story as this viewer may see it: without the staff fields unless they can edit it */
+  forViewer(viewer: User, story: Story): Story {
+    if (this.can(viewer, Action.Update, story)) return story
+    const visible = { ...story }
+    for (const field of STAFF_FIELDS) delete visible[field]
+    return visible
   }
 
   /**

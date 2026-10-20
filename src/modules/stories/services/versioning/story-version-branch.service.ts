@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common'
 import { PinoLogger } from 'nestjs-pino'
 
 import { VersionDiff } from '../../dto/version/version-comparison.dto'
@@ -118,7 +123,7 @@ export class StoryVersionBranchService {
       ? detectConflicts(snapshotOfVersion(baseVersion), sourceSnapshot, targetSnapshot)
       : []
     if (conflicts.length > 0 && !resolveConflicts) {
-      throw new BadRequestException({
+      throw new ConflictException({
         message: 'Merge conflicts detected. Please provide conflict resolutions.',
         conflicts
       })
