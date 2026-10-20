@@ -392,8 +392,9 @@ All story routes need a signed-in user. Which stories a user sees comes from the
 
 - A story the caller may not read answers `404`, on reads and on changes alike; a story they
   may read but not change answers `403`.
-- Staff fields (`internalNotes`, `deletionReason`, `deletedBy`, `updatedBy`,
-  `lastModifiedBy`) are returned only to callers who may update the story.
+- Editor-only fields (`internalNotes`, `deletionReason`, `deletedBy`, `updatedBy`,
+  `lastModifiedBy`, and the exact location `latitude`, `longitude`, `address`) are returned
+  only to callers who may update the story. `city`, `region` and `countryId` stay visible.
 - Page sizes (`limit`) are 1 to 100. Path enums and ids are validated (`400` otherwise).
 
 ### Create Story
@@ -512,6 +513,10 @@ removed content and staff notes. A rollback on `main` restores the content of th
 (not its status, links or main image) and records one `ROLLBACK` version; with
 `createBranch` it only records the version on a new branch. A merge with conflicting
 changes answers `409` with the conflicts; resend with `resolveConflicts`.
+
+Retention: a daily job keeps the newest `STORY_KEEP_AUTO_VERSIONS` (default 50) automatic
+versions per story and branch. Manual, branch, merge and rollback versions, tagged and
+pinned versions, fork points and merge or rollback sources are always kept.
 
 ---
 

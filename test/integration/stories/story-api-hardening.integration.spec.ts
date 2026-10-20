@@ -172,16 +172,27 @@ describe('Stories API hardening', () => {
       await t.http().delete(`/api/v1/stories/${draft.id}/main-image`).set(other.auth).expect(404)
     })
 
-    it('hides staff notes from readers who cannot edit the story', async () => {
-      const story = await save({ status: StoryStatus.PUBLISHED, internalNotes: 'check sources' })
+    it('hides staff notes and the exact location from readers who cannot edit it', async () => {
+      const story = await save({
+        status: StoryStatus.PUBLISHED,
+        internalNotes: 'check sources',
+        latitude: 31.95,
+        longitude: 35.91,
+        address: '1 Source Street',
+        city: 'Amman'
+      })
+      const hidden = ['internalNotes', 'latitude', 'longitude', 'address']
 
       const asOther = await t.http().get(`/api/v1/stories/${story.id}`).set(other.auth).expect(200)
-      expect(asOther.body.data.internalNotes).toBeUndefined()
       const listed = await t.http().get('/api/v1/stories').set(other.auth).expect(200)
-      expect(listed.body.data.results[0].internalNotes).toBeUndefined()
+      for (const body of [asOther.body.data, listed.body.data.results[0]]) {
+        for (const field of hidden) expect(body[field]).toBeUndefined()
+        expect(body.city).toBe('Amman')
+      }
 
       const asOwner = await t.http().get(`/api/v1/stories/${story.id}`).set(owner.auth).expect(200)
       expect(asOwner.body.data.internalNotes).toBe('check sources')
+      expect(asOwner.body.data.address).toBe('1 Source Street')
     })
 
     it('keeps the version history to those who can edit the story', async () => {

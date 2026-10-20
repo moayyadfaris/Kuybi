@@ -96,6 +96,10 @@ export default () => {
         idleTimeoutMillis: parseNumber(process.env.DB_POOL_IDLE_TIMEOUT, 30000)
       }
     },
+    stories: {
+      // Automatic versions kept per story and branch (the daily prune deletes older ones)
+      keepAutoVersions: parseNumber(process.env.STORY_KEEP_AUTO_VERSIONS, 50)
+    },
     auth: {
       jwtSecret: process.env.JWT_SECRET,
       jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '10m',

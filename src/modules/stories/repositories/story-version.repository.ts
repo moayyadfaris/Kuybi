@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { IsNull, LessThan, Repository } from 'typeorm'
+import { Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
 
-import { StoryVersion, VersionStatus } from '../entities/story-version.entity'
+import { StoryVersion } from '../entities/story-version.entity'
 
 /** First key of the advisory lock taken while numbering a story's versions (with the story id) */
 const VERSION_NUMBER_LOCK = 0x53_56 // "SV"
@@ -23,26 +23,50 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     super(repository, cacheService)
   }
 
-  // ---- Retention (version-cleanup jobs) ----
+  /**
+   * Deletes automatic versions beyond the newest `keep` per story and branch, at most
+   * `batch` per call. Kept regardless: pinned or tagged versions, fork points (parent of
+   * a version on another branch: merges compare against them) and merge or rollback
+   * sources. Versions whose parent is
+   * deleted are re-pointed to the nearest kept ancestor, so the chain stays connected.
+   * Returns the number deleted.
+   */
+  async pruneAutoVersions(keep: number, batch: number): Promise<number> {
+    return this.transaction(async manager => {
+      const doomed: Array<{ id: string; parentVersionId: string | null }> = await manager.query(
+        `SELECT "id", "parentVersionId" FROM (
+           SELECT v.*, ROW_NUMBER() OVER (
+                    PARTITION BY v."storyId", v."branchName" ORDER BY v."versionNumber" DESC
+                  ) AS "rank"
+             FROM story_versions v
+            WHERE v."versionType" = 'AUTO'
+         ) ranked
+         WHERE "rank" > $1 AND NOT "isPinned" AND "tag" IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM story_versions o
+              WHERE o."mergedFromVersionId" = ranked."id"
+                 OR o."rolledBackFromVersionId" = ranked."id"
+                 OR (o."parentVersionId" = ranked."id" AND o."branchName" <> ranked."branchName"))
+         LIMIT $2`,
+        [keep, batch]
+      )
+      if (doomed.length === 0) return 0
 
-  /** Archived, unpinned versions whose expiry has passed */
-  findExpiredArchived(now: Date): Promise<StoryVersion[]> {
-    return this.repository.find({
-      where: { expiresAt: LessThan(now), isPinned: false, status: VersionStatus.ARCHIVED },
-      select: { id: true, storyId: true, versionNumber: true, expiresAt: true }
-    })
-  }
-
-  /** Active, unpinned versions without an explicit expiry, created before the cutoff */
-  findActiveCreatedBefore(cutoff: Date): Promise<StoryVersion[]> {
-    return this.repository.find({
-      where: {
-        createdAt: LessThan(cutoff),
-        status: VersionStatus.ACTIVE,
-        isPinned: false,
-        expiresAt: IsNull()
-      },
-      select: { id: true, storyId: true, versionNumber: true, createdAt: true }
+      const parentOf = new Map(doomed.map(v => [v.id, v.parentVersionId]))
+      const keptAncestor = (id: string): string | null => {
+        let current = parentOf.get(id) ?? null
+        while (current && parentOf.has(current)) current = parentOf.get(current) ?? null
+        return current
+      }
+      for (const { id } of doomed) {
+        await manager.query(
+          `UPDATE story_versions SET "parentVersionId" = $1
+            WHERE "parentVersionId" = $2 AND NOT ("id" = ANY($3))`,
+          [keptAncestor(id), id, [...parentOf.keys()]]
+        )
+      }
+      await manager.query(`DELETE FROM story_versions WHERE "id" = ANY($1)`, [[...parentOf.keys()]])
+      return doomed.length
     })
   }
 

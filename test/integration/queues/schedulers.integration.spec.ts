@@ -1,9 +1,10 @@
+import { ConfigService } from '@nestjs/config'
 import { Queue } from 'bullmq'
 
 import { AuthJobsScheduler } from '@modules/auth/jobs/auth-jobs.scheduler'
 import { VersionCleanupScheduler } from '@modules/stories/jobs/version-cleanup.scheduler'
 
-import { SessionCleanupJobType } from '@core/queues/jobs/types'
+import { SessionCleanupJobType, VersionCleanupJobType } from '@core/queues/jobs/types'
 
 import { testConfig } from '../../test.config'
 
@@ -54,14 +55,22 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
     expect(await sessionQueue.getJobSchedulersCount()).toBe(2)
   })
 
-  it('schedules the version cleanup jobs with their payloads', async () => {
-    const scheduler = new VersionCleanupScheduler(versionQueue)
+  it('schedules the daily version prune and retires the weekly archive job', async () => {
+    await versionQueue.upsertJobScheduler(
+      'version-archive-weekly',
+      { pattern: '0 3 * * 0' },
+      { name: 'archive-old-versions', data: {} }
+    )
+    const config = { get: () => 7 } as unknown as ConfigService
+    const scheduler = new VersionCleanupScheduler(versionQueue, config)
     await scheduler.onModuleInit()
     await scheduler.onModuleInit()
 
-    const archive = await versionQueue.getJobScheduler('version-archive-weekly')
-    expect(archive?.pattern).toBe('0 3 * * 0')
-    expect(archive?.template?.data).toEqual({ olderThanDays: 90 })
-    expect(await versionQueue.getJobSchedulersCount()).toBeGreaterThanOrEqual(1)
+    const prune = await versionQueue.getJobScheduler('version-cleanup-daily')
+    expect(prune?.pattern).toBe('0 2 * * *')
+    expect(prune?.name).toBe(VersionCleanupJobType.PRUNE_AUTO)
+    expect(prune?.template?.data).toEqual({ keepAutoVersions: 7 })
+    expect(await versionQueue.getJobScheduler('version-archive-weekly')).toBeFalsy()
+    expect(await versionQueue.getJobSchedulersCount()).toBe(1)
   })
 })

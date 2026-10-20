@@ -7,13 +7,20 @@ import { Story, StoryStatus } from '../entities/story.entity'
 import { STORY_SCOPE_COLUMNS } from '../repositories/story.repository'
 import { AUTHOR_STATUSES } from '../story-status.rules'
 
-/** Fields shown only to those who may edit the story: staff notes and who did what */
-const STAFF_FIELDS = [
+/**
+ * Fields shown only to those who may edit the story: staff notes, who did what, and the
+ * exact location (a tip-off's coordinates or address can identify its source; city,
+ * region and country stay visible)
+ */
+const EDITOR_ONLY_FIELDS = [
   'internalNotes',
   'deletionReason',
   'deletedBy',
   'updatedBy',
-  'lastModifiedBy'
+  'lastModifiedBy',
+  'latitude',
+  'longitude',
+  'address'
 ] as const satisfies ReadonlyArray<keyof Story>
 
 /**
@@ -70,11 +77,11 @@ export class StoryAccessPolicy {
     this.assertCan(user, action, story, message)
   }
 
-  /** The story as this viewer may see it: without the staff fields unless they can edit it */
+  /** The story as this viewer may see it: without the editor-only fields unless they can edit it */
   forViewer(viewer: User, story: Story): Story {
     if (this.can(viewer, Action.Update, story)) return story
     const visible = { ...story }
-    for (const field of STAFF_FIELDS) delete visible[field]
+    for (const field of EDITOR_ONLY_FIELDS) delete visible[field]
     return visible
   }
 
