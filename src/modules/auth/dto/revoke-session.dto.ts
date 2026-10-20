@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { IsArray, IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator'
 
-import { DeviceType } from './create-session.dto'
+import { DeviceType } from './session-enums'
 
 export enum RevocationReason {
   USER_LOGOUT = 'user_logout',

@@ -5,12 +5,24 @@
  */
 import * as bcrypt from 'bcrypt'
 
+import { PasswordReset } from '@modules/auth/entities/password-reset.entity'
 import { Session } from '@modules/auth/entities/session.entity'
+
+import { hashTokenSecret } from '@core/security'
 
 import { Actor, createHttpTestApp, HttpTestApp } from '../../helpers/http-test-app'
 import { resetDatabase } from '../../helpers/reset-database'
 
-const TABLES = ['sessions', 'user_roles', 'role_permissions', 'users', 'roles', 'permissions']
+const TABLES = [
+  'password_resets',
+  'outbox_messages',
+  'sessions',
+  'user_roles',
+  'role_permissions',
+  'users',
+  'roles',
+  'permissions'
+]
 const PASSWORD = 'Password123!' // createHttpTestApp's password for signed-up users
 
 describe('Password and token hashing', () => {
@@ -78,5 +90,26 @@ describe('Password and token hashing', () => {
 
     await refresh(refreshToken).expect(201)
     await refresh(`${tokenId}.00000000-0000-4000-8000-000000000000`).expect(401)
+  })
+
+  it('stores the emailed reset token only as its hash', async () => {
+    await t
+      .http()
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: member.user.email })
+      .expect(201)
+
+    const [message] = await t.dataSource.query(
+      `SELECT payload FROM outbox_messages WHERE payload->>'to' = $1
+        ORDER BY "createdAt" DESC LIMIT 1`,
+      [member.user.email]
+    )
+    const token = new URL(message.payload.resetLink).searchParams.get('token') as string
+    const stored = await t.dataSource
+      .getRepository(PasswordReset)
+      .findOneOrFail({ where: { userId: member.user.id }, order: { createdAt: 'DESC' } })
+
+    expect(stored.token).not.toBe(token)
+    expect(stored.token).toBe(hashTokenSecret(token))
   })
 })

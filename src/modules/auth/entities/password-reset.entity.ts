@@ -49,7 +49,11 @@ export class PasswordReset {
   @Column({ type: 'varchar', length: 255 })
   email: string // Index removed from property - already defined at class level
 
-  @Column({ type: 'uuid', unique: true })
+  /**
+   * SHA-256 of the token (hashTokenSecret). The token itself only exists in the email
+   * link, so a database leak does not hand out working links.
+   */
+  @Column({ type: 'varchar', length: 80, unique: true })
   token: string
 
   @Column({ type: 'timestamp' })

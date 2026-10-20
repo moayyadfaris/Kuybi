@@ -3,7 +3,7 @@ import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
 import { Type } from 'class-transformer'
 import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
-import { DeviceType, SessionType } from './create-session.dto'
+import { DeviceType, SessionType } from './session-enums'
 
 export enum SessionSortBy {
   CREATED_AT = 'createdAt',

@@ -21,7 +21,6 @@ export enum QueueName {
  */
 export enum SessionCleanupJobType {
   CLEANUP_EXPIRED = 'cleanup-expired-sessions',
-  CHECK_EXPIRING = 'check-expiring-sessions',
   CLEANUP_RESET_TOKENS = 'cleanup-expired-reset-tokens'
 }
 

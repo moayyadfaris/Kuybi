@@ -3,7 +3,6 @@ import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swa
 import { seconds, Throttle } from '@nestjs/throttler'
 import { clientIp, parseUserAgent } from '@shared/utils/request.util'
 import { Request } from 'express'
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { AuditService } from '@modules/audit'
 import { User } from '@modules/users/entities'
@@ -31,8 +30,6 @@ interface AuthenticatedRequest extends Request {
 @Controller('v1/auth')
 export class PasswordController {
   constructor(
-    @InjectPinoLogger(PasswordController.name)
-    private readonly logger: PinoLogger,
     private readonly passwordChangeService: PasswordChangeService,
     private readonly passwordResetService: PasswordResetService,
     private readonly passwordStrengthService: PasswordStrengthService,
@@ -45,52 +42,19 @@ export class PasswordController {
   @ApiOperation({ summary: 'Request password reset link' })
   @ApiOkResponse({ description: 'Password reset email sent if account exists' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto, @Req() req: Request) {
-    const ipAddress = clientIp(req)
-    const userAgent = req.headers['user-agent'] as string | undefined
-
-    this.logger.info(
-      { email: forgotPasswordDto.email, ipAddress, action: 'forgot_password_attempt' },
-      'Password reset requested'
-    )
-
-    const result = await this.passwordResetService.requestPasswordReset(
+    return this.passwordResetService.requestPasswordReset(
       forgotPasswordDto,
-      ipAddress,
-      userAgent
+      clientIp(req),
+      req.headers['user-agent'] as string | undefined
     )
-
-    this.logger.info(
-      { email: forgotPasswordDto.email, ipAddress, action: 'forgot_password_processed' },
-      'Password reset request processed'
-    )
-
-    return result
   }
 
   @Post('validate-reset-token')
   @Throttle({ default: { limit: 10, ttl: seconds(60) } }) // 10 attempts per minute
   @ApiOperation({ summary: 'Validate password reset token' })
   @ApiOkResponse({ description: 'Returns token validity status' })
-  async validateResetToken(@Body() validateTokenDto: ValidateResetTokenDto, @Req() req: Request) {
-    const ipAddress = clientIp(req)
-
-    this.logger.info(
-      {
-        token: validateTokenDto.token.substring(0, 8) + '...',
-        ipAddress,
-        action: 'validate_reset_token_attempt'
-      },
-      'Reset token validation attempt'
-    )
-
-    const result = await this.passwordResetService.validateResetToken(validateTokenDto)
-
-    this.logger.info(
-      { valid: result.valid, ipAddress, action: 'validate_reset_token_result' },
-      'Reset token validation completed'
-    )
-
-    return result
+  async validateResetToken(@Body() validateTokenDto: ValidateResetTokenDto) {
+    return this.passwordResetService.validateResetToken(validateTokenDto)
   }
 
   @Post('reset-password')
@@ -98,27 +62,8 @@ export class PasswordController {
   @ApiOperation({ summary: 'Reset password with valid token' })
   @ApiOkResponse({ description: 'Password reset successfully' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto, @Req() req: Request) {
-    const ipAddress = clientIp(req)
-
-    this.logger.info(
-      {
-        token: resetPasswordDto.token.substring(0, 8) + '...',
-        ipAddress,
-        action: 'reset_password_attempt'
-      },
-      'Password reset attempt'
-    )
-
-    const result = await this.passwordResetService.resetPassword(resetPasswordDto, ipAddress)
-
-    // Audit log: Password reset
+    const result = await this.passwordResetService.resetPassword(resetPasswordDto, clientIp(req))
     await this.auditService.logPasswordResetFromRequest(req, false)
-
-    this.logger.info(
-      { email: result.email, ipAddress, action: 'reset_password_success' },
-      'Password reset successfully'
-    )
-
     return result
   }
 
@@ -133,7 +78,7 @@ export class PasswordController {
       'Allows users to change their password. ' +
       'Validates current password, sets new password, and clears the forcePasswordChange flag. ' +
       'Optionally invalidates all other sessions (default: true) or keeps them active. ' +
-      'Optionally sends email notification (default: true).'
+      'The account owner is always notified by email.'
   })
   @ApiOkResponse({
     description: 'Password changed successfully',
@@ -155,23 +100,6 @@ export class PasswordController {
       throw new UnauthorizedException('Authenticated user not found on request context')
     }
 
-    const context = this.auditService.createContextFromRequest(req, {
-      id: user.id,
-      email: user.email,
-      name: user.email?.split('@')[0]
-    })
-
-    this.logger.info(
-      {
-        userId: user.id,
-        email: user.email,
-        action: 'change_password_attempt',
-        invalidateAllSessions: dto.invalidateAllSessions,
-        sendNotification: dto.sendNotificationEmail
-      },
-      'Password change attempt'
-    )
-
     // Session of the access token used for this request (set by JwtStrategy); kept active
     const currentSessionId = req.sessionId
 
@@ -191,19 +119,13 @@ export class PasswordController {
       }
     )
 
-    // Audit log: Password change
-    await this.auditService.logPasswordChange(context)
-
-    this.logger.info(
-      {
-        userId: user.id,
-        action: 'change_password_success',
-        sessionsRevoked: result.sessionsRevoked,
-        notificationSent: result.notificationSent
-      },
-      'Password changed successfully'
+    await this.auditService.logPasswordChange(
+      this.auditService.createContextFromRequest(req, {
+        id: user.id,
+        email: user.email,
+        name: user.name
+      })
     )
-
     return result
   }
 
@@ -242,7 +164,7 @@ export class PasswordController {
         },
         isBreached: {
           type: 'boolean',
-          description: 'Whether password has been exposed in data breaches (future feature)',
+          description: 'Whether the password appears in known data breaches (Have I Been Pwned)',
           example: false
         },
         requirements: {
@@ -259,21 +181,7 @@ export class PasswordController {
     }
   })
   async checkPasswordStrength(@Body() dto: CheckPasswordStrengthDto) {
-    this.logger.debug({ action: 'check_password_strength' }, 'Checking password strength')
-
-    const result = await this.passwordStrengthService.calculateStrength(dto.password)
-
-    this.logger.debug(
-      {
-        action: 'password_strength_checked',
-        score: result.score,
-        strength: result.strength,
-        passed: result.passed
-      },
-      'Password strength checked'
-    )
-
-    return result
+    return this.passwordStrengthService.calculateStrength(dto.password)
   }
 
   @Get('password-history')
@@ -326,11 +234,6 @@ export class PasswordController {
       throw new UnauthorizedException('Authenticated user not found on request context')
     }
 
-    this.logger.info(
-      { userId: user.id, action: 'get_password_history' },
-      'Fetching password change history'
-    )
-
     const history = await this.passwordHistoryRepository.findByUser(user.id, 20)
 
     const changes = history.map(entry => ({
@@ -340,15 +243,6 @@ export class PasswordController {
       userAgent: entry.userAgent,
       device: parseUserAgent(entry.userAgent)
     }))
-
-    this.logger.info(
-      {
-        userId: user.id,
-        action: 'password_history_retrieved',
-        count: changes.length
-      },
-      'Password history retrieved successfully'
-    )
 
     return {
       total: changes.length,

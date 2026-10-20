@@ -153,8 +153,8 @@ export class UpdatedUserDataDto {
   @ApiProperty({ description: 'User email', example: 'john.doe@example.com' })
   email: string
 
-  @ApiProperty({ description: 'Mobile number', example: '+1234567890' })
-  mobileNumber: string
+  @ApiProperty({ nullable: true, description: 'Mobile number', example: '+1234567890' })
+  mobileNumber: string | null
 
   @ApiProperty({ description: 'User role name', example: 'ROLE_USER' })
   role: string

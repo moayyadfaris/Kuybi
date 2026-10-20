@@ -33,25 +33,10 @@ export class RegistrationController {
       throw new BadRequestException('Either email or phone must be provided')
     }
 
-    this.logger.info(
-      { email: query.email, phone: query.phone, action: 'check_availability' },
-      'Checking availability'
-    )
-
-    let result
-
-    if (query.email) {
-      result = await this.availabilityService.isEmailAvailable(query.email)
-    } else if (query.phone) {
-      result = await this.availabilityService.isPhoneAvailable(query.phone!)
-    }
-
-    this.logger.info(
-      { field: result?.field, available: result?.available, action: 'check_availability_result' },
-      'Availability check completed'
-    )
-
-    return result
+    // Reveals whether an email is registered, by design (sign-up form); throttled
+    return query.email
+      ? this.availabilityService.isEmailAvailable(query.email)
+      : this.availabilityService.isPhoneAvailable(query.phone!)
   }
 
   @Post('register')
@@ -59,21 +44,17 @@ export class RegistrationController {
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiOkResponse({ description: 'User registered successfully, verification email sent' })
   async register(@Body() registerDto: RegisterUserDto, @Req() req: Request) {
-    const ipAddress = clientIp(req)
-    const context = this.auditService.createContextFromRequest(req)
-
-    this.logger.info(
-      { email: registerDto.email, ipAddress, action: 'registration_attempt' },
-      'Registration attempt'
-    )
-
     const user = await this.registrationService.register(registerDto)
-
-    // Audit log: User registration
-    await this.auditService.logCreate(context, 'User', user.id, { email: user.email })
-
+    await this.auditService.logCreate(
+      this.auditService.createContextFromRequest(req),
+      'User',
+      user.id,
+      {
+        email: user.email
+      }
+    )
     this.logger.info(
-      { userId: user.id, email: user.email, ipAddress, action: 'registration_success' },
+      { userId: user.id, ipAddress: clientIp(req), action: 'registration_success' },
       'Registration successful'
     )
 
@@ -89,25 +70,8 @@ export class RegistrationController {
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Verify user email address' })
   @ApiOkResponse({ description: 'Email verified successfully' })
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto, @Req() req: Request) {
-    const ipAddress = clientIp(req)
-
-    this.logger.info(
-      {
-        token: verifyEmailDto.token.substring(0, 8) + '...',
-        ipAddress,
-        action: 'email_verification_attempt'
-      },
-      'Email verification attempt'
-    )
-
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
     const user = await this.registrationService.verifyEmail(verifyEmailDto.token)
-
-    this.logger.info(
-      { userId: user.id, email: user.email, ipAddress, action: 'email_verification_success' },
-      'Email verified successfully'
-    )
-
     return {
       message: 'Email verified successfully. You can now log in.',
       email: user.email
@@ -117,24 +81,14 @@ export class RegistrationController {
   @Post('resend-verification')
   @Throttle({ default: { limit: 3, ttl: seconds(300) } }) // 3 attempts per 5 minutes
   @ApiOperation({ summary: 'Resend email verification link' })
-  @ApiOkResponse({ description: 'Verification email sent' })
+  @ApiOkResponse({
+    description:
+      'Same answer whether or not the email is registered or already verified (no account discovery)'
+  })
   async resendVerification(@Body() resendDto: ResendVerificationDto, @Req() req: Request) {
-    const ipAddress = clientIp(req)
-
-    this.logger.info(
-      { email: resendDto.email, ipAddress, action: 'resend_verification_attempt' },
-      'Resend verification attempt'
-    )
-
-    await this.registrationService.resendVerification(resendDto.email)
-
-    this.logger.info(
-      { email: resendDto.email, ipAddress, action: 'resend_verification_success' },
-      'Verification email resent'
-    )
-
+    await this.registrationService.resendVerification(resendDto.email, clientIp(req))
     return {
-      message: 'Verification email sent. Please check your inbox.'
+      message: 'If the email is registered and not yet verified, a new verification link was sent.'
     }
   }
 }

@@ -209,9 +209,9 @@ describe('Authorization audit', () => {
 
   describe('session cleanup administration', () => {
     it('is super-admin only', async () => {
-      await http().get('/api/v1/admin/cleanup/stats').set(as(owner)).expect(403)
-      await http().post('/api/v1/admin/cleanup/trigger').set(as(owner)).send({}).expect(403)
-      await http().get('/api/v1/admin/cleanup/stats').set(as(admin)).expect(200)
+      await http().post('/api/v1/sessions/cleanup').set(as(owner)).expect(403)
+      await http().post('/api/v1/sessions/cleanup').set(as(moderator)).expect(403)
+      await http().post('/api/v1/sessions/cleanup').set(as(admin)).expect(200)
     })
   })
 

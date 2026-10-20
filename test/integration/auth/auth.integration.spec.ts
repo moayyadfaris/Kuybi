@@ -14,7 +14,6 @@ import request from 'supertest'
 import { DataSource } from 'typeorm'
 
 import { AuthModule } from '@modules/auth/auth.module'
-import { PasswordReset } from '@modules/auth/entities/password-reset.entity'
 import { Session } from '@modules/auth/entities/session.entity'
 import { User } from '@modules/users/entities/user.entity'
 import { UsersModule } from '@modules/users/users.module'
@@ -819,9 +818,13 @@ describe('Auth Integration Tests', () => {
 
     const resetTo = async (email: string, newPassword: string) => {
       await request(app.getHttpServer()).post('/api/v1/auth/forgot-password').send({ email })
-      const { token } = await dataSource
-        .getRepository(PasswordReset)
-        .findOneOrFail({ where: { email, used: false }, order: { createdAt: 'DESC' } })
+      // Only a hash is stored: take the token from the emailed link, as the user would
+      const [message] = await dataSource.query(
+        `SELECT payload FROM outbox_messages WHERE payload->>'to' = $1
+          ORDER BY "createdAt" DESC LIMIT 1`,
+        [email]
+      )
+      const token = new URL(message.payload.resetLink).searchParams.get('token')
       return request(app.getHttpServer())
         .post('/api/v1/auth/reset-password')
         .send({ token, newPassword })

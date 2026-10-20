@@ -57,10 +57,10 @@ export class ChangePasswordDto {
 
   @ApiPropertyOptional({
     description:
-      'Send email notification about password change. ' +
-      'Recommended for security - alerts user if change was unauthorized.',
-    default: true,
-    example: true
+      'Deprecated and ignored: the owner is always notified, so a change made by someone ' +
+      'else with access to the account cannot go unnoticed.',
+    deprecated: true,
+    default: true
   })
   @IsOptional()
   @ToBoolean()

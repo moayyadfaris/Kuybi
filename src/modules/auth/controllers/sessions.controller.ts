@@ -37,7 +37,7 @@ import {
   SessionStatsDto
 } from '../dto'
 import { Session } from '../entities/session.entity'
-import { SessionCleanupService, SessionsService } from '../services'
+import { SessionsService } from '../services'
 import {
   filterAndSortSessions,
   needsEndedSessions,
@@ -63,8 +63,7 @@ export class SessionsController {
   constructor(
     @InjectPinoLogger(SessionsController.name)
     private readonly logger: PinoLogger,
-    private readonly sessionsService: SessionsService,
-    private readonly cleanupService: SessionCleanupService
+    private readonly sessionsService: SessionsService
   ) {}
 
   @Get('me')
@@ -368,7 +367,8 @@ export class SessionsController {
     @Req() req: AuthenticatedRequest
   ) {
     const startTime = Date.now()
-    const deletedCount = await this.cleanupService.manualCleanup(olderThanDays)
+    const { deleted: deletedCount } =
+      await this.sessionsService.cleanupExpiredSessions(olderThanDays)
     const duration = Date.now() - startTime
 
     this.logger.info(

@@ -19,6 +19,14 @@ export interface PasswordStrengthResult {
   }
 }
 
+/** Longest the breach check may hold up a sign-up or password change */
+const BREACH_CHECK_TIMEOUT_MS = 2000
+
+/**
+ * Scores a password (0-4) from its length, character variety and obvious patterns, and
+ * checks it against known breaches (Have I Been Pwned, k-anonymity: only the first five
+ * characters of its SHA-1 leave the server). Scores of 2 or more pass, unless breached.
+ */
 @Injectable()
 export class PasswordStrengthService {
   private readonly MIN_LENGTH = 8
@@ -30,9 +38,6 @@ export class PasswordStrengthService {
     private readonly configService: ConfigService
   ) {}
 
-  /**
-   * Calculate password strength and provide feedback
-   */
   async calculateStrength(password: string): Promise<PasswordStrengthResult> {
     const requirements = {
       minLength: password.length >= this.MIN_LENGTH,
@@ -92,12 +97,9 @@ export class PasswordStrengthService {
     const strength = this.getStrengthLabel(score)
     const passed = score >= this.MIN_SCORE_TO_PASS
 
-    // Check for breached passwords (placeholder for now)
     const isBreached = await this.checkIfBreached(password)
     if (isBreached) {
-      feedback.unshift(
-        '⚠️ This password has been exposed in a data breach. Choose a different one.'
-      )
+      feedback.unshift('This password has been exposed in a data breach. Choose a different one.')
     }
 
     const result: PasswordStrengthResult = {
@@ -217,68 +219,39 @@ export class PasswordStrengthService {
   }
 
   /**
-   * Check if password has been breached using HaveIBeenPwned API
-   * Uses k-anonymity model - only sends first 5 chars of hash
+   * Have I Been Pwned range query: sends the first 5 characters of the SHA-1, compares
+   * the rest locally. Fails open (an outage or a slow answer must not block sign-ups).
    */
   private async checkIfBreached(password: string): Promise<boolean> {
-    const enabled = this.configService.get<boolean>('auth.enableBreachDetection', true)
-
-    if (!enabled) {
-      this.logger.debug('Breach detection disabled via configuration')
+    if (!this.configService.get<boolean>('auth.enableBreachDetection', true)) {
       return false
     }
 
     try {
-      // Hash password with SHA-1
       const hash = crypto.createHash('sha1').update(password).digest('hex').toUpperCase()
-      const prefix = hash.substring(0, 5)
-      const suffix = hash.substring(5)
-
-      this.logger.debug({ prefix }, 'Checking password breach with k-anonymity')
-
-      // Query HaveIBeenPwned API with k-anonymity
-      const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
-        headers: {
-          'User-Agent': 'Kuybi-Password-Checker',
-          'Add-Padding': 'true' // HIBP recommends this for additional privacy
-        }
+      const response = await fetch(`https://api.pwnedpasswords.com/range/${hash.slice(0, 5)}`, {
+        headers: { 'User-Agent': 'Kuybi-Password-Checker', 'Add-Padding': 'true' },
+        signal: AbortSignal.timeout(BREACH_CHECK_TIMEOUT_MS)
       })
-
       if (!response.ok) {
-        this.logger.warn(
-          { status: response.status, statusText: response.statusText },
-          'Failed to check password breach - HIBP API error'
-        )
-        // Fail open - don't block user if API is down
+        this.logger.warn({ status: response.status }, 'Breach check failed; skipped')
         return false
       }
-
-      const data = await response.text()
-      const hashes = data.split('\n')
-
-      // Check if our hash suffix appears in the list
-      const found = hashes.some(line => {
-        const [hashSuffix] = line.split(':')
-        return hashSuffix === suffix
-      })
-
-      if (found) {
-        this.logger.warn(
-          { hashPrefix: prefix },
-          'Password found in breach database - user should choose different password'
-        )
-      } else {
-        this.logger.debug('Password not found in breach database')
-      }
-
-      return found
+      return isListedInRange(await response.text(), hash.slice(5))
     } catch (error) {
-      this.logger.error(
-        { error: errorMessage(error) },
-        'Error checking password breach - failing open'
-      )
-      // Fail open - don't block user if there's an error
+      this.logger.warn({ error: errorMessage(error) }, 'Breach check failed; skipped')
       return false
     }
   }
+}
+
+/**
+ * Whether a range response lists the hash suffix. With Add-Padding the API adds decoy
+ * lines with a count of 0, which are not breaches.
+ */
+export function isListedInRange(rangeBody: string, hashSuffix: string): boolean {
+  return rangeBody.split('\n').some(line => {
+    const [suffix, count] = line.trim().split(':')
+    return suffix === hashSuffix && Number(count) > 0
+  })
 }

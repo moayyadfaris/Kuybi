@@ -45,7 +45,7 @@ Content-Type: application/json
   "success": true,
   "data": {
     "accessToken": "eyJhbGc...",
-    "refreshToken": "eyJhbGc...",
+    "refreshToken": "<session id>.<secret>",
     "user": {
       "id": "uuid",
       "email": "user@example.com",
@@ -62,7 +62,7 @@ POST /api/v1/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "eyJhbGc..."
+  "refreshToken": "<session id>.<secret>"
 }
 ```
 
@@ -72,6 +72,31 @@ Content-Type: application/json
 POST /api/v1/auth/logout
 Authorization: Bearer <token>
 ```
+
+`refreshToken` is `<session id>.<secret>`, not a JWT. Refreshing rotates it: the old one stops
+working, and of two concurrent refreshes with the same token only one succeeds.
+
+### Sign-up, email verification and password reset
+
+```http
+POST /api/v1/auth/register              { email, password, firstName, lastName, phoneNumber? }
+POST /api/v1/auth/verify-email          { token }
+POST /api/v1/auth/resend-verification   { email }
+POST /api/v1/auth/forgot-password       { email }
+POST /api/v1/auth/validate-reset-token  { token }
+POST /api/v1/auth/reset-password        { token, newPassword }
+```
+
+- Emails link to **frontend pages**, which post the token to the API:
+  `<app.url>/verify-email?token=…` → `POST /verify-email`, and
+  `<app.url>/reset-password?token=…` → `POST /reset-password`.
+- Links are single use; verification links last 24 hours, reset links 1 hour. Only a hash
+  of each token is stored.
+- `forgot-password` and `resend-verification` answer the same whether or not the email is
+  registered, so they cannot be used to find accounts.
+- New passwords must pass the strength check (`POST /password-strength`), may not be one
+  of the last five, and are at most 72 bytes. A reset or a password change ends the other
+  sessions and always emails the account owner.
 
 ---
 
@@ -842,24 +867,6 @@ GET /api/health/ready
 
 ```http
 GET /api/health/live
-```
-
----
-
-## 🔧 Admin
-
-### Get Cleanup Statistics
-
-```http
-GET /api/v1/admin/cleanup/stats
-Authorization: Bearer <token>
-```
-
-### Trigger Manual Cleanup
-
-```http
-POST /api/v1/admin/cleanup/trigger
-Authorization: Bearer <token>
 ```
 
 ---

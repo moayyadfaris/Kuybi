@@ -18,8 +18,8 @@ export class UserProfileDto {
   @ApiProperty({ description: 'User email', example: 'john@example.com' })
   email: string
 
-  @ApiProperty({ description: 'Mobile number', example: '+1234567890' })
-  mobileNumber: string
+  @ApiProperty({ nullable: true, description: 'Mobile number', example: '+1234567890' })
+  mobileNumber: string | null
 
   @ApiProperty({ description: 'User primary role name', example: 'super-admin' })
   role: string

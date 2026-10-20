@@ -14,6 +14,13 @@ import { SessionRepository } from '../repositories/session.repository'
 import { TokenBlacklistService } from '../services/token-blacklist.service'
 import type { AccessTokenPayload } from '../types/jwt-payload'
 
+/**
+ * Authenticates every request with a bearer access token. Passport verifies the
+ * signature and expiry; validate() then rejects tokens that were blacklisted (logout),
+ * whose session has ended, or whose user is gone or inactive, and returns the user with
+ * roles and permissions read fresh from the database: a permission change or account
+ * deactivation applies to the next request, not when the token expires.
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -28,7 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('auth.jwtSecret'),
-      passReqToCallback: true // Enable access to the request object
+      passReqToCallback: true
     })
   }
 
@@ -83,18 +90,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       })
     }
 
-    // Load full user entity (includes primaryRole, userRoles relations)
-    // Repository automatically includes: profileImage, primaryRole, userRoles, userRoles.role
-    // IMPORTANT: Bypass cache to ensure User entity methods are available
+    // Fresh read: a cache hit is a plain object (no isSuperAdmin() etc.) and could be stale
     const user = await this.userRepository.findById(payload.sub, { bypassCache: true })
 
     if (!user) {
       this.logger.warn(
-        {
-          userId: payload.sub,
-          email: payload.email,
-          action: 'user_not_found_in_jwt_validation'
-        },
+        { userId: payload.sub, action: 'user_not_found_in_jwt_validation' },
         'User from JWT payload not found in database'
       )
       throw new UnauthorizedException({
@@ -105,11 +106,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (!user.isActive) {
       this.logger.warn(
-        {
-          userId: user.id,
-          email: user.email,
-          action: 'inactive_user_token_attempt'
-        },
+        { userId: user.id, action: 'inactive_user_token_attempt' },
         'Inactive user attempted to use token'
       )
       throw new UnauthorizedException({
@@ -123,7 +120,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ;(req as Request & { tokenScope?: string }).tokenScope = PASSWORD_CHANGE_TOKEN_SCOPE
     }
 
-    // Return full User entity instance (with methods like isSuperAdmin())
     return user
   }
 }

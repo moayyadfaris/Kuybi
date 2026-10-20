@@ -4,6 +4,7 @@ import { LessThan, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
+import { hashTokenSecret } from '@core/security'
 
 import { PasswordReset } from '../entities/password-reset.entity'
 
@@ -20,8 +21,12 @@ export class PasswordResetRepository extends BaseRepository<PasswordReset> {
     super(repository, cacheService)
   }
 
+  /** By the token from the email link (stored hashed) */
   findByToken(token: string): Promise<PasswordReset | null> {
-    return this.repository.findOne({ where: { token }, relations: { user: true } })
+    return this.repository.findOne({
+      where: { token: hashTokenSecret(token) },
+      relations: { user: true }
+    })
   }
 
   /** Deletes tokens that expired before the cutoff; returns how many */

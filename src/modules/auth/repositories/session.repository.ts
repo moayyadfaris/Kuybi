@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { Between, IsNull, MoreThan, Repository } from 'typeorm'
+import { IsNull, MoreThan, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -69,19 +69,6 @@ export class SessionRepository extends BaseRepository<Session> {
 
   async findActiveByUserId(userId: string): Promise<Session[]> {
     return this.findByUserId(userId, false)
-  }
-
-  /** Live sessions that expire within the next `withinMinutes` */
-  async findExpiringSoon(withinMinutes = 60): Promise<Session[]> {
-    const now = new Date()
-    return this.repository.find({
-      where: {
-        isActive: true,
-        deletedAt: IsNull(),
-        expiresAt: Between(now, new Date(now.getTime() + withinMinutes * 60 * 1000))
-      },
-      order: { expiresAt: 'ASC' }
-    })
   }
 
   /**

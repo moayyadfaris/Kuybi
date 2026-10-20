@@ -5,8 +5,8 @@ import { QueuesModule } from '@core/queues/queues.module'
 import { AuthModule } from '../auth.module'
 
 import { AccountSecurityProcessor } from './account-security.processor'
+import { AuthJobsScheduler } from './auth-jobs.scheduler'
 import { SessionCleanupProcessor } from './session-cleanup.processor'
-import { SessionCleanupScheduler } from './session-cleanup.scheduler'
 
 /**
  * Background jobs for the auth module. Imported only by the worker process:
@@ -14,6 +14,6 @@ import { SessionCleanupScheduler } from './session-cleanup.scheduler'
  */
 @Module({
   imports: [QueuesModule, AuthModule],
-  providers: [SessionCleanupProcessor, SessionCleanupScheduler, AccountSecurityProcessor]
+  providers: [SessionCleanupProcessor, AuthJobsScheduler, AccountSecurityProcessor]
 })
 export class AuthJobsModule {}

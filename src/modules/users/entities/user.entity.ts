@@ -26,8 +26,9 @@ export class User implements AclPrincipal {
   @Column({ length: 50, unique: true })
   email: string
 
-  @Column({ length: 50, unique: true })
-  mobileNumber: string
+  /** Optional; null when not given (unique when present: '' would allow only one user) */
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
+  mobileNumber: string | null
 
   // Never selected by default, so the hash cannot leak through relations, query results
   // or the cache. Load it explicitly via UserRepository.findPasswordHash().
