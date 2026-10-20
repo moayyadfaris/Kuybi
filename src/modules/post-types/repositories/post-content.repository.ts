@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { IsNull, Repository } from 'typeorm'
+import { Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -8,29 +8,17 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 import { PostContent } from '../entities/post-content.entity'
 import { ContentStatus } from '../enums/content-status.enum'
 
+/** Columns of the author shown with an entry: who wrote it, not how to reach them */
+const AUTHOR_COLUMNS = ['author.id', 'author.name']
+
 /**
- * PostContent Repository
- *
- * Data access layer for PostContent entities with caching (10-min TTL).
- * Handles dynamic content with JSONB field_data queries.
- *
- * Cache Strategy:
- * - 10-minute TTL (content changes frequently)
- * - Cache by ID, slug, post type + status combinations
- * - Invalidate on create/update/delete operations
- *
- * Performance:
- * - Uses GIN indexes for fast JSONB queries
- * - Full-text search on title + excerpt
- * - Optimized queries with proper indexes
- *
- * Part of: Phase 1 - Dynamic Post Types System
- * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
+ * Entries of post types, cached per the cache contract. Writes through save() clear the
+ * row and the lists; bulk updates here invalidate explicitly.
  */
 @Injectable()
 export class PostContentRepository extends BaseRepository<PostContent> {
   protected entityName = 'post_content'
-  protected defaultTTL = 600 // 10 minutes (content changes more frequently)
+  protected defaultTTL = 600
 
   constructor(
     @InjectRepository(PostContent)
@@ -41,212 +29,85 @@ export class PostContentRepository extends BaseRepository<PostContent> {
   }
 
   /**
-   * Find content by post type with caching
-   * @param postTypeId - Post type UUID
-   * @param options - Query and cache options
+   * Entries of a post type, newest first (or by search rank), with the total matching
+   * count. Soft-deleted entries only with includeDeleted.
    */
-  async findByPostType(
+  list(
     postTypeId: string,
-    options?: {
+    options: {
       status?: ContentStatus
-      limit?: number
-      offset?: number
+      limit: number
+      offset: number
+      search?: string
       includeDeleted?: boolean
-      bypassCache?: boolean
     }
-  ): Promise<PostContent[]> {
-    const cacheKey = this.buildCacheKey(
-      'postType',
-      postTypeId,
-      options?.status ?? 'all',
-      options?.limit ?? 'all',
-      options?.offset ?? 0,
-      options?.includeDeleted ? 'withDeleted' : 'active'
-    )
-
-    if (!options?.bypassCache && this.cacheService) {
-      return this.cached<PostContent[]>(
-        cacheKey,
-        async () => {
-          const query = this.repository
-            .createQueryBuilder('pc')
-            .where('pc.postTypeId = :postTypeId', { postTypeId })
-
-          // Only filter out deleted if not explicitly included
-          if (!options?.includeDeleted) {
-            query.andWhere('pc.deletedAt IS NULL')
-          }
-
-          query.orderBy('pc.publishedAt', 'DESC').addOrderBy('pc.createdAt', 'DESC')
-
-          if (options?.status) {
-            query.andWhere('pc.status = :status', { status: options.status })
-          }
-
-          if (options?.limit) {
-            query.take(options.limit)
-          }
-
-          if (options?.offset) {
-            query.skip(options.offset)
-          }
-
-          return query.getMany()
-        },
-        this.defaultTTL
-      )
-    }
-
-    const query = this.repository
-      .createQueryBuilder('pc')
-      .where('pc.postTypeId = :postTypeId', { postTypeId })
-
-    // Only filter out deleted if not explicitly included
-    if (!options?.includeDeleted) {
-      query.andWhere('pc.deletedAt IS NULL')
-    }
-
-    query.orderBy('pc.publishedAt', 'DESC').addOrderBy('pc.createdAt', 'DESC')
-
-    if (options?.status) {
-      query.andWhere('pc.status = :status', { status: options.status })
-    }
-
-    if (options?.limit) {
-      query.take(options.limit)
-    }
-
-    if (options?.offset) {
-      query.skip(options.offset)
-    }
-
-    return query.getMany()
-  }
-
-  /**
-   * Find content by slug within a post type
-   * @param postTypeId - Post type UUID
-   * @param slug - Content slug
-   */
-  async findBySlug(postTypeId: string, slug: string): Promise<PostContent | null> {
-    const cacheKey = this.buildCacheKey('slug', postTypeId, slug)
-
-    if (this.cacheService) {
-      return this.cached<PostContent | null>(
-        cacheKey,
-        async () => {
-          return this.repository.findOne({
-            where: { postTypeId, slug, deletedAt: IsNull() },
-            relations: { author: true, featuredImage: true }
+  ): Promise<[PostContent[], number]> {
+    const key = this.buildCacheKey('list', postTypeId, JSON.stringify(options))
+    return this.cached(key, () => {
+      const query = this.repository
+        .createQueryBuilder('pc')
+        .leftJoin('pc.author', 'author')
+        .addSelect(AUTHOR_COLUMNS)
+        .where('pc.postTypeId = :postTypeId', { postTypeId })
+      if (options.includeDeleted) query.withDeleted()
+      if (options.status) query.andWhere('pc.status = :status', { status: options.status })
+      if (options.search) {
+        const document = `to_tsvector('english', COALESCE(pc.title, '') || ' ' || COALESCE(pc.excerpt, ''))`
+        query
+          .andWhere(`${document} @@ plainto_tsquery('english', :search)`, {
+            search: options.search
           })
-        },
-        this.defaultTTL
-      )
-    }
-
-    return this.repository.findOne({
-      where: { postTypeId, slug, deletedAt: IsNull() },
-      relations: { author: true, featuredImage: true }
+          .orderBy(`ts_rank(${document}, plainto_tsquery('english', :search))`, 'DESC')
+      } else {
+        query.orderBy('pc.publishedAt', 'DESC', 'NULLS LAST').addOrderBy('pc.createdAt', 'DESC')
+      }
+      // offset/limit, not skip/take: the author join is many-to-one (no duplicate rows), and
+      // skip/take would wrap the query in a subquery that cannot order by the search rank
+      return query.offset(options.offset).limit(options.limit).getManyAndCount()
     })
   }
 
-  /**
-   * Full-text search on title and excerpt
-   * Uses PostgreSQL's full-text search with GIN index
-   * @param postTypeId - Post type UUID (optional, searches all types if not provided)
-   * @param searchTerm - Search term
-   * @param options - Query options
-   */
-  async fullTextSearch(
-    postTypeId: string | undefined,
-    searchTerm: string,
-    options?: {
-      status?: ContentStatus
-      limit?: number
-      offset?: number
-      includeDeleted?: boolean
-    }
-  ): Promise<PostContent[]> {
-    const query = this.repository
-      .createQueryBuilder('pc')
-      .where(
-        `to_tsvector('english', COALESCE(pc.title, '') || ' ' || COALESCE(pc.excerpt, '')) @@ plainto_tsquery('english', :searchTerm)`,
-        { searchTerm }
-      )
-
-    // Only filter out deleted if not explicitly included
-    if (!options?.includeDeleted) {
-      query.andWhere('pc.deletedAt IS NULL')
-    }
-
-    query.orderBy(
-      `ts_rank(to_tsvector('english', COALESCE(pc.title, '') || ' ' || COALESCE(pc.excerpt, '')), plainto_tsquery('english', :searchTerm))`,
-      'DESC'
+  /** A live entry by slug within a post type, with its author (id and name) */
+  findBySlug(postTypeId: string, slug: string): Promise<PostContent | null> {
+    return this.cached(this.buildCacheKey('slug', postTypeId, slug), () =>
+      this.repository
+        .createQueryBuilder('pc')
+        .leftJoin('pc.author', 'author')
+        .addSelect(AUTHOR_COLUMNS)
+        .where('pc.postTypeId = :postTypeId AND pc.slug = :slug', { postTypeId, slug })
+        .getOne()
     )
-
-    if (postTypeId) {
-      query.andWhere('pc.postTypeId = :postTypeId', { postTypeId })
-    }
-
-    if (options?.status) {
-      query.andWhere('pc.status = :status', { status: options.status })
-    }
-
-    if (options?.limit) {
-      query.take(options.limit)
-    }
-
-    if (options?.offset) {
-      query.skip(options.offset)
-    }
-
-    return query.getMany()
   }
 
-  /**
-   * Increment view count
-   * @param contentId - Content UUID
-   */
-  async incrementViewCount(contentId: string): Promise<void> {
-    await this.repository.increment({ id: contentId }, 'viewCount', 1)
-    // Note: Don't invalidate cache here to avoid performance hit on every view
+  /** Whether a live entry of the post type has this slug */
+  async slugExists(postTypeId: string, slug: string): Promise<boolean> {
+    return this.repository.exists({ where: { postTypeId, slug } })
   }
 
-  /**
-   * Check if slug exists within a post type (for validation)
-   * @param postTypeId - Post type UUID
-   * @param slug - Slug to check
-   * @param excludeId - Optional content ID to exclude (for updates)
-   */
-  async slugExists(postTypeId: string, slug: string, excludeId?: string): Promise<boolean> {
-    const query = this.repository
-      .createQueryBuilder('pc')
-      .where('pc.postTypeId = :postTypeId', { postTypeId })
-      .andWhere('pc.slug = :slug', { slug })
-      .andWhere('pc.deletedAt IS NULL')
-
-    if (excludeId) {
-      query.andWhere('pc.id != :excludeId', { excludeId })
-    }
-
-    const count = await query.getCount()
-    return count > 0
+  /** Whether the post type has live entries */
+  hasContent(postTypeId: string): Promise<boolean> {
+    return this.repository.exists({ where: { postTypeId } })
   }
 
-  /**
-   * Invalidate one content entry: its cached row (by id or slug: same row tag) and every
-   * list it may appear in
-   * @param contentId - Content UUID or PostContent entity
-   */
-  async invalidateCacheForContent(contentId: string | PostContent): Promise<void> {
-    await this.invalidateCacheByEntityId(typeof contentId === 'string' ? contentId : contentId.id)
+  /** Soft delete with the DELETED status */
+  async markDeleted(id: string): Promise<void> {
+    await this.repository.update(id, { status: ContentStatus.DELETED, deletedAt: new Date() })
+    await this.invalidateCacheByEntityId(id)
   }
 
-  /**
-   * Invalidate the lists of a post type (they are tagged as lists of this entity)
-   * @param _postTypeId - Post type UUID
-   */
-  async invalidateCacheForPostType(_postTypeId: string): Promise<void> {
-    await this.invalidateListCaches()
+  /** Scheduled live entries due at `now` become published; returns how many */
+  async publishScheduledBefore(now: Date): Promise<number> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(PostContent)
+      .set({ status: ContentStatus.PUBLISHED, publishedAt: () => '"scheduledAt"' })
+      .where('status = :scheduled AND "scheduledAt" <= :now AND "deletedAt" IS NULL', {
+        scheduled: ContentStatus.SCHEDULED,
+        now
+      })
+      .execute()
+    const published = result.affected ?? 0
+    if (published > 0) await this.invalidateCacheByTag()
+    return published
   }
 }

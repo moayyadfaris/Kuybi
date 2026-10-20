@@ -734,6 +734,45 @@ DELETE /api/v1/attachments/:id/hard     # manage:all; deletes every stored objec
 
 ---
 
+## 🧩 Post Types and Content
+
+Dynamic content types with custom fields (values in a JSONB `field_data`).
+
+```http
+GET    /api/v1/post-types?includeInactive=        # public; inactive types only for update:PostType
+GET    /api/v1/post-types/:id | /slug/:slug
+POST   /api/v1/post-types                          # create:PostType; slug generated from the name
+PATCH  /api/v1/post-types/:id                      # update:PostType; system types are read-only
+DELETE /api/v1/post-types/:id                      # delete:PostType; 409 while it has entries
+
+GET    /api/v1/post-types/:postTypeId/fields       # public
+POST   /api/v1/post-types/:postTypeId/fields       # create:FieldDefinition; snake_case name
+PATCH  /api/v1/post-types/:postTypeId/fields/:id
+POST   /api/v1/post-types/:postTypeId/fields/reorder
+DELETE /api/v1/post-types/:postTypeId/fields/:id
+
+GET    /api/v1/content/:postTypeSlug?status=&search=&limit=20&offset=0&includeDeleted=
+GET    /api/v1/content/:postTypeSlug/:id | /slug/:slug
+POST   /api/v1/content/:postTypeSlug               # create:Content  { title, excerpt, status, field_data, scheduledFor }
+PATCH  /api/v1/content/:postTypeSlug/:id           # update:Content; field_data is merged
+POST   /api/v1/content/:postTypeSlug/:id/publish   # publish:Content
+POST   /api/v1/content/:postTypeSlug/:id/schedule  # publish:Content  { scheduledFor }
+DELETE /api/v1/content/:postTypeSlug/:id           # delete:Content (soft)
+```
+
+- Public readers (no token, or no `update:Content`) see published entries of active post
+  types only; `status` and `includeDeleted` filters are for editors. Lists return the
+  total matching count.
+- Setting `published` or `scheduled` (on create, update or schedule) needs
+  `publish:Content`; `deleted` is set only by DELETE. Scheduled entries are published by
+  the worker within a minute of their time.
+- `PATCH` merges `field_data` into the stored values; values of fields removed from the
+  post type are dropped. File, image and video values must be http(s) URLs.
+- Names of post types and fields, and entry slugs, can be reused after a delete.
+- Entries show their author's id and name only.
+
+---
+
 ## 🌍 Countries
 
 ### List Countries

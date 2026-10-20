@@ -338,9 +338,10 @@ describe('Post Types Integration Tests', () => {
       expect(response.body.data[0].slug).toBe('product')
     })
 
-    it('should list all post types including inactive with query param', async () => {
+    it('should list inactive post types to those who manage them', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/post-types?includeInactive=true')
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(200)
 
       expect(response.body.data.length).toBe(2)

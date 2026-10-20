@@ -3,18 +3,13 @@ import { Expose, Transform, Type } from 'class-transformer'
 
 import { ContentStatus } from '../../enums/content-status.enum'
 
-/**
- * Simple user DTO for author information
- */
+/** The author as shown with an entry (public): no contact details */
 class AuthorDto {
   @Expose()
   id: string
 
   @Expose()
   name: string
-
-  @Expose()
-  email: string
 }
 
 /**
@@ -84,10 +79,6 @@ export class ResponseContentDto {
   @Expose()
   commentCount: number
 
-  @ApiProperty({ description: 'Share count', default: 0 })
-  @Expose()
-  shareCount: number
-
   @ApiPropertyOptional({ description: 'Hierarchy path' })
   @Expose()
   hierarchyPath?: string
@@ -104,16 +95,4 @@ export class ResponseContentDto {
   @Expose()
   @Type(() => AuthorDto)
   author?: AuthorDto
-
-  @ApiPropertyOptional({ description: 'Attachments' })
-  @Expose()
-  attachments?: unknown[]
-
-  @ApiPropertyOptional({ description: 'Tags' })
-  @Expose()
-  tags?: unknown[]
-
-  @ApiPropertyOptional({ description: 'Categories' })
-  @Expose()
-  categories?: unknown[]
 }

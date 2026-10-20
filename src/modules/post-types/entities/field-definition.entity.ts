@@ -44,7 +44,11 @@ import { PostType } from './post-type.entity'
 @Index('IDX_FIELD_DEFINITIONS_TYPE', ['fieldType'])
 @Index('IDX_FIELD_DEFINITIONS_REQUIRED', ['isRequired'])
 @Index('IDX_FIELD_DEFINITIONS_POST_TYPE_ORDER', ['postTypeId', 'displayOrder'])
-@Index('IDX_FIELD_DEFINITIONS_NAME_POST_TYPE_UNIQUE', ['postTypeId', 'name'], { unique: true })
+// Unique among live fields: a deleted field's name can be reused
+@Index('IDX_FIELD_DEFINITIONS_NAME_POST_TYPE_UNIQUE', ['postTypeId', 'name'], {
+  unique: true,
+  where: '"deletedAt" IS NULL'
+})
 @Index('IDX_FIELD_DEFINITIONS_DELETED_AT', ['deletedAt'])
 export class FieldDefinition {
   @PrimaryGeneratedColumn('uuid')

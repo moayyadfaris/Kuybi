@@ -1,39 +1,28 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
-  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Req,
   UseGuards
 } from '@nestjs/common'
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags
-} from '@nestjs/swagger'
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { plainToInstance } from 'class-transformer'
-import { Request } from 'express'
 
-import { AbilityFactory, AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
 import { User } from '@modules/users/entities'
 
 import { GetUser, JwtAuthGuard, OptionalJwtAuthGuard } from '@core/auth'
 import { Idempotent } from '@core/idempotency'
 
 import {
+  ContentListQueryDto,
   ContentListResponseDto,
   CreateContentDto,
   ResponseContentDto,
@@ -43,163 +32,72 @@ import {
 import { PostContent } from '../entities/post-content.entity'
 import { ContentStatus } from '../enums/content-status.enum'
 import { ContentService } from '../services/content.service'
+import { ContentAccessPolicy } from '../services/content-access.policy'
 
+const toResponse = (content: PostContent) =>
+  plainToInstance(ResponseContentDto, content, { excludeExtraneousValues: true })
+
+/**
+ * Entries of a post type. Reads are public (published entries of active types); editors,
+ * signed in with Update on content, also see drafts, scheduled and deleted entries.
+ */
 @ApiTags('Content')
 @Controller('v1/content/:postTypeSlug')
 export class ContentController {
   constructor(
     private readonly contentService: ContentService,
-    private readonly abilityFactory: AbilityFactory
+    private readonly accessPolicy: ContentAccessPolicy
   ) {}
-
-  /** Editors (Update on content) see drafts, scheduled and deleted entries; others only published */
-  private canSeeUnpublished(req: Request): boolean {
-    const user = req.user as User | undefined
-    return !!user && this.abilityFactory.createForUser(user).can(Action.Update, Subject.Content)
-  }
-
-  private assertVisible(content: PostContent, req: Request): void {
-    if (content.status !== ContentStatus.PUBLISHED && !this.canSeeUnpublished(req)) {
-      // Same answer as a missing entry: unpublished content does not exist publicly
-      throw new NotFoundException('Content not found')
-    }
-  }
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Get content list for a post type' })
+  @ApiOperation({ summary: 'List the entries of a post type' })
   @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    description: 'Filter by status'
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Items per page (1-100)',
-    example: 20
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    type: Number,
-    description: 'Offset for pagination',
-    example: 0
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: 'Full-text search query'
-  })
-  @ApiQuery({
-    name: 'includeDeleted',
-    required: false,
-    type: Boolean,
-    description: 'Include deleted content in results',
-    example: false
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Content list',
-    type: ContentListResponseDto
-  })
+  @ApiResponse({ status: 200, type: ContentListResponseDto })
   @ApiResponse({ status: 404, description: 'Post type not found' })
   async findAll(
     @Param('postTypeSlug') postTypeSlug: string,
-    @Query('status') status?: string,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
-    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
-    @Query('search') search?: string,
-    @Query('includeDeleted') includeDeleted?: string,
-    @Req() req?: Request
+    @Query() query: ContentListQueryDto,
+    @GetUser() viewer?: User
   ): Promise<ContentListResponseDto> {
-    // Validate limit
-    const validLimit = Math.min(Math.max(limit || 20, 1), 100)
-
-    // Parse includeDeleted boolean
-    const shouldIncludeDeleted = includeDeleted === 'true' || includeDeleted === '1'
-
-    // Get post type by slug to get its ID
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-
-    // Status and deleted filters are for editors; everyone else sees published entries only
-    const editor = !!req && this.canSeeUnpublished(req)
-    const result = await this.contentService.findAll(postType.id, {
-      status: editor ? status : ContentStatus.PUBLISHED,
-      limit: validLimit,
-      offset: offset || 0,
-      search,
-      includeDeleted: editor && shouldIncludeDeleted
+    const postType = await this.contentService.postTypeFor(postTypeSlug, viewer)
+    const editor = this.accessPolicy.isEditor(viewer)
+    const { data, total } = await this.contentService.findAll(postType.id, {
+      status: editor ? query.status : ContentStatus.PUBLISHED,
+      limit: query.limit,
+      offset: query.offset,
+      search: query.search,
+      includeDeleted: editor && query.includeDeleted
     })
-
-    return {
-      data: plainToInstance(ResponseContentDto, result.data, {
-        excludeExtraneousValues: true
-      }),
-      total: result.total,
-      limit: validLimit,
-      offset: offset || 0
-    }
+    return { data: data.map(toResponse), total, limit: query.limit, offset: query.offset }
   }
 
   @Get(':id')
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Get content by ID' })
-  @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiParam({ name: 'id', description: 'Content ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Content found',
-    type: ResponseContentDto
-  })
+  @ApiOperation({ summary: 'Get an entry by id' })
+  @ApiResponse({ status: 200, type: ResponseContentDto })
   @ApiResponse({ status: 404, description: 'Content not found' })
   async findOne(
     @Param('postTypeSlug') postTypeSlug: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: Request
+    @GetUser() viewer?: User
   ): Promise<ResponseContentDto> {
-    const content = await this.contentService.findOne(id)
-    // Verify content belongs to the specified post type
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-    if (content.postTypeId !== postType.id) {
-      throw new NotFoundException('Content not found for this post type')
-    }
-    this.assertVisible(content, req)
-    return plainToInstance(ResponseContentDto, content, {
-      excludeExtraneousValues: true
-    })
+    const postType = await this.contentService.postTypeFor(postTypeSlug, viewer)
+    return toResponse(await this.contentService.findVisible(postType, id, viewer))
   }
 
   @Get('slug/:slug')
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Get content by slug' })
-  @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiParam({ name: 'slug', description: 'Content slug' })
-  @ApiResponse({
-    status: 200,
-    description: 'Content found',
-    type: ResponseContentDto
-  })
+  @ApiOperation({ summary: 'Get an entry by slug' })
+  @ApiResponse({ status: 200, type: ResponseContentDto })
   @ApiResponse({ status: 404, description: 'Content not found' })
   async findBySlug(
     @Param('postTypeSlug') postTypeSlug: string,
     @Param('slug') slug: string,
-    @Req() req: Request
+    @GetUser() viewer?: User
   ): Promise<ResponseContentDto> {
-    // Get post type by slug to get its ID
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-    const content = await this.contentService['postContentRepository'].findBySlug(postType.id, slug)
-
-    if (!content || content.deletedAt) {
-      throw new NotFoundException('Content not found')
-    }
-    this.assertVisible(content, req)
-
-    return plainToInstance(ResponseContentDto, content, {
-      excludeExtraneousValues: true
-    })
+    const postType = await this.contentService.postTypeFor(postTypeSlug, viewer)
+    return toResponse(await this.contentService.findVisibleBySlug(postType, slug, viewer))
   }
 
   @Post()
@@ -207,86 +105,59 @@ export class ContentController {
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Create, subject: Subject.Content })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create new content' })
-  @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiResponse({
-    status: 201,
-    description: 'Content created',
-    type: ResponseContentDto
-  })
-  @ApiResponse({ status: 400, description: 'Invalid data or validation failed' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ summary: 'Create an entry' })
+  @ApiResponse({ status: 201, type: ResponseContentDto })
+  @ApiResponse({ status: 400, description: 'Invalid data or field validation failed' })
+  @ApiResponse({ status: 403, description: 'Publishing needs the Publish permission' })
   @ApiResponse({ status: 404, description: 'Post type not found' })
-  @ApiResponse({ status: 409, description: 'Slug already exists' })
   async create(
     @Param('postTypeSlug') postTypeSlug: string,
-    @Body() createContentDto: CreateContentDto,
-    @GetUser('id') authorId: string
+    @Body() dto: CreateContentDto,
+    @GetUser() author: User
   ): Promise<ResponseContentDto> {
-    // Get post type by slug to get its ID
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-
-    // Map field_data to fieldData for service
-    const serviceData = {
-      title: createContentDto.title,
-      excerpt: createContentDto.excerpt,
-      fieldData: createContentDto.field_data,
-      status: createContentDto.status,
-      scheduledAt: createContentDto.scheduledFor
-        ? new Date(createContentDto.scheduledFor)
-        : undefined
-    }
-
-    const content = await this.contentService.create(postType.id, serviceData, authorId)
-    return plainToInstance(ResponseContentDto, content, {
-      excludeExtraneousValues: true
-    })
+    const postType = await this.contentService.postTypeFor(postTypeSlug, author)
+    const content = await this.contentService.create(
+      postType,
+      {
+        title: dto.title,
+        excerpt: dto.excerpt,
+        fieldData: dto.field_data,
+        status: dto.status,
+        scheduledAt: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined
+      },
+      author
+    )
+    return toResponse(content)
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Update, subject: Subject.Content })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update content' })
-  @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiParam({ name: 'id', description: 'Content ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Content updated',
-    type: ResponseContentDto
-  })
-  @ApiResponse({ status: 400, description: 'Invalid data or validation failed' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ summary: 'Update an entry (field_data is merged into the stored values)' })
+  @ApiResponse({ status: 200, type: ResponseContentDto })
+  @ApiResponse({ status: 400, description: 'Invalid data or field validation failed' })
+  @ApiResponse({ status: 403, description: 'Publishing needs the Publish permission' })
   @ApiResponse({ status: 404, description: 'Content not found' })
-  @ApiResponse({ status: 409, description: 'Slug already exists' })
   async update(
     @Param('postTypeSlug') postTypeSlug: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateContentDto: UpdateContentDto,
-    @GetUser('id') updatedBy: string
+    @Body() dto: UpdateContentDto,
+    @GetUser() editor: User
   ): Promise<ResponseContentDto> {
-    // Verify content belongs to post type
-    const content = await this.contentService.findOne(id)
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-    if (content.postTypeId !== postType.id) {
-      throw new NotFoundException('Content not found for this post type')
-    }
-
-    // Map field_data to fieldData for service
-    const serviceData: Parameters<ContentService['update']>[1] = {}
-    if (updateContentDto.title) serviceData.title = updateContentDto.title
-    if (updateContentDto.excerpt) serviceData.excerpt = updateContentDto.excerpt
-    if (updateContentDto.field_data) serviceData.fieldData = updateContentDto.field_data
-    if (updateContentDto.status) serviceData.status = updateContentDto.status
-    if (updateContentDto.scheduledFor)
-      serviceData.scheduledAt = new Date(updateContentDto.scheduledFor)
-
-    const updated = await this.contentService.update(id, serviceData, updatedBy)
-    return plainToInstance(ResponseContentDto, updated, {
-      excludeExtraneousValues: true
-    })
+    const content = await this.load(postTypeSlug, id, editor)
+    const updated = await this.contentService.update(
+      content,
+      {
+        title: dto.title,
+        excerpt: dto.excerpt,
+        fieldData: dto.field_data,
+        status: dto.status,
+        scheduledAt: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined
+      },
+      editor
+    )
+    return toResponse(updated)
   }
 
   @Post(':id/publish')
@@ -294,67 +165,37 @@ export class ContentController {
   @UseGuards(JwtAuthGuard, AbilityGuard)
   @CheckAbility({ action: Action.Publish, subject: Subject.Content })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Publish content' })
-  @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiParam({ name: 'id', description: 'Content ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Content published',
-    type: ResponseContentDto
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ summary: 'Publish an entry now' })
+  @ApiResponse({ status: 200, type: ResponseContentDto })
   @ApiResponse({ status: 404, description: 'Content not found' })
   async publish(
     @Param('postTypeSlug') postTypeSlug: string,
-    @Param('id', ParseUUIDPipe) id: string
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser() editor: User
   ): Promise<ResponseContentDto> {
-    // Verify content belongs to post type
-    const content = await this.contentService.findOne(id)
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-    if (content.postTypeId !== postType.id) {
-      throw new NotFoundException('Content not found for this post type')
-    }
-
-    const published = await this.contentService.publish(id)
-    return plainToInstance(ResponseContentDto, published, {
-      excludeExtraneousValues: true
-    })
+    const content = await this.load(postTypeSlug, id, editor)
+    return toResponse(await this.contentService.publish(content))
   }
 
   @Post(':id/schedule')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, AbilityGuard)
-  @CheckAbility({ action: Action.Update, subject: Subject.Content })
+  @CheckAbility({ action: Action.Publish, subject: Subject.Content })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Schedule content publication' })
-  @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiParam({ name: 'id', description: 'Content ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Content scheduled',
-    type: ResponseContentDto
-  })
-  @ApiResponse({ status: 400, description: 'Invalid date' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ summary: 'Publish an entry at a future time (checked every minute)' })
+  @ApiResponse({ status: 200, type: ResponseContentDto })
+  @ApiResponse({ status: 400, description: 'Date not in the future' })
   @ApiResponse({ status: 404, description: 'Content not found' })
   async schedule(
     @Param('postTypeSlug') postTypeSlug: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() scheduleContentDto: ScheduleContentDto
+    @Body() dto: ScheduleContentDto,
+    @GetUser() editor: User
   ): Promise<ResponseContentDto> {
-    // Verify content belongs to post type
-    const content = await this.contentService.findOne(id)
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-    if (content.postTypeId !== postType.id) {
-      throw new NotFoundException('Content not found for this post type')
-    }
-
-    const scheduled = await this.contentService.schedule(id, scheduleContentDto.scheduledFor)
-    return plainToInstance(ResponseContentDto, scheduled, {
-      excludeExtraneousValues: true
-    })
+    const content = await this.load(postTypeSlug, id, editor)
+    return toResponse(
+      await this.contentService.schedule(content, new Date(dto.scheduledFor), editor)
+    )
   }
 
   @Delete(':id')
@@ -362,24 +203,19 @@ export class ContentController {
   @CheckAbility({ action: Action.Delete, subject: Subject.Content })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete content' })
-  @ApiParam({ name: 'postTypeSlug', description: 'Post type slug' })
-  @ApiParam({ name: 'id', description: 'Content ID' })
+  @ApiOperation({ summary: 'Delete an entry (soft delete; its slug becomes free)' })
   @ApiResponse({ status: 204, description: 'Content deleted' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Content not found' })
   async remove(
     @Param('postTypeSlug') postTypeSlug: string,
-    @Param('id', ParseUUIDPipe) id: string
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser() editor: User
   ): Promise<void> {
-    // Verify content belongs to post type
-    const content = await this.contentService.findOne(id)
-    const postType = await this.contentService['postTypesService'].findBySlug(postTypeSlug)
-    if (content.postTypeId !== postType.id) {
-      throw new NotFoundException('Content not found for this post type')
-    }
+    await this.contentService.remove(await this.load(postTypeSlug, id, editor))
+  }
 
-    await this.contentService.remove(id)
+  private async load(postTypeSlug: string, id: string, editor: User): Promise<PostContent> {
+    const postType = await this.contentService.postTypeFor(postTypeSlug, editor)
+    return this.contentService.findOfType(postType, id)
   }
 }

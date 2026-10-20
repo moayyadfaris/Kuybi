@@ -2,6 +2,19 @@ import { FieldDefinition } from '../../entities/field-definition.entity'
 
 import { FieldValidationError, FileFieldValue } from './types'
 
+/**
+ * File URLs are rendered as links and media sources: only absolute http(s) URLs, so a
+ * stored javascript: or data: URL cannot run when clicked
+ */
+const isHttpUrl = (value: unknown): boolean => {
+  if (typeof value !== 'string') return false
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol)
+  } catch {
+    return false
+  }
+}
+
 export function validateFile(fieldDef: FieldDefinition, value: unknown): FieldValidationError[] {
   const errors: FieldValidationError[] = []
 
@@ -18,8 +31,20 @@ export function validateFile(fieldDef: FieldDefinition, value: unknown): FieldVa
   }
 
   const options = fieldDef.fieldOptions || {}
+  const invalidUrl = (url: unknown): FieldValidationError => ({
+    fieldName: fieldDef.name,
+    fieldType: fieldDef.fieldType,
+    errorCode: 'INVALID_FILE_URL',
+    message: `Field '${fieldDef.label}' must link to an http(s) URL`,
+    value: url
+  })
 
-  // If it's an object, validate file metadata
+  if (typeof value === 'string') {
+    if (!isHttpUrl(value)) errors.push(invalidUrl(value))
+    return errors
+  }
+
+  // An object carries the URL plus the file's declared type and size
   if (typeof value === 'object') {
     const file = value as FileFieldValue
     if (!file.url) {
@@ -30,6 +55,8 @@ export function validateFile(fieldDef: FieldDefinition, value: unknown): FieldVa
         message: `Field '${fieldDef.label}' file metadata must include a URL`,
         value
       })
+    } else if (!isHttpUrl(file.url)) {
+      errors.push(invalidUrl(file.url))
     }
 
     // Validate file type

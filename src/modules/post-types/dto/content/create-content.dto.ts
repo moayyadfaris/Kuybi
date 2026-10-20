@@ -1,12 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  IsArray,
   IsDateString,
   IsEnum,
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength
 } from 'class-validator'
@@ -14,7 +12,8 @@ import {
 import { ContentStatus } from '../../enums/content-status.enum'
 
 /**
- * DTO for creating new content
+ * A new entry. field_data is validated against the post type's field definitions.
+ * (Parent, metadata and attachment/tag/category links are not implemented.)
  */
 export class CreateContentDto {
   @ApiProperty({
@@ -36,7 +35,7 @@ export class CreateContentDto {
   excerpt?: string
 
   @ApiPropertyOptional({
-    description: 'Content status',
+    description: 'Content status (published and scheduled need Publish; deleted is not settable)',
     enum: ContentStatus,
     example: ContentStatus.DRAFT,
     default: ContentStatus.DRAFT
@@ -44,14 +43,6 @@ export class CreateContentDto {
   @IsOptional()
   @IsEnum(ContentStatus)
   status?: ContentStatus
-
-  @ApiPropertyOptional({
-    description: 'Parent content ID (for hierarchical types)',
-    example: 'uuid'
-  })
-  @IsOptional()
-  @IsUUID()
-  parentId?: string
 
   @ApiProperty({
     description: 'Custom field values',
@@ -64,41 +55,6 @@ export class CreateContentDto {
   })
   @IsObject()
   field_data: Record<string, unknown>
-
-  @ApiPropertyOptional({
-    description: 'Metadata (SEO, etc.)',
-    example: { seoTitle: 'Custom title', seoDescription: 'Custom description' }
-  })
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, unknown>
-
-  @ApiPropertyOptional({
-    description: 'Attachment IDs',
-    example: ['uuid1', 'uuid2']
-  })
-  @IsOptional()
-  @IsArray()
-  @IsUUID(4, { each: true })
-  attachmentIds?: string[]
-
-  @ApiPropertyOptional({
-    description: 'Tag IDs',
-    example: ['uuid1', 'uuid2']
-  })
-  @IsOptional()
-  @IsArray()
-  @IsUUID(4, { each: true })
-  tagIds?: string[]
-
-  @ApiPropertyOptional({
-    description: 'Category IDs',
-    example: ['uuid1']
-  })
-  @IsOptional()
-  @IsArray()
-  @IsUUID(4, { each: true })
-  categoryIds?: string[]
 
   @ApiPropertyOptional({
     description: 'Scheduled publication date',

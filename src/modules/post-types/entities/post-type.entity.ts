@@ -37,6 +37,9 @@ import { FieldDefinition } from './field-definition.entity'
  * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
  */
 @Entity({ name: 'post_types' })
+// Names and slugs are unique among live types: a deleted type's can be reused
+@Index('UQ_POST_TYPES_NAME_LIVE', ['name'], { unique: true, where: '"deletedAt" IS NULL' })
+@Index('UQ_POST_TYPES_SLUG_LIVE', ['slug'], { unique: true, where: '"deletedAt" IS NULL' })
 @Index('IDX_POST_TYPES_ACTIVE', ['isActive'])
 @Index('IDX_POST_TYPES_SYSTEM', ['isSystem'])
 @Index('IDX_POST_TYPES_DELETED_AT', ['deletedAt'])
@@ -44,10 +47,10 @@ export class PostType {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ length: 100, unique: true })
+  @Column({ length: 100 })
   name: string
 
-  @Column({ length: 120, unique: true })
+  @Column({ length: 120 })
   slug: string
 
   @Column({ length: 100, name: 'singularLabel' })

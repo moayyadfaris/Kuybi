@@ -2,9 +2,9 @@ import { BadRequestException } from '@nestjs/common'
 import { Test, TestingModule } from '@nestjs/testing'
 import { getLoggerToken } from 'nestjs-pino'
 
-import { FieldDefinition } from '../../entities/field-definition.entity'
-import { FieldType } from '../../enums/field-type.enum'
-import { FieldValidationService } from '../field-validation.service'
+import { FieldDefinition } from '@modules/post-types/entities/field-definition.entity'
+import { FieldType } from '@modules/post-types/enums/field-type.enum'
+import { FieldValidationService } from '@modules/post-types/services/field-validation.service'
 
 describe('FieldValidationService', () => {
   let service: FieldValidationService

@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseBoolPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -23,16 +24,21 @@ import {
 import { plainToInstance } from 'class-transformer'
 
 import { AbilityGuard, Action, CheckAbility, Subject } from '@modules/acl'
+import { User } from '@modules/users/entities'
 
-import { JwtAuthGuard } from '@core/auth'
+import { GetUser, JwtAuthGuard, OptionalJwtAuthGuard } from '@core/auth'
 
 import { CreatePostTypeDto, ResponsePostTypeDto, UpdatePostTypeDto } from '../dto'
+import { ContentAccessPolicy } from '../services/content-access.policy'
 import { PostTypesService } from '../services/post-types.service'
 
 @ApiTags('Post Types')
 @Controller('v1/post-types')
 export class PostTypesController {
-  constructor(private readonly postTypesService: PostTypesService) {}
+  constructor(
+    private readonly postTypesService: PostTypesService,
+    private readonly accessPolicy: ContentAccessPolicy
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all post types' })
@@ -40,18 +46,22 @@ export class PostTypesController {
     name: 'includeInactive',
     required: false,
     type: Boolean,
-    description: 'Include inactive post types'
+    description: 'Include inactive post types (only for those who manage post types)'
   })
   @ApiResponse({
     status: 200,
     description: 'List of post types',
     type: [ResponsePostTypeDto]
   })
+  @UseGuards(OptionalJwtAuthGuard)
   async findAll(
-    @Query('includeInactive') includeInactive?: string
+    @Query('includeInactive', new ParseBoolPipe({ optional: true })) includeInactive?: boolean,
+    @GetUser() viewer?: User
   ): Promise<ResponsePostTypeDto[]> {
-    const includeInactiveBool = includeInactive === 'true'
-    const postTypes = await this.postTypesService.findAll(includeInactiveBool)
+    // Inactive types are listed only to those who manage post types
+    const postTypes = await this.postTypesService.findAll(
+      !!includeInactive && this.accessPolicy.managesPostTypes(viewer)
+    )
 
     return plainToInstance(ResponsePostTypeDto, postTypes, {
       excludeExtraneousValues: true
@@ -104,8 +114,11 @@ export class PostTypesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 409, description: 'Post type already exists' })
-  async create(@Body() createPostTypeDto: CreatePostTypeDto): Promise<ResponsePostTypeDto> {
-    const postType = await this.postTypesService.create(createPostTypeDto)
+  async create(
+    @Body() createPostTypeDto: CreatePostTypeDto,
+    @GetUser('id') userId: string
+  ): Promise<ResponsePostTypeDto> {
+    const postType = await this.postTypesService.create(createPostTypeDto, userId)
     return plainToInstance(ResponsePostTypeDto, postType, {
       excludeExtraneousValues: true
     })
@@ -129,9 +142,10 @@ export class PostTypesController {
   @ApiResponse({ status: 409, description: 'Duplicate name/slug' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updatePostTypeDto: UpdatePostTypeDto
+    @Body() updatePostTypeDto: UpdatePostTypeDto,
+    @GetUser('id') userId: string
   ): Promise<ResponsePostTypeDto> {
-    const postType = await this.postTypesService.update(id, updatePostTypeDto)
+    const postType = await this.postTypesService.update(id, updatePostTypeDto, userId)
     return plainToInstance(ResponsePostTypeDto, postType, {
       excludeExtraneousValues: true
     })
@@ -148,10 +162,8 @@ export class PostTypesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Post type not found' })
-  @ApiResponse({
-    status: 422,
-    description: 'Cannot delete system post type'
-  })
+  @ApiResponse({ status: 400, description: 'Cannot delete a system post type' })
+  @ApiResponse({ status: 409, description: 'The post type still has entries' })
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.postTypesService.remove(id)
   }

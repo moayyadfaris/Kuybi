@@ -8,18 +8,9 @@ import { BaseRepository } from '@core/database/repositories/base.repository'
 import { PostType } from '../entities/post-type.entity'
 
 /**
- * PostType Repository
- *
- * Data access layer for PostType entities with caching (30-min TTL).
- * Extends BaseRepository for common CRUD operations with Redis caching.
- *
- * Cache Strategy:
- * - 30-minute TTL (post types rarely change)
- * - Invalidate on create/update/delete operations
- * - Cache by ID, slug, name, and active status
- *
- * Part of: Phase 1 - Dynamic Post Types System
- * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
+ * Post types, cached per the cache contract (30 minutes: they rarely change). Soft-deleted
+ * types are left out by TypeORM (@DeleteDateColumn); names and slugs are unique among
+ * live types only.
  */
 @Injectable()
 export class PostTypeRepository extends BaseRepository<PostType> {
@@ -85,50 +76,6 @@ export class PostTypeRepository extends BaseRepository<PostType> {
       where: { isActive: true, deletedAt: IsNull() },
       order: { menuPosition: 'ASC', name: 'ASC' }
     })
-  }
-
-  /**
-   * Find system post types (protected from deletion)
-   * System types are built-in and cannot be deleted
-   */
-  async findSystem(options?: { bypassCache?: boolean }): Promise<PostType[]> {
-    const cacheKey = this.buildCacheKey('system')
-
-    if (!options?.bypassCache && this.cacheService) {
-      return this.cached<PostType[]>(
-        cacheKey,
-        async () => {
-          return this.repository.find({
-            where: { isSystem: true, deletedAt: IsNull() }
-          })
-        },
-        this.defaultTTL
-      )
-    }
-
-    return this.repository.find({
-      where: { isSystem: true, deletedAt: IsNull() }
-    })
-  }
-
-  /**
-   * Find post type by name with caching
-   * @param name - Post type name (e.g., "Event", "Product")
-   */
-  async findByName(name: string, options?: { bypassCache?: boolean }): Promise<PostType | null> {
-    const cacheKey = this.buildCacheKey('name', name)
-
-    if (!options?.bypassCache && this.cacheService) {
-      return this.cached<PostType | null>(
-        cacheKey,
-        async () => {
-          return this.repository.findOne({ where: { name } })
-        },
-        this.defaultTTL
-      )
-    }
-
-    return this.repository.findOne({ where: { name } })
   }
 
   /**

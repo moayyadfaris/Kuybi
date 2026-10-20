@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 import {
@@ -12,27 +13,19 @@ import {
   POST_TYPE_REST_BASE_REGEX
 } from '../constants'
 import { PostType } from '../entities/post-type.entity'
+import { PostContentRepository } from '../repositories/post-content.repository'
 import { PostTypeRepository } from '../repositories/post-type.repository'
 
 /**
- * PostTypesService
- *
- * Business logic for managing post types (Event, Product, Recipe, etc.).
- * Handles CRUD operations, validation, and cache invalidation.
- *
- * Key Responsibilities:
- * - Create/Read/Update/Delete post types
- * - Validate post type configuration
- * - Generate slugs from names
- * - Prevent deletion of system post types
- * - Cache invalidation on mutations
- *
- * Part of: Phase 1 - Dynamic Post Types System
- * @see docs/planning/DYNAMIC_POST_TYPES_PLAN.md
+ * Post types (Event, Product, Recipe...): names, generated slugs, configuration. System
+ * types cannot be changed or deleted, and a type that still has entries cannot be deleted.
  */
 @Injectable()
 export class PostTypesService {
-  constructor(private readonly postTypeRepository: PostTypeRepository) {}
+  constructor(
+    private readonly postTypeRepository: PostTypeRepository,
+    private readonly postContentRepository: PostContentRepository
+  ) {}
 
   /**
    * Create a new post type
@@ -74,26 +67,25 @@ export class PostTypesService {
       this.postTypeRepository.slugExists(candidate)
     )
 
-    // Create post type
-    const postType = await this.postTypeRepository.save({
-      ...data,
-      slug,
-      createdBy,
-      isActive: data.isActive ?? true,
-      isSystem: false, // User-created types are never system types
-      settings: data.settings ?? {}
-    })
-
-    // Invalidate caches
-    await this.postTypeRepository.invalidateAllCaches()
-
-    return postType
+    try {
+      return await this.postTypeRepository.save({
+        ...data,
+        slug,
+        createdBy,
+        isActive: data.isActive ?? true,
+        isSystem: false, // User-created types are never system types
+        settings: data.settings ?? {}
+      })
+    } catch (error) {
+      // Another request took the name or slug since the checks above
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(`Post type with name '${data.name}' already exists`)
+      }
+      throw error
+    }
   }
 
-  /**
-   * Find all post types
-   * @param includeInactive - Include inactive post types
-   */
+  /** Live post types, active ones only unless includeInactive */
   async findAll(includeInactive = false): Promise<PostType[]> {
     if (includeInactive) {
       return this.postTypeRepository.findAll()
@@ -184,37 +176,34 @@ export class PostTypesService {
     // Validate configuration
     this.validatePostTypeConfig(data)
 
-    // Update post type
-    Object.assign(postType, {
-      ...data,
-      updatedBy,
-      version: postType.version + 1 // Optimistic locking
-    })
-
-    const updated = await this.postTypeRepository.save(postType)
-
-    // Invalidate caches
-    await this.postTypeRepository.invalidateCache(updated)
-
-    return updated
+    try {
+      return await this.postTypeRepository.save({
+        ...postType,
+        ...data,
+        updatedBy,
+        version: postType.version + 1
+      })
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(`Post type with name '${data.name}' already exists`)
+      }
+      throw error
+    }
   }
 
   /**
-   * Delete post type (soft delete)
-   * @param id - Post type UUID
+   * Soft delete. Refused while the type has live entries: the database's RESTRICT only
+   * guards a hard delete, and a soft-deleted type would strand its entries (unreachable).
    */
   async remove(id: string): Promise<void> {
     const postType = await this.findOne(id)
-
-    // Prevent deletion of system post types
     if (postType.isSystem) {
       throw new BadRequestException('Cannot delete system post types')
     }
-
-    // TODO: Phase 2 - Check if post type has content before allowing deletion
-    // For now, the database FK constraint with RESTRICT will prevent deletion if content exists
+    if (await this.postContentRepository.hasContent(id)) {
+      throw new ConflictException('Delete or move the entries of this post type first')
+    }
     await this.postTypeRepository.softDelete(id)
-    await this.postTypeRepository.invalidateCache(postType)
   }
 
   /**

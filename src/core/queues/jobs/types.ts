@@ -12,6 +12,7 @@ export enum QueueName {
   DATA_EXPORT = 'data-export-queue',
   REPORT_GENERATION = 'report-generation-queue',
   VERSION_CLEANUP = 'version-cleanup-queue',
+  CONTENT_PUBLISHING = 'content-publishing-queue',
   ACCOUNT_SECURITY = 'account-security-queue',
   DEAD_LETTER = 'dead-letter-queue'
 }
@@ -75,6 +76,13 @@ export enum NotificationJobType {
  */
 export enum VersionCleanupJobType {
   PRUNE_AUTO = 'prune-auto-versions'
+}
+
+/**
+ * Content Publishing Job Types
+ */
+export enum ContentJobType {
+  PUBLISH_DUE = 'publish-due-content'
 }
 
 /**
