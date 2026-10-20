@@ -17,6 +17,15 @@ const NO_ANY_CAST = {
   message: 'Do not cast to `any`; use a precise type or `as unknown as T`.'
 }
 
+/** Error codes are part of the API: one catalogue (ErrorCode), no ad-hoc strings */
+const ERROR_CODE_LITERAL = {
+  selector: "NewExpression[callee.name=/Exception$/] Property[key.name='code'][value.type='Literal']",
+  message: "Use a code from ErrorCode ('@shared/errors'); add it there if it is new."
+}
+
+/** Every src block's no-restricted-syntax starts with these */
+const SRC_SELECTORS = [NO_ANY_CAST, ERROR_CODE_LITERAL]
+
 /** Data access rule (see the feature-module block below) */
 const DATA_ACCESS_SELECTORS = [
   {
@@ -157,7 +166,7 @@ export default tseslint.config(
             "sharp's withMetadata() KEEPS the input's EXIF (GPS, camera serials). Output has none by default; use keepIccProfile() for colour, keepMetadata() only when metadata must survive."
         }
       ],
-      'no-restricted-syntax': ['error', NO_ANY_CAST]
+      'no-restricted-syntax': ['error', ...SRC_SELECTORS]
     }
   },
   {
@@ -204,7 +213,7 @@ export default tseslint.config(
       'src/modules/*/seeders/**'
     ],
     rules: {
-      'no-restricted-syntax': ['error', NO_ANY_CAST, ...DATA_ACCESS_SELECTORS]
+      'no-restricted-syntax': ['error', ...SRC_SELECTORS, ...DATA_ACCESS_SELECTORS]
     }
   },
   {
@@ -214,7 +223,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-syntax': [
         'error',
-        NO_ANY_CAST,
+        ...SRC_SELECTORS,
         ...DATA_ACCESS_SELECTORS,
         SELF_WRAPPED_RESPONSE
       ]
@@ -227,7 +236,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-syntax': [
         'error',
-        NO_ANY_CAST,
+        ...SRC_SELECTORS,
         {
           selector:
             "CallExpression[callee.object.object.type='ThisExpression'][callee.object.property.name='cacheService'][callee.property.name=/^(wrap|set|wrapWithTags|setWithTags)$/]",

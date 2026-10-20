@@ -1,10 +1,15 @@
 import {
   ArgumentsHost,
   BadRequestException,
+  ConflictException,
+  HttpException,
+  InternalServerErrorException,
   NotFoundException,
-  ServiceUnavailableException
+  ServiceUnavailableException,
+  UnauthorizedException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { ErrorCode } from '@shared/errors'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { PinoLogger } from 'nestjs-pino'
 
@@ -41,7 +46,7 @@ describe('HttpExceptionFilter', () => {
         new ServiceUnavailableException({ message: 'pg at 10.0.0.5 refused', host: '10.0.0.5' })
       )
 
-      expect(body.error).toEqual({ message: 'Service Unavailable' })
+      expect(body.error).toEqual({ code: 'SERVICE_UNAVAILABLE', message: 'Service Unavailable' })
     })
 
     it('hides the message and stack unless details are explicitly exposed', () => {
@@ -49,7 +54,7 @@ describe('HttpExceptionFilter', () => {
       const { status, body } = run(boom)
 
       expect(status).toBe(500)
-      expect(body.error).toEqual({ message: 'Internal Server Error' })
+      expect(body.error).toEqual({ code: 'INTERNAL_ERROR', message: 'Internal Server Error' })
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ errorMessage: boom.message, stack: boom.stack }),
         expect.any(String)
@@ -117,6 +122,54 @@ describe('HttpExceptionFilter', () => {
       expect(logger.warn).toHaveBeenCalled()
       expect(logger.error).not.toHaveBeenCalled()
       expect(reporter).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('error codes', () => {
+    const code = (exception: unknown) => run(exception).body.error.code
+
+    it('gives every error the generic code of its status', () => {
+      expect(code(new NotFoundException('Story with ID 1 not found'))).toBe(ErrorCode.NOT_FOUND)
+      expect(code(new ConflictException('Email taken'))).toBe(ErrorCode.CONFLICT)
+      expect(code(new UnauthorizedException())).toBe(ErrorCode.UNAUTHORIZED)
+      expect(code(new HttpException('Locked', 423))).toBe(ErrorCode.LOCKED)
+      expect(code(new HttpException('Teapot', 418))).toBe(ErrorCode.BAD_REQUEST)
+      expect(code(new Error('boom'))).toBe(ErrorCode.INTERNAL_ERROR)
+    })
+
+    it('marks validation failures (a list of messages)', () => {
+      const validation = new BadRequestException({
+        message: ['email must be an email'],
+        error: 'Bad Request',
+        statusCode: 400
+      })
+      expect(code(validation)).toBe(ErrorCode.VALIDATION_FAILED)
+      expect(code(new BadRequestException('Tags not found: 9'))).toBe(ErrorCode.BAD_REQUEST)
+    })
+
+    it('keeps a known code set by the throw site', () => {
+      const expired = new UnauthorizedException({
+        code: ErrorCode.AUTH_TOKEN_EXPIRED,
+        message: 'Access token expired'
+      })
+      expect(run(expired).body.error).toMatchObject({
+        code: ErrorCode.AUTH_TOKEN_EXPIRED,
+        message: 'Access token expired'
+      })
+    })
+
+    it('ignores unknown codes, and any code on a server error', () => {
+      expect(code(new BadRequestException({ code: 'MADE_UP', message: 'x' }))).toBe(
+        ErrorCode.BAD_REQUEST
+      )
+      expect(
+        code(new InternalServerErrorException({ code: ErrorCode.AUTH_TOKEN_EXPIRED, message: 'x' }))
+      ).toBe(ErrorCode.INTERNAL_ERROR)
+      expect(
+        run(new InternalServerErrorException({ code: ErrorCode.CONFLICT }), {
+          'http.exposeErrorDetails': true
+        }).body.error.code
+      ).toBe(ErrorCode.INTERNAL_ERROR)
     })
   })
 })

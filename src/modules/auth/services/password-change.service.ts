@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { EmailQueueService } from '@infrastructure/email'
+import { ErrorCode } from '@shared/errors'
 import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -103,7 +104,7 @@ export class PasswordChangeService {
           throw new HttpException(
             {
               message: 'Password was changed too recently',
-              code: 'PASSWORD_CHANGE_COOLDOWN',
+              code: ErrorCode.PASSWORD_CHANGE_COOLDOWN,
               cooldownHours,
               remainingTime:
                 remainingHours >= 1

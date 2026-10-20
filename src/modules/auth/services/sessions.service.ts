@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { ErrorCode } from '@shared/errors'
 import { randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -207,12 +208,18 @@ export class SessionsService {
     const currentSession = await this.sessionRepository.findById(sessionId, { bypassCache: true })
 
     if (!currentSession || !currentSession.isActive) {
-      throw new UnauthorizedException('Invalid session')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_REFRESH_TOKEN_INVALID,
+        message: 'Invalid session'
+      })
     }
 
     if (currentSession.expiresAt.getTime() <= Date.now()) {
       await this.sessionRepository.revokeSession(sessionId, 'expired')
-      throw new UnauthorizedException('Session expired')
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_REFRESH_TOKEN_INVALID,
+        message: 'Session expired'
+      })
     }
 
     // Revoke old session

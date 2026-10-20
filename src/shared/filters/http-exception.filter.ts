@@ -8,6 +8,7 @@ import {
   Logger
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { codeForStatus, ErrorCode, isErrorCode } from '@shared/errors'
 import { errorProperty } from '@shared/utils/error.util'
 import { Request, Response } from 'express'
 import { PinoLogger } from 'nestjs-pino'
@@ -19,6 +20,8 @@ interface ErrorResponseBody {
   timestamp: string
   requestId: string
   error: {
+    /** Stable, machine-readable (see ErrorCode); clients branch on this, not the message */
+    code: ErrorCode
     message: string
     details?: unknown
     stack?: string
@@ -127,6 +130,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       requestId,
       error: {
+        code: this.errorCode(status, exceptionResponse),
         message: isServerError && !exposeDetails ? this.getSafeErrorMessage(status) : errorMessage
       }
     }
@@ -141,11 +145,29 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
+    // The body may carry its own `code`; only a known one survives (set again after the merge)
+    errorResponse.error.code = this.errorCode(status, exceptionResponse)
+
     if (exposeDetails && errorStack) {
       errorResponse.error.stack = errorStack
     }
 
     response.status(status).json(errorResponse)
+  }
+
+  /**
+   * The code a throw site set, if it is a known one (4xx only: a 5xx body never decides
+   * what the client sees); validation failures; otherwise the status's generic code
+   */
+  private errorCode(status: number, body: unknown): ErrorCode {
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) return codeForStatus(status)
+    const code = errorProperty<unknown>(body, 'code')
+    if (isErrorCode(code)) return code
+    // ValidationPipe reports its problems as a list of messages
+    if (status === HttpStatus.BAD_REQUEST && Array.isArray(errorProperty(body, 'message'))) {
+      return ErrorCode.VALIDATION_FAILED
+    }
+    return codeForStatus(status)
   }
 
   private report(exception: unknown, request: Request, status: number): void {
