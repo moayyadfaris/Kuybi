@@ -49,13 +49,13 @@ export class EmailVerification {
   @Column({ type: 'varchar', length: 80, unique: true })
   token: string
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamptz' })
   expiresAt: Date
 
   @Column({ type: 'boolean', default: false })
   verified: boolean
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   verifiedAt: Date | null
 
   @Column({ type: 'varchar', length: 45, nullable: true })
@@ -64,10 +64,10 @@ export class EmailVerification {
   @Column({ type: 'text', nullable: true })
   userAgent: string | null
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date
 
   /**

@@ -183,11 +183,11 @@ export class AuditLog {
   @Column({ type: 'boolean', default: false })
   isArchived: boolean
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date | null
 
   // Timestamps
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 
   // Computed Properties

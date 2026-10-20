@@ -190,6 +190,34 @@ export class AuditService {
   }
 
   /**
+   * A refused login. `user` is the account the email matched, if any; for an unknown email
+   * nothing typed is stored (people type passwords into the email field).
+   */
+  async logLoginFailureFromRequest(req: Request, reason: string, user?: ContextUser) {
+    return this.logAction(this.createContextFromRequest(req, user), {
+      action: AuditAction.LOGIN,
+      status: AuditStatus.FAILURE,
+      description: `Login refused: ${reason.replaceAll('_', ' ')}`,
+      tags: ['authentication', 'security'],
+      metadata: { reason }
+    })
+  }
+
+  /**
+   * A request refused for missing permissions (published by AbilityGuard)
+   */
+  async logUnauthorizedAccess(context: AuditContext, required: string) {
+    return this.logAction(context, {
+      action: AuditAction.UNAUTHORIZED_ACCESS,
+      status: AuditStatus.FAILURE,
+      statusCode: 403,
+      description: `Refused: requires ${required}`,
+      tags: ['authorization', 'security'],
+      metadata: { required }
+    })
+  }
+
+  /**
    * Log logout
    */
   async logLogout(

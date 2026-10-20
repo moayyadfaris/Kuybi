@@ -31,6 +31,12 @@ This document captures the current iteration of the audit logging stack, the API
 - Unit: `npm run test -- audit-context.factory.spec.ts`
 - Integration (stubbed repository): `npm run test -- audit.integration.spec.ts`
 
+## Security events
+
+- **Failed logins**: `LOGIN` with status `failure` and `metadata.reason`, written by the login route through the `onFailure` hook of `AuthService.validateUser`.
+- **Permission refusals**: `UNAUTHORIZED_ACCESS`, from `AccessDeniedEvent` (published by the acl guards, recorded by `AclAuditListener`).
+- Timestamps are `timestamptz` (migration `TimestampsWithTimeZone`, which also converts `password_resets` and `email_verifications`).
+
 ## Configuration
 
 - `AUDIT_ENABLED` (`true` by default): toggles whether audit logs are persisted. When disabled, facade methods exit early.

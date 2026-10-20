@@ -56,13 +56,13 @@ export class PasswordReset {
   @Column({ type: 'varchar', length: 80, unique: true })
   token: string
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamptz' })
   expiresAt: Date
 
   @Column({ type: 'boolean', default: false })
   used: boolean
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   usedAt: Date | null
 
   /**
@@ -81,10 +81,10 @@ export class PasswordReset {
   @Column({ type: 'text', nullable: true })
   userAgent: string | null
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date
 
   /**

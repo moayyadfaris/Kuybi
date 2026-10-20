@@ -7,7 +7,11 @@ import {
   UnauthorizedException
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+import { Request } from 'express'
 
+import { EventBus } from '@core/events'
+
+import { AccessDeniedEvent } from '../events/access-denied.event'
 import { AclPrincipal } from '../types/acl-principal'
 
 import { CHECK_ABILITY, RequiredRule } from './ability.decorator'
@@ -20,7 +24,8 @@ import { AbilityFactory } from './ability.factory'
  * answers "may do this to some record".
  *
  * Fails closed: a route behind this guard without @CheckAbility is refused, so a missing
- * decorator cannot open a route to every signed-in user.
+ * decorator cannot open a route to every signed-in user. A refusal for missing permissions
+ * is published (AccessDeniedEvent) for the audit trail.
  */
 @Injectable()
 export class AbilityGuard implements CanActivate {
@@ -28,10 +33,11 @@ export class AbilityGuard implements CanActivate {
 
   constructor(
     private readonly reflector: Reflector,
-    private readonly abilityFactory: AbilityFactory
+    private readonly abilityFactory: AbilityFactory,
+    private readonly eventBus: EventBus
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const rules = this.reflector.getAllAndOverride<RequiredRule[]>(CHECK_ABILITY, [
       context.getHandler(),
       context.getClass()
@@ -43,7 +49,8 @@ export class AbilityGuard implements CanActivate {
       throw new ForbiddenException('Access denied')
     }
 
-    const user: AclPrincipal | undefined = context.switchToHttp().getRequest().user
+    const req = context.switchToHttp().getRequest<Request & { user?: AclPrincipal }>()
+    const user = req.user
     if (!user) {
       throw new UnauthorizedException('Authentication required')
     }
@@ -51,6 +58,7 @@ export class AbilityGuard implements CanActivate {
     const ability = this.abilityFactory.createForUser(user)
     if (!rules.some(rule => ability.can(rule.action, rule.subject))) {
       const required = rules.map(r => `${r.action} ${r.subject}`).join(' OR ')
+      await this.eventBus.publish(AccessDeniedEvent.fromRequest(req, user, required))
       throw new ForbiddenException(`Insufficient permissions. Required: ${required}`)
     }
     return true

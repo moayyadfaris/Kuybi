@@ -40,7 +40,9 @@ export class AuthController {
       userAgent: req.headers['user-agent'] as string | undefined,
       deviceType: body.deviceType
     }
-    const user = await this.authService.validateUser(body.email, body.password, context)
+    const user = await this.authService.validateUser(body.email, body.password, context, failure =>
+      this.auditService.logLoginFailureFromRequest(req, failure.reason, failure.user)
+    )
     const result = await this.authService.login(user, context)
 
     await this.auditService.logLoginFromRequest(

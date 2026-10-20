@@ -9,6 +9,7 @@ describe('RoleHierarchyGuard', () => {
   let guard: RoleHierarchyGuard
   let mockLogger: jest.Mocked<any>
   let mockRoleRepository: { findById: jest.Mock }
+  let eventBus: { publish: jest.Mock }
   let mockExecutionContext: ExecutionContext
 
   const superAdminRole: Role = { id: 1, name: 'super-admin', priority: 100 } as Role
@@ -27,7 +28,12 @@ describe('RoleHierarchyGuard', () => {
       findById: jest.fn()
     }
 
-    guard = new RoleHierarchyGuard(mockLogger, mockRoleRepository as unknown as RoleRepository)
+    eventBus = { publish: jest.fn().mockResolvedValue(undefined) }
+    guard = new RoleHierarchyGuard(
+      mockLogger,
+      mockRoleRepository as unknown as RoleRepository,
+      eventBus
+    )
 
     mockExecutionContext = {
       switchToHttp: jest.fn().mockReturnValue({
@@ -137,6 +143,12 @@ describe('RoleHierarchyGuard', () => {
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException)
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
         'Cannot assign or modify super-admin role'
+      )
+      expect(eventBus.publish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor: expect.objectContaining({ id: 'admin-id' }),
+          request: expect.objectContaining({ endpoint: '/api/v1/user-roles' })
+        })
       )
     })
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 
-import { AclChangedEvent } from '@modules/acl'
+import { AccessDeniedEvent, AclChangedEvent } from '@modules/acl'
 
 import { OnDomainEvent } from '@core/events'
 
@@ -15,7 +15,10 @@ const ACTIONS: Record<AclChangedEvent['change'], AuditAction> = {
   permission_revoke: AuditAction.PERMISSION_REVOKE
 }
 
-/** Records every role and permission change (critical: they change what users may do) */
+/**
+ * Records every role and permission change (critical: they change what users may do) and
+ * every request AbilityGuard refuses for missing permissions
+ */
 @Injectable()
 export class AclAuditListener {
   constructor(private readonly auditService: AuditService) {}
@@ -32,6 +35,14 @@ export class AclAuditListener {
         severity: AuditSeverity.CRITICAL,
         description: `${event.entityType} ${event.entityId}: ${event.change.replace('_', ' ')}`
       }
+    )
+  }
+
+  @OnDomainEvent(AccessDeniedEvent)
+  async recordDenied(event: AccessDeniedEvent): Promise<void> {
+    await this.auditService.logUnauthorizedAccess(
+      { userId: event.actor.id, email: event.actor.email, ...event.request },
+      event.required
     )
   }
 }

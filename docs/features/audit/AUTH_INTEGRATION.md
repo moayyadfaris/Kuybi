@@ -8,13 +8,15 @@ Successfully integrated audit logging into the **Auth module**, tracking all cri
 
 ### Integrated Endpoints
 
-| Endpoint                            | Action Logged            | Details                                                 |
-| ----------------------------------- | ------------------------ | ------------------------------------------------------- |
-| `POST /api/v1/auth/register`        | `CREATE` (User)          | Captures new user registration with email               |
-| `POST /api/v1/auth/login`           | `LOGIN`                  | Logs successful login with device type and session info |
-| `POST /api/v1/auth/logout`          | `LOGOUT` or `LOGOUT_ALL` | Tracks single device or all devices logout              |
-| `POST /api/v1/auth/change-password` | `CHANGE_PASSWORD`        | Records password changes (user-initiated)               |
-| `POST /api/v1/auth/reset-password`  | `RESET_PASSWORD`         | Tracks password reset via token                         |
+| Endpoint                                                                       | Action Logged            | Details                                                                                                                                                                              |
+| ------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /api/v1/auth/register`                                                   | `CREATE` (User)          | Captures new user registration with email                                                                                                                                            |
+| `POST /api/v1/auth/login`                                                      | `LOGIN`                  | Logs successful login with device type and session info                                                                                                                              |
+| `POST /api/v1/auth/login` (refused)                                            | `LOGIN`, status failure  | `metadata.reason`: user_not_found, invalid_password, account_locked, user_inactive. The account is recorded when the email matched one; for an unknown email nothing typed is stored |
+| Any route refused by `AbilityGuard`, `SuperAdminGuard` or `RoleHierarchyGuard` | `UNAUTHORIZED_ACCESS`    | Published by acl as `AccessDeniedEvent`; records the user, method, path (no query string) and what the route needs                                                                   |
+| `POST /api/v1/auth/logout`                                                     | `LOGOUT` or `LOGOUT_ALL` | Tracks single device or all devices logout                                                                                                                                           |
+| `POST /api/v1/auth/change-password`                                            | `CHANGE_PASSWORD`        | Records password changes (user-initiated)                                                                                                                                            |
+| `POST /api/v1/auth/reset-password`                                             | `RESET_PASSWORD`         | Tracks password reset via token                                                                                                                                                      |
 
 ### Code Changes
 
@@ -119,7 +121,7 @@ This integration helps meet compliance requirements:
 
 ### Security Benefits
 
-1. **Unauthorized Access Detection**: Track failed login attempts (future enhancement)
+1. **Unauthorized Access Detection**: Failed logins and permission refusals are recorded; `GET /api/v1/audit/user/:id/suspicious-activity` flags 5+ failed logins or any refusal in the window
 2. **Account Takeover Prevention**: Monitor suspicious login patterns
 3. **Forensics**: Complete audit trail for security investigations
 4. **Session Management**: Track logout events and session invalidations
@@ -127,7 +129,7 @@ This integration helps meet compliance requirements:
 
 ### Next Steps
 
-1. **Add Failed Login Logging**: Track authentication failures for security monitoring
+1. ~~Add Failed Login Logging~~: done (2026-10-20)
 2. **Integrate Stories Module**: Add CRUD audit logging
 3. **Integrate Categories Module**: Add CRUD audit logging
 4. ~~Decorator-based logging~~: removed (2026-10-19); log explicitly through `AuditService`
@@ -137,7 +139,6 @@ This integration helps meet compliance requirements:
 ### Known Issues
 
 - **Username shows as "unknown"**: The audit context extraction doesn't populate username from the request user object (minor - user ID is captured)
-- **userId null for unauthenticated actions**: Login happens before authentication, so userId is null (expected behavior - can be improved by looking up user after validation)
 
 ### How to Use
 
@@ -155,7 +156,7 @@ curl -X GET "http://localhost:4040/api/v1/audit/user/{userId}/activity" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-**Monitor failed logins (future):**
+**Monitor failed logins:**
 
 ```bash
 curl -X GET "http://localhost:4040/api/v1/audit/failed-operations" \

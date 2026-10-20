@@ -11,6 +11,7 @@ import { MetricsService } from '@core/observability/metrics.service'
 import { PasswordHasher, verifyTokenSecret } from '@core/security'
 import { SentryService } from '@core/sentry'
 
+import type { LoginFailure } from '../types/login-failure'
 import type { SessionContext } from '../types/session-context'
 
 import { AccessTokenService } from './access-token.service'
@@ -56,14 +57,28 @@ export class AuthService {
     private readonly passwordHasher: PasswordHasher
   ) {}
 
-  async validateUser(email: string, password: string, context?: SessionContext): Promise<User> {
+  /**
+   * The user these credentials belong to. Every refusal is logged, counted and reported to
+   * `onFailure` (the login route records it in the audit trail) before it is thrown.
+   */
+  async validateUser(
+    email: string,
+    password: string,
+    context?: SessionContext,
+    onFailure?: (failure: LoginFailure) => Promise<unknown>
+  ): Promise<User> {
     // Bypass cache to ensure we get User entity with methods (not plain object from cache)
     const user = await this.usersService.findByEmail(email, true)
     if (!user) {
       // Spend the same hashing time as a wrong password, so response timing does not
       // reveal which emails are registered
       await this.passwordHasher.verify(password, null)
-      this.recordFailedLogin('user_not_found', { emailHash: hashEmail(email) }, context)
+      await this.recordFailedLogin(
+        { reason: 'user_not_found' },
+        { emailHash: hashEmail(email) },
+        context,
+        onFailure
+      )
       throw new UnauthorizedException(INVALID_CREDENTIALS)
     }
 
@@ -72,10 +87,11 @@ export class AuthService {
     const isLocked = await this.accountLockoutService.isAccountLocked(user.id)
     if (isLocked) {
       const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
-      this.recordFailedLogin(
-        'account_locked',
+      await this.recordFailedLogin(
+        { reason: 'account_locked', user },
         { userId: user.id, lockedUntil: lockInfo.lockedUntil },
-        context
+        context,
+        onFailure
       )
       throw accountLockedException(lockInfo)
     }
@@ -88,10 +104,11 @@ export class AuthService {
 
       // Get updated lock info to check if account was just locked
       const lockInfo = await this.accountLockoutService.getAccountLockInfo(user.id)
-      this.recordFailedLogin(
-        'invalid_password',
+      await this.recordFailedLogin(
+        { reason: 'invalid_password', user },
         { userId: user.id, failedAttempts: lockInfo.failedAttempts },
-        context
+        context,
+        onFailure
       )
 
       // If account was just locked, inform user with 423 Locked
@@ -109,7 +126,12 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      this.recordFailedLogin('user_inactive', { userId: user.id }, context)
+      await this.recordFailedLogin(
+        { reason: 'user_inactive', user },
+        { userId: user.id },
+        context,
+        onFailure
+      )
       throw new UnauthorizedException({
         code: ErrorCode.AUTH_ACCOUNT_INACTIVE,
         message: 'User is inactive'
@@ -146,16 +168,19 @@ export class AuthService {
    * they would exhaust the quota, and the submitted email is personal data (logged only
    * as a hash, which still lets attempts on one address be correlated).
    */
-  private recordFailedLogin(
-    reason: 'user_not_found' | 'invalid_password' | 'account_locked' | 'user_inactive',
+  private async recordFailedLogin(
+    failure: LoginFailure,
     details: Record<string, unknown>,
-    context?: SessionContext
-  ): void {
+    context?: SessionContext,
+    onFailure?: (failure: LoginFailure) => Promise<unknown>
+  ): Promise<void> {
+    const { reason } = failure
     this.metricsService.incrementFailedLogin(reason)
     this.logger.warn(
       { action: 'login_failed', reason, ipAddress: context?.ipAddress, ...details },
       'Login failed'
     )
+    await onFailure?.(failure)
   }
 
   /**
