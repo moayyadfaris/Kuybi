@@ -4,20 +4,15 @@ import { DataSource } from 'typeorm'
 
 import configuration from '@core/config/configuration'
 
-import { ENTITIES } from './entities'
+import { postgresOptions } from './postgres-options'
 
 loadEnv()
 
 const appConfig = configuration()
 
+/** Migrations and scripts: the app's connection settings, migration session limits */
 export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: appConfig.database.host,
-  port: appConfig.database.port,
-  username: appConfig.database.username,
-  password: appConfig.database.password,
-  database: appConfig.database.name,
-  entities: ENTITIES,
+  ...postgresOptions(appConfig.database, 'migrations'),
   // Resolved next to this file, so it works from src (ts-node) and from dist (node)
   migrations: [path.join(__dirname, 'migrations', '*.{ts,js}')],
   migrationsTableName: 'migrations'
