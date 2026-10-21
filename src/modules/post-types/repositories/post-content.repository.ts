@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DeepPartial, Repository } from 'typeorm'
+import { Brackets, DeepPartial, Repository } from 'typeorm'
+
+import type { RecordScope } from '@modules/acl'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -46,6 +48,8 @@ export class PostContentRepository extends BaseRepository<PostContent> {
       offset: number
       search?: string
       includeDeleted?: boolean
+      /** Entries visible besides the published ones (the viewer's edit scope) */
+      editable: RecordScope
     }
   ): Promise<[PostContent[], number]> {
     const key = this.buildCacheKey('list', postTypeId, JSON.stringify(options))
@@ -56,6 +60,28 @@ export class PostContentRepository extends BaseRepository<PostContent> {
         .addSelect(AUTHOR_COLUMNS)
         .where('pc.postTypeId = :postTypeId', { postTypeId })
       if (options.includeDeleted) query.withDeleted()
+      const { editable } = options
+      if (!editable.all) {
+        query.andWhere(
+          new Brackets(visible => {
+            visible.where('pc.status = :published', { published: ContentStatus.PUBLISHED })
+            editable.anyOf.forEach((conditions, i) =>
+              visible.orWhere(
+                new Brackets(allOf => {
+                  for (const [column, value] of Object.entries(conditions)) {
+                    const param = `scope${i}_${column}`
+                    // column comes from CONTENT_SCOPE_COLUMNS (recordScope filters to them)
+                    allOf.andWhere(
+                      value === null ? `pc.${column} IS NULL` : `pc.${column} = :${param}`,
+                      { [param]: value }
+                    )
+                  }
+                })
+              )
+            )
+          })
+        )
+      }
       if (options.status) query.andWhere('pc.status = :status', { status: options.status })
       if (options.search) {
         const document = `to_tsvector('english', COALESCE(pc.title, '') || ' ' || COALESCE(pc.excerpt, ''))`

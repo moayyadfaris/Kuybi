@@ -57,7 +57,9 @@ export class ContentService {
 
   async create(postType: PostType, data: ContentInput & { title: string }, author: User) {
     const status = data.status ?? ContentStatus.DRAFT
-    this.accessPolicy.assertCanSetStatus(author, status)
+    const entry = { postTypeId: postType.id, authorId: author.id, status }
+    this.accessPolicy.assertCanCreate(author, entry)
+    this.accessPolicy.assertCanSetStatus(author, status, entry)
     const fields = await this.fieldDefinitionsService.findByPostType(postType.id)
     this.fieldValidationService.throwIfInvalid(
       await this.fieldValidationService.validateFieldData(fields, data.fieldData ?? {})
@@ -92,9 +94,13 @@ export class ContentService {
     }
   }
 
-  /** A page of entries with the total that matches the filters */
+  /**
+   * A page of entries with the total that matches the filters: the published ones and
+   * those the viewer may edit (all of them for an unconditional editor)
+   */
   async findAll(
     postTypeId: string,
+    viewer: User | undefined,
     options: {
       status?: ContentStatus
       limit: number
@@ -103,7 +109,13 @@ export class ContentService {
       includeDeleted?: boolean
     }
   ): Promise<{ data: PostContent[]; total: number }> {
-    const [data, total] = await this.postContentRepository.list(postTypeId, options)
+    const editable = this.accessPolicy.editScope(viewer)
+    const [data, total] = await this.postContentRepository.list(postTypeId, {
+      ...options,
+      editable,
+      // Deleted entries only for those who may edit every entry
+      includeDeleted: editable.all && options.includeDeleted
+    })
     return { data, total }
   }
 
@@ -138,7 +150,7 @@ export class ContentService {
     if (data.scheduledAt !== undefined) changes.scheduledAt = data.scheduledAt
 
     if (data.status !== undefined && data.status !== content.status) {
-      this.accessPolicy.assertCanSetStatus(editor, data.status)
+      this.accessPolicy.assertCanSetStatus(editor, data.status, content)
       changes.status = data.status
       if (data.status === ContentStatus.PUBLISHED) changes.publishedAt = new Date()
     }
@@ -178,7 +190,7 @@ export class ContentService {
 
   /** Publishes at `scheduledFor` (ContentPublishingProcessor); needs Publish like publishing */
   async schedule(content: PostContent, scheduledFor: Date, editor: User): Promise<PostContent> {
-    this.accessPolicy.assertCanSetStatus(editor, ContentStatus.SCHEDULED)
+    this.accessPolicy.assertCanSetStatus(editor, ContentStatus.SCHEDULED, content)
     if (scheduledFor <= new Date()) {
       throw new BadRequestException('Scheduled date must be in the future')
     }
@@ -195,7 +207,7 @@ export class ContentService {
   }
 
   private visible(content: PostContent, viewer?: User): PostContent {
-    if (content.status !== ContentStatus.PUBLISHED && !this.accessPolicy.isEditor(viewer)) {
+    if (!this.accessPolicy.isVisible(content, viewer)) {
       // Same answer as a missing entry: unpublished content does not exist publicly
       throw new NotFoundException('Content not found')
     }
