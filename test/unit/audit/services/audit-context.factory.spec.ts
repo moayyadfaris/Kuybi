@@ -41,7 +41,7 @@ describe('AuditContextFactory', () => {
     const req = buildRequest({
       headers: {
         'user-agent': 'jest',
-        'x-request-id': 'req-123'
+        'x-request-id': 'req-12345678'
       },
       method: 'POST',
       originalUrl: '/api/example',
@@ -60,7 +60,7 @@ describe('AuditContextFactory', () => {
     expect(context.username).toBe('john.doe')
     expect(context.method).toBe('POST')
     expect(context.endpoint).toBe('/api/example')
-    expect(context.requestId).toBe('req-123')
+    expect(context.requestId).toBe('req-12345678')
     expect(context.ipAddress).toBe('10.0.0.1')
   })
 

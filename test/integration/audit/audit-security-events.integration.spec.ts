@@ -101,6 +101,40 @@ describe('Audit security events', () => {
     })
   })
 
+  it('cannot be dodged with oversized client headers', async () => {
+    // Before, these went into varchar columns unchecked: the insert failed and the
+    // failure was never recorded
+    const res = await login(member.user.email, 'Wrong-password-1!')
+      .set('User-Agent', 'x'.repeat(2000))
+      .set('X-Request-Id', 'r'.repeat(200))
+      .expect(401)
+
+    const [failure] = await failedLogins()
+    expect(failure).toBeDefined()
+    expect(failure.userAgent).toHaveLength(500)
+    // The id the server assigned (an invalid one is replaced), the same one it answered with
+    expect(failure.requestId).toBe(res.headers['x-request-id'])
+    expect(failure.requestId).not.toContain('rrr')
+  })
+
+  it('records the request id the server answered with', async () => {
+    const res = await login(member.user.email, 'Wrong-password-1!').expect(401)
+
+    const [failure] = await failedLogins()
+    expect(failure.requestId).toBe(res.headers['x-request-id'])
+  })
+
+  it('records a refused request with an oversized path', async () => {
+    const path = `/api/v1/audit/user/${'a'.repeat(600)}/suspicious-activity`
+    const res = await t.http().get(path).set(member.auth).set('User-Agent', 'y'.repeat(900))
+    expect(res.status).toBe(403)
+
+    const [denied] = await logs().find({ where: { action: AuditAction.UNAUTHORIZED_ACCESS } })
+    expect(denied).toBeDefined()
+    expect(denied.endpoint!.length).toBeLessThanOrEqual(500)
+    expect(denied.requestId).toBe(res.headers['x-request-id'])
+  })
+
   it('stores timestamps with their time zone', async () => {
     // A session in another zone than the app's: without a zone, now() would be stored as
     // that zone's wall clock and read back hours off

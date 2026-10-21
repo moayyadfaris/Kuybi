@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { configureApp } from '@app/app.setup'
 import { randomUUID } from 'crypto'
-import { NextFunction, Request, Response } from 'express'
 import { LoggerModule, PinoLogger } from 'nestjs-pino'
 import request from 'supertest'
 
@@ -20,7 +19,6 @@ import {
 import { AuditQueryService } from '@modules/audit/services/audit-query.service'
 
 import { JwtAuthGuard } from '@core/auth/jwt-auth.guard'
-import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 
 import { testConfig } from '../../test.config'
 
@@ -127,10 +125,6 @@ describe('Audit Integration (controller)', () => {
 
     app = moduleFixture.createNestApplication()
     configureApp(app)
-    const requestIdMiddleware = new RequestIdMiddleware()
-    app.use((req: Request, res: Response, next: NextFunction) =>
-      requestIdMiddleware.use(req as any, res, next)
-    )
     await app.init()
   })
 

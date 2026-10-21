@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config'
 import { pathOf, redactQuery } from '@shared/utils/redact.util'
+import { requestIdOf } from '@shared/utils/request.util'
 import { Request } from 'express'
 import { Params } from 'nestjs-pino'
 import * as path from 'path'
@@ -40,15 +41,6 @@ const redactPaths = [
   'session.refreshToken',
   'session.accessToken'
 ]
-
-/**
- * Generate correlation ID for request tracing
- */
-function generateCorrelationId(req: Request): string {
-  return (req.headers['x-correlation-id'] ||
-    req.headers['x-request-id'] ||
-    `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`) as string
-}
 
 const buildTransports = (options: {
   enableConsole: boolean
@@ -125,7 +117,7 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
 
   return {
     pinoHttp: {
-      genReqId: req => generateCorrelationId(req as Request),
+      genReqId: req => requestIdOf(req as Request),
       level: isTest
         ? 'silent'
         : loggingConfig?.level || (appEnv === 'production' ? 'info' : 'debug'),

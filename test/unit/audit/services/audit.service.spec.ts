@@ -80,7 +80,7 @@ describe('AuditService', () => {
       action: AuditAction.LOGIN,
       status: AuditStatus.SUCCESS,
       severity: AuditSeverity.LOW,
-      requestId: 'req-123'
+      requestId: 'req-12345678'
     }
     repo.append.mockResolvedValue(savedLog)
 
@@ -94,7 +94,7 @@ describe('AuditService', () => {
     )
 
     const req = {
-      headers: { 'x-request-id': 'req-123' },
+      headers: { 'x-request-id': 'req-12345678' },
       protocol: 'http',
       hostname: 'localhost',
       path: '/api/login',
@@ -111,7 +111,7 @@ describe('AuditService', () => {
     const result = await service.logLoginFromRequest(req, sampleUser, { sessionType: 'standard' })
 
     expect(repo.append).toHaveBeenCalledWith(
-      expect.objectContaining({ action: AuditAction.LOGIN, requestId: 'req-123' })
+      expect.objectContaining({ action: AuditAction.LOGIN, requestId: 'req-12345678' })
     )
     expect(result).toEqual(savedLog)
   })

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import type { Request } from 'express'
 
 /** Express `trust proxy` setting: false, a hop count, or trusted addresses/subnets */
@@ -24,6 +25,25 @@ export function parseTrustProxy(value: string | undefined): TrustProxySetting {
  */
 export function clientIp(req: Request): string | undefined {
   return req.ip || req.socket?.remoteAddress || undefined
+}
+
+/** A client-sent X-Request-Id is kept only if it looks like an id (and fits audit_logs) */
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{8,100}$/
+
+/**
+ * The request's id: the one already assigned, else the client's X-Request-Id when it is a
+ * plausible id, else a new UUID. The first call assigns it (req.id and req.requestId), so
+ * logs, audit entries, error responses and the X-Request-Id response header all carry the
+ * same value. Never read the header directly: it is client input of any size.
+ */
+export function requestIdOf(req: Request): string {
+  if (req.requestId) return req.requestId
+  const incoming = req.headers?.['x-request-id']
+  const requestId =
+    typeof incoming === 'string' && REQUEST_ID_PATTERN.test(incoming) ? incoming : randomUUID()
+  req.id = requestId
+  req.requestId = requestId
+  return requestId
 }
 
 export interface UserAgentInfo {

@@ -57,7 +57,23 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
    * request).
    */
   async append(data: DeepPartial<AuditLog>): Promise<AuditLog> {
-    return this.repository.save(this.repository.create(data))
+    return this.repository.save(this.clipToColumns(this.repository.create(data)))
+  }
+
+  /**
+   * Shortens strings to their varchar length. Many fields are client input (user agent,
+   * path): an oversized one would fail the insert and the event would go unrecorded.
+   */
+  private clipToColumns(log: AuditLog): AuditLog {
+    const row = log as unknown as Record<string, unknown>
+    for (const column of this.repository.metadata.columns) {
+      const max = Number(column.length)
+      const value = row[column.propertyName]
+      if (max > 0 && typeof value === 'string' && value.length > max) {
+        row[column.propertyName] = value.slice(0, max)
+      }
+    }
+    return log
   }
 
   /**
