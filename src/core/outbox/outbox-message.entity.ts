@@ -1,3 +1,4 @@
+import type { KeepJobs } from 'bullmq'
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 
 export type OutboxStatus = 'pending' | 'dispatched' | 'failed'
@@ -7,8 +8,8 @@ export interface OutboxJobOptions {
   priority?: number
   attempts?: number
   backoff?: { type: 'exponential' | 'fixed'; delay: number }
-  removeOnComplete?: boolean | number
-  removeOnFail?: boolean | number
+  removeOnComplete?: boolean | number | KeepJobs
+  removeOnFail?: boolean | number | KeepJobs
 }
 
 /**

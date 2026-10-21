@@ -173,7 +173,11 @@ export default () => {
         port: parseInt(process.env.SMTP_PORT || '587', 10),
         secure: parseBoolean(process.env.SMTP_SECURE, false),
         user: process.env.SMTP_USER || '',
-        password: process.env.SMTP_PASSWORD || ''
+        password: process.env.SMTP_PASSWORD || '',
+        // Plain ports must upgrade with STARTTLS; certificates are verified. Both can be
+        // turned off for local mail catchers only (refused outside development/test)
+        requireTls: parseBoolean(process.env.SMTP_REQUIRE_TLS, true),
+        tlsRejectUnauthorized: parseBoolean(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true)
       }
     },
     audit: {

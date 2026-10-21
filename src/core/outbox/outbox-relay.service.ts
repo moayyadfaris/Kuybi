@@ -116,6 +116,8 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
       )
       message.status = 'dispatched'
       message.dispatchedAt = new Date()
+      // The job has the data now; the row must not keep secrets (emailed links) for days
+      message.payload = {}
       message.lastError = null
       return true
     } catch (error) {

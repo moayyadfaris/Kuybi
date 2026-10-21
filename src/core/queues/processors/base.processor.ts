@@ -72,7 +72,7 @@ export abstract class BaseProcessor extends WorkerHost {
           originalQueue: job.queueName,
           originalJobId: job.id,
           jobName: job.name,
-          data: job.data,
+          data: this.getDeadLetterData(job),
           attemptsAllowed,
           attemptsMade,
           failedReason: error.message,
@@ -88,6 +88,11 @@ export abstract class BaseProcessor extends WorkerHost {
         'Failed to publish job to dead-letter queue'
       )
     }
+  }
+
+  /** The job data kept in the dead-letter queue (indefinitely); all of it by default */
+  protected getDeadLetterData(job: Job): unknown {
+    return job.data
   }
 
   /** What of a job's data may be logged; nothing unless a processor says otherwise */

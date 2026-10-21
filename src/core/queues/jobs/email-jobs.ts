@@ -1,3 +1,5 @@
+import type { KeepJobs } from 'bullmq'
+
 /**
  * Email Job Types and Data Interfaces
  *
@@ -111,19 +113,23 @@ export interface EmailJobOptions {
     type: 'exponential' | 'fixed'
     delay: number
   }
-  removeOnComplete?: boolean | number
-  removeOnFail?: boolean | number
+  removeOnComplete?: boolean | number | KeepJobs
+  removeOnFail?: boolean | number | KeepJobs
 }
 
 /**
  * Default email job options
  */
 export const DEFAULT_EMAIL_JOB_OPTIONS: EmailJobOptions = {
-  attempts: 3,
+  attempts: 5,
   backoff: {
     type: 'exponential',
     delay: 5000 // 5 seconds base delay
   },
-  removeOnComplete: 100, // Keep last 100 completed jobs
-  removeOnFail: 500 // Keep last 500 failed jobs for debugging
+  // Email jobs carry live reset and verification links: keep them only briefly. A sent
+  // job stays 10 minutes so a re-dispatched outbox message (same job id) is still
+  // recognized and not sent twice; a failed one stays a day for inspection (the
+  // dead-letter copy has the links redacted).
+  removeOnComplete: { age: 10 * 60 },
+  removeOnFail: { age: 24 * 60 * 60 }
 }

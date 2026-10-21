@@ -96,6 +96,8 @@ describe('Transactional outbox', () => {
     const stored = await messages().findOneByOrFail({ id })
     expect(stored.status).toBe('dispatched')
     expect(stored.dispatchedAt).toBeInstanceOf(Date)
+    // The queue has the data now: the row must not keep secrets (emailed links) around
+    expect(stored.payload).toEqual({})
     const queued = await queue.getJob(id)
     expect(queued?.name).toBe('scan')
     expect(queued?.data).toEqual({ n: 1 })

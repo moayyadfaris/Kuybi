@@ -1,6 +1,6 @@
 import { PinoLogger } from 'nestjs-pino'
 
-import { EmailJobType } from '@core/queues/jobs/email-jobs'
+import { DEFAULT_EMAIL_JOB_OPTIONS, EmailJobType } from '@core/queues/jobs/email-jobs'
 import { EmailProcessor } from '@core/queues/processors/email.processor'
 
 describe('EmailProcessor account emails', () => {
@@ -73,5 +73,42 @@ describe('EmailProcessor account emails', () => {
     expect(emailService.sendPasswordChangedEmail.mock.calls[0][2]).toEqual(
       new Date('2026-10-18T09:00:00.000Z')
     )
+  })
+
+  describe('secrets', () => {
+    const deadLetter = { add: jest.fn() }
+    const withDeadLetter = new EmailProcessor(
+      emailService as never,
+      logger as unknown as PinoLogger,
+      deadLetter as never
+    )
+
+    it('keeps no live link in the dead-letter copy of a failed email', async () => {
+      const failed = {
+        id: '7',
+        name: EmailJobType.SEND_PASSWORD_RESET,
+        queueName: 'email',
+        attemptsMade: 5,
+        opts: { attempts: 5 },
+        data: {
+          to: 'a@example.com',
+          userName: 'Ann',
+          resetLink: 'https://kuybi.test/reset?token=secret-token',
+          expiresIn: '60 minutes'
+        }
+      }
+
+      await withDeadLetter.onFailed(failed as never, new Error('smtp down'))
+
+      const [, entry] = deadLetter.add.mock.calls[0]
+      expect(JSON.stringify(entry)).not.toContain('secret-token')
+      expect(entry.data).toMatchObject({ to: 'a@example.com', resetLink: '[REDACTED]' })
+    })
+
+    it('does not keep sent or failed emails (and their links) in Redis for long', () => {
+      const ageOf = (option: unknown) => (option as { age?: number } | undefined)?.age
+      expect(ageOf(DEFAULT_EMAIL_JOB_OPTIONS.removeOnComplete)).toBeLessThanOrEqual(3600)
+      expect(ageOf(DEFAULT_EMAIL_JOB_OPTIONS.removeOnFail)).toBeLessThanOrEqual(24 * 3600)
+    })
   })
 })

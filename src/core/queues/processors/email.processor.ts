@@ -2,6 +2,7 @@ import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Injectable } from '@nestjs/common'
 import { EmailService } from '@infrastructure/email'
 import { errorMessage, errorStack } from '@shared/utils/error.util'
+import { maskEmail } from '@shared/utils/redact.util'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -20,6 +21,9 @@ import {
 import { QueueName } from '../jobs/types'
 
 import { BaseProcessor } from './base.processor'
+
+/** Job data fields that hold live links or message bodies */
+const SECRET_FIELD = /link|token|html|text/i
 
 /**
  * Email Queue Processor
@@ -56,7 +60,7 @@ export class EmailProcessor extends BaseProcessor {
         jobId: job.id,
         jobType: job.name,
         attempt: job.attemptsMade + 1,
-        to: job.data.to
+        to: maskEmail(job.data.to)
       },
       'Processing email job'
     )
@@ -123,7 +127,7 @@ export class EmailProcessor extends BaseProcessor {
         {
           jobId: job.id,
           jobType: job.name,
-          to: job.data.to,
+          to: maskEmail(job.data.to),
           duration
         },
         'Email job completed successfully'
@@ -137,7 +141,7 @@ export class EmailProcessor extends BaseProcessor {
         {
           jobId: job.id,
           jobType: job.name,
-          to: job.data.to,
+          to: maskEmail(job.data.to),
           attempt: job.attemptsMade + 1,
           error: errorMessage(error),
           stack: errorStack(error),
@@ -148,6 +152,19 @@ export class EmailProcessor extends BaseProcessor {
 
       throw error // Re-throw to trigger retry
     }
+  }
+
+  /**
+   * Dead letters are kept until handled by hand: drop the live links (reset, verification)
+   * and message bodies, keep what identifies the email
+   */
+  protected getDeadLetterData(job: Job<EmailJobData>): unknown {
+    return Object.fromEntries(
+      Object.entries(job.data).map(([key, value]) => [
+        key,
+        SECRET_FIELD.test(key) ? '[REDACTED]' : value
+      ])
+    )
   }
 
   /**

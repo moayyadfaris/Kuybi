@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq'
 import { Injectable } from '@nestjs/common'
+import { maskEmail } from '@shared/utils/redact.util'
 import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { EntityManager } from 'typeorm'
@@ -86,7 +87,7 @@ export class EmailQueueService {
       {
         jobId,
         jobType: EmailJobType.SEND_WELCOME,
-        to
+        to: maskEmail(to)
       },
       'Welcome email queued'
     )
@@ -117,7 +118,7 @@ export class EmailQueueService {
       {
         jobId,
         jobType: EmailJobType.SEND_VERIFICATION,
-        to
+        to: maskEmail(to)
       },
       'Verification email queued'
     )
@@ -146,7 +147,7 @@ export class EmailQueueService {
       {
         jobId,
         jobType: EmailJobType.SEND_VERIFIED_SUCCESS,
-        to
+        to: maskEmail(to)
       },
       'Verified success email queued'
     )
@@ -180,7 +181,7 @@ export class EmailQueueService {
       {
         jobId,
         jobType: EmailJobType.SEND_PASSWORD_RESET,
-        to: data.to
+        to: maskEmail(data.to)
       },
       'Password reset email queued'
     )
@@ -213,7 +214,7 @@ export class EmailQueueService {
       {
         jobId,
         jobType: EmailJobType.SEND_PASSWORD_CHANGED,
-        to: data.to
+        to: maskEmail(data.to)
       },
       'Password changed email queued'
     )
@@ -271,7 +272,7 @@ export class EmailQueueService {
       {
         jobId,
         jobType: EmailJobType.SEND_CUSTOM,
-        to: data.to,
+        to: maskEmail(data.to),
         subject: data.subject
       },
       'Custom email queued'

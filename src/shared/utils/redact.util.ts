@@ -19,3 +19,10 @@ export function redactQuery(query: unknown): Record<string, unknown> {
 export function pathOf(url: string | undefined): string {
   return (url ?? '').split('?')[0]
 }
+
+/** An email address for logs: the first letter and the domain ("a***@example.com") */
+export function maskEmail(email: string | undefined | null): string {
+  const at = email?.lastIndexOf('@') ?? -1
+  if (!email || at < 1) return '***'
+  return `${email[0]}***${email.slice(at)}`
+}
