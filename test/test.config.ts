@@ -11,6 +11,8 @@ const envPath = path.resolve(__dirname, '../.env.test')
 dotenv.config({ path: envPath })
 
 export const testConfig = {
+  // Where emailed links point (the site, not the API)
+  app: { publicUrl: 'https://www.kuybi.test' },
   database: {
     type: 'postgres',
     host: process.env.TEST_DB_HOST || 'localhost',
@@ -35,7 +37,7 @@ export const testConfig = {
     jwtSecret: 'test-secret-key-do-not-use-in-production',
     jwtRefreshSecret: 'test-refresh-secret-key',
     jwtAccessExpiresIn: '1h',
-    jwtRefreshExpiresIn: '7d'
+    sessionDays: 7
   },
   aws: {
     region: 'us-east-1',

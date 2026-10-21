@@ -55,14 +55,8 @@ async function bootstrap() {
   // Create queue instances for monitoring
   const queues = [
     new Queue(QueueName.SESSION_CLEANUP, { connection }),
-    new Queue(QueueName.LOG_MAINTENANCE, { connection }),
     new Queue(QueueName.EMAIL, { connection }),
-    new Queue(QueueName.SMS, { connection }),
     new Queue(QueueName.ATTACHMENT_PROCESSING, { connection }),
-    new Queue(QueueName.NOTIFICATION, { connection }),
-    new Queue(QueueName.SECURITY_SCAN, { connection }),
-    new Queue(QueueName.DATA_EXPORT, { connection }),
-    new Queue(QueueName.REPORT_GENERATION, { connection }),
     new Queue(QueueName.VERSION_CLEANUP, { connection }),
     new Queue(QueueName.CONTENT_PUBLISHING, { connection }),
     new Queue(QueueName.AUDIT_RETENTION, { connection }),

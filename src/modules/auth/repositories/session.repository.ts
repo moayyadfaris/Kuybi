@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { IsNull, MoreThan, Repository } from 'typeorm'
+import { EntityManager, IsNull, MoreThan, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -127,12 +127,18 @@ export class SessionRepository extends BaseRepository<Session> {
    * Revokes every live session of the user, except `excludeSessionId` when given
    * @returns how many were revoked
    */
+  /**
+   * Revokes the user's live sessions. With `manager` it runs in the caller's transaction
+   * and leaves the cache alone: the caller drops it once the transaction has committed
+   * (invalidateAllCaches), so a rollback cannot leave the cache ahead of the database.
+   */
   async revokeAllUserSessions(
     userId: string,
     excludeSessionId?: string,
-    reason = 'user_logout_all'
+    reason = 'user_logout_all',
+    manager?: EntityManager
   ): Promise<number> {
-    const query = this.repository
+    const query = (manager ? manager.getRepository(Session) : this.repository)
       .createQueryBuilder()
       .update(Session)
       .set({ isActive: false, deletedAt: new Date(), metadata: () => REVOCATION_METADATA_SQL })
@@ -153,7 +159,7 @@ export class SessionRepository extends BaseRepository<Session> {
 
     // A bulk update touches rows this repository did not read: drop every cached
     // session entry (rows by id, lists, access statuses), not just the lists
-    await this.invalidateCacheByTag()
+    if (!manager) await this.invalidateCacheByTag()
     return count
   }
 
@@ -356,21 +362,20 @@ export class SessionRepository extends BaseRepository<Session> {
    * the lookup falls back to the database (never fails open).
    */
   async isUsableForAccess(sessionId: string, userId: string): Promise<boolean> {
-    const key = this.buildCacheKey('access', userId, sessionId)
-    let status = await this.cacheService.get<AccessStatus>(key)
-
-    if (!status) {
-      const session = await this.repository.findOne({
-        where: { id: sessionId },
-        select: { id: true, userId: true, isActive: true, deletedAt: true, expiresAt: true }
-      })
-      status = {
-        active: !!session && session.userId === userId && session.isActive && !session.deletedAt,
-        expiresAt: session?.expiresAt.getTime() ?? 0
-      }
-      await this.cacheSet(key, status, ACCESS_STATUS_TTL)
-    }
-
+    const status = await this.cached<AccessStatus>(
+      this.buildCacheKey('access', userId, sessionId),
+      async () => {
+        const session = await this.repository.findOne({
+          where: { id: sessionId },
+          select: { id: true, userId: true, isActive: true, deletedAt: true, expiresAt: true }
+        })
+        return {
+          active: !!session && session.userId === userId && session.isActive && !session.deletedAt,
+          expiresAt: session?.expiresAt.getTime() ?? 0
+        }
+      },
+      ACCESS_STATUS_TTL
+    )
     return status.active && status.expiresAt > Date.now()
   }
 }

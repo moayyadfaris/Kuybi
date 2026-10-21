@@ -3,6 +3,7 @@
 ## Overview
 
 PM2 (Process Manager 2) is used to manage all Kuybi application processes including:
+
 - **API Servers** - Multiple instances in cluster mode for load balancing
 - **Bull Board Dashboard** - Queue monitoring UI
 - **Background Workers** - Session cleanup, logs, email, attachments (future phases)
@@ -10,16 +11,19 @@ PM2 (Process Manager 2) is used to manage all Kuybi application processes includ
 ## Quick Start
 
 ### 1. Build the Application
+
 ```bash
 npm run build
 ```
 
 ### 2. Create PM2 Log Directories
+
 ```bash
 mkdir -p logs/pm2
 ```
 
 ### 3. Start All Processes
+
 ```bash
 # Development environment
 npm run pm2:start:dev
@@ -31,7 +35,14 @@ npm run pm2:start:prod
 pm2 start ecosystem.config.js --env production
 ```
 
+`--env production` sets `NODE_ENV=production` for the API, worker and dashboard
+(`env_production` in `ecosystem.config.js`), which turns on the deployed-environment config
+checks (secrets, `CORS_ORIGIN`, `APP_PUBLIC_URL`). The API tells PM2 it is ready once it
+listens (`wait_ready`), and PM2 waits 35 s (`kill_timeout`) before killing the API or the
+worker, longer than their 30 s graceful shutdown.
+
 ### 4. Check Status
+
 ```bash
 pm2 status
 # or
@@ -145,6 +156,7 @@ pm2 resurrect
 - **Logs**: `logs/pm2/api-error.log`, `logs/pm2/api-out.log`
 
 **Environment Variables:**
+
 - `APP_MODE=api` - Runs in API mode (no workers)
 - See `ecosystem.config.js` for full list
 
@@ -158,9 +170,10 @@ pm2 resurrect
 - **Logs**: `logs/pm2/dashboard-error.log`, `logs/pm2/dashboard-out.log`
 
 **Access:**
+
 - URL: http://localhost:4050/admin/queues
 - Username: `admin` (configure via `BULL_BOARD_USERNAME`)
-- Password: `admin123` (configure via `BULL_BOARD_PASSWORD`)
+- Password: `BULL_BOARD_PASSWORD` (required; the dashboard does not start without it)
 
 ### Queue Worker
 
@@ -179,6 +192,7 @@ Future specialized workers (email, attachments, etc.) can be cloned from this ba
 ### Setting Environment Variables
 
 **Option 1: Modify ecosystem.config.js**
+
 ```javascript
 env: {
   NODE_ENV: 'production',
@@ -189,6 +203,7 @@ env: {
 ```
 
 **Option 2: Use .env file** (create in project root)
+
 ```bash
 # .env
 NODE_ENV=production
@@ -199,6 +214,7 @@ DB_PORT=5432
 ```
 
 **Option 3: PM2 environment file**
+
 ```bash
 # Create .env.production
 pm2 start ecosystem.config.js --env production --env-file .env.production
@@ -207,11 +223,13 @@ pm2 start ecosystem.config.js --env production --env-file .env.production
 ### Key Environment Variables
 
 **Application:**
+
 - `NODE_ENV` - Environment (development/staging/production)
 - `APP_PORT` - API server port (default: 4040)
 - `APP_MODE` - Application mode (api/worker)
 
 **Database:**
+
 - `DB_HOST` - PostgreSQL host
 - `DB_PORT` - PostgreSQL port (default: 5432)
 - `DB_USER` - Database username
@@ -219,22 +237,26 @@ pm2 start ecosystem.config.js --env production --env-file .env.production
 - `DB_NAME` - Database name
 
 **Redis:**
+
 - `REDIS_HOST` - Redis host (default: localhost)
 - `REDIS_PORT` - Redis port (default: 6379)
 - `REDIS_DB` - Cache database (default: 0)
 - `REDIS_QUEUE_DB` - Queue database (default: 1)
 
 **Authentication:**
+
 - `JWT_SECRET` - JWT signing secret (CHANGE IN PRODUCTION!)
 - `JWT_ACCESS_EXPIRES_IN` - Access token TTL (default: 1h)
 - `JWT_REFRESH_EXPIRES_IN` - Refresh token TTL (default: 7d)
 
 **Bull Board:**
+
 - `BULL_BOARD_USERNAME` - Dashboard username (default: admin)
-- `BULL_BOARD_PASSWORD` - Dashboard password (default: admin123)
+- `BULL_BOARD_PASSWORD` - Dashboard password (required, no default)
 - `BULL_BOARD_PORT` - Dashboard port (default: 4050)
 
 **Logging:**
+
 - `LOG_LEVEL` - Log level (debug/info/warn/error)
 - `LOG_DIR` - Log directory (default: ./logs)
 - `LOG_RETENTION_DAYS` - Days to keep logs (default: 30)
@@ -244,12 +266,14 @@ pm2 start ecosystem.config.js --env production --env-file .env.production
 ### Prerequisites
 
 1. **Build the application:**
+
    ```bash
    npm install
    npm run build
    ```
 
 2. **Create required directories:**
+
    ```bash
    mkdir -p logs/pm2
    mkdir -p logs/archive
@@ -270,22 +294,26 @@ pm2 start ecosystem.config.js --env production --env-file .env.production
 ### Deployment Steps
 
 1. **Start PM2 processes:**
+
    ```bash
    pm2 start ecosystem.config.js --env production
    ```
 
 2. **Save PM2 process list:**
+
    ```bash
    pm2 save
    ```
 
 3. **Configure auto-startup:**
+
    ```bash
    pm2 startup
    # Follow the instructions printed
    ```
 
 4. **Verify processes:**
+
    ```bash
    pm2 status
    pm2 logs --lines 50
@@ -334,6 +362,7 @@ pm2-web
 ### Log Management
 
 **View Logs:**
+
 ```bash
 # All processes
 pm2 logs
@@ -349,11 +378,13 @@ pm2 logs --raw
 ```
 
 **Log Files:**
+
 - API: `logs/pm2/api-error.log`, `logs/pm2/api-out.log`
 - Dashboard: `logs/pm2/dashboard-error.log`, `logs/pm2/dashboard-out.log`
 - Application: `logs/server.log`, `logs/error.log`
 
 **Clear Logs:**
+
 ```bash
 pm2 flush  # Clear PM2 logs
 ```
@@ -391,17 +422,21 @@ pm2 reset kuybi-api
 **Issue:** Process crashes immediately
 
 **Solutions:**
+
 1. Check build output:
+
    ```bash
    npm run build
    ```
 
 2. Verify environment variables:
+
    ```bash
    pm2 show kuybi-api
    ```
 
 3. Check logs:
+
    ```bash
    pm2 logs kuybi-api --lines 50
    ```
@@ -416,12 +451,15 @@ pm2 reset kuybi-api
 **Issue:** Process memory exceeds limit
 
 **Solutions:**
+
 1. Check current memory:
+
    ```bash
    pm2 list
    ```
 
 2. Increase memory limit in `ecosystem.config.js`:
+
    ```javascript
    max_memory_restart: '1G'
    ```
@@ -436,12 +474,15 @@ pm2 reset kuybi-api
 **Issue:** `EADDRINUSE` error
 
 **Solutions:**
+
 1. Find process using port:
+
    ```bash
    lsof -i :4040
    ```
 
 2. Kill the process:
+
    ```bash
    kill -9 <PID>
    ```
@@ -453,12 +494,15 @@ pm2 reset kuybi-api
 **Issue:** Requests not load balanced
 
 **Solutions:**
+
 1. Verify cluster mode:
+
    ```bash
    pm2 show kuybi-api
    ```
 
 2. Check instance count:
+
    ```bash
    pm2 list
    ```
@@ -473,11 +517,13 @@ pm2 reset kuybi-api
 **Issue:** Can't connect to PostgreSQL/Redis
 
 **Solutions:**
+
 1. Verify services are running:
+
    ```bash
    # PostgreSQL
    brew services list | grep postgresql
-   
+
    # Redis
    brew services list | grep redis
    ```
@@ -500,6 +546,7 @@ pm2 reset kuybi-api
    - Database passwords
 
 2. **Use environment-specific configs:**
+
    ```bash
    pm2 start ecosystem.config.js --env production
    ```
@@ -512,16 +559,19 @@ pm2 reset kuybi-api
 ### Performance
 
 1. **Scale based on CPU cores:**
+
    ```bash
    pm2 scale kuybi-api max
    ```
 
 2. **Monitor memory usage:**
+
    ```bash
    pm2 monit
    ```
 
 3. **Use reload instead of restart:**
+
    ```bash
    pm2 reload ecosystem.config.js  # Zero-downtime
    ```
@@ -538,6 +588,7 @@ pm2 reset kuybi-api
    Already configured with `max_memory_restart`
 
 3. **Save process list:**
+
    ```bash
    pm2 save
    ```
@@ -550,6 +601,7 @@ pm2 reset kuybi-api
 ### Logging
 
 1. **Rotate logs regularly:**
+
    ```bash
    pm2 install pm2-logrotate
    pm2 set pm2-logrotate:max_size 10M
@@ -593,35 +645,35 @@ For advanced monitoring and management:
 
 ### Common Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run pm2:start` | Start all processes |
-| `npm run pm2:stop` | Stop all processes |
+| Command               | Description           |
+| --------------------- | --------------------- |
+| `npm run pm2:start`   | Start all processes   |
+| `npm run pm2:stop`    | Stop all processes    |
 | `npm run pm2:restart` | Restart all processes |
-| `npm run pm2:reload` | Zero-downtime reload |
-| `npm run pm2:logs` | View logs |
-| `npm run pm2:monit` | Monitor processes |
-| `npm run pm2:status` | Show process list |
-| `pm2 save` | Save process list |
-| `pm2 resurrect` | Restore processes |
+| `npm run pm2:reload`  | Zero-downtime reload  |
+| `npm run pm2:logs`    | View logs             |
+| `npm run pm2:monit`   | Monitor processes     |
+| `npm run pm2:status`  | Show process list     |
+| `pm2 save`            | Save process list     |
+| `pm2 resurrect`       | Restore processes     |
 
 ### Process Status
 
-| Status | Meaning |
-|--------|---------|
-| `online` | Process running normally |
-| `stopping` | Process is stopping |
-| `stopped` | Process stopped |
-| `errored` | Process crashed |
-| `launching` | Process starting |
+| Status      | Meaning                  |
+| ----------- | ------------------------ |
+| `online`    | Process running normally |
+| `stopping`  | Process is stopping      |
+| `stopped`   | Process stopped          |
+| `errored`   | Process crashed          |
+| `launching` | Process starting         |
 
 ### Signals
 
-| Signal | Action |
-|--------|--------|
-| `SIGINT` | Graceful shutdown |
+| Signal    | Action            |
+| --------- | ----------------- |
+| `SIGINT`  | Graceful shutdown |
 | `SIGTERM` | Graceful shutdown |
-| `SIGKILL` | Force kill |
+| `SIGKILL` | Force kill        |
 
 ---
 

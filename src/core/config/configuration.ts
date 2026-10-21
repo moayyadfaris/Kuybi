@@ -15,6 +15,14 @@ const parseNumber = (value: string | undefined, fallback: number): number => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+/** Days in a duration such as "30d", "12h" or "90m" (the JWT_REFRESH_EXPIRES_IN format) */
+const UNIT_DAYS: Record<string, number> = { d: 1, h: 1 / 24, m: 1 / 1440 }
+export const parseDurationDays = (value: string): number => {
+  const match = /^(\d+)([dhm])$/.exec(value)
+  if (!match) throw new Error(`Invalid duration "${value}" (expected e.g. 30d, 12h, 90m)`)
+  return Number(match[1]) * UNIT_DAYS[match[2]]
+}
+
 const parseList = (value: string | undefined, fallback: string[]): string[] => {
   if (!value) {
     return fallback
@@ -33,7 +41,10 @@ export default () => {
   return {
     app: {
       name: process.env.APP_NAME || 'kuybi-nest',
-      env
+      env,
+      // The public site emailed links point at (verify email, reset password, sign in);
+      // required outside development and test
+      publicUrl: (process.env.APP_PUBLIC_URL || 'http://localhost:4040').replace(/\/+$/, '')
     },
     http: {
       host: process.env.APP_HOST || '0.0.0.0',
@@ -107,7 +118,8 @@ export default () => {
     auth: {
       jwtSecret: process.env.JWT_SECRET,
       jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '10m',
-      jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+      // Lifetime of a session and its refresh token (JWT_REFRESH_EXPIRES_IN, e.g. 30d)
+      sessionDays: parseDurationDays(process.env.JWT_REFRESH_EXPIRES_IN || '7d'),
       passwordChangeCooldownHours: parseNumber(process.env.PASSWORD_CHANGE_COOLDOWN_HOURS, 1),
       enableBreachDetection: parseBoolean(process.env.ENABLE_BREACH_DETECTION, true)
     },
@@ -132,7 +144,9 @@ export default () => {
       password: process.env.REDIS_PASSWORD || undefined,
       db: parseInt(process.env.REDIS_DB || '0', 10),
       queueDb: parseInt(process.env.REDIS_QUEUE_DB || '1', 10), // Separate DB for queues
-      ttl: parseInt(process.env.REDIS_TTL || '3600', 10) // 1 hour default
+      ttl: parseInt(process.env.REDIS_TTL || '3600', 10), // 1 hour default
+      // Prefix of every cache key (entries and tag sets); the Redis server may be shared
+      cacheNamespace: process.env.CACHE_NAMESPACE || 'kuybi'
     },
     s3: {
       bucket: defaultBucket,

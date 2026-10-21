@@ -1,3 +1,8 @@
+// The import order matters here: tracing must start before the imports below load the
+// libraries it instruments (express, ioredis, the Redis client), so it is not sorted
+/* eslint-disable simple-import-sort/imports */
+import './tracing'
+
 import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
@@ -5,13 +10,10 @@ import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { Request, Response } from 'express'
 import { Logger } from 'nestjs-pino'
 
-import { initTracing, shutdownTracing } from '@core/observability/otel-sdk'
+import { shutdownTracing } from '@core/observability/otel-sdk'
 
 import { AppModule } from './app.module'
 import { configureApp } from './app.setup'
-
-// Initialize tracing before anything else
-initTracing()
 
 interface HttpConfig {
   host: string
@@ -60,6 +62,8 @@ async function bootstrap() {
   // time in parallel and re-raise the signal, killing the process mid-shutdown.
 
   await app.listen(httpConfig.port, httpConfig.host)
+  // PM2 (wait_ready) routes traffic to this instance only after it listens
+  process.send?.('ready')
 
   let isShuttingDown = false
   let shutdownTimer: NodeJS.Timeout | null = null

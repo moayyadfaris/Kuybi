@@ -174,6 +174,21 @@ describe('BaseRepository cache coherence (real Redis)', () => {
     expect((await repo.newest(false))?.slug).toBe('older')
   })
 
+  it('does not cache a row read before a write that invalidated it meanwhile', async () => {
+    const saved = await repo.create(category('race'))
+    const rows = dataSource.getRepository(Category)
+    const findOne = rows.findOne.bind(rows)
+    // The reader loads the old row; a writer commits and invalidates before the reader stores it
+    jest.spyOn(repo['repository'], 'findOne').mockImplementationOnce(async options => {
+      const stale = await findOne(options)
+      await repo.update(saved.id, { name: 'renamed' })
+      return stale
+    })
+
+    expect((await repo.findById(saved.id))?.name).toBe('race')
+    expect((await repo.findById(saved.id))?.name).toBe('renamed')
+  })
+
   it('transaction leaves the cache alone when the work rolls back', async () => {
     const saved = await repo.create(category('rollback'))
     await repo.findById(saved.id)

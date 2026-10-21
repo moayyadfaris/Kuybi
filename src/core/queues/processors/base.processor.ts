@@ -1,12 +1,14 @@
-import { WorkerHost } from '@nestjs/bullmq'
+import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
 import { Job, Queue } from 'bullmq'
 import { PinoLogger } from 'nestjs-pino'
 
 /**
- * Base Processor
+ * Base of every queue processor: logs the job lifecycle and moves a job that failed its
+ * last attempt to the dead-letter queue (once: its id there is derived from the job).
  *
- * Abstract base class for all queue processors to ensure consistent
- * logging, error handling, and lifecycle management.
+ * Job data is not logged by default: jobs can carry personal data and secrets (emails
+ * with reset and verification links). A processor may log a safe projection by
+ * overriding getLogData.
  */
 export abstract class BaseProcessor extends WorkerHost {
   protected constructor(
@@ -16,11 +18,9 @@ export abstract class BaseProcessor extends WorkerHost {
     super()
   }
 
-  /**
-   * Handle job active (started processing)
-   */
-  async onActive(job: Job) {
-    this.logger.info(
+  @OnWorkerEvent('active')
+  onActive(job: Job): void {
+    this.logger.debug(
       {
         jobId: job.id,
         jobName: job.name,
@@ -31,75 +31,67 @@ export abstract class BaseProcessor extends WorkerHost {
     )
   }
 
-  /**
-   * Handle job completion
-   */
-  async onCompleted(job: Job, result: unknown) {
-    this.logger.info(
+  @OnWorkerEvent('completed')
+  onCompleted(job: Job): void {
+    this.logger.debug(
       {
         jobId: job.id,
         jobName: job.name,
-        duration: job.finishedOn ? job.finishedOn - job.processedOn! : 0,
-        result
+        durationMs: job.finishedOn && job.processedOn ? job.finishedOn - job.processedOn : undefined
       },
       `Job ${job.name} completed`
     )
   }
 
-  /**
-   * Handle job failure
-   */
-  async onFailed(job: Job | undefined, error: Error) {
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job | undefined, error: Error): Promise<void> {
     if (!job) return
 
-    this.logger.error(
+    // BullMQ has counted this attempt when it emits 'failed'
+    const attemptsMade = job.attemptsMade
+    const attemptsAllowed = job.opts.attempts ?? 1
+    const final = attemptsMade >= attemptsAllowed
+
+    this.logger[final ? 'error' : 'warn'](
       {
         jobId: job.id,
         jobName: job.name,
-        attempt: job.attemptsMade + 1,
+        attemptsMade,
+        attemptsAllowed,
         error: error.message,
-        stack: error.stack,
         data: this.getLogData(job)
       },
-      `Job ${job.name} failed`
+      final ? `Job ${job.name} failed for good` : `Job ${job.name} failed, will retry`
     )
+    if (!final || !this.deadLetterQueue) return
 
-    const attemptsAllowed = job.opts.attempts ?? 1
-    const attemptsMade = job.attemptsMade + 1
-
-    if (this.deadLetterQueue && attemptsMade >= attemptsAllowed) {
-      try {
-        await this.deadLetterQueue.add('dead-letter', {
+    try {
+      await this.deadLetterQueue.add(
+        'dead-letter',
+        {
           originalQueue: job.queueName,
+          originalJobId: job.id,
           jobName: job.name,
           data: job.data,
           attemptsAllowed,
           attemptsMade,
           failedReason: error.message,
           failedAt: new Date().toISOString()
-        })
-        this.logger.warn(
-          { jobId: job.id, jobName: job.name, attemptsMade, attemptsAllowed },
-          'Job moved to dead-letter queue'
-        )
-      } catch (dlqError) {
-        this.logger.error(
-          {
-            jobId: job.id,
-            jobName: job.name,
-            error: (dlqError as Error).message
-          },
-          'Failed to publish job to dead-letter queue'
-        )
-      }
+        },
+        // A repeated 'failed' event for the same job does not add a second entry
+        { jobId: `${job.queueName}-${job.id}` }
+      )
+      this.logger.warn({ jobId: job.id, jobName: job.name }, 'Job moved to dead-letter queue')
+    } catch (dlqError) {
+      this.logger.error(
+        { jobId: job.id, jobName: job.name, error: (dlqError as Error).message },
+        'Failed to publish job to dead-letter queue'
+      )
     }
   }
 
-  /**
-   * Helper to safely extract loggable data from job
-   * Override this in subclasses if sensitive data needs masking
-   */
-  protected getLogData(job: Job): Record<string, unknown> {
-    return job.data
+  /** What of a job's data may be logged; nothing unless a processor says otherwise */
+  protected getLogData(_job: Job): Record<string, unknown> | undefined {
+    return undefined
   }
 }

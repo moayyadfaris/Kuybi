@@ -12,10 +12,10 @@ describe('RoleHierarchyGuard', () => {
   let eventBus: { publish: jest.Mock }
   let mockExecutionContext: ExecutionContext
 
-  const superAdminRole: Role = { id: 1, name: 'super-admin', priority: 100 } as Role
-  const adminRole: Role = { id: 2, name: 'admin', priority: 80 } as Role
-  const moderatorRole: Role = { id: 3, name: 'moderator', priority: 60 } as Role
-  const userRole: Role = { id: 4, name: 'user', priority: 40 } as Role
+  const superAdminRole: Role = { id: 1, name: 'super-admin', priority: 100, isActive: true } as Role
+  const adminRole: Role = { id: 2, name: 'admin', priority: 80, isActive: true } as Role
+  const moderatorRole: Role = { id: 3, name: 'moderator', priority: 60, isActive: true } as Role
+  const userRole: Role = { id: 4, name: 'user', priority: 40, isActive: true } as Role
 
   beforeEach(() => {
     mockLogger = {

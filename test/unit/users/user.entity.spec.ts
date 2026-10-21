@@ -10,10 +10,10 @@ describe('User Entity', () => {
 
   beforeEach(() => {
     // Setup roles with proper hierarchy
-    superAdminRole = { id: 1, name: 'super-admin', priority: 100 } as Role
-    adminRole = { id: 2, name: 'admin', priority: 80 } as Role
-    moderatorRole = { id: 3, name: 'moderator', priority: 60 } as Role
-    userRole = { id: 4, name: 'user', priority: 40 } as Role
+    superAdminRole = { id: 1, name: 'super-admin', priority: 100, isActive: true } as Role
+    adminRole = { id: 2, name: 'admin', priority: 80, isActive: true } as Role
+    moderatorRole = { id: 3, name: 'moderator', priority: 60, isActive: true } as Role
+    userRole = { id: 4, name: 'user', priority: 40, isActive: true } as Role
   })
 
   describe('getPrimaryRoleName', () => {

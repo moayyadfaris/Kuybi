@@ -91,7 +91,7 @@ export class EmailTemplateService {
       // Add default context values
       const enrichedContext: EmailTemplateContext = {
         appName: this.configService.get<string>('app.name', 'Kuybi'),
-        appUrl: this.configService.get<string>('app.url', 'http://localhost:4040'),
+        appUrl: this.configService.get<string>('app.publicUrl'),
         supportEmail: this.configService.get<string>('email.supportEmail', 'support@kuybi.dev'),
         securityEmail: this.configService.get<string>('email.securityEmail', 'security@kuybi.dev'),
         year: new Date().getFullYear(),

@@ -2,6 +2,7 @@ import { getQueueToken } from '@nestjs/bullmq'
 import { Injectable, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common'
 import { ModuleRef } from '@nestjs/core'
 import { errorMessage } from '@shared/utils/error.util'
+import { withTimeout } from '@shared/utils/resilience'
 import { Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { DataSource, LessThan } from 'typeorm'
@@ -27,6 +28,11 @@ export function dispatchBackoffMs(attempts: number): number {
  * parallel without handing out the same message. The message id is the BullMQ jobId:
  * if a worker dies after queueing but before marking the row, the retry is a no-op
  * while the job is still in Redis.
+ *
+ * Each dispatch has a time budget: while Redis is unreachable BullMQ holds the command
+ * and never settles it, which would keep the batch's row locks (and the relay, and a
+ * shutdown) waiting. A dispatch that runs out of time counts as failed (backoff), and the
+ * rest of the batch is left for a later cycle without spending an attempt.
  */
 @Injectable()
 export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -34,6 +40,8 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
   private running = false
   private lastPrune = 0
   private readonly queues = new Map<string, Queue>()
+  /** Time a single dispatch (BullMQ add) may take */
+  protected dispatchTimeoutMs = 5000
 
   constructor(
     private readonly dataSource: DataSource,
@@ -83,7 +91,8 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
         .getMany()
 
       for (const message of messages) {
-        await this.dispatch(message)
+        // Redis is not answering: try the rest later
+        if (!(await this.dispatch(message))) break
       }
       if (messages.length > 0) {
         await manager.save(messages)
@@ -92,15 +101,23 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
     })
   }
 
-  private async dispatch(message: OutboxMessage): Promise<void> {
+  /** Queues one message; false when it timed out (Redis unreachable) */
+  private async dispatch(message: OutboxMessage): Promise<boolean> {
+    let timedOut = false
     try {
-      await this.queueFor(message.queue).add(message.jobName, message.payload, {
-        ...message.jobOptions,
-        jobId: message.id
-      })
+      await withTimeout(
+        () =>
+          this.queueFor(message.queue).add(message.jobName, message.payload, {
+            ...message.jobOptions,
+            jobId: message.id
+          }),
+        this.dispatchTimeoutMs,
+        () => (timedOut = true)
+      )
       message.status = 'dispatched'
       message.dispatchedAt = new Date()
       message.lastError = null
+      return true
     } catch (error) {
       message.attempts += 1
       message.lastError = errorMessage(error)
@@ -122,6 +139,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
           'Outbox dispatch failed; will retry'
         )
       }
+      return !timedOut
     }
   }
 

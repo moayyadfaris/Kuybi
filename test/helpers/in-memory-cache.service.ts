@@ -18,6 +18,9 @@ type CacheServiceApi = Pick<CacheService, keyof CacheService>
 export class InMemoryCacheService implements CacheServiceApi {
   private readonly store = new Map<string, string>()
   private readonly tagIndex = new Map<string, Set<string>>()
+  /** Invalidation number of each tag's latest invalidation (see CacheService.fence) */
+  private readonly fences = new Map<string, number>()
+  private sequence = 0
 
   private read<T>(key: string): T | undefined {
     const raw = this.store.get(key)
@@ -41,51 +44,39 @@ export class InMemoryCacheService implements CacheServiceApi {
     this.store.delete(key)
   }
 
-  async scanKeys(pattern: string): Promise<string[]> {
-    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-    return [...this.store.keys()].filter(key => regex.test(key))
-  }
-
-  async delPattern(pattern: string): Promise<void> {
-    for (const key of await this.scanKeys(pattern)) {
-      this.store.delete(key)
-    }
-  }
-
+  /** Test-only: forget everything between tests */
   async reset(): Promise<void> {
     this.store.clear()
     this.tagIndex.clear()
+    this.fences.clear()
   }
 
-  async wrap<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    if (this.store.has(key)) {
-      return this.read<T>(key) as T
+  async fence(): Promise<number> {
+    return this.sequence
+  }
+
+  async setWithTags<T>(
+    key: string,
+    value: T,
+    tags: string[],
+    _ttl?: number,
+    options: { since?: number } = {}
+  ): Promise<boolean> {
+    const { since } = options
+    if (since !== undefined && tags.some(tag => (this.fences.get(tag) ?? 0) > since)) {
+      return false
     }
-    // Like cache-manager: a miss returns the freshly computed value itself
-    const value = await fn()
-    this.write(key, value)
-    return value
-  }
-
-  async wrapWithTags<T>(key: string, tags: string[], fn: () => Promise<T>): Promise<T> {
-    if (this.store.has(key)) {
-      return this.read<T>(key) as T
-    }
-    const value = await fn()
-    await this.setWithTags(key, value, tags)
-    return value
-  }
-
-  async setWithTags<T>(key: string, value: T, tags: string[]): Promise<void> {
     this.write(key, value)
     for (const tag of tags) {
       const keys = this.tagIndex.get(tag) ?? new Set<string>()
       keys.add(key)
       this.tagIndex.set(tag, keys)
     }
+    return true
   }
 
   async invalidateTag(tag: string): Promise<void> {
+    this.fences.set(tag, ++this.sequence)
     for (const key of this.tagIndex.get(tag) ?? []) {
       this.store.delete(key)
     }

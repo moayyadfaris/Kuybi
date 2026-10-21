@@ -1,20 +1,15 @@
-import { CacheModule as NestCacheModule } from '@nestjs/cache-manager'
+import { CacheManagerOptions, CacheModule as NestCacheModule } from '@nestjs/cache-manager'
 import { Global, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
-import Keyv from '@keyv/redis'
+import { createKeyv } from '@keyv/redis'
 import { Logger } from 'nestjs-pino'
 
 import { CacheService } from './services/cache.service'
 
 /**
- * Global Cache Module
- *
- * Provides Redis-backed caching for the entire application using Keyv with cache-manager v7
- * Features:
- * - Automatic TTL management
- * - Redis persistence via Keyv
- * - Error handling with fallback
- * - Health checks
+ * Global Redis cache (cache-manager v7 over Keyv). Every key, entries and tag sets, is
+ * stored under the app's namespace (CACHE_NAMESPACE, default "kuybi"): the Redis server
+ * may be shared with other applications, which must not see or clear Kuybi's keys.
  */
 @Global()
 @Module({
@@ -23,56 +18,24 @@ import { CacheService } from './services/cache.service'
     NestCacheModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService, Logger],
-      useFactory: async (configService: ConfigService, logger: Logger) => {
-        const redisConfig = configService.get('redis')
-        const poolConfig = redisConfig?.pool || {}
-
-        logger.log({
-          msg: 'Configuring Redis cache store',
-          context: 'CacheConfigModule',
-          host: redisConfig.host,
-          port: redisConfig.port,
-          db: redisConfig.db,
-          hasPassword: !!redisConfig.password,
-          poolEnabled: poolConfig?.enabled || false,
-          poolMin: poolConfig?.min || 1,
-          poolMax: poolConfig?.max || 5
+      useFactory: (configService: ConfigService, logger: Logger): CacheManagerOptions => {
+        const redis = configService.getOrThrow('redis')
+        const auth = redis.password ? `:${encodeURIComponent(redis.password)}@` : ''
+        const keyv = createKeyv(`redis://${auth}${redis.host}:${redis.port}/${redis.db}`, {
+          namespace: redis.cacheNamespace ?? 'kuybi',
+          keyPrefixSeparator: ':'
         })
-
-        // Build connection string with pool parameters
-        const connectionString = redisConfig.password
-          ? `redis://:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`
-          : `redis://${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`
-
-        // Create Keyv instance for Redis
-        const keyv = new Keyv(connectionString)
-
-        // Error handling
-        keyv.on('error', (err: Error & { code?: string }) => {
+        keyv.on('error', (error: Error & { code?: string }) =>
           logger.error({
-            msg: 'Keyv connection error',
+            msg: 'Redis cache error',
             context: 'CacheConfigModule',
-            error: err.message,
-            code: err.code || 'UNKNOWN',
-            stack: err.stack
+            error: error.message,
+            code: error.code ?? 'UNKNOWN'
           })
-        })
-
-        logger.log({
-          msg: 'Redis cache store initialized successfully',
-          context: 'CacheConfigModule',
-          poolingEnabled: poolConfig.enabled,
-          note: poolConfig.enabled
-            ? `Pool configured: min=${poolConfig.min}, max=${poolConfig.max}`
-            : 'Simple connection (development mode)'
-        })
-
-        // For cache-manager v7, we pass Keyv directly as the store
-        // The stores property accepts Keyv instances
-        return {
-          stores: [keyv],
-          ttl: redisConfig.ttl * 1000 // milliseconds
-        }
+        )
+        // The same Keyv class at runtime; @keyv/redis and cache-manager resolve separate
+        // copies of its type declarations
+        return { stores: [keyv], ttl: redis.ttl * 1000 } as unknown as CacheManagerOptions
       }
     })
   ],

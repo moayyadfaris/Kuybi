@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config'
+import { pathOf, redactQuery } from '@shared/utils/redact.util'
 import { Request } from 'express'
 import { Params } from 'nestjs-pino'
 import * as path from 'path'
@@ -138,9 +139,10 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
           return {
             id: req.id,
             method: req.method,
-            url: req.url,
+            // The query is logged separately, with secrets masked
+            url: pathOf(req.originalUrl ?? req.url),
             path: req.path,
-            query: req.query,
+            query: redactQuery(req.query),
             params: req.params,
             headers: {
               host: req.headers.host,
@@ -167,7 +169,8 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
       },
       autoLogging: {
         ignore: req => {
-          const ignorePaths = ['/health', '/favicon.ico', '/robots.txt']
+          // Probes hit /api/health every few seconds
+          const ignorePaths = ['/api/health', '/health', '/favicon.ico', '/robots.txt']
           return ignorePaths.some(pathEntry => req.url?.startsWith(pathEntry))
         }
       },

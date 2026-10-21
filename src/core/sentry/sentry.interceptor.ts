@@ -1,4 +1,5 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
+import { pathOf, redactQuery } from '@shared/utils/redact.util'
 import { Request } from 'express'
 import { Observable, throwError } from 'rxjs'
 import { catchError, tap } from 'rxjs/operators'
@@ -16,18 +17,16 @@ export class SentryInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>()
     const user = request.user
 
-    // Set user context if available
+    // The id only: Sentry is set not to collect personal data
     if (user?.id) {
-      this.sentryService.setUser({
-        id: user.id,
-        email: user.email
-      })
+      this.sentryService.setUser({ id: user.id })
     }
+    const url = pathOf(request.originalUrl ?? request.url)
 
     // Add request breadcrumb
     this.sentryService.addBreadcrumb('HTTP Request', 'http', {
       method: request.method,
-      url: request.url,
+      url,
       userAgent: request.headers['user-agent']
     })
 
@@ -39,7 +38,7 @@ export class SentryInterceptor implements NestInterceptor {
         const duration = Date.now() - startTime
         this.sentryService.addBreadcrumb('HTTP Response', 'http', {
           method: request.method,
-          url: request.url,
+          url,
           duration,
           status: 'success'
         })
@@ -49,9 +48,9 @@ export class SentryInterceptor implements NestInterceptor {
         // guards, which never reach interceptors). Capturing here sent every 4xx as well.
         this.sentryService.setContext('request', {
           method: request.method,
-          url: request.url,
+          url,
           headers: this.sanitizeHeaders(request.headers),
-          query: request.query,
+          query: redactQuery(request.query),
           params: request.params,
           route: request.route?.path,
           controller: context.getClass().name,

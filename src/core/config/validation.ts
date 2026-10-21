@@ -1,6 +1,13 @@
 import { ENVIRONMENTS, isLocalEnvironment } from '@shared/utils/environment'
-import { plainToInstance } from 'class-transformer'
-import { IsIn, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator'
+import { plainToInstance, Type } from 'class-transformer'
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min, validateSync } from 'class-validator'
+
+// @Type reads decorator metadata: load the polyfill even when this module is imported first
+import 'reflect-metadata'
+
+/** A switch as configuration.ts parses it (parseBoolean): anything else would read as false */
+const IsBooleanText = () =>
+  Matches(/^(true|false|1|0|yes|no|on|off)$/i, { message: '$property must be true or false' })
 
 class EnvironmentVariables {
   // A typo such as "prod" must not boot with the development defaults
@@ -16,7 +23,10 @@ class EnvironmentVariables {
   @IsOptional()
   APP_HOST?: string
 
+  @Type(() => Number)
   @IsInt()
+  @Min(1)
+  @Max(65535)
   @IsOptional()
   APP_PORT?: number
 
@@ -31,13 +41,16 @@ class EnvironmentVariables {
   @IsOptional()
   DB_HOST?: string
 
+  @Type(() => Number)
   @IsInt()
+  @Min(1)
+  @Max(65535)
   @IsOptional()
   DB_PORT?: number
 
   @IsString()
   @IsOptional()
-  DB_USER?: string
+  DB_USERNAME?: string
 
   @IsString()
   @IsOptional()
@@ -55,11 +68,13 @@ class EnvironmentVariables {
   @IsOptional()
   JWT_ACCESS_EXPIRES_IN?: string
 
-  @IsString()
+  // Session and refresh-token lifetime: a number and d, h or m (30d, 12h, 90m)
+  @Matches(/^\d+[dhm]$/)
   @IsOptional()
   JWT_REFRESH_EXPIRES_IN?: string
 
   // bcrypt cost; 4 is only for fast tests (see assertProductionSecrets)
+  @Type(() => Number)
   @IsInt()
   @Min(4)
   @Max(15)
@@ -82,10 +97,12 @@ class EnvironmentVariables {
   @IsOptional()
   S3_UPLOAD_PREFIX?: string
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   THROTTLE_TTL?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   THROTTLE_LIMIT?: number
@@ -110,14 +127,17 @@ class EnvironmentVariables {
   @IsOptional()
   LOG_PRETTY_PRINT?: string
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   LOG_ROTATE_MAX_BYTES?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   LOG_ROTATE_CHECK_INTERVAL?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   LOG_RETENTION_DAYS?: number
@@ -126,6 +146,7 @@ class EnvironmentVariables {
   @IsOptional()
   LOG_SAFE_FIELDS?: string
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   LOG_PAYLOAD_FIELD_LIMIT?: number
@@ -154,6 +175,7 @@ class EnvironmentVariables {
   @IsOptional()
   SMTP_HOST?: string
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   SMTP_PORT?: number
@@ -170,52 +192,73 @@ class EnvironmentVariables {
   @IsOptional()
   SMTP_PASSWORD?: string
 
+  // Public site for emailed links; required (http/https) outside development and test
   @IsString()
+  @IsOptional()
+  APP_PUBLIC_URL?: string
+
+  // Prefix of every cache key; letters, digits, dot, dash and underscore
+  @Matches(/^[A-Za-z0-9._-]+$/)
+  @IsOptional()
+  CACHE_NAMESPACE?: string
+
+  @IsBooleanText()
   @IsOptional()
   AUDIT_ENABLED?: string
 
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @IsOptional()
   AUDIT_RETENTION_DAYS?: number
 
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @IsOptional()
   AUDIT_CRITICAL_RETENTION_DAYS?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   S3_TIMEOUT_MS?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   S3_CIRCUIT_BREAKER_FAILURES?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   S3_CIRCUIT_BREAKER_RESET_MS?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   SMTP_TIMEOUT_MS?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   SMTP_CIRCUIT_BREAKER_FAILURES?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   SMTP_CIRCUIT_BREAKER_RESET_MS?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   CACHE_TIMEOUT_MS?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   CACHE_CIRCUIT_BREAKER_FAILURES?: number
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   CACHE_CIRCUIT_BREAKER_RESET_MS?: number
@@ -231,6 +274,167 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   OBSERVABILITY_JAEGER_PORT?: string
+
+  // Numbers and switches read by configuration.ts: a typo fails at startup instead of
+  // becoming NaN or a silent "false"
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  @IsOptional()
+  REDIS_PORT?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(15)
+  @IsOptional()
+  REDIS_DB?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(15)
+  @IsOptional()
+  REDIS_QUEUE_DB?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  REDIS_TTL?: number
+
+  @IsBooleanText()
+  @IsOptional()
+  DB_POOL_ENABLED?: string
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  DB_POOL_MIN?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  DB_POOL_MAX?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  DB_POOL_IDLE_TIMEOUT?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  DB_POOL_ACQUIRE_TIMEOUT?: number
+
+  @IsBooleanText()
+  @IsOptional()
+  TYPEORM_LOGGING?: string
+
+  @IsBooleanText()
+  @IsOptional()
+  ACCOUNT_LOCKOUT_ENABLED?: string
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  ACCOUNT_LOCKOUT_MAX_ATTEMPTS?: number
+
+  // Milliseconds
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  ACCOUNT_LOCKOUT_DURATION?: number
+
+  // Milliseconds
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  ACCOUNT_LOCKOUT_RESET_PERIOD?: number
+
+  @IsBooleanText()
+  @IsOptional()
+  ACCOUNT_LOCKOUT_NOTIFY_LOCK?: string
+
+  @IsBooleanText()
+  @IsOptional()
+  ACCOUNT_LOCKOUT_NOTIFY_UNLOCK?: string
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  PASSWORD_CHANGE_COOLDOWN_HOURS?: number
+
+  @IsBooleanText()
+  @IsOptional()
+  ENABLE_BREACH_DETECTION?: string
+
+  @IsBooleanText()
+  @IsOptional()
+  ATTACHMENT_ASYNC_PROCESSING?: string
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  STORY_KEEP_AUTO_VERSIONS?: number
+
+  @IsBooleanText()
+  @IsOptional()
+  SWAGGER_ENABLED?: string
+
+  @IsBooleanText()
+  @IsOptional()
+  LOG_ROTATION_ENABLED?: string
+
+  @IsBooleanText()
+  @IsOptional()
+  LOG_SHIPPER_FLUSH_ON_ROTATE?: string
+
+  @IsBooleanText()
+  @IsOptional()
+  SENTRY_ENABLED?: string
+
+  @IsBooleanText()
+  @IsOptional()
+  SENTRY_DEBUG?: string
+
+  // Percent of requests traced / profiled
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  SENTRY_TRACES_SAMPLE_RATE?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  SENTRY_PROFILES_SAMPLE_RATE?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  @IsOptional()
+  BULL_BOARD_PORT?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  WORKER_SHUTDOWN_TIMEOUT_MS?: number
 }
 
 export function validate(config: Record<string, unknown>) {
@@ -282,14 +486,21 @@ export function assertProductionSecrets(
 
   // Only when validating the app's own config (custom key lists check just those keys)
   if (required.includes('JWT_SECRET')) {
-    const rounds = config.BCRYPT_ROUNDS
-    if (typeof rounds === 'number' && rounds < MIN_DEPLOYED_BCRYPT_ROUNDS) {
+    // Environment values are strings; validate() converts only its own copy
+    const rounds = Number(config.BCRYPT_ROUNDS)
+    if (config.BCRYPT_ROUNDS !== undefined && rounds < MIN_DEPLOYED_BCRYPT_ROUNDS) {
       problems.push(`BCRYPT_ROUNDS must be at least ${MIN_DEPLOYED_BCRYPT_ROUNDS} in ${env}`)
     }
 
     const corsOrigin = config.CORS_ORIGIN
     if (typeof corsOrigin !== 'string' || corsOrigin.split(',').some(o => o.trim() === '*')) {
       problems.push(`CORS_ORIGIN must list the allowed origins in ${env} (no "*")`)
+    }
+
+    // Emailed links would otherwise point at localhost
+    const publicUrl = config.APP_PUBLIC_URL
+    if (typeof publicUrl !== 'string' || !/^https?:\/\/[^\s/]+/.test(publicUrl)) {
+      problems.push(`APP_PUBLIC_URL must be the site's http(s) URL in ${env}`)
     }
   }
 

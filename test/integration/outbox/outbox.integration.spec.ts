@@ -24,8 +24,8 @@ import { QueueName } from '@core/queues/jobs/types'
 
 import { testConfig } from '../../test.config'
 
-// A queue no processor listens to in tests, so dispatched jobs stay put
-const QUEUE = QueueName.SECURITY_SCAN
+// A queue no processor consumes (dead letters are handled by hand), so jobs stay put
+const QUEUE = QueueName.DEAD_LETTER
 
 describe('Transactional outbox', () => {
   let moduleRef: TestingModule
@@ -119,6 +119,29 @@ describe('Transactional outbox', () => {
     expect(stored.lastError).toBeTruthy()
     expect(stored.availableAt.getTime()).toBeGreaterThan(Date.now())
   })
+
+  it('gives up on a dispatch Redis does not answer, and leaves the rest of the batch', async () => {
+    const [first, second] = [await outbox.enqueue(job(1)), await outbox.enqueue(job(2))]
+    // Redis unreachable: BullMQ queues the command and never settles it
+    const add = jest.spyOn(queue, 'add').mockImplementation(() => new Promise(() => undefined))
+    const budget = relay as unknown as { dispatchTimeoutMs: number }
+    budget.dispatchTimeoutMs = 200
+    try {
+      expect(await relay.relayBatch()).toBe(2)
+    } finally {
+      add.mockRestore()
+      budget.dispatchTimeoutMs = 5000
+    }
+
+    const stuck = await messages().findOneByOrFail({ id: first })
+    expect(stuck).toMatchObject({ status: 'pending', attempts: 1 })
+    expect(stuck.lastError).toMatch(/timed out/)
+    // Not tried while Redis is down: no attempt spent
+    expect(await messages().findOneByOrFail({ id: second })).toMatchObject({
+      status: 'pending',
+      attempts: 0
+    })
+  }, 5000)
 
   it('does not queue a message twice when it is re-dispatched', async () => {
     const id = await outbox.enqueue(job(1))

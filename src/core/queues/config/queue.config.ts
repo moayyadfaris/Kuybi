@@ -3,8 +3,10 @@ import type { RedisOptions } from 'ioredis'
 import { QueueName } from '../jobs/types'
 
 /**
- * Queue Configuration
- * Centralized configuration for all Bull queues
+ * Queue settings: the Redis connection fallbacks, default job options and per-queue job
+ * options (retries, backoff, retention). Rate limits are worker settings in BullMQ, set on
+ * the processor that needs one (@Processor(..., { limiter })); BullMQ has no job timeout
+ * option, so a processor that must not run long enforces its own time budget.
  */
 export const queueConfig = {
   // Redis connection configuration (shared across all queues)
@@ -34,204 +36,33 @@ export const queueConfig = {
     }
   },
 
-  // Queue-specific configurations
+  // Queue-specific job options (each queue has a processor in the worker)
   queues: {
-    // Dead-letter Queue for failed jobs
+    // Jobs that failed their last attempt (BaseProcessor); kept until handled by hand
     [QueueName.DEAD_LETTER]: {
-      defaultJobOptions: {
-        attempts: 1,
-        removeOnFail: false,
-        priority: 10
-      }
+      defaultJobOptions: { attempts: 1, removeOnComplete: false, removeOnFail: false }
     },
-
-    // Session Cleanup Queue
-    [QueueName.SESSION_CLEANUP]: {
-      limiter: {
-        max: 100, // Max 100 jobs
-        duration: 60000 // Per minute
-      },
-      defaultJobOptions: {
-        priority: 5, // Medium-high priority
-        attempts: 3
-      }
-    },
-
-    // Log Maintenance Queue
-    [QueueName.LOG_MAINTENANCE]: {
-      limiter: {
-        max: 50,
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 3, // Medium priority
-        attempts: 2 // Less critical, fewer retries
-      }
-    },
-
-    // Email Queue (High throughput)
+    [QueueName.SESSION_CLEANUP]: { defaultJobOptions: { attempts: 3 } },
     [QueueName.EMAIL]: {
-      limiter: {
-        max: 500, // Higher throughput for emails
-        duration: 60000
-      },
       defaultJobOptions: {
-        priority: 7, // High priority
         attempts: 5, // More retries for emails
-        backoff: {
-          type: 'exponential' as const,
-          delay: 5000 // 5 seconds initial delay
-        }
+        backoff: { type: 'exponential' as const, delay: 5000 }
       }
     },
-
-    // SMS Queue (Rate limited by provider)
-    [QueueName.SMS]: {
-      limiter: {
-        max: 100, // Typical SMS provider limit
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 8, // Higher priority than email
-        attempts: 3
-      }
-    },
-
-    // Attachment Processing Queue (CPU intensive)
     [QueueName.ATTACHMENT_PROCESSING]: {
-      limiter: {
-        max: 20, // CPU intensive, lower limit
-        duration: 60000
-      },
       defaultJobOptions: {
-        priority: 4,
-        timeout: 300000, // 5 minutes timeout
-        attempts: 3, // A bit more tolerance for heavy jobs
-        backoff: {
-          type: 'exponential' as const,
-          delay: 5000
-        }
-      }
-    },
-
-    // Notification Queue
-    [QueueName.NOTIFICATION]: {
-      limiter: {
-        max: 200,
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 6,
-        attempts: 3
-      }
-    },
-
-    // Security Scan Queue (Low priority, high resource)
-    [QueueName.SECURITY_SCAN]: {
-      limiter: {
-        max: 10, // Very resource intensive
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 2, // Low priority
-        timeout: 600000, // 10 minutes timeout
-        attempts: 1 // Don't retry scans
-      }
-    },
-
-    // Data Export Queue (Long running)
-    [QueueName.DATA_EXPORT]: {
-      limiter: {
-        max: 5, // Very resource intensive
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 1, // Low priority
-        timeout: 1800000, // 30 minutes timeout
-        attempts: 2
-      }
-    },
-
-    // Report Generation Queue
-    [QueueName.REPORT_GENERATION]: {
-      limiter: {
-        max: 30,
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 4,
-        timeout: 180000, // 3 minutes timeout
-        attempts: 2
-      }
-    },
-
-    // Version Cleanup Queue (Maintenance)
-    [QueueName.VERSION_CLEANUP]: {
-      limiter: {
-        max: 50, // Moderate throughput
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 3, // Medium priority
-        timeout: 300000, // 5 minutes timeout
-        attempts: 2 // Retry once on failure
-      }
-    },
-
-    // Content Publishing Queue (scheduled entries going live, every minute)
-    [QueueName.CONTENT_PUBLISHING]: {
-      limiter: {
-        max: 10,
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 5,
-        timeout: 60000,
-        attempts: 2
-      }
-    },
-
-    // Audit Retention Queue (daily purge of expired audit rows)
-    [QueueName.AUDIT_RETENTION]: {
-      limiter: {
-        max: 10,
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 5,
-        timeout: 600000,
-        attempts: 2
-      }
-    },
-
-    // Account Security Queue (Critical security operations)
-    [QueueName.ACCOUNT_SECURITY]: {
-      limiter: {
-        max: 100, // High throughput for security events
-        duration: 60000
-      },
-      defaultJobOptions: {
-        priority: 8, // High priority (security critical)
         attempts: 3,
-        backoff: {
-          type: 'exponential' as const,
-          delay: 5000 // 5 seconds initial delay
-        }
+        backoff: { type: 'exponential' as const, delay: 5000 }
       }
-    }
-  }
-}
-
-/**
- * Helper to get queue-specific configuration
- */
-export function getQueueConfig(queueName: QueueName) {
-  return {
-    connection: queueConfig.connection,
-    ...queueConfig.queues[queueName],
-    defaultJobOptions: {
-      ...queueConfig.defaultJobOptions,
-      ...queueConfig.queues[queueName]?.defaultJobOptions
+    },
+    [QueueName.VERSION_CLEANUP]: { defaultJobOptions: { attempts: 2 } },
+    [QueueName.CONTENT_PUBLISHING]: { defaultJobOptions: { attempts: 2 } },
+    [QueueName.AUDIT_RETENTION]: { defaultJobOptions: { attempts: 2 } },
+    [QueueName.ACCOUNT_SECURITY]: {
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential' as const, delay: 5000 }
+      }
     }
   }
 }

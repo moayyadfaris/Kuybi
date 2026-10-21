@@ -21,6 +21,8 @@ export const IDEMPOTENCY_HEADER = 'idempotency-key'
 /** Value of @nestjs/common's HTTP_CODE_METADATA (not exported from the package root) */
 const HTTP_CODE_METADATA = '__httpCode__'
 const KEY_PATTERN = /^[\x21-\x7e]{1,255}$/
+/** Attempts to store a success before giving up (the response is sent either way) */
+const STORE_ATTEMPTS = 3
 
 type UploadedFiles = {
   file?: { buffer?: Buffer }
@@ -34,6 +36,10 @@ type UploadedFiles = {
  * running twice. A different body with the key is 422, a retry while the first is
  * still running is 409, and a 5xx releases the key so the retry runs. Without the
  * header the route behaves normally.
+ *
+ * A key belongs to one concrete request: the user, method and actual path (not the route
+ * template: /content/news and /content/events are different resources), and a
+ * fingerprint of the query, body and uploaded files.
  */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
@@ -65,6 +71,26 @@ export class IdempotencyInterceptor implements NestInterceptor {
     return timer
   }
 
+  /**
+   * Stores a success, retrying a few times. If it still fails the key stays in progress:
+   * retries get 409 until the lease runs out (then one may run again; storing the outcome
+   * in the handler's own transaction would close that gap).
+   */
+  private async store(id: string, lockId: string, status: number, body: unknown) {
+    for (let attempt = 1; attempt <= STORE_ATTEMPTS; attempt++) {
+      try {
+        await this.idempotency.complete(id, lockId, status, body)
+        return
+      } catch (error) {
+        if (attempt === STORE_ATTEMPTS) {
+          this.logger.error(`Idempotency key ${id} outcome not stored: ${String(error)}`)
+          return
+        }
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt))
+      }
+    }
+  }
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const http = context.switchToHttp()
     const request = http.getRequest<Request>()
@@ -78,8 +104,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
       })
     }
 
-    const routePath = (request.route as { path?: string } | undefined)?.path ?? request.path
-    const scope = `${request.user?.id ?? 'anonymous'}:${request.method} ${routePath}`
+    const path = (request.originalUrl || request.url).split('?')[0]
+    const scope = `${request.user?.id ?? 'anonymous'}:${request.method} ${path}`
 
     return from(this.idempotency.begin(scope, key, fingerprint(request))).pipe(
       mergeMap(result => {
@@ -114,21 +140,28 @@ export class IdempotencyInterceptor implements NestInterceptor {
             const heartbeat = this.startHeartbeat(id, lockId)
             return next.handle().pipe(
               mergeMap(async body => {
-                await this.idempotency.complete(id, lockId, successStatus, body)
+                // The work is done: failing to store its outcome must not turn it into a
+                // 5xx (which frees the key, so the client's retry would run it again)
+                await this.store(id, lockId, successStatus, body)
                 return body
               }),
               catchError(async (error: unknown) => {
                 const status = error instanceof HttpException ? error.getStatus() : 500
-                if (status < 500) {
-                  // Deterministic rejection: a retry would get the same answer
-                  await this.idempotency.complete(
-                    id,
-                    lockId,
-                    status,
-                    (error as HttpException).getResponse()
-                  )
-                } else {
-                  await this.idempotency.release(id, lockId)
+                try {
+                  if (status < 500) {
+                    // Deterministic rejection: a retry would get the same answer
+                    await this.idempotency.complete(
+                      id,
+                      lockId,
+                      status,
+                      (error as HttpException).getResponse()
+                    )
+                  } else {
+                    await this.idempotency.release(id, lockId)
+                  }
+                } catch (storeError) {
+                  // The client still gets the handler's own error
+                  this.logger.warn(`Idempotency key ${id} not updated: ${String(storeError)}`)
                 }
                 throw error
               }),
@@ -141,9 +174,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
   }
 }
 
-/** SHA-256 over the JSON body (keys sorted) and the bytes of any uploaded files */
+/** SHA-256 over the query and JSON body (keys sorted) and the bytes of any uploaded files */
 export function fingerprint(request: Request): string {
-  const hash = createHash('sha256').update(stableStringify(request.body ?? null))
+  const hash = createHash('sha256')
+    .update(stableStringify(request.query ?? {}))
+    .update(stableStringify(request.body ?? null))
   const upload = request as unknown as UploadedFiles
   const files = upload.file
     ? [upload.file]

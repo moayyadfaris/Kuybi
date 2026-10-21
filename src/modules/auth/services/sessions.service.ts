@@ -4,6 +4,7 @@ import { ErrorCode } from '@shared/errors'
 import { createHash, randomUUID } from 'crypto'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { isIP } from 'net'
+import { EntityManager } from 'typeorm'
 
 import { hashTokenSecret } from '@core/security'
 
@@ -201,21 +202,32 @@ export class SessionsService {
    * Revokes every live session of the user, except `excludeSessionId` when given
    * @returns how many were revoked
    */
+  /**
+   * Ends the user's sessions (but `excludeSessionId`). With `manager` it is part of the
+   * caller's transaction (a credential change): call dropSessionCache once it commits.
+   */
   async revokeAllSessions(
     userId: string,
     excludeSessionId?: string,
-    reason = 'revoke_all_request'
+    reason = 'revoke_all_request',
+    manager?: EntityManager
   ): Promise<number> {
     const count = await this.sessionRepository.revokeAllUserSessions(
       userId,
       excludeSessionId,
-      reason
+      reason,
+      manager
     )
     this.logger.info(
       { userId, count, excludeSessionId, reason, action: 'revoke_all_sessions' },
       'Revoked all user sessions'
     )
     return count
+  }
+
+  /** After a transaction that revoked sessions has committed (see revokeAllSessions) */
+  async dropSessionCache(): Promise<void> {
+    await this.sessionRepository.invalidateAllCaches()
   }
 
   /** Any session by id, revoked ones included (fresh read) */

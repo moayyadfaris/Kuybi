@@ -33,7 +33,7 @@ export class RegistrationService {
     @InjectPinoLogger(RegistrationService.name)
     private readonly logger: PinoLogger
   ) {
-    this.appUrl = this.configService.get<string>('app.url', 'http://localhost:4040')
+    this.appUrl = this.configService.getOrThrow<string>('app.publicUrl')
   }
 
   /** Creates the account with the default role and emails the verification link */
