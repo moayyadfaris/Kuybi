@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { codeForStatus, ErrorCode, isErrorCode } from '@shared/errors'
 import { errorProperty } from '@shared/utils/error.util'
+import { pathOf } from '@shared/utils/redact.util'
 import { Request, Response } from 'express'
 import { PinoLogger } from 'nestjs-pino'
 
@@ -28,6 +29,12 @@ interface ErrorResponseBody {
     [key: string]: unknown
   }
 }
+
+/**
+ * Fields of a 5xx body clients may see: the health and readiness checks' results
+ * (terminus: status/info/error/details; /health/ready: status/checks)
+ */
+const PUBLIC_SERVER_ERROR_FIELDS = ['status', 'info', 'error', 'details', 'checks'] as const
 
 /** Called once per 5xx (e.g. to report it to Sentry); never for client errors. */
 export type ServerErrorReporter = (exception: unknown, request: Request, status: number) => void
@@ -101,11 +108,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const safeQuery = this.sanitizePayload(request.query, false)
     const safeParams = this.sanitizePayload(request.params, false)
 
+    // The path only: the query string can carry tokens (it is logged redacted as `query`)
+    const path = pathOf(request.originalUrl ?? request.url)
     const logPayload = {
       requestId,
       userId: request.user?.id,
       method: request.method,
-      url: request.url,
+      url: path,
       statusCode: status,
       errorMessage,
       stack: errorStack,
@@ -113,7 +122,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       query: safeQuery,
       params: safeParams
     }
-    const logMessage = `${request.method} ${request.url} failed with ${status}`
+    const logMessage = `${request.method} ${path} failed with ${status}`
     if (isServerError) {
       this.logger.error(logPayload, logMessage)
       this.report(exception, request, status)
@@ -126,7 +135,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const errorResponse: ErrorResponseBody = {
       success: false,
       statusCode: status,
-      path: request.url,
+      path,
       timestamp: new Date().toISOString(),
       requestId,
       error: {
@@ -136,12 +145,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // Structured bodies: a client error's (validation messages, field errors, lockout
-    // details) is built for the client and always passed through. A server error's is
-    // passed through only for health checks ('details') or when details are exposed;
-    // anything else could carry internals.
+    // details) is built for the client and always passed through. A server error's could
+    // carry internals: only the public health-check fields pass (never its message), unless
+    // details are exposed.
     if (exceptionResponse && typeof exceptionResponse === 'object') {
-      if (!isServerError || exposeDetails || 'details' in exceptionResponse) {
+      if (!isServerError || exposeDetails) {
         Object.assign(errorResponse.error, exceptionResponse)
+      } else {
+        for (const field of PUBLIC_SERVER_ERROR_FIELDS) {
+          if (field in exceptionResponse) {
+            errorResponse.error[field] = (exceptionResponse as Record<string, unknown>)[field]
+          }
+        }
       }
     }
 

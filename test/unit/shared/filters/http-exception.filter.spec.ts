@@ -20,13 +20,25 @@ describe('HttpExceptionFilter', () => {
       get: (key: string, fallback?: unknown) => (key in values ? values[key] : fallback)
     }) as unknown as ConfigService
 
-  const run = (exception: unknown, values: Record<string, unknown> = {}, reporter?: jest.Mock) => {
+  const run = (
+    exception: unknown,
+    values: Record<string, unknown> = {},
+    reporter?: jest.Mock,
+    url = '/api/v1/x'
+  ) => {
     const json = jest.fn()
     const status = jest.fn().mockReturnValue({ json })
     const host = {
       switchToHttp: () => ({
         getResponse: () => ({ status }),
-        getRequest: () => ({ id: 'req-1', method: 'GET', url: '/api/v1/x', body: {} })
+        getRequest: () => ({
+          id: 'req-1',
+          method: 'GET',
+          url,
+          originalUrl: url,
+          query: Object.fromEntries(new URLSearchParams(url.split('?')[1] ?? '')),
+          body: {}
+        })
       })
     } as unknown as ArgumentsHost
     new HttpExceptionFilter(logger as unknown as PinoLogger, config(values), reporter).catch(
@@ -47,6 +59,38 @@ describe('HttpExceptionFilter', () => {
       )
 
       expect(body.error).toEqual({ code: 'SERVICE_UNAVAILABLE', message: 'Service Unavailable' })
+    })
+
+    it('passes only the public health fields of a 5xx body, never its message', () => {
+      const { body } = run(
+        new ServiceUnavailableException({
+          message: 'internal db password=SENSITIVE',
+          details: { database: { status: 'down' } },
+          privateContext: 'SENSITIVE',
+          stack: 'at /srv/app'
+        })
+      )
+
+      expect(body.error).toEqual({
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Service Unavailable',
+        details: { database: { status: 'down' } }
+      })
+      expect(JSON.stringify(body)).not.toContain('SENSITIVE')
+    })
+
+    it('keeps query secrets out of the logs and the response path', () => {
+      const { body } = run(
+        new BadRequestException('nope'),
+        {},
+        undefined,
+        '/api/v1/x?token=SECRET&page=2'
+      )
+
+      const logged = JSON.stringify(logger.warn.mock.calls)
+      expect(logged).not.toContain('SECRET')
+      expect(logged).toContain('page')
+      expect(body.path).toBe('/api/v1/x')
     })
 
     it('hides the message and stack unless details are explicitly exposed', () => {
