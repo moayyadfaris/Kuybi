@@ -5,7 +5,7 @@ import { Brackets, DeepPartial, Repository } from 'typeorm'
 import type { RecordScope } from '@modules/acl'
 
 import { CacheService } from '@core/cache/services/cache.service'
-import { BaseRepository } from '@core/database/repositories/base.repository'
+import { BaseRepository, cacheRowTag } from '@core/database/repositories/base.repository'
 
 import { PostContent } from '../entities/post-content.entity'
 import { ContentStatus } from '../enums/content-status.enum'
@@ -18,6 +18,10 @@ const isEmpty = (value: unknown) => value === null || value === undefined || val
 
 /** Columns of the author shown with an entry: who wrote it, not how to reach them */
 const AUTHOR_COLUMNS = ['author.id', 'author.name']
+
+/** Entries embed their author's name: a change to that user drops them (cache contract) */
+const authorRow = (entry: PostContent): string[] =>
+  entry.authorId ? [cacheRowTag('user', entry.authorId)] : []
 
 /**
  * Entries of post types, cached per the cache contract. Writes through save() clear the
@@ -53,61 +57,70 @@ export class PostContentRepository extends BaseRepository<PostContent> {
     }
   ): Promise<[PostContent[], number]> {
     const key = this.buildCacheKey('list', postTypeId, JSON.stringify(options))
-    return this.cached(key, () => {
-      const query = this.repository
-        .createQueryBuilder('pc')
-        .leftJoin('pc.author', 'author')
-        .addSelect(AUTHOR_COLUMNS)
-        .where('pc.postTypeId = :postTypeId', { postTypeId })
-      if (options.includeDeleted) query.withDeleted()
-      const { editable } = options
-      if (!editable.all) {
-        query.andWhere(
-          new Brackets(visible => {
-            visible.where('pc.status = :published', { published: ContentStatus.PUBLISHED })
-            editable.anyOf.forEach((conditions, i) =>
-              visible.orWhere(
-                new Brackets(allOf => {
-                  for (const [column, value] of Object.entries(conditions)) {
-                    const param = `scope${i}_${column}`
-                    // column comes from CONTENT_SCOPE_COLUMNS (recordScope filters to them)
-                    allOf.andWhere(
-                      value === null ? `pc.${column} IS NULL` : `pc.${column} = :${param}`,
-                      { [param]: value }
-                    )
-                  }
-                })
+    return this.cached(
+      key,
+      () => {
+        const query = this.repository
+          .createQueryBuilder('pc')
+          .leftJoin('pc.author', 'author')
+          .addSelect(AUTHOR_COLUMNS)
+          .where('pc.postTypeId = :postTypeId', { postTypeId })
+        if (options.includeDeleted) query.withDeleted()
+        const { editable } = options
+        if (!editable.all) {
+          query.andWhere(
+            new Brackets(visible => {
+              visible.where('pc.status = :published', { published: ContentStatus.PUBLISHED })
+              editable.anyOf.forEach((conditions, i) =>
+                visible.orWhere(
+                  new Brackets(allOf => {
+                    for (const [column, value] of Object.entries(conditions)) {
+                      const param = `scope${i}_${column}`
+                      // column comes from CONTENT_SCOPE_COLUMNS (recordScope filters to them)
+                      allOf.andWhere(
+                        value === null ? `pc.${column} IS NULL` : `pc.${column} = :${param}`,
+                        { [param]: value }
+                      )
+                    }
+                  })
+                )
               )
-            )
-          })
-        )
-      }
-      if (options.status) query.andWhere('pc.status = :status', { status: options.status })
-      if (options.search) {
-        const document = `to_tsvector('english', COALESCE(pc.title, '') || ' ' || COALESCE(pc.excerpt, ''))`
-        query
-          .andWhere(`${document} @@ plainto_tsquery('english', :search)`, {
-            search: options.search
-          })
-          .orderBy(`ts_rank(${document}, plainto_tsquery('english', :search))`, 'DESC')
-      } else {
-        query.orderBy('pc.publishedAt', 'DESC', 'NULLS LAST').addOrderBy('pc.createdAt', 'DESC')
-      }
-      // offset/limit, not skip/take: the author join is many-to-one (no duplicate rows), and
-      // skip/take would wrap the query in a subquery that cannot order by the search rank
-      return query.offset(options.offset).limit(options.limit).getManyAndCount()
-    })
+            })
+          )
+        }
+        if (options.status) query.andWhere('pc.status = :status', { status: options.status })
+        if (options.search) {
+          const document = `to_tsvector('english', COALESCE(pc.title, '') || ' ' || COALESCE(pc.excerpt, ''))`
+          query
+            .andWhere(`${document} @@ plainto_tsquery('english', :search)`, {
+              search: options.search
+            })
+            .orderBy(`ts_rank(${document}, plainto_tsquery('english', :search))`, 'DESC')
+        } else {
+          query.orderBy('pc.publishedAt', 'DESC', 'NULLS LAST').addOrderBy('pc.createdAt', 'DESC')
+        }
+        // offset/limit, not skip/take: the author join is many-to-one (no duplicate rows), and
+        // skip/take would wrap the query in a subquery that cannot order by the search rank
+        return query.offset(options.offset).limit(options.limit).getManyAndCount()
+      },
+      undefined,
+      { dependsOn: ([entries]) => entries.flatMap(authorRow) }
+    )
   }
 
   /** A live entry by slug within a post type, with its author (id and name) */
   findBySlug(postTypeId: string, slug: string): Promise<PostContent | null> {
-    return this.cached(this.buildCacheKey('slug', postTypeId, slug), () =>
-      this.repository
-        .createQueryBuilder('pc')
-        .leftJoin('pc.author', 'author')
-        .addSelect(AUTHOR_COLUMNS)
-        .where('pc.postTypeId = :postTypeId AND pc.slug = :slug', { postTypeId, slug })
-        .getOne()
+    return this.cached(
+      this.buildCacheKey('slug', postTypeId, slug),
+      () =>
+        this.repository
+          .createQueryBuilder('pc')
+          .leftJoin('pc.author', 'author')
+          .addSelect(AUTHOR_COLUMNS)
+          .where('pc.postTypeId = :postTypeId AND pc.slug = :slug', { postTypeId, slug })
+          .getOne(),
+      undefined,
+      { dependsOn: entry => (entry ? authorRow(entry) : []) }
     )
   }
 

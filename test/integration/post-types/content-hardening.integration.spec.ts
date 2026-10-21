@@ -18,6 +18,7 @@ import { FieldType } from '@modules/post-types/enums/field-type.enum'
 import { ContentPublishingProcessor } from '@modules/post-types/jobs/content-publishing.processor'
 import { PostTypesModule } from '@modules/post-types/post-types.module'
 import { ContentService } from '@modules/post-types/services/content.service'
+import { UserRepository } from '@modules/users/repositories/user.repository'
 
 import { ContentJobType } from '@core/queues/jobs/types'
 
@@ -94,6 +95,26 @@ describe('Dynamic content hardening', () => {
     const bySlug = await t.http().get(`${base()}/slug/${res.body.data.slug}`).expect(200)
     for (const body of [byId.body, bySlug.body]) {
       expect(JSON.stringify(body)).not.toContain(admin.user.email)
+    }
+  })
+
+  it("shows the author's current name after a rename (cached lists and slugs too)", async () => {
+    const res = await create({ title: 'Renamed', status: ContentStatus.PUBLISHED }).expect(201)
+    const reads = () =>
+      Promise.all([
+        t.http().get(base()).expect(200),
+        t.http().get(`${base()}/slug/${res.body.data.slug}`).expect(200)
+      ])
+    await reads() // now cached
+
+    const originalName = admin.user.name
+    await t.app.get(UserRepository).update(admin.user.id, { name: 'Renamed Author' })
+    try {
+      const [list, bySlug] = await reads()
+      expect(list.body.data.data[0].author.name).toBe('Renamed Author')
+      expect(bySlug.body.data.author.name).toBe('Renamed Author')
+    } finally {
+      await t.app.get(UserRepository).update(admin.user.id, { name: originalName })
     }
   })
 
