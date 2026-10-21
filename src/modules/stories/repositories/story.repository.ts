@@ -30,6 +30,8 @@ export const STORY_SCOPE_COLUMNS = ['status', 'userId', 'type', 'priority', 'cou
 export const ALL_STORIES: RecordScope = { all: true }
 
 type ListOptions = { limit?: number; offset?: number; includeDeleted?: boolean }
+/** Most stories one list call returns */
+const MAX_LIST_SIZE = 100
 
 /**
  * Row tags of the rows a cached story embeds (entity names of their repositories): a
@@ -417,7 +419,8 @@ export class StoryRepository extends BaseRepository<Story> {
         .where(condition, { value })
         .orderBy('story.createdAt', 'DESC')
       this.applyScope(query, scope, options.includeDeleted)
-      if (options.limit) query.take(options.limit)
+      // Always a page: these lists grow with user data
+      query.take(Math.min(options.limit ?? MAX_LIST_SIZE, MAX_LIST_SIZE))
       if (options.offset) query.skip(options.offset)
       return query.getMany()
     }

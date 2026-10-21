@@ -99,4 +99,29 @@ describe('Role lifecycle', () => {
     ).map(log => log.action)
     expect(actions).toEqual(['create', 'permission_grant', 'delete'])
   })
+
+  it('refuses field-level permissions, which are not enforced', async () => {
+    const permission = (body: object) =>
+      t
+        .http()
+        .post('/api/v1/permissions')
+        .set(root.auth)
+        .send({
+          action: Action.Update,
+          subject: Subject.Story,
+          // A combination not seeded, so the plain one can be created
+          conditions: { status: 'pending_review' },
+          reason: 'Edit titles only',
+          ...body
+        })
+
+    await permission({ fields: ['title'] }).expect(400)
+    const plain = await permission({}).expect(201)
+    await t
+      .http()
+      .put(`/api/v1/permissions/${plain.body.data.id}`)
+      .set(root.auth)
+      .send({ fields: ['title'] })
+      .expect(400)
+  })
 })

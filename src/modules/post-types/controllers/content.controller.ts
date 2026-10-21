@@ -30,7 +30,6 @@ import {
   UpdateContentDto
 } from '../dto'
 import { PostContent } from '../entities/post-content.entity'
-import { ContentStatus } from '../enums/content-status.enum'
 import { ContentService } from '../services/content.service'
 import { ContentAccessPolicy } from '../services/content-access.policy'
 
@@ -38,8 +37,9 @@ const toResponse = (content: PostContent) =>
   plainToInstance(ResponseContentDto, content, { excludeExtraneousValues: true })
 
 /**
- * Entries of a post type. Reads are public (published entries of active types); editors,
- * signed in with Update on content, also see drafts, scheduled and deleted entries.
+ * Entries of a post type. Reads are public (published entries of active types); a
+ * signed-in user also sees the drafts and scheduled entries they may update, and
+ * changes are checked against the entry (permissions may be limited to own entries).
  */
 @ApiTags('Content')
 @Controller('v1/content/:postTypeSlug')
@@ -61,13 +61,13 @@ export class ContentController {
     @GetUser() viewer?: User
   ): Promise<ContentListResponseDto> {
     const postType = await this.contentService.postTypeFor(postTypeSlug, viewer)
-    const editor = this.accessPolicy.isEditor(viewer)
-    const { data, total } = await this.contentService.findAll(postType.id, {
-      status: editor ? query.status : ContentStatus.PUBLISHED,
+    // Published entries, plus those the viewer may edit
+    const { data, total } = await this.contentService.findAll(postType.id, viewer, {
+      status: query.status,
       limit: query.limit,
       offset: query.offset,
       search: query.search,
-      includeDeleted: editor && query.includeDeleted
+      includeDeleted: query.includeDeleted
     })
     return { data: data.map(toResponse), total, limit: query.limit, offset: query.offset }
   }
@@ -145,7 +145,7 @@ export class ContentController {
     @Body() dto: UpdateContentDto,
     @GetUser() editor: User
   ): Promise<ResponseContentDto> {
-    const content = await this.load(postTypeSlug, id, editor)
+    const content = await this.load(postTypeSlug, id, editor, Action.Update)
     const updated = await this.contentService.update(
       content,
       {
@@ -153,7 +153,8 @@ export class ContentController {
         excerpt: dto.excerpt,
         fieldData: dto.field_data,
         status: dto.status,
-        scheduledAt: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined
+        scheduledAt: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
+        version: dto.version
       },
       editor
     )
@@ -173,7 +174,7 @@ export class ContentController {
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser() editor: User
   ): Promise<ResponseContentDto> {
-    const content = await this.load(postTypeSlug, id, editor)
+    const content = await this.load(postTypeSlug, id, editor, Action.Publish)
     return toResponse(await this.contentService.publish(content))
   }
 
@@ -192,7 +193,7 @@ export class ContentController {
     @Body() dto: ScheduleContentDto,
     @GetUser() editor: User
   ): Promise<ResponseContentDto> {
-    const content = await this.load(postTypeSlug, id, editor)
+    const content = await this.load(postTypeSlug, id, editor, Action.Publish)
     return toResponse(
       await this.contentService.schedule(content, new Date(dto.scheduledFor), editor)
     )
@@ -211,11 +212,19 @@ export class ContentController {
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser() editor: User
   ): Promise<void> {
-    await this.contentService.remove(await this.load(postTypeSlug, id, editor))
+    await this.contentService.remove(await this.load(postTypeSlug, id, editor, Action.Delete))
   }
 
-  private async load(postTypeSlug: string, id: string, editor: User): Promise<PostContent> {
+  /** The entry, if the user may do `action` to it (404 when they may not see it, else 403) */
+  private async load(
+    postTypeSlug: string,
+    id: string,
+    editor: User,
+    action: Action
+  ): Promise<PostContent> {
     const postType = await this.contentService.postTypeFor(postTypeSlug, editor)
-    return this.contentService.findOfType(postType, id)
+    const content = await this.contentService.findOfType(postType, id)
+    this.accessPolicy.assertCanChange(editor, action, content)
+    return content
   }
 }

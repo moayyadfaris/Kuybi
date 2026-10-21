@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -70,7 +71,14 @@ export class S3Service {
       name: 's3',
       failureThreshold: this.configService.get<number>('resilience.s3.failureThreshold', 5),
       resetTimeoutMs: this.configService.get<number>('resilience.s3.resetTimeoutMs', 30000),
-      halfOpenSuccesses: 2
+      halfOpenSuccesses: 2,
+      // S3's 4xx answers (not found, precondition failed, access denied) are about the
+      // request; only server errors, timeouts and network failures count
+      isFailure: error => {
+        const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata
+          ?.httpStatusCode
+        return status === undefined || status >= 500
+      }
     })
     this.initializeS3Client()
   }
@@ -80,34 +88,37 @@ export class S3Service {
     this.bucket = this.configService.get<string>('s3.bucket') ?? ''
     this.baseUrl = this.configService.get<string>('s3.baseUrl', '')
 
-    // Read through config like every other setting (configuration.ts maps S3_ACCESS /
-    // S3_SECRET and their aliases); the old process.env read ignored injected config
+    // Static keys when both are configured (S3_ACCESS / S3_SECRET and their aliases, plus
+    // a session token for temporary credentials); otherwise the AWS default chain:
+    // environment, shared profile, or the IAM role of the instance, task or pod
     const accessKeyId = this.configService.get<string>('s3.accessKeyId')
     const secretAccessKey = this.configService.get<string>('s3.secretAccessKey')
+    const sessionToken = this.configService.get<string>('s3.sessionToken')
 
     if (!this.bucket) {
       throw new Error('S3 bucket configuration is missing')
     }
-
-    if (!accessKeyId || !secretAccessKey) {
-      this.logger.error(
-        { hasAccessKey: !!accessKeyId, hasSecretKey: !!secretAccessKey },
-        'S3 credentials are missing'
-      )
+    if (!!accessKeyId !== !!secretAccessKey) {
       throw new Error(
-        'S3 credentials are missing or invalid. Check S3_ACCESS and S3_SECRET in .env'
+        'Set both S3_ACCESS and S3_SECRET, or neither (to use the AWS credential chain)'
       )
     }
 
     this.s3Client = new S3Client({
       region: this.region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey
-      }
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey, sessionToken } }
+        : {})
     })
 
-    this.logger.info({ bucket: this.bucket, region: this.region }, 'S3 client initialized')
+    this.logger.info(
+      {
+        bucket: this.bucket,
+        region: this.region,
+        credentials: accessKeyId ? 'static keys' : 'AWS default chain'
+      },
+      'S3 client initialized'
+    )
   }
 
   /**
@@ -187,10 +198,16 @@ export class S3Service {
   }
 
   /** The first `bytes` bytes of an object (for content-type verification) */
-  async readHead(key: string, bytes: number): Promise<Buffer> {
+  /** The first bytes of an object; with `ifMatch`, only of that version (412 otherwise) */
+  async readHead(key: string, bytes: number, ifMatch?: string): Promise<Buffer> {
     const result = await this.executeWithResilience('readHead', signal =>
       this.s3Client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=0-${bytes - 1}` }),
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Range: `bytes=0-${bytes - 1}`,
+          IfMatch: ifMatch
+        }),
         { abortSignal: signal }
       )
     )
@@ -198,6 +215,26 @@ export class S3Service {
       throw new Error(`S3 returned an empty body for ${key}`)
     }
     return Buffer.from(await result.Body.transformToByteArray())
+  }
+
+  /**
+   * Copies an object inside the bucket, private, only if it is still the version with
+   * this ETag: what was verified is what gets copied (412 PreconditionFailed otherwise).
+   */
+  async copyIfUnchanged(from: string, to: string, ifMatch: string): Promise<void> {
+    await this.executeWithResilience('copy', signal =>
+      this.s3Client.send(
+        new CopyObjectCommand({
+          Bucket: this.bucket,
+          CopySource: `${this.bucket}/${from.split('/').map(encodeURIComponent).join('/')}`,
+          Key: to,
+          CopySourceIfMatch: ifMatch,
+          ACL: 'private',
+          MetadataDirective: 'COPY'
+        }),
+        { abortSignal: signal }
+      )
+    )
   }
 
   async download(key: string): Promise<Buffer> {
@@ -375,4 +412,10 @@ export class S3Service {
       )
     )
   }
+}
+
+/** S3's answer when an If-Match / CopySourceIfMatch ETag no longer matches the object */
+export function isPreconditionFailed(error: unknown): boolean {
+  const e = error as { name?: string; $metadata?: { httpStatusCode?: number } }
+  return e?.name === 'PreconditionFailed' || e?.$metadata?.httpStatusCode === 412
 }

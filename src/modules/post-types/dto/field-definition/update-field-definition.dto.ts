@@ -1,4 +1,5 @@
-import { OmitType, PartialType } from '@nestjs/swagger'
+import { IntersectionType, OmitType, PartialType } from '@nestjs/swagger'
+import { ExpectedVersionDto } from '@shared/dto'
 
 import { CreateFieldDefinitionDto } from './create-field-definition.dto'
 
@@ -9,6 +10,7 @@ import { CreateFieldDefinitionDto } from './create-field-definition.dto'
  * content stores its value, and changing the type would invalidate stored data.
  * Both are stripped by the global ValidationPipe whitelist if sent.
  */
-export class UpdateFieldDefinitionDto extends PartialType(
-  OmitType(CreateFieldDefinitionDto, ['name', 'fieldType'] as const)
+export class UpdateFieldDefinitionDto extends IntersectionType(
+  PartialType(OmitType(CreateFieldDefinitionDto, ['name', 'fieldType'] as const)),
+  ExpectedVersionDto
 ) {}

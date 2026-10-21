@@ -4,7 +4,9 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
+import { sanitizeRichText } from '@shared/utils/html-sanitize.util'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 import { User } from '@modules/users/entities'
@@ -13,6 +15,7 @@ import { FieldDefinition } from '../entities/field-definition.entity'
 import { PostContent } from '../entities/post-content.entity'
 import { PostType } from '../entities/post-type.entity'
 import { ContentStatus } from '../enums/content-status.enum'
+import { FieldType } from '../enums/field-type.enum'
 import { PostContentRepository } from '../repositories/post-content.repository'
 
 import { ContentAccessPolicy } from './content-access.policy'
@@ -26,6 +29,8 @@ export interface ContentInput {
   fieldData?: Record<string, unknown>
   status?: ContentStatus
   scheduledAt?: Date
+  /** For an update: the version last read (optimistic locking) */
+  version?: number
 }
 
 /**
@@ -55,12 +60,14 @@ export class ContentService {
 
   async create(postType: PostType, data: ContentInput & { title: string }, author: User) {
     const status = data.status ?? ContentStatus.DRAFT
-    this.accessPolicy.assertCanSetStatus(author, status)
-    const fieldData = data.fieldData ?? {}
+    const entry = { postTypeId: postType.id, authorId: author.id, status }
+    this.accessPolicy.assertCanCreate(author, entry)
+    this.accessPolicy.assertCanSetStatus(author, status, entry)
     const fields = await this.fieldDefinitionsService.findByPostType(postType.id)
     this.fieldValidationService.throwIfInvalid(
-      await this.fieldValidationService.validateFieldData(fields, fieldData)
+      await this.fieldValidationService.validateFieldData(fields, data.fieldData ?? {})
     )
+    const fieldData = sanitizeRichTextFields(fields, data.fieldData ?? {})
 
     // Generated slugs get a numeric suffix on collision (among live entries)
     const slug = await uniqueSlug(slugify(data.title, { fallback: 'content' }), candidate =>
@@ -90,9 +97,13 @@ export class ContentService {
     }
   }
 
-  /** A page of entries with the total that matches the filters */
+  /**
+   * A page of entries with the total that matches the filters: the published ones and
+   * those the viewer may edit (all of them for an unconditional editor)
+   */
   async findAll(
     postTypeId: string,
+    viewer: User | undefined,
     options: {
       status?: ContentStatus
       limit: number
@@ -101,7 +112,13 @@ export class ContentService {
       includeDeleted?: boolean
     }
   ): Promise<{ data: PostContent[]; total: number }> {
-    const [data, total] = await this.postContentRepository.list(postTypeId, options)
+    const editable = this.accessPolicy.editScope(viewer)
+    const [data, total] = await this.postContentRepository.list(postTypeId, {
+      ...options,
+      editable,
+      // Deleted entries only for those who may edit every entry
+      includeDeleted: editable.all && options.includeDeleted
+    })
     return { data, total }
   }
 
@@ -136,7 +153,7 @@ export class ContentService {
     if (data.scheduledAt !== undefined) changes.scheduledAt = data.scheduledAt
 
     if (data.status !== undefined && data.status !== content.status) {
-      this.accessPolicy.assertCanSetStatus(editor, data.status)
+      this.accessPolicy.assertCanSetStatus(editor, data.status, content)
       changes.status = data.status
       if (data.status === ContentStatus.PUBLISHED) changes.publishedAt = new Date()
     }
@@ -148,16 +165,16 @@ export class ContentService {
       const kept = Object.fromEntries(
         Object.entries(content.fieldData ?? {}).filter(([name]) => defined.has(name))
       )
-      changes.fieldData = { ...kept, ...data.fieldData }
+      const merged = { ...kept, ...data.fieldData }
       this.fieldValidationService.throwIfInvalid(
-        await this.fieldValidationService.validateFieldData(fields, changes.fieldData)
+        await this.fieldValidationService.validateFieldData(fields, merged)
       )
+      changes.fieldData = sanitizeRichTextFields(fields, merged)
     }
 
-    return this.saveUnique(
-      { ...content, ...changes, updatedBy: editor.id, version: content.version + 1 },
-      fields
-    )
+    return this.saveUnique({ ...content, ...changes, updatedBy: editor.id }, fields, {
+      expectedVersion: data.version ?? content.version
+    })
   }
 
   /** Soft delete; the slug becomes free for a new entry */
@@ -165,25 +182,27 @@ export class ContentService {
     await this.postContentRepository.markDeleted(content.id)
   }
 
+  /** Changes only the status columns: a concurrent edit to other fields is kept */
   async publish(content: PostContent): Promise<PostContent> {
-    return this.postContentRepository.save({
-      ...content,
-      status: ContentStatus.PUBLISHED,
-      publishedAt: new Date()
-    })
+    return this.statusChange(content, { status: ContentStatus.PUBLISHED, publishedAt: new Date() })
   }
 
   /** Publishes at `scheduledFor` (ContentPublishingProcessor); needs Publish like publishing */
   async schedule(content: PostContent, scheduledFor: Date, editor: User): Promise<PostContent> {
-    this.accessPolicy.assertCanSetStatus(editor, ContentStatus.SCHEDULED)
+    this.accessPolicy.assertCanSetStatus(editor, ContentStatus.SCHEDULED, content)
     if (scheduledFor <= new Date()) {
       throw new BadRequestException('Scheduled date must be in the future')
     }
-    return this.postContentRepository.save({
-      ...content,
+    return this.statusChange(content, {
       status: ContentStatus.SCHEDULED,
       scheduledAt: scheduledFor
     })
+  }
+
+  private async statusChange(content: PostContent, changes: Partial<PostContent>) {
+    const updated = await this.postContentRepository.update(content.id, changes)
+    if (!updated) throw new NotFoundException('Content not found')
+    return updated
   }
 
   /** Publishes every scheduled entry whose time has come; returns how many */
@@ -192,7 +211,7 @@ export class ContentService {
   }
 
   private visible(content: PostContent, viewer?: User): PostContent {
-    if (content.status !== ContentStatus.PUBLISHED && !this.accessPolicy.isEditor(viewer)) {
+    if (!this.accessPolicy.isVisible(content, viewer)) {
       // Same answer as a missing entry: unpublished content does not exist publicly
       throw new NotFoundException('Content not found')
     }
@@ -205,10 +224,17 @@ export class ContentService {
    */
   private async saveUnique(
     entry: Partial<PostContent> & { postTypeId: string },
-    fields: FieldDefinition[]
+    fields: FieldDefinition[],
+    options: { expectedVersion?: number } = {}
   ): Promise<PostContent> {
     const unique = fields.filter(field => field.isUnique).map(field => field.name)
-    const { saved, conflicts } = await this.postContentRepository.saveUnlessDuplicate(entry, unique)
+    const { saved, conflicts, stale } = await this.postContentRepository.saveUnlessDuplicate(
+      entry,
+      unique,
+      options.expectedVersion
+    )
+    // Changed (or deleted) since it was read
+    if (stale) throw versionConflict('entry')
     if (!saved) {
       throw new ConflictException({
         message: `Another entry already has this value: ${conflicts.join(', ')}`,
@@ -217,4 +243,24 @@ export class ContentService {
     }
     return saved
   }
+}
+
+/**
+ * Field data with the HTML of rich-text (WYSIWYG) fields sanitized: whoever renders it
+ * trusts it. Values inside repeaters and groups are untyped and stored as given; their
+ * consumers must escape them.
+ */
+function sanitizeRichTextFields(
+  fields: FieldDefinition[],
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  const richText = new Set(
+    fields.filter(field => field.fieldType === FieldType.WYSIWYG).map(field => field.name)
+  )
+  return Object.fromEntries(
+    Object.entries(data).map(([name, value]) => [
+      name,
+      richText.has(name) && typeof value === 'string' ? sanitizeRichText(value) : value
+    ])
+  )
 }

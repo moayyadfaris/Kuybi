@@ -231,6 +231,24 @@ describe('Attachments API hardening', () => {
     expect([...storage.objects.keys()].filter(key => keys.includes(key))).toEqual([])
   })
 
+  it('takes at most 10 files in one bulk upload', async () => {
+    const bulk = (count: number) => {
+      const request = t
+        .http()
+        .post('/api/v1/attachments/bulk')
+        .set(owner.auth)
+        .field('async', 'false')
+      for (let i = 0; i < count; i++) {
+        request.attach('files', PNG, { filename: `dot-${i}.png`, contentType: 'image/png' })
+      }
+      return request
+    }
+
+    await bulk(11).expect(400)
+    const res = await bulk(10).expect(201)
+    expect(res.body.data.attachments).toHaveLength(10)
+  })
+
   it('marks a finished multipart upload as completed', async () => {
     const res = await t
       .http()

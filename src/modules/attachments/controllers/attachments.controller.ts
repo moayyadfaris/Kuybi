@@ -51,6 +51,7 @@ import {
   UpdateAttachmentDto,
   UploadAttachmentDto
 } from '../dto'
+import { UploadBudgetGuard } from '../guards/upload-budget.guard'
 import { AttachmentService } from '../services/attachment.service'
 import { DirectUploadService } from '../services/direct-upload.service'
 import { MAX_UPLOAD_BYTES } from '../services/file-validation.service'
@@ -59,6 +60,10 @@ import { contentDisposition } from '../utils/content-disposition.util'
 interface AuthenticatedRequest extends Request {
   user?: User
 }
+
+/** Files in one bulk upload, and how many of them are processed at once */
+const MAX_BULK_FILES = 10
+const BULK_CONCURRENCY = 2
 
 @ApiTags('attachments')
 @ApiBearerAuth()
@@ -78,6 +83,7 @@ export class AttachmentsController {
   @Post()
   @Idempotent()
   @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
+  @UseGuards(UploadBudgetGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -133,6 +139,7 @@ export class AttachmentsController {
   @Post('bulk')
   @Idempotent()
   @CheckAbility({ action: Action.Create, subject: Subject.Attachment })
+  @UseGuards(UploadBudgetGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -157,9 +164,9 @@ export class AttachmentsController {
   })
   @ApiOkResponse({ description: 'Bulk attachments uploaded' })
   @UseInterceptors(
-    FilesInterceptor('files', 20, {
+    FilesInterceptor('files', MAX_BULK_FILES, {
       storage: memoryStorage(),
-      limits: { fileSize: MAX_UPLOAD_BYTES, files: 20 }
+      limits: { fileSize: MAX_UPLOAD_BYTES, files: MAX_BULK_FILES }
     })
   )
   async bulkUpload(
@@ -175,13 +182,21 @@ export class AttachmentsController {
 
     const useAsync = body.async ?? this.asyncByDefault
 
-    const results = await Promise.allSettled(
-      files.map(file =>
-        useAsync
-          ? this.attachmentService.uploadAttachmentAsync(file, body, userId)
-          : this.attachmentService.uploadAttachment(file, body, userId)
+    // A few at a time: each file is decoded, processed and uploaded in memory
+    const results: PromiseSettledResult<unknown>[] = []
+    for (let i = 0; i < files.length; i += BULK_CONCURRENCY) {
+      results.push(
+        ...(await Promise.allSettled(
+          files
+            .slice(i, i + BULK_CONCURRENCY)
+            .map(file =>
+              useAsync
+                ? this.attachmentService.uploadAttachmentAsync(file, body, userId)
+                : this.attachmentService.uploadAttachment(file, body, userId)
+            )
+        ))
       )
-    )
+    }
 
     const attachments = results.map((result, index) => {
       if (result.status === 'fulfilled') {

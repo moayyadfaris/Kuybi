@@ -1,4 +1,13 @@
+import { createHash } from 'crypto'
+
 import { S3Service } from '@modules/attachments/services/s3.service'
+
+/** The error S3 answers when an If-Match / CopySourceIfMatch ETag no longer matches */
+const preconditionFailed = () =>
+  Object.assign(new Error('PreconditionFailed'), {
+    name: 'PreconditionFailed',
+    $metadata: { httpStatusCode: 412 }
+  })
 
 /**
  * In-memory stand-in for S3, installed with jest spies on the app's S3Service: tests
@@ -21,11 +30,17 @@ export class FakeStorage {
     jest.spyOn(s3, 'getMetadata').mockImplementation(async key => {
       const body = this.objects.get(key)
       if (!body) throw new Error('NotFound')
-      return { contentLength: body.length }
+      return { contentLength: body.length, etag: this.etag(key) }
     })
-    jest
-      .spyOn(s3, 'readHead')
-      .mockImplementation(async (key, bytes) => this.objects.get(key)!.subarray(0, bytes))
+    jest.spyOn(s3, 'readHead').mockImplementation(async (key, bytes, ifMatch) => {
+      if (ifMatch && this.etag(key) !== ifMatch) throw preconditionFailed()
+      return this.objects.get(key)!.subarray(0, bytes)
+    })
+    jest.spyOn(s3, 'copyIfUnchanged').mockImplementation(async (from, to, ifMatch) => {
+      if (this.etag(from) !== ifMatch) throw preconditionFailed()
+      this.objects.set(to, this.objects.get(from)!)
+      this.publicKeys.delete(to)
+    })
     jest.spyOn(s3, 'download').mockImplementation(async key => {
       const body = this.objects.get(key)
       if (!body) throw new Error('NotFound')
@@ -51,5 +66,11 @@ export class FakeStorage {
     jest
       .spyOn(s3, 'getPresignedUrl')
       .mockImplementation(async key => `https://storage.test/${key}?signed`)
+  }
+
+  /** ETag of the object stored under a key (a hash of its bytes, as S3's for simple uploads) */
+  etag(key: string): string | undefined {
+    const body = this.objects.get(key)
+    return body ? `"${createHash('md5').update(body).digest('hex')}"` : undefined
   }
 }

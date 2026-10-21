@@ -55,7 +55,8 @@ export class HealthController {
       () => this.memory.checkRSS('memory_rss', 500 * 1024 * 1024),
       () => this.disk.checkStorage('disk', { path: '/', thresholdPercent: 0.95 })
     ]
-    if (this.configService.get<string>('s3.accessKeyId')) checks.push(() => this.s3.isHealthy('s3'))
+    // S3 credentials may come from the AWS chain (IAM role): check whenever a bucket is set
+    if (this.configService.get<string>('s3.bucket')) checks.push(() => this.s3.isHealthy('s3'))
 
     const result = await this.health.check(checks)
     return { status: result.status, checks: result.details }

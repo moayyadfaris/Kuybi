@@ -1,5 +1,6 @@
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { errorMessage } from '@shared/utils/error.util'
+import { withTimeout } from '@shared/utils/resilience'
 import { Job, Queue } from 'bullmq'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -12,6 +13,9 @@ import { storageKeys } from '../services/attachment-visibility.service'
 import { ImagePipelineService } from '../services/image-pipeline.service'
 import { S3Service } from '../services/s3.service'
 import { AttachmentMetadata } from '../utils/attachment-image.util'
+
+/** Rounds of re-reading the visibility after applying it, before settling on private */
+const VISIBILITY_ATTEMPTS = 3
 
 export interface ProcessImageJobData {
   attachmentId: string
@@ -45,6 +49,9 @@ export class AttachmentProcessor extends BaseProcessor {
     super(logger, deadLetterQueue)
   }
 
+  /** Time one image may take from download to stored derivatives */
+  protected processingBudgetMs = 2 * 60 * 1000
+
   async process(job: Job): Promise<unknown> {
     switch (job.name) {
       case AttachmentJobType.PROCESS_IMAGE:
@@ -74,22 +81,27 @@ export class AttachmentProcessor extends BaseProcessor {
     const existing = { ...(attachment.metadata as AttachmentMetadata) }
 
     try {
-      const original = await this.s3Service.download(s3Key)
-      const prepared = await this.imagePipeline.prepare(original)
+      // Decoding and re-encoding a hostile or huge image can hang: the job fails (and is
+      // retried) instead of holding a worker slot; what it stored so far stays private
+      const { prepared, metadata, thumbnailPath } = await withTimeout(async () => {
+        const original = await this.s3Service.download(s3Key)
+        const prepared = await this.imagePipeline.prepare(original)
 
-      // Replaces the original (with its metadata) under the same key; private until done
-      await this.s3Service.upload({
-        key: s3Key,
-        buffer: prepared.buffer,
-        contentType: prepared.contentType,
-        isPublic: false
-      })
-      const { metadata, thumbnailPath } = await this.imagePipeline.storeDerivatives(
-        s3Key,
-        prepared,
-        false,
-        { generateThumbnails: generateThumbnails !== false }
-      )
+        // Replaces the original (with its metadata) under the same key; private until done
+        await this.s3Service.upload({
+          key: s3Key,
+          buffer: prepared.buffer,
+          contentType: prepared.contentType,
+          isPublic: false
+        })
+        const { metadata, thumbnailPath } = await this.imagePipeline.storeDerivatives(
+          s3Key,
+          prepared,
+          false,
+          { generateThumbnails: generateThumbnails !== false }
+        )
+        return { prepared, metadata, thumbnailPath }
+      }, this.processingBudgetMs)
 
       const finished = await this.attachmentRepository.update(attachmentId, {
         size: prepared.buffer.length,
@@ -104,7 +116,7 @@ export class AttachmentProcessor extends BaseProcessor {
         this.logger.info({ jobId: job.id, attachmentId }, 'Attachment deleted during processing')
         return { attachmentId, skipped: true }
       }
-      await this.applyCurrentVisibility(attachmentId)
+      await this.applyCurrentVisibility(attachmentId, finished)
 
       const result = {
         attachmentId,
@@ -141,15 +153,30 @@ export class AttachmentProcessor extends BaseProcessor {
   /**
    * Gives every stored object the visibility the row has now, and checks again after:
    * a change made while the ACLs were being set is applied too (the owner's choice wins).
+   * Deletion is final for this job: a soft-deleted file stays private, and the objects
+   * of a file deleted meanwhile are removed. If the visibility will not settle, the
+   * objects end private (the owner can publish again).
    */
-  private async applyCurrentVisibility(attachmentId: string): Promise<void> {
+  private async applyCurrentVisibility(attachmentId: string, stored: Attachment): Promise<void> {
     // Everything was stored private
     let applied = false
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < VISIBILITY_ATTEMPTS; attempt++) {
       const current = await this.attachmentRepository.findById(attachmentId, { bypassCache: true })
-      if (!current || current.isPublic === applied) return
-      applied = current.isPublic
-      await Promise.all(storageKeys(current).map(key => this.s3Service.setAcl(key, applied)))
+      if (!current) {
+        await this.removeStored(
+          stored.path,
+          stored.thumbnailPath,
+          stored.metadata as AttachmentMetadata
+        )
+        return
+      }
+      const wanted = current.isPublic && !current.deletedAt
+      if (wanted === applied) return
+      await Promise.all(storageKeys(current).map(key => this.s3Service.setAcl(key, wanted)))
+      applied = wanted
+    }
+    if (applied) {
+      await Promise.all(storageKeys(stored).map(key => this.s3Service.setAcl(key, false)))
     }
   }
 

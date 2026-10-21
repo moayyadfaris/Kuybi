@@ -104,6 +104,32 @@ describe('CacheService on Redis', () => {
     expect(await cache.get('story:9')).toEqual({ fresh: true })
   })
 
+  it('never makes a refused entry visible, even for a moment', async () => {
+    const cache = (await freshCache()).get(CacheService)
+    const since = await cache.fence()
+    await cache.invalidateTag('story:row:10')
+
+    // Look at the store the moment the tagging script runs
+    type Client = { eval: (...args: unknown[]) => Promise<unknown> }
+    const client = await (
+      cache as unknown as {
+        cacheManager: { stores: Array<{ store: { getClient(): Promise<Client> } }> }
+      }
+    ).cacheManager.stores[0].store.getClient()
+    const original = client.eval.bind(client)
+    let visibleBeforeCheck: string | null = 'not checked'
+    const evalSpy = jest.spyOn(client, 'eval').mockImplementationOnce(async (...args) => {
+      visibleBeforeCheck = await redis.get(`${namespace}:story:10`)
+      return original(...args)
+    })
+
+    await cache.setWithTags('story:10', { stale: true }, ['story:row:10'], 60, { since })
+    evalSpy.mockRestore()
+
+    expect(visibleBeforeCheck).toBeNull()
+    expect(await cache.get('story:10')).toBeUndefined()
+  })
+
   it('clears only its own keys from the shared test database', async () => {
     const cache = (await freshCache()).get(CacheService)
     await cache.set('mine', 1, 60)

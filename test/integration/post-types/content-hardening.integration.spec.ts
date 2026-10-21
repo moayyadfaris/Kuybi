@@ -18,6 +18,7 @@ import { FieldType } from '@modules/post-types/enums/field-type.enum'
 import { ContentPublishingProcessor } from '@modules/post-types/jobs/content-publishing.processor'
 import { PostTypesModule } from '@modules/post-types/post-types.module'
 import { ContentService } from '@modules/post-types/services/content.service'
+import { UserRepository } from '@modules/users/repositories/user.repository'
 
 import { ContentJobType } from '@core/queues/jobs/types'
 
@@ -94,6 +95,26 @@ describe('Dynamic content hardening', () => {
     const bySlug = await t.http().get(`${base()}/slug/${res.body.data.slug}`).expect(200)
     for (const body of [byId.body, bySlug.body]) {
       expect(JSON.stringify(body)).not.toContain(admin.user.email)
+    }
+  })
+
+  it("shows the author's current name after a rename (cached lists and slugs too)", async () => {
+    const res = await create({ title: 'Renamed', status: ContentStatus.PUBLISHED }).expect(201)
+    const reads = () =>
+      Promise.all([
+        t.http().get(base()).expect(200),
+        t.http().get(`${base()}/slug/${res.body.data.slug}`).expect(200)
+      ])
+    await reads() // now cached
+
+    const originalName = admin.user.name
+    await t.app.get(UserRepository).update(admin.user.id, { name: 'Renamed Author' })
+    try {
+      const [list, bySlug] = await reads()
+      expect(list.body.data.data[0].author.name).toBe('Renamed Author')
+      expect(bySlug.body.data.author.name).toBe('Renamed Author')
+    } finally {
+      await t.app.get(UserRepository).update(admin.user.id, { name: originalName })
     }
   })
 
@@ -328,6 +349,28 @@ describe('Dynamic content hardening', () => {
     const res = await t.http().get(base()).query({ limit: 2 }).expect(200)
     expect(res.body.data.data).toHaveLength(2)
     expect(res.body.data.total).toBe(3)
+  })
+
+  it('stores rich text sanitized, on create and on update', async () => {
+    await field('body', { fieldType: FieldType.WYSIWYG })
+    const unsafe =
+      '<p>ok</p><img src=x onerror=alert(1)><script>alert(2)</script><a href="javascript:alert(3)">l</a>'
+
+    const created = await create({ title: 'Rich', field_data: { body: unsafe } }).expect(201)
+    const stored = async () =>
+      (await t.dataSource.getRepository(PostContent).findOneByOrFail({ id: created.body.data.id }))
+        .fieldData.body as string
+    const html = await stored()
+    expect(html).toContain('<p>ok</p>')
+    expect(html).not.toMatch(/onerror|<script|javascript:/i)
+
+    await t
+      .http()
+      .patch(`${base()}/${created.body.data.id}`)
+      .set(admin.auth)
+      .send({ field_data: { body: '<p onclick="x()">again</p>' } })
+      .expect(200)
+    expect(await stored()).toBe('<p>again</p>')
   })
 
   it('answers 400 for an unknown status filter', async () => {

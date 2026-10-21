@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
 import { Action } from '@modules/acl'
@@ -99,11 +100,12 @@ export class StoryMediaService {
     attachmentId: string | null,
     userId: string
   ): Promise<Story> {
-    const updated = await this.storyRepository.update(story.id, {
+    const updated = await this.storyRepository.updateIfVersion(story.id, story.version, {
       mainImageId: attachmentId,
-      lastModifiedBy: userId,
-      version: story.version + 1
+      lastModifiedBy: userId
     })
+    // Changed (or deleted) since it was read
+    if (!updated) throw versionConflict('story')
     this.logger.info(
       { action: 'set_main_image', storyId: story.id, attachmentId, userId },
       'Story main image changed'

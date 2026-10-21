@@ -204,7 +204,8 @@ export class PasswordResetService {
         throw new BadRequestException('Reset token has already been used')
       }
 
-      await manager.update(User, user.id, { passwordHash })
+      // Ends every earlier access token and session, whatever happens to the revocation
+      await manager.update(User, user.id, { passwordHash, credentialsChangedAt: new Date() })
 
       await this.emailQueueService.sendPasswordChangedEmail(
         {

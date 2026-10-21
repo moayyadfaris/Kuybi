@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseBoolPipe,
   ParseEnumPipe,
   ParseIntPipe,
   ParseUUIDPipe,
@@ -23,7 +22,6 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiResponse,
   ApiTags
 } from '@nestjs/swagger'
@@ -153,17 +151,16 @@ export class StoriesController {
   @CheckAbility({ action: Action.Read, subject: Subject.Story })
   @ApiOperation({ summary: 'Get child stories (threaded stories)' })
   @ApiParam({ name: 'id', description: 'Parent story ID' })
-  @ApiQuery({ name: 'includeDeleted', required: false, type: Boolean })
-  @ApiResponse({ status: 200, description: 'List of child stories' })
+  @ApiResponse({ status: 200, description: 'A page of child stories (limit, page)' })
   @ApiResponse({ status: 404, description: 'Parent story not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
   findChildren(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
-    @Query('includeDeleted', new ParseBoolPipe({ optional: true })) includeDeleted?: boolean
+    @Query() query: StoryListQueryDto
   ) {
-    return this.storiesService.findChildren(id, this.viewer(req), includeDeleted)
+    return this.storiesService.findChildren(id, this.viewer(req), query)
   }
 
   @Get(':id')

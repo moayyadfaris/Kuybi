@@ -19,6 +19,7 @@ describe('PostTypesService', () => {
     const mockRepository = {
       create: jest.fn(),
       save: jest.fn(),
+      updateIfVersion: jest.fn(),
       findAll: jest.fn(),
       findActive: jest.fn(),
       findById: jest.fn(),
@@ -160,11 +161,30 @@ describe('PostTypesService', () => {
     it('should update a post type successfully', async () => {
       repository.findById.mockResolvedValue({ ...existingPostType } as PostType)
       repository.nameExists.mockResolvedValue(false)
-      repository.save.mockResolvedValue({ ...existingPostType, ...updateDto } as PostType)
+      repository.updateIfVersion.mockResolvedValue({
+        ...existingPostType,
+        ...updateDto
+      } as PostType)
 
       const result = await service.update('test-id', updateDto, 'user-id')
 
       expect(result.name).toBe(updateDto.name)
+      // Applied only to the version that was read
+      expect(repository.updateIfVersion).toHaveBeenCalledWith(
+        'test-id',
+        existingPostType.version,
+        expect.objectContaining({ name: updateDto.name, updatedBy: 'user-id' })
+      )
+    })
+
+    it('answers 409 when the post type changed since it was read', async () => {
+      repository.findById.mockResolvedValue({ ...existingPostType } as PostType)
+      repository.nameExists.mockResolvedValue(false)
+      repository.updateIfVersion.mockResolvedValue(null)
+
+      await expect(service.update('test-id', updateDto, 'user-id')).rejects.toThrow(
+        ConflictException
+      )
     })
 
     it('should throw NotFoundException if post type not found', async () => {

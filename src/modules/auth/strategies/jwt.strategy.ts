@@ -115,6 +115,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       })
     }
 
+    // Issued before the password was reset (by email or by an admin): void
+    if (issuedBefore(payload.iat, user.credentialsChangedAt)) {
+      throw new UnauthorizedException({
+        code: ErrorCode.AUTH_SESSION_ENDED,
+        message: 'The password was reset; sign in again'
+      })
+    }
+
     // Temp tokens issued for forced password change are restricted by JwtAuthGuard
     if (payload.tempPasswordChange) {
       ;(req as Request & { tokenScope?: string }).tokenScope = PASSWORD_CHANGE_TOKEN_SCOPE
@@ -122,4 +130,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return user
   }
+}
+
+/**
+ * Whether a token issued at `issuedAt` (JWT iat, seconds) predates `changedAt`. Compared in
+ * whole seconds, as iat is: a token issued in the same second as the change is accepted.
+ */
+export function issuedBefore(issuedAt: number | undefined, changedAt: Date | null): boolean {
+  return !!changedAt && issuedAt !== undefined && issuedAt < Math.floor(changedAt.getTime() / 1000)
 }

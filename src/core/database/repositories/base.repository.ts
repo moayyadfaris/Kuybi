@@ -21,6 +21,9 @@ export function cacheRowTag(entityName: string, id: string | number): string {
   return `${entityName}:${id}`
 }
 
+/** A cache fill slower than this is returned but not cached (see cached()) */
+const MAX_FILL_MS = 60_000
+
 export interface CacheEntryOptions<V> {
   /** A row picked by a query rather than by its key: also dropped when any row changes */
   selection?: boolean
@@ -84,10 +87,12 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     const hit = await this.cacheService.get<V>(key)
     if (hit !== undefined && hit !== null) return hit
     const since = await this.cacheService.fence()
+    const startedAt = Date.now()
     const value = await load()
     // A cached null would read back as a miss, so misses are not stored; without a
-    // fence (cache unavailable) a stale fill could not be detected, so nothing is stored
-    if (value !== null && since !== undefined) {
+    // fence (cache unavailable) a stale fill could not be detected, and a load slower
+    // than MAX_FILL_MS could outlive the invalidation records the fence relies on
+    if (value !== null && since !== undefined && Date.now() - startedAt < MAX_FILL_MS) {
       await this.cacheSet(key, value, ttl, { ...options, since })
     }
     return value
@@ -215,6 +220,27 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    */
   async update(id: string | number, data: DeepPartial<T>): Promise<T | null> {
     await this.repository.update(id, data as QueryDeepPartialEntity<T>)
+    await this.invalidateRowAndLists(id)
+    return this.findById(id, { bypassCache: true })
+  }
+
+  /**
+   * Optimistic locking: applies `data` only if the row still has `expectedVersion`, and
+   * increments the version in the same statement. Null when the row changed meanwhile
+   * (or is gone): answer 409 (versionConflict). For entities with a `version` column.
+   */
+  async updateIfVersion(
+    id: string | number,
+    expectedVersion: number,
+    data: DeepPartial<T>
+  ): Promise<T | null> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update()
+      .set({ ...(data as QueryDeepPartialEntity<T>), version: () => '"version" + 1' })
+      .where('id = :id AND "version" = :expectedVersion', { id, expectedVersion })
+      .execute()
+    if (!result.affected) return null
     await this.invalidateRowAndLists(id)
     return this.findById(id, { bypassCache: true })
   }

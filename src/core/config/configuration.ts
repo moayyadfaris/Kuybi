@@ -109,7 +109,10 @@ export default () => {
     },
     attachments: {
       // Multipart image uploads are processed in the worker unless a request says otherwise
-      asyncProcessing: parseBoolean(process.env.ATTACHMENT_ASYNC_PROCESSING, false)
+      asyncProcessing: parseBoolean(process.env.ATTACHMENT_ASYNC_PROCESSING, false),
+      // Bytes of multipart uploads one process holds in memory at once (UploadBudgetGuard)
+      maxInFlightUploadBytes:
+        parseNumber(process.env.ATTACHMENT_MAX_IN_FLIGHT_MB, 300) * 1024 * 1024
     },
     stories: {
       // Automatic versions kept per story and branch (the daily prune deletes older ones)
@@ -158,7 +161,9 @@ export default () => {
       secretAccessKey:
         process.env.S3_SECRET ||
         process.env.S3_SECRET_ACCESS_KEY ||
-        process.env.AWS_SECRET_ACCESS_KEY
+        process.env.AWS_SECRET_ACCESS_KEY,
+      // Temporary credentials only; without static keys the AWS default chain is used
+      sessionToken: process.env.S3_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN
     },
     email: {
       from: process.env.EMAIL_FROM || 'noreply@kuybi.dev',

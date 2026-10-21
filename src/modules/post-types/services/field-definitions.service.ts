@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
 
 import { FieldDefinition } from '../entities/field-definition.entity'
@@ -157,6 +158,8 @@ export class FieldDefinitionsService {
       fieldOptions?: Record<string, unknown>
       conditionalLogic?: Record<string, unknown>
       metadata?: Record<string, unknown>
+      /** The version last read (optimistic locking) */
+      version?: number
     },
     updatedBy?: string
   ): Promise<FieldDefinition> {
@@ -166,14 +169,14 @@ export class FieldDefinitionsService {
     if (data.isUnique && !field.isUnique)
       await this.assertNoDuplicates(field.postTypeId, field.name)
 
-    // Update field
-    Object.assign(field, {
-      ...data,
-      updatedBy,
-      version: field.version + 1 // Optimistic locking
-    })
-
-    const updated = await this.fieldDefinitionRepository.save(field)
+    const { version, ...changes } = data
+    const updated = await this.fieldDefinitionRepository.updateIfVersion(
+      id,
+      version ?? field.version,
+      { ...changes, updatedBy }
+    )
+    // Changed (or deleted) since it was read
+    if (!updated) throw versionConflict('field')
 
     // Invalidate caches
     await this.fieldDefinitionRepository.invalidateCache(updated)

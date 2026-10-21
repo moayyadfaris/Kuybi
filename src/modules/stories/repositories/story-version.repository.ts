@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { In, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -9,6 +9,9 @@ import { StoryVersion } from '../entities/story-version.entity'
 
 /** First key of the advisory lock taken while numbering a story's versions (with the story id) */
 const VERSION_NUMBER_LOCK = 0x53_56 // "SV"
+
+/** Ancestors followed by getVersionChain at most (a guard against a parent cycle) */
+const MAX_CHAIN_DEPTH = 10_000
 
 @Injectable()
 export class StoryVersionRepository extends BaseRepository<StoryVersion> {
@@ -183,8 +186,9 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   }
 
   /**
-   * Get the version chain (history) for a specific version
-   * Walks back through parentVersionId to build the chain
+   * A version and its ancestors (following parentVersionId), newest first: one recursive
+   * query for the ids (at most MAX_CHAIN_DEPTH) and one for the versions, whatever the
+   * length of the history
    */
   async getVersionChain(
     versionId: string,
@@ -193,23 +197,24 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
     const cacheKey = this.buildCacheKey('chain', versionId)
 
     const load = async (): Promise<StoryVersion[]> => {
-      // Build chain by following parentVersionId
-      const chain: StoryVersion[] = []
-      let currentId: string | null = versionId
-
-      while (currentId) {
-        const version = await this.repository.findOne({
-          where: { id: currentId },
-          relations: { author: true, parentVersion: true }
-        })
-
-        if (!version) break
-
-        chain.push(version)
-        currentId = version.parentVersionId
-      }
-
-      return chain
+      const links: Array<{ id: string; depth: number }> = await this.repository.query(
+        `WITH RECURSIVE chain AS (
+           SELECT id, "parentVersionId", 0 AS depth FROM story_versions WHERE id = $1
+           UNION ALL
+           SELECT v.id, v."parentVersionId", chain.depth + 1
+             FROM story_versions v JOIN chain ON v.id = chain."parentVersionId"
+            WHERE chain.depth < $2
+         )
+         SELECT id, depth FROM chain`,
+        [versionId, MAX_CHAIN_DEPTH]
+      )
+      if (links.length === 0) return []
+      const versions = await this.repository.find({
+        where: { id: In(links.map(link => link.id)) },
+        relations: { author: true }
+      })
+      const depthOf = new Map(links.map(link => [link.id, link.depth]))
+      return versions.sort((a, b) => depthOf.get(a.id)! - depthOf.get(b.id)!)
     }
     return options?.bypassCache ? load() : this.cached(cacheKey, load, options?.ttl ?? 1800)
   }
@@ -239,28 +244,27 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
       : this.cached(cacheKey, load, options?.ttl ?? this.defaultTTL)
   }
 
-  /**
-   * Get all versions on a specific branch
-   */
-  async getBranchVersions(
+  /** Per branch of a story: how many versions, the latest number and when it was made */
+  async getBranchSummaries(
     storyId: number,
-    branch: string,
     options?: { ttl?: number; bypassCache?: boolean }
-  ): Promise<StoryVersion[]> {
-    const cacheKey = this.buildCacheKey('branchVersions', storyId, branch)
-
-    const load = async (): Promise<StoryVersion[]> => {
-      const versions = await this.repository.find({
-        where: { storyId, branchName: branch },
-        relations: { author: true },
-        order: { versionNumber: 'DESC' }
-      })
-
-      return versions
+  ): Promise<Array<{ branchName: string; count: number; latest: number; lastUpdated: Date }>> {
+    const load = async () => {
+      const rows: Array<{ branchName: string; count: string; latest: number; lastUpdated: Date }> =
+        await this.repository
+          .createQueryBuilder('version')
+          .select('version.branchName', 'branchName')
+          .addSelect('COUNT(*)', 'count')
+          .addSelect('MAX(version.versionNumber)', 'latest')
+          .addSelect('MAX(version.createdAt)', 'lastUpdated')
+          .where('version.storyId = :storyId', { storyId })
+          .groupBy('version.branchName')
+          .getRawMany()
+      return rows.map(row => ({ ...row, count: Number(row.count), latest: Number(row.latest) }))
     }
     return options?.bypassCache
       ? load()
-      : this.cached(cacheKey, load, options?.ttl ?? this.defaultTTL)
+      : this.cached(this.buildCacheKey('branchSummaries', storyId), load, options?.ttl)
   }
 
   /**

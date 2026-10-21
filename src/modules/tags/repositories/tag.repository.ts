@@ -73,4 +73,12 @@ export class TagRepository extends BaseRepository<Tag> {
   async update(id: number, data: Partial<Tag>): Promise<Tag | null> {
     return super.update(id, data.name ? { ...data, name: normalizeTagName(data.name) } : data)
   }
+
+  async updateIfVersion(id: number, expectedVersion: number, data: Partial<Tag>) {
+    return super.updateIfVersion(
+      id,
+      expectedVersion,
+      data.name ? { ...data, name: normalizeTagName(data.name) } : data
+    )
+  }
 }

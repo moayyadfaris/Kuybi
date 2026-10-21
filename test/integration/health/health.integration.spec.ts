@@ -6,6 +6,7 @@
 import { TypeOrmHealthIndicator } from '@nestjs/terminus'
 
 import { HealthModule } from '@core/health/health.module'
+import { S3HealthIndicator } from '@core/health/indicators/s3.health'
 
 import { createHttpTestApp, HttpTestApp } from '../../helpers/http-test-app'
 
@@ -16,6 +17,12 @@ describe('Health endpoints', () => {
     t = await createHttpTestApp([HealthModule], { resetTables: [] })
   })
 
+  // No network calls from tests: the S3 check answers "up" (its own logic is not under test)
+  beforeEach(() =>
+    jest
+      .spyOn(S3HealthIndicator.prototype, 'isHealthy')
+      .mockImplementation(async key => ({ [key]: { status: 'up' } }))
+  )
   afterEach(() => jest.restoreAllMocks())
   afterAll(() => t.close())
 

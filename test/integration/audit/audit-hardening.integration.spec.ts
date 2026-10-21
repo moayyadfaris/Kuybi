@@ -102,4 +102,36 @@ describe('Audit hardening', () => {
       .send({ email: member.user.email, password: PASSWORD })
       .expect(201)
   })
+
+  it('reports real totals in summaries, not the size of the sample', async () => {
+    await logs().save(
+      Array.from({ length: 12 }, (_, i) => ({
+        userId: member.user.id,
+        action: i % 3 === 0 ? AuditAction.UPDATE : AuditAction.READ,
+        status: i < 2 ? AuditStatus.FAILURE : AuditStatus.SUCCESS,
+        entityType: 'Story',
+        entityId: '42'
+      })) as AuditLog[]
+    )
+
+    const activity = await get(`/user/${member.user.id}/activity`, { limit: 5 }).expect(200)
+    // 3 seeded per test + 12 here
+    expect(activity.body.data).toMatchObject({
+      totalActions: 15,
+      failedActionsCount: 5,
+      actionBreakdown: {
+        [AuditAction.ROLE_ASSIGN]: 3,
+        [AuditAction.UPDATE]: 4,
+        [AuditAction.READ]: 8
+      }
+    })
+    expect(activity.body.data.recentActions.length).toBeLessThanOrEqual(5)
+
+    const history = await get('/entity/Story/42/history', { limit: 5 }).expect(200)
+    expect(history.body.data).toMatchObject({
+      totalChanges: 12,
+      changeFrequency: { [AuditAction.UPDATE]: 4, [AuditAction.READ]: 8 }
+    })
+    expect(history.body.data.history).toHaveLength(5)
+  })
 })

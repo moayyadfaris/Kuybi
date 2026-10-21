@@ -107,4 +107,24 @@ describe('Credential changes are atomic', () => {
     expect(failed.status).toBeGreaterThanOrEqual(500)
     await login(PASSWORD).expect(201)
   })
+
+  it("ends access from before an admin's password reset even if revoking sessions did not run", async () => {
+    const root = await t.signUp(`root2-${Date.now()}@credential-atomicity.test`, 'super-admin')
+    const { accessToken, refreshToken } = (await login(PASSWORD).expect(201)).body.data
+    // The revocation runs in another module's listener: here it does nothing at all
+    jest.spyOn(t.app.get(SessionsService), 'revokeAllSessions').mockResolvedValue(0)
+
+    // Tokens issued in the same second as the change are still accepted: step past it
+    await new Promise(resolve => setTimeout(resolve, 1100))
+    await t
+      .http()
+      .post('/api/v1/admin/users/set-password')
+      .set(root.auth)
+      .send({ userId: member.user.id, newPassword: NEW_PASSWORD })
+      .expect(200)
+
+    await t.http().get('/api/v1/users/me').set('Authorization', `Bearer ${accessToken}`).expect(401)
+    await refresh(refreshToken).expect(401)
+    await login(NEW_PASSWORD).expect(201)
+  })
 })
