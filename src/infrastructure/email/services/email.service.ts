@@ -57,39 +57,35 @@ export class EmailService implements OnModuleInit {
     const user = this.configService.get<string>('email.smtp.user')
     const pass = this.configService.get<string>('email.smtp.password')
 
+    // Credentials and emailed links (reset, verification) travel over this connection:
+    // a plain port must upgrade with STARTTLS (otherwise an attacker on the path can strip
+    // the upgrade and read everything), and the server certificate is always verified.
+    // Configuration refuses turning either off outside development/test.
+    const requireTls = this.configService.get<boolean>('email.smtp.requireTls', true)
+    const rejectUnauthorized = this.configService.get<boolean>(
+      'email.smtp.tlsRejectUnauthorized',
+      true
+    )
+
     const smtpConfig: SMTPTransport.Options = {
       host,
       port,
       secure,
+      requireTLS: !secure && requireTls,
+      tls: { rejectUnauthorized },
       auth: {
         user,
         pass
       },
-      // Advanced connection settings to fix IPv6 issues
-      // nodemailer chooses IPv4/IPv6 itself; it has no `family` option (the old
-      // `family: 4` was silently ignored)
+      // nodemailer chooses IPv4/IPv6 itself
       dnsTimeout: 30000,
       connectionTimeout: 30000,
       greetingTimeout: 30000,
       socketTimeout: 30000
     }
 
-    // If using IP address, disable TLS hostname verification
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-      smtpConfig.tls = {
-        rejectUnauthorized: false,
-        servername: 'smtp.ethereal.email'
-      }
-    }
-
     this.logger.debug(
-      {
-        host,
-        port,
-        secure,
-        user,
-        isIP: /^\d+\.\d+\.\d+\.\d+$/.test(host)
-      },
+      { host, port, secure, requireTls, rejectUnauthorized },
       'Initializing SMTP transporter'
     )
 

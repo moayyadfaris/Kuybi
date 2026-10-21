@@ -30,6 +30,21 @@ describe('assertProductionSecrets', () => {
     expect(() => assertProductionSecrets({ NODE_ENV: 'test', BCRYPT_ROUNDS: 4 })).not.toThrow()
   })
 
+  it.each(['SMTP_TLS_REJECT_UNAUTHORIZED', 'SMTP_REQUIRE_TLS'])(
+    'refuses %s=false outside development/test',
+    key => {
+      expect(() =>
+        assertProductionSecrets({ NODE_ENV: 'production', ...deployed, [key]: 'false' })
+      ).toThrow(new RegExp(key))
+      expect(() =>
+        assertProductionSecrets({ NODE_ENV: 'production', ...deployed, [key]: 'true' })
+      ).not.toThrow()
+      expect(() =>
+        assertProductionSecrets({ NODE_ENV: 'development', [key]: 'false' })
+      ).not.toThrow()
+    }
+  )
+
   it('reads BCRYPT_ROUNDS as the environment gives it: a string', () => {
     expect(() =>
       assertProductionSecrets({ NODE_ENV: 'production', ...deployed, BCRYPT_ROUNDS: '4' })

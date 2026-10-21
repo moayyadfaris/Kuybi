@@ -192,6 +192,17 @@ class EnvironmentVariables {
   @IsOptional()
   SMTP_PASSWORD?: string
 
+  // "false" only for a local mail catcher without TLS; refused outside development/test
+  @IsString()
+  @IsOptional()
+  SMTP_REQUIRE_TLS?: string
+
+  // "false" only for a local mail catcher with a self-signed certificate; refused outside
+  // development/test
+  @IsString()
+  @IsOptional()
+  SMTP_TLS_REJECT_UNAUTHORIZED?: string
+
   // Public site for emailed links; required (http/https) outside development and test
   @IsString()
   @IsOptional()
@@ -508,6 +519,13 @@ export function assertProductionSecrets(
     const publicUrl = config.APP_PUBLIC_URL
     if (typeof publicUrl !== 'string' || !/^https?:\/\/[^\s/]+/.test(publicUrl)) {
       problems.push(`APP_PUBLIC_URL must be the site's http(s) URL in ${env}`)
+    }
+
+    // Credentials, reset and verification links travel over this connection
+    for (const key of ['SMTP_REQUIRE_TLS', 'SMTP_TLS_REJECT_UNAUTHORIZED']) {
+      if (String(config[key]).trim().toLowerCase() === 'false') {
+        problems.push(`${key}=false is only allowed in development and test`)
+      }
     }
   }
 
