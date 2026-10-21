@@ -188,9 +188,11 @@ export class PasswordResetService {
 
     const passwordHash = await this.passwordHasher.hash(newPassword)
 
-    // Writes the user's password hash: run through UserRepository so the cached user is
-    // dropped once the reset commits
-    await this.userRepository.transaction(async manager => {
+    // All or nothing: the token claim, the new hash, its history entry, the end of every
+    // old session and the notification email commit together, so a failure leaves the
+    // old password working and the link usable. Run through UserRepository so the cached
+    // user is dropped once the reset commits; the session cache right after.
+    const revokedCount = await this.userRepository.transaction(async manager => {
       // Claim the token atomically: of two concurrent requests with the same token only
       // one may succeed (checking `used` above and saving later let both through)
       const claim = await manager.update(
@@ -213,16 +215,18 @@ export class PasswordResetService {
         },
         { manager }
       )
+
+      await this.passwordPolicy.record(
+        user.id,
+        passwordHash,
+        { ipAddress },
+        currentHash ?? undefined,
+        manager
+      )
+      // Whoever had the old password may hold a session: end them all
+      return this.sessionsService.revokeAllSessions(user.id, undefined, 'Password reset', manager)
     })
-
-    await this.passwordPolicy.record(user.id, passwordHash, { ipAddress }, currentHash ?? undefined)
-
-    // Whoever had the old password may hold a session: end them all
-    const revokedCount = await this.sessionsService.revokeAllSessions(
-      user.id,
-      undefined,
-      'Password reset'
-    )
+    await this.sessionsService.dropSessionCache()
 
     this.logger.info(
       {

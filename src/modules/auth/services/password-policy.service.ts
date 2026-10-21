@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { EntityManager } from 'typeorm'
 
 import { PasswordHasher } from '@core/security'
 
@@ -61,17 +62,23 @@ export class PasswordPolicyService {
     userId: string,
     passwordHash: string,
     context: SessionContext = {},
-    previousHash?: string | null
+    previousHash?: string | null,
+    manager?: EntityManager
   ): Promise<void> {
     if (previousHash) {
-      const recent = await this.passwordHistoryRepository.findByUser(userId, PASSWORD_HISTORY_DEPTH)
+      const recent = await this.passwordHistoryRepository.findByUser(
+        userId,
+        PASSWORD_HISTORY_DEPTH,
+        manager
+      )
       if (!recent.some(entry => entry.passwordHash === previousHash)) {
         await this.passwordHistoryRepository.addPasswordHistory(
           userId,
           previousHash,
           undefined,
           undefined,
-          PASSWORD_HISTORY_DEPTH
+          PASSWORD_HISTORY_DEPTH,
+          manager
         )
       }
     }
@@ -80,7 +87,8 @@ export class PasswordPolicyService {
       passwordHash,
       context.ipAddress,
       context.userAgent,
-      PASSWORD_HISTORY_DEPTH
+      PASSWORD_HISTORY_DEPTH,
+      manager
     )
   }
 }

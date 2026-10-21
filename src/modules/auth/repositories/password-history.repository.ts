@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
-import { Repository } from 'typeorm'
+import { EntityManager, Repository } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -28,8 +28,12 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
    * Always read from the database: the reuse and cooldown policies decide on this data,
    * and the rows contain password hashes, which must not be copied into the cache.
    */
-  async findByUser(userId: string, limit: number = 5): Promise<PasswordHistory[]> {
-    return this.repository.find({
+  async findByUser(
+    userId: string,
+    limit: number = 5,
+    manager?: EntityManager
+  ): Promise<PasswordHistory[]> {
+    return this.rows(manager).find({
       where: { userId },
       order: { createdAt: 'DESC' },
       take: limit
@@ -37,28 +41,20 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
   }
 
   /**
-   * Add new password to history and cleanup old entries
-   * Keeps only the last N entries per user
+   * Add new password to history and cleanup old entries. Keeps only the last N entries
+   * per user. With `manager`, inside the caller's transaction.
    */
   async addPasswordHistory(
     userId: string,
     passwordHash: string,
     ipAddress?: string,
     userAgent?: string,
-    keepLast: number = 5
+    keepLast: number = 5,
+    manager?: EntityManager
   ): Promise<PasswordHistory> {
-    // Create new entry
-    const entry = this.repository.create({
-      userId,
-      passwordHash,
-      ipAddress,
-      userAgent
-    })
-
-    const saved = await this.repository.save(entry)
-
-    // Cleanup old entries (keep only last N)
-    await this.cleanupOldPasswords(userId, keepLast)
+    const rows = this.rows(manager)
+    const saved = await rows.save(rows.create({ userId, passwordHash, ipAddress, userAgent }))
+    await this.cleanupOldPasswords(userId, keepLast, manager)
 
     this.logger.info(
       { userId, keepLast, ipAddress },
@@ -71,9 +67,13 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
   /**
    * Clean up old password entries, keeping only the most recent N
    */
-  private async cleanupOldPasswords(userId: string, keepLast: number): Promise<void> {
+  private async cleanupOldPasswords(
+    userId: string,
+    keepLast: number,
+    manager?: EntityManager
+  ): Promise<void> {
     // Get all entries for user, ordered by date
-    const allEntries = await this.repository.find({
+    const allEntries = await this.rows(manager).find({
       where: { userId },
       order: { createdAt: 'DESC' }
     })
@@ -83,12 +83,17 @@ export class PasswordHistoryRepository extends BaseRepository<PasswordHistory> {
       const entriesToDelete = allEntries.slice(keepLast)
       const idsToDelete = entriesToDelete.map(e => e.id)
 
-      await this.repository.delete(idsToDelete)
+      await this.rows(manager).delete(idsToDelete)
 
       this.logger.debug(
         { userId, deleted: idsToDelete.length, kept: keepLast },
         'Cleaned up old password history entries'
       )
     }
+  }
+
+  /** The rows to work on: in the caller's transaction when there is one */
+  private rows(manager?: EntityManager): Repository<PasswordHistory> {
+    return manager ? manager.getRepository(PasswordHistory) : this.repository
   }
 }

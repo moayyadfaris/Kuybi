@@ -11,7 +11,7 @@ import { ErrorCode } from '@shared/errors'
 import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
-import { UsersService } from '@modules/users'
+import { UserRepository, UsersService } from '@modules/users'
 import { User } from '@modules/users/entities'
 
 import { PasswordHasher } from '@core/security'
@@ -40,7 +40,8 @@ export class PasswordChangeService {
     private readonly passwordHistoryRepository: PasswordHistoryRepository,
     private readonly passwordPolicy: PasswordPolicyService,
     private readonly emailQueueService: EmailQueueService,
-    private readonly sentryService: SentryService
+    private readonly sentryService: SentryService,
+    private readonly userRepository: UserRepository
   ) {}
 
   /**
@@ -87,17 +88,23 @@ export class PasswordChangeService {
     }
 
     const passwordHash = await this.passwordHasher.hash(newPassword)
-    await this.usersService.updateUser(user.id, { passwordHash, forcePasswordChange: false })
-    await this.passwordPolicy.record(userId, passwordHash, context, currentHash)
-
     const invalidateAllSessions = options.invalidateAllSessions !== false
-    const sessionsRevoked = invalidateAllSessions
-      ? await this.sessionsService.revokeAllSessions(
-          userId,
-          options.currentSessionId,
-          'Password changed by user'
-        )
-      : 0
+
+    // All or nothing: the new hash, its history entry and the end of the other sessions
+    // commit together (the user cache is dropped once it commits, the session cache next)
+    const sessionsRevoked = await this.userRepository.transaction(async manager => {
+      await manager.update(User, user.id, { passwordHash, forcePasswordChange: false })
+      await this.passwordPolicy.record(userId, passwordHash, context, currentHash, manager)
+      return invalidateAllSessions
+        ? this.sessionsService.revokeAllSessions(
+            userId,
+            options.currentSessionId,
+            'Password changed by user',
+            manager
+          )
+        : 0
+    })
+    if (sessionsRevoked > 0) await this.sessionsService.dropSessionCache()
 
     this.logger.info(
       {

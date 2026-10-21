@@ -138,14 +138,19 @@ export class AdminPasswordManagementService {
     details: { operation: 'reset' | 'set'; reason?: string }
   ): Promise<void> {
     const passwordHash = await this.passwordHasher.hash(password)
-    await this.userRepository.update(user.id, { passwordHash, forcePasswordChange })
-    await this.eventBus.publish(
-      new UserCredentialsResetEvent(
-        user.id,
-        adminId,
-        `Password ${details.operation} by admin: ${adminEmail}`
+    // The auth module ends the sessions (UserCredentialsResetEvent) while this transaction
+    // is open: if that fails the new password rolls back; if the commit fails after it,
+    // the user only has to sign in again
+    await this.userRepository.transaction(async manager => {
+      await manager.update(User, user.id, { passwordHash, forcePasswordChange })
+      await this.eventBus.publish(
+        new UserCredentialsResetEvent(
+          user.id,
+          adminId,
+          `Password ${details.operation} by admin: ${adminEmail}`
+        )
       )
-    )
+    })
 
     this.logger.warn(
       {
