@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { errorMessage, errorProperty } from '@shared/utils/error.util'
+import { maskEmail } from '@shared/utils/redact.util'
 import { CircuitBreaker, withTimeout } from '@shared/utils/resilience'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import * as nodemailer from 'nodemailer'
@@ -11,6 +12,17 @@ import { SendEmailDto } from '../dto/send-email.dto'
 import { EmailOptions, EmailTemplate } from '../interfaces/email-template.interface'
 
 import { EmailTemplateService } from './email-template.service'
+
+/**
+ * A time for an email: the recipient's time zone is unknown and the server's is
+ * arbitrary, so state it in UTC ("21 October 2026 at 14:03 UTC")
+ */
+const EMAIL_TIME = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'long',
+  timeStyle: 'short',
+  timeZone: 'UTC'
+})
+const formatEmailTime = (date: Date) => `${EMAIL_TIME.format(date)} UTC`
 
 @Injectable()
 export class EmailService implements OnModuleInit {
@@ -133,7 +145,7 @@ export class EmailService implements OnModuleInit {
 
       this.logger.info(
         {
-          to: dto.to,
+          to: maskEmail(dto.to),
           subject: dto.subject,
           messageId: result.messageId
         },
@@ -142,7 +154,7 @@ export class EmailService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         {
-          to: dto.to,
+          to: maskEmail(dto.to),
           subject: dto.subject,
           error: errorMessage(error)
         },
@@ -170,7 +182,7 @@ export class EmailService implements OnModuleInit {
 
       this.logger.info(
         {
-          to: options.to,
+          to: maskEmail(options.to),
           template: options.template,
           subject: options.subject
         },
@@ -179,7 +191,7 @@ export class EmailService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         {
-          to: options.to,
+          to: maskEmail(options.to),
           template: options.template,
           error: errorMessage(error)
         },
@@ -281,7 +293,7 @@ export class EmailService implements OnModuleInit {
       context: {
         userName,
         userEmail: email,
-        changeTime: changeTime.toLocaleString(),
+        changeTime: formatEmailTime(changeTime),
         ipAddress: ipAddress || 'Unknown'
       }
     })
@@ -317,8 +329,8 @@ export class EmailService implements OnModuleInit {
         appUrl,
         supportEmail,
         securityEmail,
-        lockedAt: lockedAt.toLocaleString(),
-        lockedUntil: lockedUntil.toLocaleString(),
+        lockedAt: formatEmailTime(lockedAt),
+        lockedUntil: formatEmailTime(lockedUntil),
         failedAttempts: failedAttempts.toString(),
         ipAddress: ipAddress || 'Unknown',
         resetPasswordUrl: `${appUrl}/reset-password`,
@@ -356,7 +368,7 @@ export class EmailService implements OnModuleInit {
         appUrl,
         supportEmail,
         securityEmail,
-        unlockedAt: unlockedAt.toLocaleString(),
+        unlockedAt: formatEmailTime(unlockedAt),
         unlockType: unlockType === 'automatic' ? 'Automatic (Timer Expired)' : 'Manual (Admin)',
         wasAutomatic: unlockType === 'automatic',
         previousAttempts: previousAttempts?.toString() || undefined,

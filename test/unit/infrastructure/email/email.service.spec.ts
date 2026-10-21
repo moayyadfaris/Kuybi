@@ -37,6 +37,7 @@ describe('EmailService', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     createTransport.mockReturnValue(transport)
+    transport.sendMail.mockResolvedValue({ messageId: 'm-1' })
   })
 
   describe('transport security', () => {
@@ -61,6 +62,33 @@ describe('EmailService', () => {
         requireTLS: false,
         tls: { rejectUnauthorized: false }
       })
+    })
+  })
+
+  describe('content and logs', () => {
+    it('states times in UTC, not in the server time zone', async () => {
+      const service = await start()
+
+      await service.sendPasswordChangedEmail(
+        'ann@example.com',
+        'Ann',
+        new Date('2026-10-21T14:03:00.000Z'),
+        '203.0.113.7'
+      )
+
+      const [, context] = templates.render.mock.calls[0]
+      // The joining word ("at" or ",") depends on the ICU version
+      expect(context.changeTime).toMatch(/^21 October 2026\W+(at\W+)?14:03 UTC$/)
+    })
+
+    it('does not write recipient addresses to the logs', async () => {
+      const service = await start()
+
+      await service.sendPasswordResetEmail('ann.lee@example.com', 'Ann', 'https://x.test/r')
+
+      const logged = JSON.stringify([...logger.info.mock.calls, ...logger.debug.mock.calls])
+      expect(logged).not.toContain('ann.lee@example.com')
+      expect(logged).toContain('a***@example.com')
     })
   })
 })
