@@ -53,18 +53,36 @@ class FakeS3 {
       return { key, bucket: 'b', location: key }
     }
   )
+  setAcl = jest.fn(async (key: string, isPublic: boolean) => {
+    const object = this.objects.get(key)
+    if (object) object.isPublic = isPublic
+  })
+  delete = jest.fn(async (key: string) => {
+    this.objects.delete(key)
+  })
   generateVariantKey = (base: string, variant: string, ext: string) => `${base}-${variant}${ext}`
 }
 
 describe('AttachmentProcessor', () => {
-  const build = (row: Partial<Attachment>) => {
+  const build = (initial: Partial<Attachment>) => {
     const s3 = new FakeS3()
     const updates: Array<Partial<Attachment>> = []
+    // The row as the database holds it now; tests change it while the job runs
+    const db: { row: Partial<Attachment> | null } = {
+      row: {
+        id: 'a1',
+        path: 'uploads/u/photo.jpg',
+        metadata: { source: 'direct-upload' },
+        ...initial
+      }
+    }
     const repository = {
-      findById: jest.fn(async () => ({ id: 'a1', metadata: { source: 'direct-upload' }, ...row })),
+      findById: jest.fn(async () => (db.row ? { ...db.row } : null)),
       update: jest.fn(async (_id: string, data: Partial<Attachment>) => {
         updates.push(data)
-        return { ...row, ...data }
+        if (!db.row) return null
+        db.row = { ...db.row, ...data }
+        return { ...db.row }
       })
     }
     const pipeline = new ImagePipelineService(
@@ -93,7 +111,7 @@ describe('AttachmentProcessor', () => {
           isPublic: false
         }
       } as unknown as Job)
-    return { s3, updates, repository, processor, run }
+    return { s3, db, updates, repository, processor, run }
   }
 
   it('replaces the original with a stripped copy and publishes per the current row', async () => {
@@ -113,13 +131,48 @@ describe('AttachmentProcessor', () => {
       })
     }
     const final = updates.at(-1)!
-    expect(final).toMatchObject({ securityStatus: 'completed', isPublic: true })
+    expect(final).toMatchObject({ securityStatus: 'completed' })
+    // The worker never writes the visibility: it applies what the row says
+    expect(final).not.toHaveProperty('isPublic')
     expect(final.metadata).toMatchObject({
       source: 'direct-upload',
       processingStatus: 'completed',
       hasLocation: true
     })
     expect(final.thumbnailPath).toMatch(/-medium\./)
+  })
+
+  it('keeps a file private that its owner made private while it was processed', async () => {
+    const { s3, db, updates, run } = build({ isPublic: true, securityStatus: 'processing' })
+    s3.objects.set('uploads/u/photo.jpg', { body: await geotaggedPhoto(), isPublic: false })
+    // The owner makes it private while the first processed object is being stored
+    s3.upload.mockImplementationOnce(async ({ key, buffer, isPublic }) => {
+      db.row = { ...db.row, isPublic: false }
+      s3.objects.set(key, { body: buffer, isPublic: !!isPublic })
+      return { key, bucket: 'b', location: key }
+    })
+
+    await run()
+
+    for (const [key, object] of s3.objects)
+      expect({ key, public: object.isPublic }).toEqual({ key, public: false })
+    expect(db.row!.isPublic).toBe(false)
+    expect(updates.some(update => update.isPublic === true)).toBe(false)
+  })
+
+  it('leaves nothing stored for a file deleted while it was processed', async () => {
+    const { s3, db, run } = build({ isPublic: true, securityStatus: 'processing' })
+    s3.objects.set('uploads/u/photo.jpg', { body: await geotaggedPhoto(), isPublic: false })
+    // Hard delete during processing: the row and the stored objects go
+    s3.upload.mockImplementationOnce(async ({ key }) => {
+      db.row = null
+      s3.objects.clear()
+      return { key, bucket: 'b', location: key }
+    })
+
+    await run()
+
+    expect([...s3.objects.keys()]).toEqual([])
   })
 
   it('keeps the original private and the earlier metadata when processing fails', async () => {
