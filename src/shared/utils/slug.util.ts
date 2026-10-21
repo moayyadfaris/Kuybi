@@ -7,6 +7,9 @@
  * - Anything else becomes a separator
  * When nothing usable remains (e.g. "!!!"), the fallback is returned instead of an empty slug.
  */
+import { ConflictException } from '@nestjs/common'
+import { ErrorCode } from '@shared/errors'
+import { randomBytes } from 'crypto'
 
 export const DEFAULT_SLUG_MAX_LENGTH = 120
 
@@ -97,8 +100,15 @@ export function slugify(input: string, options: SlugifyOptions = {}): string {
   return slug || fallback
 }
 
+/** Numbered candidates tried after the base (`base-2` .. `base-10`) */
+const NUMBERED_ATTEMPTS = 9
+/** Random-suffix candidates tried once the numbered ones are taken */
+const RANDOM_ATTEMPTS = 3
+
 /**
- * Returns `base` if unused, otherwise the first free `base-2`, `base-3`, ...
+ * Returns `base` if unused, otherwise the first free `base-2` .. `base-10`, then a random
+ * suffix (`base-k3x9q2`). Lookups are bounded (at most 13): a popular name must not cost
+ * hundreds of sequential queries. Throws 409 CONFLICT if every candidate is taken.
  * The suffix is kept within `maxLength` by trimming the base.
  */
 export async function uniqueSlug(
@@ -106,18 +116,24 @@ export async function uniqueSlug(
   exists: (candidate: string) => Promise<boolean>,
   maxLength: number = DEFAULT_SLUG_MAX_LENGTH
 ): Promise<string> {
-  if (!(await exists(base))) {
-    return base
-  }
+  const withSuffix = (suffix: string) =>
+    base.slice(0, maxLength - suffix.length).replace(EDGE_HYPHENS_REGEX, '') + suffix
+  const candidates = [
+    base,
+    ...Array.from({ length: NUMBERED_ATTEMPTS }, (_, i) => withSuffix(`-${i + 2}`)),
+    ...Array.from({ length: RANDOM_ATTEMPTS }, () =>
+      withSuffix(`-${randomBytes(4).readUInt32BE().toString(36).padStart(6, '0').slice(-6)}`)
+    )
+  ]
 
-  for (let n = 2; n < 1000; n++) {
-    const suffix = `-${n}`
-    const candidate =
-      base.slice(0, maxLength - suffix.length).replace(EDGE_HYPHENS_REGEX, '') + suffix
+  for (const candidate of candidates) {
     if (!(await exists(candidate))) {
       return candidate
     }
   }
 
-  throw new Error(`Could not find a free slug for '${base}'`)
+  throw new ConflictException({
+    code: ErrorCode.CONFLICT,
+    message: `Could not find a free slug for '${base}'; choose a slug explicitly`
+  })
 }
