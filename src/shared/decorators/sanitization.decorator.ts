@@ -4,6 +4,7 @@
  * No dependency on class-transformer for better maintainability
  */
 
+import { sanitizeRichText, stripHtml } from '@shared/utils/html-sanitize.util'
 import {
   registerDecorator,
   ValidationArguments,
@@ -11,7 +12,6 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface
 } from 'class-validator'
-import DOMPurify from 'isomorphic-dompurify'
 
 export interface SanitizeHtmlOptions extends ValidationOptions {
   allowedTags?: string[]
@@ -19,38 +19,6 @@ export interface SanitizeHtmlOptions extends ValidationOptions {
   allowedSchemes?: string[]
   stripTags?: boolean
   escapeHtml?: boolean
-}
-
-// Default allowed HTML tags for rich text
-const DEFAULT_ALLOWED_TAGS = [
-  'p',
-  'br',
-  'strong',
-  'em',
-  'u',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-  'ul',
-  'ol',
-  'li',
-  'a',
-  'blockquote',
-  'code',
-  'pre',
-  'img'
-]
-
-const DEFAULT_ALLOWED_ATTRIBUTES = {
-  a: ['href', 'title', 'target', 'rel'],
-  img: ['src', 'alt', 'title', 'width', 'height']
-}
-
-function flattenAllowedAttributes(attributes: Record<string, string[]> | string[]): string[] {
-  return Array.isArray(attributes) ? attributes : [...new Set(Object.values(attributes).flat())]
 }
 
 /**
@@ -76,10 +44,7 @@ class SanitizeHtmlConstraint implements ValidatorConstraintInterface {
   }
 
   private sanitize(value: string, options: SanitizeHtmlOptions = {}): string {
-    if (options.stripTags) {
-      // A regex like /<[^>]*>/ leaves unclosed tags ("<img src=x onerror=...") behind
-      return String(DOMPurify.sanitize(value, { ALLOWED_TAGS: [], KEEP_CONTENT: true }))
-    }
+    if (options.stripTags) return stripHtml(value)
 
     if (options.escapeHtml) {
       return value
@@ -91,20 +56,14 @@ class SanitizeHtmlConstraint implements ValidatorConstraintInterface {
         .replace(/\//g, '&#x2F;')
     }
 
-    const config: NonNullable<Parameters<typeof DOMPurify.sanitize>[1]> = {
-      ALLOWED_TAGS: options.allowedTags || DEFAULT_ALLOWED_TAGS,
-      // DOMPurify takes a flat list of attribute names; a per-tag map is silently
-      // ignored and its broad defaults (style, class, ...) apply instead
-      ALLOWED_ATTR: flattenAllowedAttributes(
-        options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES
-      )
-    }
-
-    if (options.allowedSchemes) {
-      config.ALLOWED_URI_REGEXP = new RegExp(`^(${options.allowedSchemes.join('|')}):`, 'i')
-    }
-
-    return String(DOMPurify.sanitize(value, config))
+    return sanitizeRichText(value, {
+      allowedTags: options.allowedTags,
+      // A per-tag map is flattened: DOMPurify takes a flat list of attribute names
+      allowedAttributes: options.allowedAttributes
+        ? [...new Set(Object.values(options.allowedAttributes).flat())]
+        : undefined,
+      allowedSchemes: options.allowedSchemes
+    })
   }
 
   defaultMessage(args: ValidationArguments): string {

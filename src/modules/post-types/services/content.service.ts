@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
+import { sanitizeRichText } from '@shared/utils/html-sanitize.util'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 import { User } from '@modules/users/entities'
@@ -13,6 +14,7 @@ import { FieldDefinition } from '../entities/field-definition.entity'
 import { PostContent } from '../entities/post-content.entity'
 import { PostType } from '../entities/post-type.entity'
 import { ContentStatus } from '../enums/content-status.enum'
+import { FieldType } from '../enums/field-type.enum'
 import { PostContentRepository } from '../repositories/post-content.repository'
 
 import { ContentAccessPolicy } from './content-access.policy'
@@ -56,11 +58,11 @@ export class ContentService {
   async create(postType: PostType, data: ContentInput & { title: string }, author: User) {
     const status = data.status ?? ContentStatus.DRAFT
     this.accessPolicy.assertCanSetStatus(author, status)
-    const fieldData = data.fieldData ?? {}
     const fields = await this.fieldDefinitionsService.findByPostType(postType.id)
     this.fieldValidationService.throwIfInvalid(
-      await this.fieldValidationService.validateFieldData(fields, fieldData)
+      await this.fieldValidationService.validateFieldData(fields, data.fieldData ?? {})
     )
+    const fieldData = sanitizeRichTextFields(fields, data.fieldData ?? {})
 
     // Generated slugs get a numeric suffix on collision (among live entries)
     const slug = await uniqueSlug(slugify(data.title, { fallback: 'content' }), candidate =>
@@ -148,10 +150,11 @@ export class ContentService {
       const kept = Object.fromEntries(
         Object.entries(content.fieldData ?? {}).filter(([name]) => defined.has(name))
       )
-      changes.fieldData = { ...kept, ...data.fieldData }
+      const merged = { ...kept, ...data.fieldData }
       this.fieldValidationService.throwIfInvalid(
-        await this.fieldValidationService.validateFieldData(fields, changes.fieldData)
+        await this.fieldValidationService.validateFieldData(fields, merged)
       )
+      changes.fieldData = sanitizeRichTextFields(fields, merged)
     }
 
     return this.saveUnique(
@@ -217,4 +220,24 @@ export class ContentService {
     }
     return saved
   }
+}
+
+/**
+ * Field data with the HTML of rich-text (WYSIWYG) fields sanitized: whoever renders it
+ * trusts it. Values inside repeaters and groups are untyped and stored as given; their
+ * consumers must escape them.
+ */
+function sanitizeRichTextFields(
+  fields: FieldDefinition[],
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  const richText = new Set(
+    fields.filter(field => field.fieldType === FieldType.WYSIWYG).map(field => field.name)
+  )
+  return Object.fromEntries(
+    Object.entries(data).map(([name, value]) => [
+      name,
+      richText.has(name) && typeof value === 'string' ? sanitizeRichText(value) : value
+    ])
+  )
 }

@@ -330,6 +330,28 @@ describe('Dynamic content hardening', () => {
     expect(res.body.data.total).toBe(3)
   })
 
+  it('stores rich text sanitized, on create and on update', async () => {
+    await field('body', { fieldType: FieldType.WYSIWYG })
+    const unsafe =
+      '<p>ok</p><img src=x onerror=alert(1)><script>alert(2)</script><a href="javascript:alert(3)">l</a>'
+
+    const created = await create({ title: 'Rich', field_data: { body: unsafe } }).expect(201)
+    const stored = async () =>
+      (await t.dataSource.getRepository(PostContent).findOneByOrFail({ id: created.body.data.id }))
+        .fieldData.body as string
+    const html = await stored()
+    expect(html).toContain('<p>ok</p>')
+    expect(html).not.toMatch(/onerror|<script|javascript:/i)
+
+    await t
+      .http()
+      .patch(`${base()}/${created.body.data.id}`)
+      .set(admin.auth)
+      .send({ field_data: { body: '<p onclick="x()">again</p>' } })
+      .expect(200)
+    expect(await stored()).toBe('<p>again</p>')
+  })
+
   it('answers 400 for an unknown status filter', async () => {
     await t.http().get(base()).query({ status: 'nope' }).set(admin.auth).expect(400)
   })
