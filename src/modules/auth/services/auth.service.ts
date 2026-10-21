@@ -216,6 +216,8 @@ export class AuthService {
 
     const { session, refreshToken } = await this.sessionsService.createSession({
       userId: user.id,
+      // Read with the password just verified: a reset committing meanwhile voids the session
+      credentialsVersion: user.credentialsVersion,
       ipAddress: context.ipAddress,
       userAgent: context.userAgent,
       deviceType: context.deviceType,
@@ -271,8 +273,8 @@ export class AuthService {
       await this.sessionsService.revokeSession(tokenId, 'user_inactive')
       throw new UnauthorizedException(refreshTokenInvalid('User unavailable'))
     }
-    // Created before the password was reset (by email or by an admin): void
-    if (user.credentialsChangedAt && session.createdAt < user.credentialsChangedAt) {
+    // Opened before the password was reset (by email or by an admin): void
+    if (session.credentialsVersion !== user.credentialsVersion) {
       await this.sessionsService.revokeSession(tokenId, 'credentials_changed')
       throw new UnauthorizedException(refreshTokenInvalid('The password was reset'))
     }

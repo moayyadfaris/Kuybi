@@ -114,8 +114,8 @@ describe('Credential changes are atomic', () => {
     // The revocation runs in another module's listener: here it does nothing at all
     jest.spyOn(t.app.get(SessionsService), 'revokeAllSessions').mockResolvedValue(0)
 
-    // Tokens issued in the same second as the change are still accepted: step past it
-    await new Promise(resolve => setTimeout(resolve, 1100))
+    // No waiting: a token from the same second as the change must fail too (A06; the old
+    // whole-second iat comparison accepted it)
     await t
       .http()
       .post('/api/v1/admin/users/set-password')

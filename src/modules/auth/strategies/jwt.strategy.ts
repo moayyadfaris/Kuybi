@@ -116,7 +116,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // Issued before the password was reset (by email or by an admin): void
-    if (issuedBefore(payload.iat, user.credentialsChangedAt)) {
+    if (credentialsOutdated(payload.cv, user.credentialsVersion)) {
       throw new UnauthorizedException({
         code: ErrorCode.AUTH_SESSION_ENDED,
         message: 'The password was reset; sign in again'
@@ -133,9 +133,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 }
 
 /**
- * Whether a token issued at `issuedAt` (JWT iat, seconds) predates `changedAt`. Compared in
- * whole seconds, as iat is: a token issued in the same second as the change is accepted.
+ * Whether a token issued under credentials version `tokenVersion` (the `cv` claim) is
+ * void because the password was reset since. Exact, unlike comparing issue times: iat has
+ * whole seconds, so a token issued earlier in the reset's second used to pass.
  */
-export function issuedBefore(issuedAt: number | undefined, changedAt: Date | null): boolean {
-  return !!changedAt && issuedAt !== undefined && issuedAt < Math.floor(changedAt.getTime() / 1000)
+export function credentialsOutdated(tokenVersion: number | undefined, current: number): boolean {
+  return (tokenVersion ?? 0) !== current
 }

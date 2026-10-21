@@ -24,7 +24,8 @@ export class AccessTokenService {
       sub: user.id,
       email: user.email,
       role: user.getPrimaryRoleName(),
-      sid: sessionId
+      sid: sessionId,
+      cv: user.credentialsVersion
     }
     return this.jwtService.signAsync(payload, {
       expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') as StringValue
@@ -40,7 +41,8 @@ export class AccessTokenService {
       sub: user.id,
       email: user.email,
       role: user.getPrimaryRoleName(),
-      tempPasswordChange: true
+      tempPasswordChange: true,
+      cv: user.credentialsVersion
     }
     return this.jwtService.signAsync(payload, { expiresIn: '15m' })
   }

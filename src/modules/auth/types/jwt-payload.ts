@@ -8,6 +8,8 @@ export interface AccessTokenPayload {
   sid?: string
   /** Limited token issued when a password change is forced (no session yet) */
   tempPasswordChange?: boolean
+  /** users.credentialsVersion when issued; absent on tokens from before the claim (= 0) */
+  cv?: number
   /** Issued at (seconds), set by the JWT library */
   iat?: number
 }
