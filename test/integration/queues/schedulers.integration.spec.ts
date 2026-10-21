@@ -76,6 +76,8 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
 
     const prune = await versionQueue.getJobScheduler('version-cleanup-daily')
     expect(prune?.pattern).toBe('0 2 * * *')
+    // "02:00" means UTC, whatever the server's time zone
+    expect(prune?.tz).toBe('UTC')
     expect(prune?.name).toBe(VersionCleanupJobType.PRUNE_AUTO)
     expect(prune?.template?.data).toEqual({ keepAutoVersions: 7 })
     expect(await versionQueue.getJobScheduler('version-archive-weekly')).toBeFalsy()

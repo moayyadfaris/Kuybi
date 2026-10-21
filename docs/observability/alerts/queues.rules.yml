@@ -1,0 +1,31 @@
+# Prometheus alerting rules for the BullMQ queues (src/core/queues/queue-metrics.ts).
+# Load with rule_files: [docs/observability/alerts/queues.rules.yml]
+groups:
+  - name: kuybi-queues
+    rules:
+      - alert: DeadLetterJobs
+        # A job failed every attempt and was copied to the dead-letter queue. It stays
+        # there until handled: inspect it in Bull Board (dead-letter-queue), fix the
+        # cause, then retry the original or remove the entry.
+        expr: queue_jobs{queue="dead-letter-queue", state="waiting"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value }} job(s) in the dead-letter queue'
+          description: >-
+            Jobs failed all their attempts. Open Bull Board, read failedReason, fix the
+            cause and retry or remove them.
+
+      - alert: QueueBacklog
+        # Jobs are waiting longer than the worker can take them: the worker is down,
+        # stuck, or under-provisioned for the load
+        expr: queue_jobs{state="waiting", queue!="dead-letter-queue"} > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.queue }} has {{ $value }} waiting jobs'
+          description: >-
+            Check that the worker process is running (pm2 status kuybi-worker) and its
+            logs for errors; add worker capacity if the load is real.

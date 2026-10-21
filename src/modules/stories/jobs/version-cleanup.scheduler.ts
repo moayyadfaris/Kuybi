@@ -25,7 +25,7 @@ export class VersionCleanupScheduler implements OnModuleInit {
 
     await this.versionQueue.upsertJobScheduler(
       'version-cleanup-daily',
-      { pattern: '0 2 * * *' },
+      { pattern: '0 2 * * *', tz: 'UTC' },
       {
         name: VersionCleanupJobType.PRUNE_AUTO,
         data: {
