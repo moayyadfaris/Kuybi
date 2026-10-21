@@ -426,4 +426,59 @@ export class StoryRepository extends BaseRepository<Story> {
     }
     return this.cached(key, load, this.defaultTTL, { dependsOn: embeddedRows })
   }
+
+  /**
+   * Adds and removes links of a many-to-many relation (tags, categories, attachments)
+   * row by row in the join table, and moves the story's version on when anything
+   * changed, in one transaction. Saving the whole relation array instead let concurrent
+   * requests overwrite each other's links (the last save deleted the others' rows).
+   * Returns how many links were added and removed.
+   */
+  async changeLinks(
+    storyId: number,
+    relation: 'tags' | 'categories' | 'attachments',
+    change: { add?: Array<string | number>; remove?: Array<string | number> },
+    userId: string
+  ): Promise<{ added: number; removed: number }> {
+    const meta = this.repository.metadata.findRelationWithPropertyPath(relation)
+    if (!meta?.junctionEntityMetadata) throw new Error(`${relation} is not a many-to-many relation`)
+    const table = `"${meta.junctionEntityMetadata.tableName}"`
+    const owner = `"${meta.joinColumns[0].databaseName}"`
+    const linked = `"${meta.inverseJoinColumns[0].databaseName}"`
+    const add = [...new Set(change.add ?? [])]
+    const remove = [...new Set(change.remove ?? [])]
+
+    return this.transaction(
+      async manager => {
+        let added = 0
+        let removed = 0
+        if (add.length > 0) {
+          const values = add.map((_, i) => `($1, $${i + 2})`).join(', ')
+          const rows = await manager.query(
+            `INSERT INTO ${table} (${owner}, ${linked}) VALUES ${values}
+             ON CONFLICT DO NOTHING RETURNING ${linked}`,
+            [storyId, ...add]
+          )
+          added = rows.length
+        }
+        if (remove.length > 0) {
+          const [, count] = await manager.query(
+            `DELETE FROM ${table} WHERE ${owner} = $1 AND ${linked} = ANY($2)`,
+            [storyId, remove]
+          )
+          removed = count ?? 0
+        }
+        if (added + removed > 0) {
+          await manager
+            .createQueryBuilder()
+            .update(Story)
+            .set({ version: () => '"version" + 1', updatedBy: userId })
+            .where('id = :storyId', { storyId })
+            .execute()
+        }
+        return { added, removed }
+      },
+      { touched: [storyId] }
+    )
+  }
 }

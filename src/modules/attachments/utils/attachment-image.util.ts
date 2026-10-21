@@ -115,3 +115,9 @@ export type AttachmentMetadata = {
   validation?: unknown
   [key: string]: unknown
 }
+
+/**
+ * Time limit of a single image operation (sharp/libvips): a hostile or huge image must
+ * fail instead of holding a CPU indefinitely, also after its job gave up waiting
+ */
+export const IMAGE_OPERATION_TIMEOUT = { seconds: 30 }

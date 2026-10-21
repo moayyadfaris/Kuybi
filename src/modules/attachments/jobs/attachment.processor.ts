@@ -32,7 +32,12 @@ export interface ProcessImageJobData {
  * private, or delete it, while the job runs: the worker never writes the visibility, and
  * removes what it stored when the row is gone.
  */
-@Processor(QueueName.ATTACHMENT_PROCESSING, { concurrency: 5 })
+@Processor(QueueName.ATTACHMENT_PROCESSING, {
+  concurrency: 5,
+  // At most 120 images a minute per worker: decoding is CPU- and memory-heavy, and a
+  // burst of uploads must not starve the worker's other queues
+  limiter: { max: 120, duration: 60_000 }
+})
 export class AttachmentProcessor extends BaseProcessor {
   constructor(
     private readonly imagePipeline: ImagePipelineService,
@@ -81,23 +86,28 @@ export class AttachmentProcessor extends BaseProcessor {
     try {
       // Decoding and re-encoding a hostile or huge image can hang: the job fails (and is
       // retried) instead of holding a worker slot; what it stored so far stays private
-      const { prepared, metadata, thumbnailPath } = await withTimeout(async () => {
-        const original = await this.s3Service.download(s3Key)
-        const prepared = await this.imagePipeline.prepare(original)
+      // The budget's signal reaches every step: once it runs out, the attempt stops at its
+      // next step and its S3 calls are cancelled, so it cannot write after the job failed
+      // (and overlap the retry). Each image operation has its own time limit as well.
+      const { prepared, metadata, thumbnailPath } = await withTimeout(async signal => {
+        const original = await this.s3Service.download(s3Key, signal)
+        const prepared = await this.imagePipeline.prepare(original, signal)
 
         // Replaces the original (with its metadata) under the same key; private until done
         await this.s3Service.upload({
           key: s3Key,
           buffer: prepared.buffer,
           contentType: prepared.contentType,
-          isPublic: false
+          isPublic: false,
+          signal
         })
         const { metadata, thumbnailPath } = await this.imagePipeline.storeDerivatives(
           s3Key,
           prepared,
           false,
-          { generateThumbnails: generateThumbnails !== false }
+          { generateThumbnails: generateThumbnails !== false, signal }
         )
+        signal.throwIfAborted()
         return { prepared, metadata, thumbnailPath }
       }, this.processingBudgetMs)
 

@@ -3,6 +3,7 @@ import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import sharp from 'sharp'
 
+import { IMAGE_OPERATION_TIMEOUT } from '../utils/attachment-image.util'
 import { hasGpsData } from '../utils/exif-gps.util'
 
 /** What is read from an image's metadata: dimensions and whether it records a location */
@@ -85,7 +86,7 @@ export class ExifProcessorService {
       const exifData = await this.extractExifData(buffer)
       const input = await sharp(buffer).metadata()
 
-      let image = sharp(buffer)
+      let image = sharp(buffer).timeout(IMAGE_OPERATION_TIMEOUT)
       if (options.autoRotate !== false) {
         // Applies the EXIF orientation to the pixels, so the tag is no longer needed
         image = image.rotate()

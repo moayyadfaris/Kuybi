@@ -38,6 +38,8 @@ export interface S3UploadOptions {
   isPublic?: boolean
   metadata?: Record<string, string>
   cacheControl?: string
+  /** Cancels the upload (and refuses to start it) once aborted */
+  signal?: AbortSignal
 }
 
 export interface S3UploadResult {
@@ -136,8 +138,10 @@ export class S3Service {
         CacheControl: options.cacheControl || 'max-age=31536000' // 1 year default
       })
 
-      const result = await this.executeWithResilience('upload', signal =>
-        this.s3Client.send(command, { abortSignal: signal })
+      const result = await this.executeWithResilience(
+        'upload',
+        signal => this.s3Client.send(command, { abortSignal: signal }),
+        options.signal
       )
 
       this.logger.debug({ key: options.key }, 'Uploaded to S3')
@@ -237,15 +241,17 @@ export class S3Service {
     )
   }
 
-  async download(key: string): Promise<Buffer> {
+  async download(key: string, callerSignal?: AbortSignal): Promise<Buffer> {
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
         Key: key
       })
 
-      const result = await this.executeWithResilience('download', signal =>
-        this.s3Client.send(command, { abortSignal: signal })
+      const result = await this.executeWithResilience(
+        'download',
+        signal => this.s3Client.send(command, { abortSignal: signal }),
+        callerSignal
       )
 
       if (!result.Body) {
@@ -399,16 +405,25 @@ export class S3Service {
     return pathPosix.join(parsed.dir, fileName)
   }
 
+  /**
+   * Runs one S3 call with the circuit breaker and the S3 timeout. `callerSignal` (a job's
+   * own deadline) also cancels it, and a call is not started once that has aborted.
+   */
   private async executeWithResilience<T>(
     operation: string,
-    fn: (signal: AbortSignal) => Promise<T>
+    fn: (signal: AbortSignal) => Promise<T>,
+    callerSignal?: AbortSignal
   ): Promise<T> {
+    callerSignal?.throwIfAborted()
     return this.breaker.exec(() =>
-      withTimeout(fn, this.timeoutMs, () =>
-        this.logger.warn(
-          { operation, timeoutMs: this.timeoutMs },
-          `S3 ${operation} timed out after ${this.timeoutMs}ms`
-        )
+      withTimeout(
+        signal => fn(callerSignal ? AbortSignal.any([signal, callerSignal]) : signal),
+        this.timeoutMs,
+        () =>
+          this.logger.warn(
+            { operation, timeoutMs: this.timeoutMs },
+            `S3 ${operation} timed out after ${this.timeoutMs}ms`
+          )
       )
     )
   }

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { PinoLogger } from 'nestjs-pino'
 
 import { Action } from '@modules/acl'
@@ -105,11 +106,14 @@ export class StoryLifecycleService {
     )
     assertStatusTransition(story.status, status)
 
-    const updated = await this.storyRepository.update(id, {
+    // Only from the status the transition was checked against (and moves the version
+    // on): a concurrent change in between answers 409 instead of being overwritten
+    const updated = await this.storyRepository.updateIfVersion(id, story.version, {
       status,
       updatedBy: currentUser.id,
       lastModifiedBy: currentUser.id
     })
+    if (!updated) throw versionConflict('story')
     this.logger.info(
       {
         action: 'update_status',

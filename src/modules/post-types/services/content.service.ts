@@ -199,9 +199,18 @@ export class ContentService {
     })
   }
 
+  /**
+   * Applies a lifecycle change to the entry as it was read (moving the version on), so
+   * an edit made against the earlier version answers 409, and so does a change that
+   * raced this one
+   */
   private async statusChange(content: PostContent, changes: Partial<PostContent>) {
-    const updated = await this.postContentRepository.update(content.id, changes)
-    if (!updated) throw new NotFoundException('Content not found')
+    const updated = await this.postContentRepository.updateIfVersion(
+      content.id,
+      content.version,
+      changes
+    )
+    if (!updated) throw versionConflict('entry')
     return updated
   }
 

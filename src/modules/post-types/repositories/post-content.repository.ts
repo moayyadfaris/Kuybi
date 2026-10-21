@@ -210,7 +210,12 @@ export class PostContentRepository extends BaseRepository<PostContent> {
     const result = await this.repository
       .createQueryBuilder()
       .update(PostContent)
-      .set({ status: ContentStatus.PUBLISHED, publishedAt: () => '"scheduledAt"' })
+      .set({
+        status: ContentStatus.PUBLISHED,
+        publishedAt: () => '"scheduledAt"',
+        // A change like any other: edits made against the scheduled version answer 409
+        version: () => '"version" + 1'
+      })
       .where('status = :scheduled AND "scheduledAt" <= :now AND "deletedAt" IS NULL', {
         scheduled: ContentStatus.SCHEDULED,
         now

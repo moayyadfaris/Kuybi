@@ -1,6 +1,8 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import sharp, { type FitEnum } from 'sharp'
 
+import { IMAGE_OPERATION_TIMEOUT } from '../utils/attachment-image.util'
+
 export interface ThumbnailSize {
   name: string
   width: number
@@ -72,7 +74,7 @@ export class ImageProcessingService {
         background
       } = options
 
-      let resized = sharp(buffer).resize({
+      let resized = sharp(buffer).timeout(IMAGE_OPERATION_TIMEOUT).resize({
         width,
         height,
         fit,

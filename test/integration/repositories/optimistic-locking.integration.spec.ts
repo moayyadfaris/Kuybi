@@ -8,7 +8,9 @@
 import { ErrorCode } from '@shared/errors'
 
 import { CategoriesModule } from '@modules/categories/categories.module'
+import { PostContent } from '@modules/post-types/entities/post-content.entity'
 import { PostTypesModule } from '@modules/post-types/post-types.module'
+import { ContentService } from '@modules/post-types/services/content.service'
 import { Story } from '@modules/stories/entities/story.entity'
 import { StoriesModule } from '@modules/stories/stories.module'
 import { TagsModule } from '@modules/tags/tags.module'
@@ -124,6 +126,91 @@ describe('Optimistic locking', () => {
       { title: 'First' },
       { title: 'Second' }
     )
+  })
+
+  // A15: lifecycle and relationship writers follow the same protocol as PATCH
+  describe('every writer, not only PATCH', () => {
+    const newStory = async () =>
+      (
+        await post('/stories', {
+          title: `Story ${Date.now()}-${Math.random()}`,
+          details: 'Some details here',
+          type: 'REPORT',
+          status: 'DRAFT',
+          priority: 'NORMAL'
+        })
+      ).body.data
+    const newEntry = async () => {
+      const postType = (
+        await post('/post-types', {
+          name: `Lifecycle ${Date.now()}`,
+          singularLabel: 'Item',
+          pluralLabel: 'Items'
+        })
+      ).body.data
+      const entry = (
+        await post(`/content/${postType.slug}`, { title: 'Lifecycle entry', field_data: {} })
+      ).body.data
+      return { slug: postType.slug as string, entry }
+    }
+
+    it('a story status change moves the version on: an edit made against the old one is refused', async () => {
+      const story = await newStory()
+
+      const changed = await t
+        .http()
+        .patch(`/api/v1/stories/${story.id}/status`)
+        .set(admin.auth)
+        .send({ status: 'IN_REVIEW' })
+        .expect(200)
+      expect(changed.body.data.version).toBe(2)
+
+      await patch(`/stories/${story.id}`, { title: 'Stale edit', version: 1 }).expect(409)
+    })
+
+    it('publishing content moves the version on', async () => {
+      const { slug, entry } = await newEntry()
+
+      await t.http().post(`/api/v1/content/${slug}/${entry.id}/publish`).set(admin.auth).expect(200)
+
+      await patch(`/content/${slug}/${entry.id}`, { title: 'Stale edit', version: 1 }).expect(409)
+    })
+
+    it('scheduled publishing moves the version on', async () => {
+      const { entry } = await newEntry()
+      await t.dataSource.getRepository(PostContent).update(entry.id, {
+        status: 'scheduled' as never,
+        scheduledAt: new Date(Date.now() - 1000)
+      })
+
+      await t.app.get(ContentService).publishDue(new Date())
+
+      const stored = await t.dataSource.getRepository(PostContent).findOneByOrFail({ id: entry.id })
+      expect(stored.version).toBe(2)
+    })
+
+    it('keeps every tag of concurrent attach requests', async () => {
+      const story = await newStory()
+      const names = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot']
+
+      const results = await Promise.all(
+        names.map(name =>
+          t
+            .http()
+            .post(`/api/v1/stories/${story.id}/tags`)
+            .set(admin.auth)
+            .send({ tags: [`race-${name}`] })
+        )
+      )
+      expect(results.map(res => res.status)).toEqual(names.map(() => 201))
+
+      const stored = await t.dataSource
+        .getRepository(Story)
+        .findOneOrFail({ where: { id: story.id }, relations: { tags: true } })
+      expect(stored.tags!.map(tag => tag.name).sort()).toEqual(names.map(name => `race-${name}`))
+      // Each change moved the version on
+      expect(stored.version).toBe(1 + names.length)
+    })
   })
 
   it('never loses either of two concurrent story edits', async () => {

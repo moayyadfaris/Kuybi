@@ -231,6 +231,26 @@ describe('AttachmentProcessor', () => {
     expect(updates.at(-1)).toMatchObject({ securityStatus: 'failed' })
   })
 
+  it('stops a timed-out attempt: nothing it does afterwards reaches storage', async () => {
+    const { s3, run, processor } = build({ isPublic: true })
+    const photo = await geotaggedPhoto()
+    s3.objects.set('uploads/u/photo.jpg', { body: photo, isPublic: false })
+    // The download finishes, but only after the budget ran out
+    const download = s3.download.getMockImplementation()!
+    s3.download.mockImplementationOnce(async (key: string) => {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      return download(key)
+    })
+    ;(processor as unknown as { processingBudgetMs: number }).processingBudgetMs = 100
+
+    await expect(run()).rejects.toThrow(/timed out/)
+    // Give the abandoned attempt time to carry on, as it used to
+    await new Promise(resolve => setTimeout(resolve, 1500))
+
+    expect(s3.upload).not.toHaveBeenCalled()
+    expect(s3.objects.get('uploads/u/photo.jpg')!.body).toBe(photo)
+  })
+
   it('keeps the original private and the earlier metadata when processing fails', async () => {
     const { s3, updates, run } = build({ isPublic: true })
     s3.objects.set('uploads/u/photo.jpg', { body: Buffer.from('not an image'), isPublic: false })
