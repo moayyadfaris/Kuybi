@@ -24,8 +24,8 @@ import { QueueName } from '@core/queues/jobs/types'
 
 import { testConfig } from '../../test.config'
 
-// A queue no processor listens to in tests, so dispatched jobs stay put
-const QUEUE = QueueName.SECURITY_SCAN
+// A queue no processor consumes (dead letters are handled by hand), so jobs stay put
+const QUEUE = QueueName.DEAD_LETTER
 
 describe('Transactional outbox', () => {
   let moduleRef: TestingModule

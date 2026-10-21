@@ -20,8 +20,7 @@ Phase 1 of the Bull Queue implementation is complete! This establishes the found
 ```
 src/core/queues/                 # shared queue infrastructure (no feature code)
 ├── config/
-│   ├── queue.config.ts          # Queue configurations (rates, retries, etc.)
-│   └── worker.config.ts         # Worker concurrency settings
+│   └── queue.config.ts          # Connection fallbacks and job options (retries, retention)
 ├── jobs/
 │   └── types.ts                 # Queue names, job types, interfaces
 ├── processors/
@@ -64,17 +63,18 @@ the feature module itself (which the API also loads).
 
 ### ✅ Queues Registered
 
-9 queues are now registered and ready to use:
+Every queue has a processor in the worker:
 
-1. **session-cleanup-queue** - Session lifecycle management
-2. **log-maintenance-queue** - Log rotation and cleanup
-3. **email-queue** - Email notifications
-4. **sms-queue** - SMS notifications
-5. **attachment-processing-queue** - Image processing, thumbnails
-6. **notification-queue** - Push and in-app notifications
-7. **security-scan-queue** - Virus scanning, security checks
-8. **data-export-queue** - GDPR exports, data dumps
-9. **report-generation-queue** - Analytics and reports
+| Queue                         | Processor                    | Jobs                                        |
+| ----------------------------- | ---------------------------- | ------------------------------------------- |
+| `session-cleanup-queue`       | `SessionCleanupProcessor`    | Expired sessions and reset tokens           |
+| `account-security-queue`      | `AccountSecurityProcessor`   | Account unlocks, expired-lock sweeps        |
+| `email-queue`                 | `EmailProcessor`             | Every email (enqueued through the outbox)   |
+| `attachment-processing-queue` | `AttachmentProcessor`        | Image processing (EXIF strip, derivatives)  |
+| `version-cleanup-queue`       | `VersionCleanupProcessor`    | Daily story version prune                   |
+| `content-publishing-queue`    | `ContentPublishingProcessor` | Scheduled content going live (every minute) |
+| `audit-retention-queue`       | `AuditRetentionProcessor`    | Daily audit purge                           |
+| `dead-letter-queue`           | none (handled by hand)       | Jobs that failed their last attempt         |
 
 ### ✅ Bull Board Dashboard
 
@@ -118,36 +118,26 @@ bullBoard: {
 
 ## Queue Configuration Highlights
 
-### Rate Limiting
+### Retries and the dead-letter queue
 
-Each queue has rate limits to prevent overwhelming resources:
+Jobs retry with exponential backoff (3 attempts by default, 5 for email). Processors
+extend `BaseProcessor`, whose `@OnWorkerEvent` handlers log the lifecycle and move a job
+that failed its last attempt to `dead-letter-queue`, once (its id there is
+`<queue>-<job id>`). Job data is not logged unless a processor overrides `getLogData`
+(emails carry reset and verification links).
 
-- Email: 500/minute
-- SMS: 100/minute
-- Session Cleanup: 100/minute
-- Attachment Processing: 20/minute (CPU intensive)
-- Security Scan: 10/minute (very CPU intensive)
+### Rate limits and timeouts
 
-### Retry Strategy
-
-All jobs use exponential backoff:
-
-- Initial delay: 2 seconds
-- Multiplier: 2x per retry
-- Default attempts: 3
-- Email attempts: 5 (more critical)
+Rate limits are worker settings in BullMQ: they go on the processor
+(`@Processor(QueueName.EMAIL, { concurrency: 5, limiter: { max: 500, duration: 60_000 } })`),
+not on the queue registration, where BullMQ ignores them. BullMQ has no job timeout
+option; a processor that must not run long enforces its own time budget.
 
 ### Job Retention
 
-- Completed jobs: 24 hours (last 1000)
-- Failed jobs: 7 days (last 5000)
-
-### Timeouts
-
-- Standard jobs: No timeout
-- Attachment processing: 5 minutes
-- Security scans: 10 minutes
-- Data exports: 30 minutes
+- Completed jobs: kept 24 hours (at most 1000)
+- Failed jobs: kept 7 days (at most 5000)
+- Dead letters: kept until removed
 
 ## How to Use
 
@@ -193,37 +183,18 @@ The worker boots `QueueWorkerModule`, registers processors, and keeps the repeat
 
 ## Queue Configuration Examples
 
-### Session Cleanup Queue
+Per-queue job options live in `config/queue.config.ts`:
 
 ```typescript
-{
-  limiter: { max: 100, duration: 60000 },  // 100 jobs/min
-  priority: 5,                              // Medium-high priority
-  attempts: 3                               // 3 retries
+[QueueName.EMAIL]: {
+  defaultJobOptions: {
+    attempts: 5,
+    backoff: { type: 'exponential', delay: 5000 }
+  }
 }
 ```
 
-### Email Queue
-
-```typescript
-{
-  limiter: { max: 500, duration: 60000 },  // 500 emails/min
-  priority: 7,                              // High priority
-  attempts: 5,                              // 5 retries
-  backoff: { type: 'exponential', delay: 5000 }
-}
-```
-
-### Attachment Processing Queue
-
-```typescript
-{
-  limiter: { max: 20, duration: 60000 },   // 20 jobs/min (CPU bound)
-  priority: 4,                              // Medium priority
-  timeout: 300000,                          // 5 min timeout
-  attempts: 2                               // 2 retries only
-}
-```
+Worker options (concurrency, rate limit) live on the processor's `@Processor` decorator.
 
 ## Architecture
 
@@ -415,7 +386,6 @@ maxmemory-policy allkeys-lru  # For cache DB
 - [BullMQ Documentation](https://docs.bullmq.io/)
 - [Bull Board Documentation](https://github.com/felixmosh/bull-board)
 - [Queue Configuration](./config/queue.config.ts)
-- [Worker Configuration](./config/worker.config.ts)
 - [Background work (architecture overview)](../../../docs/architecture/README.md#background-work)
 - [ADR 0004: transactional outbox](../../../docs/adr/0004-transactional-outbox.md)
 

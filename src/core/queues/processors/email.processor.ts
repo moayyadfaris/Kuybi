@@ -28,7 +28,9 @@ import { BaseProcessor } from './base.processor'
  * and comprehensive error handling
  */
 @Processor(QueueName.EMAIL, {
-  concurrency: 5 // Process up to 5 emails concurrently
+  concurrency: 5, // Process up to 5 emails concurrently
+  // At most 500 emails a minute per worker, below typical SMTP provider limits
+  limiter: { max: 500, duration: 60_000 }
 })
 @Injectable()
 export class EmailProcessor extends BaseProcessor {
