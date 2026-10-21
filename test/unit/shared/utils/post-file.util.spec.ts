@@ -12,6 +12,7 @@ describe('postFile', () => {
 
   beforeAll(done => {
     server = createServer((req, res) => {
+      if (req.url === '/hang') return // never answers
       let bytes = 0
       req.on('data', chunk => (bytes += chunk.length))
       req.on('end', () => {
@@ -37,5 +38,14 @@ describe('postFile', () => {
     expect(response.status).toBe(200)
     expect(received.bytes).toBe(50_000)
     expect(received.headers['x-log-filename']).toBe('archive.gz')
+  })
+
+  it('gives up when the endpoint does not answer in time', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'post-file-')), 'archive.gz')
+    writeFileSync(file, Buffer.alloc(1_000, 7))
+
+    const started = Date.now()
+    await expect(postFile(`${url}/hang`, file, {}, { timeoutMs: 200 })).rejects.toThrow()
+    expect(Date.now() - started).toBeLessThan(2_000)
   })
 })
