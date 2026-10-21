@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm'
 
 import { AppDataSource } from '../data-source'
+import { withMigrationLock } from '../migration-lock'
 
 /**
  * TypeORM's undoLastMigration ignores a migration's own `transaction = false` and wraps
@@ -18,9 +19,11 @@ async function transactionModeForLast(dataSource: DataSource): Promise<'each' | 
 async function revertMigrations() {
   try {
     await AppDataSource.initialize()
-    await AppDataSource.undoLastMigration({
-      transaction: await transactionModeForLast(AppDataSource)
-    })
+    await withMigrationLock(AppDataSource, async () =>
+      AppDataSource.undoLastMigration({
+        transaction: await transactionModeForLast(AppDataSource)
+      })
+    )
     console.log('Last migration reverted successfully')
   } catch (error) {
     console.error('Failed to revert migration', error)

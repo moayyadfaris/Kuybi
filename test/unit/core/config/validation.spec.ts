@@ -30,6 +30,42 @@ describe('assertProductionSecrets', () => {
     expect(() => assertProductionSecrets({ NODE_ENV: 'test', BCRYPT_ROUNDS: 4 })).not.toThrow()
   })
 
+  describe('database TLS', () => {
+    const remote = { ...deployed, DB_HOST: 'db.internal.example.com' }
+
+    it('makes a deployment with a remote database host choose DB_SSL', () => {
+      expect(() => assertProductionSecrets({ NODE_ENV: 'production', ...remote })).toThrow(
+        /DB_SSL must be set/
+      )
+      expect(() =>
+        assertProductionSecrets({ NODE_ENV: 'production', ...remote, DB_SSL: 'true' })
+      ).not.toThrow()
+      // An explicit "false" is a decision (e.g. a private network), not an oversight
+      expect(() =>
+        assertProductionSecrets({ NODE_ENV: 'production', ...remote, DB_SSL: 'false' })
+      ).not.toThrow()
+    })
+
+    it('does not ask for TLS on a local socket', () => {
+      for (const host of [undefined, 'localhost', '127.0.0.1', '::1']) {
+        expect(() =>
+          assertProductionSecrets({ NODE_ENV: 'production', ...deployed, DB_HOST: host })
+        ).not.toThrow()
+      }
+    })
+
+    it('refuses an unverified certificate', () => {
+      expect(() =>
+        assertProductionSecrets({
+          NODE_ENV: 'production',
+          ...remote,
+          DB_SSL: 'true',
+          DB_SSL_REJECT_UNAUTHORIZED: 'false'
+        })
+      ).toThrow(/DB_SSL_REJECT_UNAUTHORIZED=false/)
+    })
+  })
+
   it.each(['SMTP_TLS_REJECT_UNAUTHORIZED', 'SMTP_REQUIRE_TLS'])(
     'refuses %s=false outside development/test',
     key => {

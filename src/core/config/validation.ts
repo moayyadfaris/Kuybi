@@ -192,6 +192,38 @@ class EnvironmentVariables {
   @IsOptional()
   SMTP_PASSWORD?: string
 
+  // TLS to Postgres: required to be set (true/false) for a remote host outside development/test
+  @IsString()
+  @IsOptional()
+  DB_SSL?: string
+
+  // "false" is refused outside development/test; supply DB_SSL_CA_FILE for a private CA
+  @IsString()
+  @IsOptional()
+  DB_SSL_REJECT_UNAUTHORIZED?: string
+
+  @IsString()
+  @IsOptional()
+  DB_SSL_CA_FILE?: string
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  DB_STATEMENT_TIMEOUT_MS?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  DB_IDLE_IN_TRANSACTION_TIMEOUT_MS?: number
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  DB_MIGRATION_LOCK_TIMEOUT_MS?: number
+
   // "false" only for a local mail catcher without TLS; refused outside development/test
   @IsString()
   @IsOptional()
@@ -521,8 +553,22 @@ export function assertProductionSecrets(
       problems.push(`APP_PUBLIC_URL must be the site's http(s) URL in ${env}`)
     }
 
+    // Database credentials and every row cross this connection: a remote host needs an
+    // explicit TLS decision ("false" only for a private network), and a verified certificate
+    const dbHost = typeof config.DB_HOST === 'string' ? config.DB_HOST.trim() : ''
+    const localDb = ['', 'localhost', '127.0.0.1', '::1'].includes(dbHost) || dbHost.startsWith('/')
+    if (!localDb && (config.DB_SSL === undefined || String(config.DB_SSL).trim() === '')) {
+      problems.push(
+        `DB_SSL must be set for the remote database host in ${env} (true, or false on a private network)`
+      )
+    }
+
     // Credentials, reset and verification links travel over this connection
-    for (const key of ['SMTP_REQUIRE_TLS', 'SMTP_TLS_REJECT_UNAUTHORIZED']) {
+    for (const key of [
+      'SMTP_REQUIRE_TLS',
+      'SMTP_TLS_REJECT_UNAUTHORIZED',
+      'DB_SSL_REJECT_UNAUTHORIZED'
+    ]) {
       if (String(config[key]).trim().toLowerCase() === 'false') {
         problems.push(`${key}=false is only allowed in development and test`)
       }

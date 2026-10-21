@@ -99,6 +99,16 @@ export default () => {
       password: process.env.DB_PASSWORD || 'postgres',
       name: process.env.DB_NAME || 'kuybi',
       logging: process.env.TYPEORM_LOGGING === 'true',
+      // TLS to Postgres; a deployed environment with a remote host must set DB_SSL
+      ssl: {
+        enabled: parseBoolean(process.env.DB_SSL, false),
+        rejectUnauthorized: parseBoolean(process.env.DB_SSL_REJECT_UNAUTHORIZED, true),
+        caFile: process.env.DB_SSL_CA_FILE || undefined
+      },
+      // Session limits (see postgresOptions); 0 disables one
+      statementTimeoutMs: parseNumber(process.env.DB_STATEMENT_TIMEOUT_MS, 60000),
+      idleInTransactionTimeoutMs: parseNumber(process.env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS, 60000),
+      migrationLockTimeoutMs: parseNumber(process.env.DB_MIGRATION_LOCK_TIMEOUT_MS, 10000),
       pool: {
         enabled: parseBoolean(process.env.DB_POOL_ENABLED, env === 'production'),
         min: parseNumber(process.env.DB_POOL_MIN, env === 'production' ? 2 : 1),

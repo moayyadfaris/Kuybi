@@ -5,8 +5,9 @@ import { Queue } from 'bullmq'
 import express from 'express'
 import basicAuth from 'express-basic-auth'
 
-import { assertProductionSecrets } from '@core/config/validation'
 import { QueueName } from '@core/queues/jobs/types'
+
+import { dashboardHealth, dashboardSettings, startupLines } from './dashboard-settings'
 
 /**
  * Bull Board Dashboard
@@ -20,37 +21,15 @@ import { QueueName } from '@core/queues/jobs/types'
  * - Failed job inspection
  * - Job search and filtering
  *
- * Security:
- * - Protected with HTTP Basic Auth
- * - Credentials from environment variables
+ * Security (see dashboardSettings):
+ * - HTTP Basic Auth; BULL_BOARD_PASSWORD is required and never printed
+ * - Listens on loopback unless BULL_BOARD_HOST says otherwise: Basic Auth over plain
+ *   HTTP must not face a network, so reach it through an SSH tunnel or a TLS proxy
  */
 
 async function bootstrap() {
-  // Load environment variables directly
-  const redisHost = process.env.REDIS_HOST || 'localhost'
-  const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10)
-  const redisPassword = process.env.REDIS_PASSWORD
-  const redisQueueDb = parseInt(process.env.REDIS_QUEUE_DB || '1', 10)
-  const dashboardPort = parseInt(process.env.BULL_BOARD_PORT || '4050', 10)
-  const username = process.env.BULL_BOARD_USERNAME || 'admin'
-  const password = process.env.BULL_BOARD_PASSWORD
-
-  // The dashboard can retry, promote and delete jobs - never run it with a guessable password
-  if (!password) {
-    throw new Error('BULL_BOARD_PASSWORD must be set to start the Bull Board dashboard')
-  }
-  assertProductionSecrets(process.env, ['BULL_BOARD_PASSWORD'])
-
-  // Create Redis connection for queues
-  const connection = {
-    host: redisHost,
-    port: redisPort,
-    password: redisPassword,
-    db: redisQueueDb
-  }
-
-  console.log('📊 Initializing Bull Board Dashboard...')
-  console.log(`   Redis: ${connection.host}:${connection.port} (DB ${connection.db})`)
+  const settings = dashboardSettings()
+  const connection = settings.redis
 
   // Create queue instances for monitoring
   const queues = [
@@ -80,7 +59,7 @@ async function bootstrap() {
   dashboardApp.use(
     '/admin/queues',
     basicAuth({
-      users: { [username]: password },
+      users: { [settings.username]: settings.password },
       challenge: true,
       realm: 'Bull Board Dashboard'
     })
@@ -88,19 +67,9 @@ async function bootstrap() {
 
   dashboardApp.use('/admin/queues', serverAdapter.getRouter())
 
-  // Health check endpoint
-  dashboardApp.get('/health', (req, res) => {
-    res.json({
-      status: 'healthy',
-      service: 'bull-board',
-      timestamp: new Date().toISOString(),
-      redis: {
-        host: connection.host,
-        port: connection.port,
-        db: connection.db
-      },
-      queues: queues.map(q => q.name)
-    })
+  // Health check endpoint (unauthenticated: says nothing about the infrastructure)
+  dashboardApp.get('/health', (_req, res) => {
+    res.json(dashboardHealth())
   })
 
   // Root redirect
@@ -108,15 +77,11 @@ async function bootstrap() {
     res.redirect('/admin/queues')
   })
 
-  dashboardApp.listen(dashboardPort, () => {
-    console.log('✅ Bull Board Dashboard is running!')
-    console.log(`   URL: http://localhost:${dashboardPort}/admin/queues`)
-    console.log(`   Username: ${username}`)
-    console.log(`   Password: ${password}`)
-    console.log(`   Health: http://localhost:${dashboardPort}/health`)
-    console.log('')
-    console.log('📈 Monitoring queues:')
-    queues.forEach(queue => console.log(`   - ${queue.name}`))
+  dashboardApp.listen(settings.port, settings.host, () => {
+    startupLines(
+      settings,
+      queues.map(queue => queue.name)
+    ).forEach(line => console.log(line))
   })
 }
 
