@@ -120,6 +120,29 @@ describe('Transactional outbox', () => {
     expect(stored.availableAt.getTime()).toBeGreaterThan(Date.now())
   })
 
+  it('gives up on a dispatch Redis does not answer, and leaves the rest of the batch', async () => {
+    const [first, second] = [await outbox.enqueue(job(1)), await outbox.enqueue(job(2))]
+    // Redis unreachable: BullMQ queues the command and never settles it
+    const add = jest.spyOn(queue, 'add').mockImplementation(() => new Promise(() => undefined))
+    const budget = relay as unknown as { dispatchTimeoutMs: number }
+    budget.dispatchTimeoutMs = 200
+    try {
+      expect(await relay.relayBatch()).toBe(2)
+    } finally {
+      add.mockRestore()
+      budget.dispatchTimeoutMs = 5000
+    }
+
+    const stuck = await messages().findOneByOrFail({ id: first })
+    expect(stuck).toMatchObject({ status: 'pending', attempts: 1 })
+    expect(stuck.lastError).toMatch(/timed out/)
+    // Not tried while Redis is down: no attempt spent
+    expect(await messages().findOneByOrFail({ id: second })).toMatchObject({
+      status: 'pending',
+      attempts: 0
+    })
+  }, 5000)
+
   it('does not queue a message twice when it is re-dispatched', async () => {
     const id = await outbox.enqueue(job(1))
     await relay.relayBatch()
