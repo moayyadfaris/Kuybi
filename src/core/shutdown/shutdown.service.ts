@@ -79,13 +79,9 @@ export class ShutdownService implements OnApplicationShutdown {
     try {
       const cacheManager = this.moduleRef.get<Cache>(CACHE_MANAGER, { strict: false })
 
-      if (cacheManager) {
-        // cache-manager doesn't have a built-in close method for all stores
-        // but the Redis store should close when the app shuts down
-        this.logger.debug('ShutdownService: Cache manager found, cleanup will be handled by NestJS')
-      } else {
-        this.logger.debug('ShutdownService: No cache manager found')
-      }
+      // Closes the Redis connection of every store
+      await cacheManager?.disconnect()
+      this.logger.info('ShutdownService: Cache connections closed')
     } catch (error) {
       this.logger.warn(
         { error: errorMessage(error) },
