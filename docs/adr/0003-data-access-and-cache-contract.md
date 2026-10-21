@@ -31,6 +31,10 @@ true })` tags it with the list tag too, because a new row can become the answer.
     no pattern deletes: every entry is tagged, so the tags reach it. Writes that bypass the base methods (raw inserts, bulk updates) call
     `invalidateCacheByEntityId`, `invalidateListCaches` or `invalidateCacheByTag`.
   - A write invalidates the row it touched and the list tag; other rows stay cached.
+  - **Fills are fenced.** `cached()` takes a fence (the current invalidation number)
+    before loading and stores the value only if none of its tags was invalidated since. A
+    read that started before a write and finished after the write's invalidation returns
+    its value but does not cache it, so the old row cannot be cached for a whole TTL.
   - An entry that **embeds rows of another entity** (a story with its tags, categories,
     main image and author) also carries their row tags: `cached(..., { dependsOn })`
     returns `cacheRowTag(<entity>, <id>)` for each embedded row. A write to that row

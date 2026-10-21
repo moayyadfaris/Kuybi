@@ -70,7 +70,9 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   /**
    * Read-through cache for subclass queries. The value is tagged per the cache
-   * contract, so writes through this repository invalidate it.
+   * contract, so writes through this repository invalidate it. The fence is taken before
+   * the load: if a write invalidates the entry's tags while it loads, the (possibly old)
+   * value is returned but not cached.
    */
   protected async cached<V>(
     key: string,
@@ -81,20 +83,25 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     if (!this.cacheService) return load()
     const hit = await this.cacheService.get<V>(key)
     if (hit !== undefined && hit !== null) return hit
+    const since = await this.cacheService.fence()
     const value = await load()
-    // A cached null would read back as a miss, so misses are not stored
-    if (value !== null) await this.cacheSet(key, value, ttl, options)
+    // A cached null would read back as a miss, so misses are not stored; without a
+    // fence (cache unavailable) a stale fill could not be detected, so nothing is stored
+    if (value !== null && since !== undefined) {
+      await this.cacheSet(key, value, ttl, { ...options, since })
+    }
     return value
   }
 
   /**
-   * Store a value under the cache contract (see cached())
+   * Store a value under the cache contract (see cached()). Pass `since` (the fence taken
+   * before the value was read) so a value invalidated meanwhile is not kept.
    */
   protected async cacheSet<V>(
     key: string,
     value: V,
     ttl?: number,
-    options?: CacheEntryOptions<V>
+    options?: CacheEntryOptions<V> & { since?: number }
   ): Promise<void> {
     if (!this.cacheService || value === undefined) return
     const tags = this.getCacheTags(this.rowIdOf(value))
@@ -102,7 +109,9 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     for (const tag of options?.dependsOn?.(value) ?? []) {
       if (!tags.includes(tag)) tags.push(tag)
     }
-    await this.cacheService.setWithTags(key, value, tags, ttl ?? this.defaultTTL)
+    await this.cacheService.setWithTags(key, value, tags, ttl ?? this.defaultTTL, {
+      since: options?.since
+    })
   }
 
   /**

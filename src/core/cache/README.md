@@ -21,7 +21,10 @@ other projects: clean up through tag invalidation (or, for a full reset, delete
 `kuybi:*` with SCAN + UNLINK), never `FLUSHALL` / `FLUSHDB`. Tests use their own
 namespace in database 15, and `TestRedis.clearCache` deletes only that namespace.
 
-Tag sets never expire before the entries they track (their TTL only grows), tagging and
+Cache fills are fenced: `cached()` notes the invalidation number before it loads and the
+entry is refused if one of its tags was invalidated meanwhile (each tag's latest number
+is at `kuybi:_fence:<tag>`), so a read racing a write cannot cache the old row. Tag sets
+never expire before the entries they track (their TTL only grows), tagging and
 invalidation are atomic Lua scripts, and tag calls connect the Redis client themselves (a
 worker job may make the first cache call of its process).
 

@@ -91,37 +91,33 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
       options?.offset ?? 0
     )
 
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<StoryVersion[]>(cacheKey)
-      if (cached) return cached
+    const load = async (): Promise<StoryVersion[]> => {
+      const queryBuilder = this.repository
+        .createQueryBuilder('version')
+        .leftJoinAndSelect('version.author', 'user')
+        .where('version.storyId = :storyId', { storyId })
+
+      if (options?.branch) {
+        queryBuilder.andWhere('version.branchName = :branch', { branch: options.branch })
+      }
+
+      queryBuilder.orderBy('version.versionNumber', 'DESC')
+
+      if (options?.limit) {
+        queryBuilder.take(options.limit)
+      }
+
+      if (options?.offset) {
+        queryBuilder.skip(options.offset)
+      }
+
+      const versions = await queryBuilder.getMany()
+
+      return versions
     }
-
-    const queryBuilder = this.repository
-      .createQueryBuilder('version')
-      .leftJoinAndSelect('version.author', 'user')
-      .where('version.storyId = :storyId', { storyId })
-
-    if (options?.branch) {
-      queryBuilder.andWhere('version.branchName = :branch', { branch: options.branch })
-    }
-
-    queryBuilder.orderBy('version.versionNumber', 'DESC')
-
-    if (options?.limit) {
-      queryBuilder.take(options.limit)
-    }
-
-    if (options?.offset) {
-      queryBuilder.skip(options.offset)
-    }
-
-    const versions = await queryBuilder.getMany()
-
-    if (this.cacheService && !options?.bypassCache) {
-      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
-    }
-
-    return versions
+    return options?.bypassCache
+      ? load()
+      : this.cached(cacheKey, load, options?.ttl ?? this.defaultTTL)
   }
 
   /**
@@ -196,32 +192,26 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   ): Promise<StoryVersion[]> {
     const cacheKey = this.buildCacheKey('chain', versionId)
 
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<StoryVersion[]>(cacheKey)
-      if (cached) return cached
+    const load = async (): Promise<StoryVersion[]> => {
+      // Build chain by following parentVersionId
+      const chain: StoryVersion[] = []
+      let currentId: string | null = versionId
+
+      while (currentId) {
+        const version = await this.repository.findOne({
+          where: { id: currentId },
+          relations: { author: true, parentVersion: true }
+        })
+
+        if (!version) break
+
+        chain.push(version)
+        currentId = version.parentVersionId
+      }
+
+      return chain
     }
-
-    // Build chain by following parentVersionId
-    const chain: StoryVersion[] = []
-    let currentId: string | null = versionId
-
-    while (currentId) {
-      const version = await this.repository.findOne({
-        where: { id: currentId },
-        relations: { author: true, parentVersion: true }
-      })
-
-      if (!version) break
-
-      chain.push(version)
-      currentId = version.parentVersionId
-    }
-
-    if (this.cacheService && !options?.bypassCache) {
-      await this.cacheSet(cacheKey, chain, options?.ttl ?? 1800) // 30 min TTL
-    }
-
-    return chain
+    return options?.bypassCache ? load() : this.cached(cacheKey, load, options?.ttl ?? 1800)
   }
 
   /**
@@ -233,24 +223,20 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   ): Promise<string[]> {
     const cacheKey = this.buildCacheKey('branches', storyId)
 
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<string[]>(cacheKey)
-      if (cached) return cached
+    const load = async (): Promise<string[]> => {
+      const result = await this.repository
+        .createQueryBuilder('version')
+        .select('DISTINCT version.branchName', 'branchName')
+        .where('version.storyId = :storyId', { storyId })
+        .getRawMany()
+
+      const branches = result.map(r => r.branchName)
+
+      return branches
     }
-
-    const result = await this.repository
-      .createQueryBuilder('version')
-      .select('DISTINCT version.branchName', 'branchName')
-      .where('version.storyId = :storyId', { storyId })
-      .getRawMany()
-
-    const branches = result.map(r => r.branchName)
-
-    if (this.cacheService && !options?.bypassCache) {
-      await this.cacheSet(cacheKey, branches, options?.ttl ?? this.defaultTTL)
-    }
-
-    return branches
+    return options?.bypassCache
+      ? load()
+      : this.cached(cacheKey, load, options?.ttl ?? this.defaultTTL)
   }
 
   /**
@@ -263,22 +249,18 @@ export class StoryVersionRepository extends BaseRepository<StoryVersion> {
   ): Promise<StoryVersion[]> {
     const cacheKey = this.buildCacheKey('branchVersions', storyId, branch)
 
-    if (!options?.bypassCache && this.cacheService) {
-      const cached = await this.cacheService.get<StoryVersion[]>(cacheKey)
-      if (cached) return cached
+    const load = async (): Promise<StoryVersion[]> => {
+      const versions = await this.repository.find({
+        where: { storyId, branchName: branch },
+        relations: { author: true },
+        order: { versionNumber: 'DESC' }
+      })
+
+      return versions
     }
-
-    const versions = await this.repository.find({
-      where: { storyId, branchName: branch },
-      relations: { author: true },
-      order: { versionNumber: 'DESC' }
-    })
-
-    if (this.cacheService && !options?.bypassCache) {
-      await this.cacheSet(cacheKey, versions, options?.ttl ?? this.defaultTTL)
-    }
-
-    return versions
+    return options?.bypassCache
+      ? load()
+      : this.cached(cacheKey, load, options?.ttl ?? this.defaultTTL)
   }
 
   /**

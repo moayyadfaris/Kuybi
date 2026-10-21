@@ -18,6 +18,9 @@ type CacheServiceApi = Pick<CacheService, keyof CacheService>
 export class InMemoryCacheService implements CacheServiceApi {
   private readonly store = new Map<string, string>()
   private readonly tagIndex = new Map<string, Set<string>>()
+  /** Invalidation number of each tag's latest invalidation (see CacheService.fence) */
+  private readonly fences = new Map<string, number>()
+  private sequence = 0
 
   private read<T>(key: string): T | undefined {
     const raw = this.store.get(key)
@@ -45,18 +48,35 @@ export class InMemoryCacheService implements CacheServiceApi {
   async reset(): Promise<void> {
     this.store.clear()
     this.tagIndex.clear()
+    this.fences.clear()
   }
 
-  async setWithTags<T>(key: string, value: T, tags: string[]): Promise<void> {
+  async fence(): Promise<number> {
+    return this.sequence
+  }
+
+  async setWithTags<T>(
+    key: string,
+    value: T,
+    tags: string[],
+    _ttl?: number,
+    options: { since?: number } = {}
+  ): Promise<boolean> {
+    const { since } = options
+    if (since !== undefined && tags.some(tag => (this.fences.get(tag) ?? 0) > since)) {
+      return false
+    }
     this.write(key, value)
     for (const tag of tags) {
       const keys = this.tagIndex.get(tag) ?? new Set<string>()
       keys.add(key)
       this.tagIndex.set(tag, keys)
     }
+    return true
   }
 
   async invalidateTag(tag: string): Promise<void> {
+    this.fences.set(tag, ++this.sequence)
     for (const key of this.tagIndex.get(tag) ?? []) {
       this.store.delete(key)
     }

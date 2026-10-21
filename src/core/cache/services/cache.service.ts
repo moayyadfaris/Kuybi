@@ -17,32 +17,57 @@ interface RedisKeyv {
 }
 
 /**
- * Adds an entry key to a tag set, extending the set's TTL but never shortening it: the
+ * Records an entry under its tags, unless one of them was invalidated after the entry's
+ * data was read (`since`, the fence taken before reading; '' skips the check). A read
+ * that started before a write and finished after the write's invalidation would
+ * otherwise cache the old data until it expires. Tag sets get a TTL that only grows: a
  * set must outlive every entry it tracks, or a long-lived entry could no longer be
- * invalidated. A set without TTL gets one.
+ * invalidated. Returns 0 (and removes the entry) when the entry was refused.
+ * KEYS[1] entry; ARGV: entry key in the sets, set TTL, since, fence prefix, tag-set
+ * prefix, tags... (single-node Redis: derived keys are not declared in KEYS)
  */
 const TAG_SCRIPT = `
-redis.call('SADD', KEYS[1], ARGV[1])
+local since = ARGV[3]
+if since ~= '' then
+  for i = 6, #ARGV do
+    local invalidated = redis.call('GET', ARGV[4] .. ARGV[i])
+    if invalidated and tonumber(invalidated) > tonumber(since) then
+      redis.call('UNLINK', KEYS[1])
+      return 0
+    end
+  end
+end
 local ttl = tonumber(ARGV[2])
-if redis.call('TTL', KEYS[1]) < ttl then redis.call('EXPIRE', KEYS[1], ttl) end
+for i = 6, #ARGV do
+  local set = ARGV[5] .. ARGV[i]
+  redis.call('SADD', set, ARGV[1])
+  if redis.call('TTL', set) < ttl then redis.call('EXPIRE', set, ttl) end
+end
 return 1`
 
 /**
- * Deletes every entry of a tag set and the set, atomically: an entry tagged while the
- * invalidation runs cannot be dropped from the set yet survive in the cache.
- * (Single-node Redis: entry keys are derived, not declared in KEYS.)
+ * Deletes every entry of a tag set and the set, atomically (an entry tagged while the
+ * invalidation runs cannot drop out of the set yet survive), and stamps the tag with the
+ * next invalidation number, which TAG_SCRIPT compares with an entry's fence.
+ * KEYS[1] tag set; ARGV: entry prefix, tag fence key, sequence key, fence TTL
  */
 const INVALIDATE_SCRIPT = `
+local seq = redis.call('INCR', ARGV[3])
+redis.call('SET', ARGV[2], seq, 'EX', tonumber(ARGV[4]))
 local members = redis.call('SMEMBERS', KEYS[1])
 for _, key in ipairs(members) do redis.call('UNLINK', ARGV[1] .. key) end
 redis.call('DEL', KEYS[1])
 return #members`
 
+/** How long a tag's invalidation number is kept: far longer than any cache fill takes */
+const FENCE_TTL_SECONDS = 300
+
 /**
  * The application cache: get/set/del plus tag-based invalidation (ADR 0003). Entries are
  * stored by Keyv under the app's namespace; tag sets are plain Redis sets under
- * `<namespace>:_tags:` (no entity name starts with an underscore, so a tag set never
- * shares a key with an entry). Every call goes through a timeout and a circuit breaker and degrades
+ * `<namespace>:_tags:`, with each tag's latest invalidation number at
+ * `<namespace>:_fence:` (no entity name starts with an underscore, so these never share
+ * a key with an entry). Every call goes through a timeout and a circuit breaker and degrades
  * to a miss (or a no-op) when Redis is unavailable.
  */
 @Injectable()
@@ -84,25 +109,63 @@ export class CacheService {
   }
 
   /**
-   * Stores a value and records its key under each tag, for invalidateTag. If the tags
-   * cannot be recorded the entry is removed again: an untracked entry could never be
-   * invalidated and would be served stale until it expires.
+   * The current invalidation number. Take it before reading the data to cache and pass
+   * it to setWithTags (`since`): the entry is refused if a tag of it was invalidated in
+   * between. Undefined when Redis is unavailable (then do not cache).
    */
-  async setWithTags<T>(key: string, value: T, tags: string[], ttl?: number): Promise<void> {
+  async fence(): Promise<number | undefined> {
+    return this.resilient(
+      'fence',
+      async () => {
+        const client = await this.client()
+        return Number(
+          (await client.eval(`return redis.call('GET', KEYS[1])`, {
+            keys: [this.sequenceKey()],
+            arguments: []
+          })) ?? 0
+        )
+      },
+      {}
+    )
+  }
+
+  /**
+   * Stores a value and records its key under each tag, for invalidateTag. With `since`
+   * (from fence(), taken before the data was read) the entry is not kept if one of its
+   * tags was invalidated meanwhile. If the tags cannot be recorded the entry is removed
+   * again: an untracked entry could never be invalidated and would be served stale until
+   * it expires. Returns whether the entry was kept.
+   */
+  async setWithTags<T>(
+    key: string,
+    value: T,
+    tags: string[],
+    ttl?: number,
+    options: { since?: number } = {}
+  ): Promise<boolean> {
     await this.set(key, value, ttl)
     const tagTtl = String(this.ttlSeconds(ttl) + 300)
-    const tagged = await this.resilient(
+    const kept = await this.resilient(
       'setWithTags',
       async () => {
         const client = await this.client()
-        for (const tag of tags) {
-          await client.eval(TAG_SCRIPT, { keys: [this.tagKey(tag)], arguments: [key, tagTtl] })
-        }
-        return true
+        const result = await client.eval(TAG_SCRIPT, {
+          keys: [this.entryPrefix() + key],
+          arguments: [
+            key,
+            tagTtl,
+            options.since === undefined ? '' : String(options.since),
+            this.fencePrefix(),
+            this.tagPrefix(),
+            ...tags
+          ]
+        })
+        return result === 1
       },
       { key, tags }
     )
-    if (!tagged) await this.del(key)
+    if (kept === undefined) await this.del(key)
+    return kept === true
   }
 
   /** Deletes every entry recorded under the tag */
@@ -112,8 +175,13 @@ export class CacheService {
       async () => {
         const client = await this.client()
         const count = await client.eval(INVALIDATE_SCRIPT, {
-          keys: [this.tagKey(tag)],
-          arguments: [this.entryPrefix()]
+          keys: [this.tagPrefix() + tag],
+          arguments: [
+            this.entryPrefix(),
+            this.fencePrefix() + tag,
+            this.sequenceKey(),
+            String(FENCE_TTL_SECONDS)
+          ]
         })
         this.logger.debug({ tag, keysInvalidated: count }, 'Cache tag invalidated')
       },
@@ -155,8 +223,17 @@ export class CacheService {
     return this.keyv.namespace ? `${this.keyv.namespace}:` : ''
   }
 
-  private tagKey(tag: string): string {
-    return `${this.entryPrefix()}_tags:${tag}`
+  private tagPrefix(): string {
+    return `${this.entryPrefix()}_tags:`
+  }
+
+  /** Where each tag's latest invalidation number is kept */
+  private fencePrefix(): string {
+    return `${this.entryPrefix()}_fence:`
+  }
+
+  private sequenceKey(): string {
+    return `${this.entryPrefix()}_seq`
   }
 
   private ttlSeconds(ttl?: number): number {

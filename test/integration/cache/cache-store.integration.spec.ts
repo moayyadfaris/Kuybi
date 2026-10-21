@@ -88,6 +88,22 @@ describe('CacheService on Redis', () => {
     expect(await redis.ttl(`${namespace}:_tags:shared`)).toBeGreaterThanOrEqual(3600)
   })
 
+  it('refuses to store an entry read before one of its tags was invalidated', async () => {
+    const cache = (await freshCache()).get(CacheService)
+    const since = await cache.fence()
+    await cache.invalidateTag('story:row:9') // a write committed while the entry was loaded
+
+    await cache.setWithTags('story:9', { stale: true }, ['story', 'story:row:9'], 60, { since })
+    expect(await cache.get('story:9')).toBeUndefined()
+
+    // Loaded after the invalidation: stored
+    const later = await cache.fence()
+    await cache.setWithTags('story:9', { fresh: true }, ['story', 'story:row:9'], 60, {
+      since: later
+    })
+    expect(await cache.get('story:9')).toEqual({ fresh: true })
+  })
+
   it('clears only its own keys from the shared test database', async () => {
     const cache = (await freshCache()).get(CacheService)
     await cache.set('mine', 1, 60)

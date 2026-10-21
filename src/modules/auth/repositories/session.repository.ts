@@ -362,21 +362,20 @@ export class SessionRepository extends BaseRepository<Session> {
    * the lookup falls back to the database (never fails open).
    */
   async isUsableForAccess(sessionId: string, userId: string): Promise<boolean> {
-    const key = this.buildCacheKey('access', userId, sessionId)
-    let status = await this.cacheService.get<AccessStatus>(key)
-
-    if (!status) {
-      const session = await this.repository.findOne({
-        where: { id: sessionId },
-        select: { id: true, userId: true, isActive: true, deletedAt: true, expiresAt: true }
-      })
-      status = {
-        active: !!session && session.userId === userId && session.isActive && !session.deletedAt,
-        expiresAt: session?.expiresAt.getTime() ?? 0
-      }
-      await this.cacheSet(key, status, ACCESS_STATUS_TTL)
-    }
-
+    const status = await this.cached<AccessStatus>(
+      this.buildCacheKey('access', userId, sessionId),
+      async () => {
+        const session = await this.repository.findOne({
+          where: { id: sessionId },
+          select: { id: true, userId: true, isActive: true, deletedAt: true, expiresAt: true }
+        })
+        return {
+          active: !!session && session.userId === userId && session.isActive && !session.deletedAt,
+          expiresAt: session?.expiresAt.getTime() ?? 0
+        }
+      },
+      ACCESS_STATUS_TTL
+    )
     return status.active && status.expiresAt > Date.now()
   }
 }
