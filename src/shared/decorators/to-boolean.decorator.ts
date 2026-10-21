@@ -21,8 +21,14 @@ export function parseBooleanInput(raw: unknown): boolean | undefined {
  * Use this on every @IsBoolean field. The global ValidationPipe enables implicit
  * conversion, which turns the string "false" into Boolean("false") === true before a
  * plain @Transform(({ value }) => ...) runs; this decorator reads the raw input instead.
- * A missing field keeps the property's default.
+ * A missing field keeps the property's default. Input that is not boolean-like is kept
+ * as is, so @IsBoolean rejects it, on optional fields too (turning it into undefined
+ * made @IsOptional skip validation and the field fall back to its default).
  */
 export function ToBoolean(): PropertyDecorator {
-  return Transform(({ obj, key }) => parseBooleanInput((obj as Record<string, unknown>)[key]))
+  return Transform(({ obj, key }) => {
+    const raw = (obj as Record<string, unknown>)[key]
+    if (raw === undefined || raw === null) return raw
+    return parseBooleanInput(raw) ?? raw
+  })
 }

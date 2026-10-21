@@ -43,4 +43,17 @@ describe('ToBoolean', () => {
 
     expect(errors.map(e => e.property)).toEqual(['isPublic'])
   })
+
+  it.each(['maybe', 'ture', '', 2])('rejects %p on an optional field too', value => {
+    // Before, an invalid value became undefined, which @IsOptional skipped: the field
+    // silently fell back to its default
+    const errors = validateSync(parse({ flag: value }))
+
+    expect(errors.map(e => e.property)).toEqual(['flag'])
+  })
+
+  it('treats an absent or null optional field as not given', () => {
+    expect(validateSync(parse({}))).toEqual([])
+    expect(validateSync(parse({ flag: null }))).toEqual([])
+  })
 })
