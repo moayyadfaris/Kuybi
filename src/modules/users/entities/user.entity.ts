@@ -78,6 +78,15 @@ export class User implements AclPrincipal {
   })
   lockedUntil: Date | null
 
+  /**
+   * When the password was last replaced without the user's own session (reset by email
+   * or by an admin). Access tokens issued and sessions created before it are void: written
+   * with the password in one transaction, it ends earlier access even if revoking the
+   * sessions (another step, another module) did not happen.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  credentialsChangedAt: Date | null
+
   @Column({
     type: 'varchar',
     length: 100,

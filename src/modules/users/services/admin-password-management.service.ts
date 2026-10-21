@@ -142,7 +142,11 @@ export class AdminPasswordManagementService {
     // is open: if that fails the new password rolls back; if the commit fails after it,
     // the user only has to sign in again
     await this.userRepository.transaction(async manager => {
-      await manager.update(User, user.id, { passwordHash, forcePasswordChange })
+      await manager.update(User, user.id, {
+        passwordHash,
+        forcePasswordChange,
+        credentialsChangedAt: new Date()
+      })
       await this.eventBus.publish(
         new UserCredentialsResetEvent(
           user.id,
