@@ -42,6 +42,10 @@ export class Session {
   @Column({ type: 'uuid' })
   userId: string
 
+  /** The user's credentialsVersion when the session was opened; void once it moves on */
+  @Column({ type: 'int', default: 0 })
+  credentialsVersion: number
+
   @Column({ type: 'text' })
   refreshTokenHash: string
 

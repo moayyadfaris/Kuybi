@@ -87,6 +87,14 @@ export class User implements AclPrincipal {
   @Column({ type: 'timestamptz', nullable: true })
   credentialsChangedAt: Date | null
 
+  /**
+   * Raised with credentialsChangedAt by every password reset. Access tokens (`cv`) and
+   * sessions carry the version they were issued under and are void once it moves on:
+   * exact, where comparing whole-second token times let same-second tokens through.
+   */
+  @Column({ type: 'int', default: 0 })
+  credentialsVersion: number
+
   @Column({
     type: 'varchar',
     length: 100,

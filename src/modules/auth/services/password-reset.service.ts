@@ -205,7 +205,11 @@ export class PasswordResetService {
       }
 
       // Ends every earlier access token and session, whatever happens to the revocation
-      await manager.update(User, user.id, { passwordHash, credentialsChangedAt: new Date() })
+      await manager.update(User, user.id, {
+        passwordHash,
+        credentialsChangedAt: new Date(),
+        credentialsVersion: () => '"credentialsVersion" + 1'
+      })
 
       await this.emailQueueService.sendPasswordChangedEmail(
         {

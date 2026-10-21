@@ -9,13 +9,10 @@ import { BaseProcessor } from '@core/queues/processors/base.processor'
 
 import { Attachment } from '../entities/attachment.entity'
 import { AttachmentRepository } from '../repositories/attachment.repository'
-import { storageKeys } from '../services/attachment-visibility.service'
+import { AttachmentVisibilityService, storageKeys } from '../services/attachment-visibility.service'
 import { ImagePipelineService } from '../services/image-pipeline.service'
 import { S3Service } from '../services/s3.service'
 import { AttachmentMetadata } from '../utils/attachment-image.util'
-
-/** Rounds of re-reading the visibility after applying it, before settling on private */
-const VISIBILITY_ATTEMPTS = 3
 
 export interface ProcessImageJobData {
   attachmentId: string
@@ -44,7 +41,8 @@ export class AttachmentProcessor extends BaseProcessor {
     @InjectPinoLogger(AttachmentProcessor.name)
     logger: PinoLogger,
     @InjectQueue(QueueName.DEAD_LETTER)
-    deadLetterQueue: Queue
+    deadLetterQueue: Queue,
+    private readonly visibility: AttachmentVisibilityService
   ) {
     super(logger, deadLetterQueue)
   }
@@ -151,32 +149,18 @@ export class AttachmentProcessor extends BaseProcessor {
   }
 
   /**
-   * Gives every stored object the visibility the row has now, and checks again after:
-   * a change made while the ACLs were being set is applied too (the owner's choice wins).
-   * Deletion is final for this job: a soft-deleted file stays private, and the objects
-   * of a file deleted meanwhile are removed. If the visibility will not settle, the
-   * objects end private (the owner can publish again).
+   * Gives every stored object the visibility the row has now (everything was stored
+   * private). Runs on the locked row, so an owner's visibility change or delete in
+   * flight finishes first and its result is what gets applied; a soft-deleted file stays
+   * private, and the objects of a file deleted for good are removed.
    */
   private async applyCurrentVisibility(attachmentId: string, stored: Attachment): Promise<void> {
-    // Everything was stored private
-    let applied = false
-    for (let attempt = 0; attempt < VISIBILITY_ATTEMPTS; attempt++) {
-      const current = await this.attachmentRepository.findById(attachmentId, { bypassCache: true })
-      if (!current) {
-        await this.removeStored(
-          stored.path,
-          stored.thumbnailPath,
-          stored.metadata as AttachmentMetadata
-        )
-        return
-      }
-      const wanted = current.isPublic && !current.deletedAt
-      if (wanted === applied) return
-      await Promise.all(storageKeys(current).map(key => this.s3Service.setAcl(key, wanted)))
-      applied = wanted
-    }
-    if (applied) {
-      await Promise.all(storageKeys(stored).map(key => this.s3Service.setAcl(key, false)))
+    if ((await this.visibility.applyStoredVisibility(attachmentId)) === 'gone') {
+      await this.removeStored(
+        stored.path,
+        stored.thumbnailPath,
+        stored.metadata as AttachmentMetadata
+      )
     }
   }
 

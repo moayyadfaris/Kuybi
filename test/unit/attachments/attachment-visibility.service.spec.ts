@@ -28,7 +28,14 @@ describe('AttachmentVisibilityService', () => {
   const build = () => {
     const s3 = { setAcl: jest.fn() }
     const repo = {
-      update: jest.fn(async (id: string, data: object) => ({ ...attachment(), ...data }))
+      update: jest.fn(async (id: string, data: object) => ({ ...attachment(), ...data })),
+      // The locked row is the stored one; writes go through the transaction's manager
+      withLockedRow: jest.fn(
+        async (_id: string, work: (row: unknown, manager: unknown) => unknown) =>
+          work(attachment(), {
+            update: (_entity: unknown, id: string, data: object) => repo.update(id, data)
+          })
+      )
     }
     const service = new AttachmentVisibilityService(
       s3 as unknown as S3Service,

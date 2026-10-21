@@ -37,8 +37,10 @@ export class AttachmentVisibilityService {
   }
 
   /**
-   * Makes the attachment public or private. Every object's ACL changes first, then the
-   * row: if S3 fails half way the row still says what it said, and a retry finishes.
+   * Makes the attachment public or private. Runs on the locked row (see withLockedRow),
+   * so a worker publishing the processed image waits and then applies the new value.
+   * Every object's ACL changes first, then the row: if S3 fails half way the row still
+   * says what it said (the transaction rolls back), and a retry finishes.
    */
   async setVisibility(attachment: Attachment, isPublic: boolean): Promise<Attachment> {
     if (!isPublic && shouldForcePublic(attachment.category ?? undefined)) {
@@ -48,16 +50,59 @@ export class AttachmentVisibilityService {
       return attachment
     }
 
-    if (isPublic && UNPROCESSED.has(attachment.securityStatus)) {
-      // Record the choice only; the processor publishes the processed copy
-      const updated = await this.attachmentRepository.update(attachment.id, { isPublic })
-      return updated ?? { ...attachment, isPublic }
-    }
+    const changed = await this.attachmentRepository.withLockedRow(
+      attachment.id,
+      async (current, manager) => {
+        if (!current || current.isPublic === isPublic) return current
+        // Unprocessed: record the choice only; the processor publishes the processed copy
+        if (!(isPublic && UNPROCESSED.has(current.securityStatus))) {
+          await this.applyAcl(current, isPublic && !current.deletedAt)
+        }
+        await manager.update(Attachment, current.id, { isPublic })
+        return { ...current, isPublic }
+      }
+    )
+    return changed ?? { ...attachment, isPublic }
+  }
 
+  /**
+   * Soft-deletes the attachment and makes its objects private (a deleted file must not
+   * stay downloadable through its public URL); restore() publishes them again.
+   */
+  async softDelete(id: string): Promise<boolean> {
+    return this.attachmentRepository.withLockedRow(id, async (current, manager) => {
+      if (!current) return false
+      await this.applyAcl(current, false)
+      await manager.update(Attachment, id, { deletedAt: new Date() })
+      return true
+    })
+  }
+
+  /** Undoes softDelete: the objects get the row's visibility back */
+  async restore(id: string): Promise<boolean> {
+    return this.attachmentRepository.withLockedRow(id, async (current, manager) => {
+      if (!current) return false
+      await manager.update(Attachment, id, { deletedAt: null })
+      await this.applyAcl(current, current.isPublic && !UNPROCESSED.has(current.securityStatus))
+      return true
+    })
+  }
+
+  /**
+   * Gives every stored object the visibility the row has now (private when deleted), on
+   * the locked row: an owner's change in flight finishes first. 'gone' when the row was
+   * deleted for good; the caller removes what it stored.
+   */
+  async applyStoredVisibility(id: string): Promise<'applied' | 'gone'> {
+    return this.attachmentRepository.withLockedRow(id, async current => {
+      if (!current) return 'gone'
+      await this.applyAcl(current, current.isPublic && !current.deletedAt)
+      return 'applied'
+    })
+  }
+
+  private async applyAcl(attachment: Attachment, isPublic: boolean): Promise<void> {
     await Promise.all(storageKeys(attachment).map(key => this.s3Service.setAcl(key, isPublic)))
-
-    const updated = await this.attachmentRepository.update(attachment.id, { isPublic })
-    return updated ?? { ...attachment, isPublic }
   }
 }
 

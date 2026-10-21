@@ -145,7 +145,8 @@ export class AdminPasswordManagementService {
       await manager.update(User, user.id, {
         passwordHash,
         forcePasswordChange,
-        credentialsChangedAt: new Date()
+        credentialsChangedAt: new Date(),
+        credentialsVersion: () => '"credentialsVersion" + 1'
       })
       await this.eventBus.publish(
         new UserCredentialsResetEvent(

@@ -340,7 +340,7 @@ export class AttachmentService {
 
   async softDelete(id: string, currentUser: User) {
     await this.findChangeable(id, currentUser, Action.Delete)
-    await this.attachmentRepository.softDelete(id)
+    await this.visibility.softDelete(id)
     return { message: 'Attachment deleted successfully' }
   }
 
@@ -360,7 +360,7 @@ export class AttachmentService {
     if (!attachment) throw new NotFoundException('Attachment not found')
     this.accessPolicy.assertCan(currentUser, Action.Restore, attachment, 'Access denied')
 
-    await this.attachmentRepository.restore(id)
+    await this.visibility.restore(id)
     return this.presenter.present({ ...attachment, deletedAt: null })
   }
 

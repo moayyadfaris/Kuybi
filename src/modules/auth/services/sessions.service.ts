@@ -17,6 +17,8 @@ export const MAX_EXTENDED_DAYS = 30
 
 export interface CreateSessionOptions {
   userId: string
+  /** users.credentialsVersion read with the credentials that opened the session */
+  credentialsVersion: number
   ipAddress?: string
   userAgent?: string
   deviceType?: string
@@ -62,6 +64,7 @@ export class SessionsService {
   ): Promise<{ session: Session; refreshToken: string }> {
     const {
       userId,
+      credentialsVersion,
       ipAddress,
       userAgent,
       deviceType,
@@ -81,6 +84,7 @@ export class SessionsService {
     const session = await this.sessionRepository.create({
       id: tokenId,
       userId,
+      credentialsVersion,
       refreshTokenHash: hashTokenSecret(tokenSecret),
       fingerprint: fingerprint || deviceFingerprint(ipAddress, userAgent),
       deviceType: detectedDeviceType,
@@ -159,6 +163,8 @@ export class SessionsService {
 
     return this.createSession({
       userId: currentSession.userId,
+      // The caller checked it against the user's current version
+      credentialsVersion: currentSession.credentialsVersion,
       ipAddress: options.ipAddress || currentSession.ipAddress,
       userAgent: options.userAgent || currentSession.userAgent,
       deviceType: options.deviceType || currentSession.deviceType,
