@@ -9,6 +9,7 @@ import sharp from 'sharp'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { AttachmentProcessor } from '@modules/attachments/jobs/attachment.processor'
 import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
+import { AttachmentVisibilityService } from '@modules/attachments/services/attachment-visibility.service'
 import { ExifProcessorService } from '@modules/attachments/services/exif-processor.service'
 import { ImageOptimizationService } from '@modules/attachments/services/image-optimization.service'
 import { ImagePipelineService } from '@modules/attachments/services/image-pipeline.service'
@@ -83,7 +84,16 @@ describe('AttachmentProcessor', () => {
         if (!db.row) return null
         db.row = { ...db.row, ...data }
         return { ...db.row }
-      })
+      }),
+      // No concurrency in these tests: the "lock" just hands over the current row
+      withLockedRow: jest.fn(
+        async (_id: string, work: (row: unknown, manager: unknown) => unknown) =>
+          work(db.row ? { ...db.row } : null, {
+            update: async (_entity: unknown, _rowId: string, data: Partial<Attachment>) => {
+              if (db.row) db.row = { ...db.row, ...data }
+            }
+          })
+      )
     }
     const pipeline = new ImagePipelineService(
       new ExifProcessorService(logger),
@@ -97,7 +107,11 @@ describe('AttachmentProcessor', () => {
       s3 as unknown as S3Service,
       repository as unknown as AttachmentRepository,
       logger,
-      { add: jest.fn() } as unknown as Queue
+      { add: jest.fn() } as unknown as Queue,
+      new AttachmentVisibilityService(
+        s3 as unknown as S3Service,
+        repository as unknown as AttachmentRepository
+      )
     )
     const run = () =>
       processor.process({

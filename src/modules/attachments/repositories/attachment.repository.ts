@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { startsWithPattern } from '@shared/utils/like.util'
-import { LessThan, Repository, SelectQueryBuilder } from 'typeorm'
+import { EntityManager, LessThan, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { CacheService } from '@core/cache/services/cache.service'
 import { BaseRepository } from '@core/database/repositories/base.repository'
@@ -182,6 +182,30 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
   }
 
   /** Soft delete (deletedAt is a plain column here, not a @DeleteDateColumn) */
+  /**
+   * Runs `work` holding the row lock (SELECT ... FOR UPDATE) of an attachment, deleted or
+   * not, in a transaction: whoever changes visibility or deletion waits for whoever is
+   * applying it to the stored objects. `work` gets the row as it is now (null if gone)
+   * and writes through `manager`; the cached row is dropped after the commit.
+   */
+  withLockedRow<R>(
+    id: string,
+    work: (row: Attachment | null, manager: EntityManager) => Promise<R>
+  ): Promise<R> {
+    return this.transaction(
+      async manager => {
+        const row = await manager
+          .getRepository(Attachment)
+          .createQueryBuilder('attachment')
+          .setLock('pessimistic_write')
+          .where('attachment.id = :id', { id })
+          .getOne()
+        return work(row, manager)
+      },
+      { touched: [id] }
+    )
+  }
+
   async softDelete(id: string): Promise<boolean> {
     const result = await this.repository.update({ id }, { deletedAt: new Date() })
     await this.invalidateCacheByEntityId(id)
