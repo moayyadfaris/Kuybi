@@ -14,8 +14,12 @@ export class S3HealthIndicator {
   ) {
     this.bucketName = this.configService.get<string>('s3.bucket')!
 
+    // The credentials the app uses for S3 (S3Service), not whatever the SDK finds
+    const accessKeyId = this.configService.get<string>('s3.accessKeyId')
+    const secretAccessKey = this.configService.get<string>('s3.secretAccessKey')
     this.s3Client = new S3Client({
-      region: this.configService.get<string>('s3.region')
+      region: this.configService.get<string>('s3.region'),
+      ...(accessKeyId && secretAccessKey ? { credentials: { accessKeyId, secretAccessKey } } : {})
     })
   }
 

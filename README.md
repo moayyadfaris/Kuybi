@@ -240,8 +240,9 @@ docker run --env-file .env.production kuybi npm run db:seed:acl:prod   # idempot
   with ready-made alert rules in
   [`docs/observability/alerts/outbox.rules.yml`](./docs/observability/alerts/outbox.rules.yml)
 - **Errors:** Sentry when `SENTRY_DSN` is set
-- **Health:** `/api/health` (full), `/api/health/live` (liveness), `/api/health/ready`
-  (readiness)
+- **Health:** `/api/health/live` (liveness), `/api/health/ready` (readiness: database and
+  cache) and `/api/health` (everything, including the queue Redis, memory, disk and S3).
+  Unhealthy answers are HTTP 503, so probes can act on the status code
 
 A local Jaeger + Prometheus + Grafana stack is available:
 
