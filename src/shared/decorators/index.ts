@@ -1,6 +1,3 @@
-/**
- * Shared decorators module
- * Export all custom decorators
- */
-
-export * from './sanitization.decorator'
+/** Request-input decorators shared by feature DTOs */
+export * from './to-array.decorator'
+export * from './to-boolean.decorator'

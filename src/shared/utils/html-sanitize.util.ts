@@ -35,6 +35,9 @@ export const RICH_TEXT_ATTRIBUTES = [
   'height'
 ]
 
+/** Attributes holding a URL */
+const URL_ATTRIBUTES = new Set(['href', 'src'])
+
 /** Links and images may point at http(s), mailto or a relative URL; never javascript: or data: */
 const SAFE_URI = /^(?:https?:|mailto:|\/|#)/i
 
@@ -51,15 +54,28 @@ export interface RichTextOptions {
  * whoever renders the HTML trusts it.
  */
 export function sanitizeRichText(html: string, options: RichTextOptions = {}): string {
-  return String(
-    DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: options.allowedTags ?? RICH_TEXT_TAGS,
-      ALLOWED_ATTR: options.allowedAttributes ?? RICH_TEXT_ATTRIBUTES,
-      ALLOWED_URI_REGEXP: options.allowedSchemes
-        ? new RegExp(`^(${options.allowedSchemes.join('|')}):`, 'i')
-        : SAFE_URI
-    })
-  )
+  const allowedUri = options.allowedSchemes
+    ? new RegExp(`^(${options.allowedSchemes.join('|')}):`, 'i')
+    : SAFE_URI
+  // DOMPurify keeps data: URLs on images whatever ALLOWED_URI_REGEXP says: drop every
+  // URL attribute the policy does not allow. sanitize() is synchronous, so the hook only
+  // ever sees this call.
+  DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+    if (URL_ATTRIBUTES.has(data.attrName) && !allowedUri.test(data.attrValue.trim())) {
+      data.keepAttr = false
+    }
+  })
+  try {
+    return String(
+      DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: options.allowedTags ?? RICH_TEXT_TAGS,
+        ALLOWED_ATTR: options.allowedAttributes ?? RICH_TEXT_ATTRIBUTES,
+        ALLOWED_URI_REGEXP: allowedUri
+      })
+    )
+  } finally {
+    DOMPurify.removeHook('uponSanitizeAttribute')
+  }
 }
 
 /** The text of HTML, every tag removed (content kept) */
