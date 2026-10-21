@@ -428,7 +428,7 @@ GET /api/v1/stories/stats
 GET /api/v1/stories/user/:userId?page=&limit=&includeDeleted=
 GET /api/v1/stories/status/:status?page=&limit=
 GET /api/v1/stories/type/:type?page=&limit=
-GET /api/v1/stories/:id/children?includeDeleted=
+GET /api/v1/stories/:id/children?limit=20&page=1&includeDeleted=
 GET /api/v1/stories/:id
 ```
 
