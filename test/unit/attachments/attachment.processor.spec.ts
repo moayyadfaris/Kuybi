@@ -175,6 +175,48 @@ describe('AttachmentProcessor', () => {
     expect([...s3.objects.keys()]).toEqual([])
   })
 
+  it('keeps a file soft-deleted during processing private', async () => {
+    const { s3, db, run } = build({ isPublic: true, securityStatus: 'processing' })
+    s3.objects.set('uploads/u/photo.jpg', { body: await geotaggedPhoto(), isPublic: false })
+    s3.upload.mockImplementationOnce(async ({ key, buffer }) => {
+      db.row = { ...db.row, deletedAt: new Date() }
+      s3.objects.set(key, { body: buffer, isPublic: false })
+      return { key, bucket: 'b', location: key }
+    })
+
+    await run()
+
+    for (const [key, object] of s3.objects)
+      expect({ key, public: object.isPublic }).toEqual({ key, public: false })
+  })
+
+  it('removes what it stored when the file is deleted while visibility is applied', async () => {
+    const { s3, db, run, repository } = build({ isPublic: true, securityStatus: 'processing' })
+    s3.objects.set('uploads/u/photo.jpg', { body: await geotaggedPhoto(), isPublic: false })
+    // The final update succeeds; the row is hard-deleted before the ACLs are applied
+    const update = repository.update.getMockImplementation()!
+    repository.update.mockImplementationOnce(async (id: string, data: Partial<Attachment>) => {
+      const result = await update(id, data)
+      db.row = null
+      return result
+    })
+
+    await run()
+
+    expect([...s3.objects.keys()]).toEqual([])
+  })
+
+  it('gives up on an image that takes too long, as a failure', async () => {
+    const { s3, updates, run, processor } = build({ isPublic: true })
+    s3.objects.set('uploads/u/photo.jpg', { body: await geotaggedPhoto(), isPublic: false })
+    // A decode that never finishes
+    s3.download.mockImplementationOnce(() => new Promise<Buffer>(() => undefined))
+    ;(processor as unknown as { processingBudgetMs: number }).processingBudgetMs = 100
+
+    await expect(run()).rejects.toThrow(/timed out/)
+    expect(updates.at(-1)).toMatchObject({ securityStatus: 'failed' })
+  })
+
   it('keeps the original private and the earlier metadata when processing fails', async () => {
     const { s3, updates, run } = build({ isPublic: true })
     s3.objects.set('uploads/u/photo.jpg', { body: Buffer.from('not an image'), isPublic: false })
