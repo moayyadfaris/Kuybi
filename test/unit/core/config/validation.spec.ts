@@ -109,6 +109,47 @@ describe('validate', () => {
     expect(() => validate({ NODE_ENV: 'prod', CORS_ORIGIN: '*' })).toThrow(/NODE_ENV/)
   })
 
+  const base = { NODE_ENV: 'test', CORS_ORIGIN: '*' }
+
+  it('reads the database user from DB_USERNAME, the name the app uses', () => {
+    expect(() => validate({ ...base, DB_USERNAME: 'kuybi' })).not.toThrow()
+    expect(validate({ ...base, DB_USERNAME: 'kuybi' })).toHaveProperty('DB_USERNAME', 'kuybi')
+  })
+
+  it.each([
+    ['REDIS_PORT', 'abc'],
+    ['REDIS_DB', '16'],
+    ['REDIS_QUEUE_DB', '-1'],
+    ['REDIS_TTL', '0'],
+    ['DB_PORT', '70000'],
+    ['DB_POOL_MAX', 'ten'],
+    ['ACCOUNT_LOCKOUT_MAX_ATTEMPTS', '0'],
+    ['ACCOUNT_LOCKOUT_DURATION', '30m'],
+    ['STORY_KEEP_AUTO_VERSIONS', '0'],
+    ['SENTRY_TRACES_SAMPLE_RATE', '150'],
+    ['WORKER_SHUTDOWN_TIMEOUT_MS', 'soon'],
+    ['ACCOUNT_LOCKOUT_ENABLED', 'maybe'],
+    ['SENTRY_ENABLED', 'ture'],
+    ['AUDIT_ENABLED', 'enabled']
+  ])('rejects %s=%s at startup', (key, value) => {
+    expect(() => validate({ ...base, [key]: value })).toThrow(key)
+  })
+
+  it('accepts the documented values', () => {
+    expect(() =>
+      validate({
+        ...base,
+        REDIS_PORT: '6379',
+        REDIS_DB: '0',
+        REDIS_QUEUE_DB: '1',
+        ACCOUNT_LOCKOUT_ENABLED: 'true',
+        SENTRY_ENABLED: 'false',
+        SENTRY_TRACES_SAMPLE_RATE: '10',
+        ACCOUNT_LOCKOUT_DURATION: '1800000'
+      })
+    ).not.toThrow()
+  })
+
   it('accepts the known environments', () => {
     expect(() => validate({ NODE_ENV: 'test', CORS_ORIGIN: '*' })).not.toThrow()
   })
