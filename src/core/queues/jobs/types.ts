@@ -80,6 +80,8 @@ export interface UnlockAccountJobData extends BaseJobData {
 export interface ResetFailedAttemptsJobData extends BaseJobData {
   userId: string
   lastFailedAttempt: Date
+  /** The counter when the reset was scheduled: a different value means newer failures */
+  failedAttempts?: number
 }
 
 export interface CheckExpiredLocksJobData extends BaseJobData {

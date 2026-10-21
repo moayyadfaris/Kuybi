@@ -102,7 +102,7 @@ export class AccountLockoutService {
     if (failedAttempts >= this.config.maxAttempts) {
       await this.lockAccount(userId, failedAttempts)
     } else {
-      await this.scheduleResetFailedAttempts(userId)
+      await this.scheduleResetFailedAttempts(userId, failedAttempts)
     }
   }
 
@@ -161,45 +161,75 @@ export class AccountLockoutService {
       timestamp: new Date().toISOString()
     }
     await this.accountSecurityQueue.add(AccountSecurityJobType.UNLOCK_ACCOUNT, jobData, {
-      delay,
+      // A second late: the unlock checks the lock's end against the database clock
+      delay: delay + 1000,
       jobId: `unlock-${userId}-${Date.now()}`
     })
     this.logger.info({ userId, unlockAt, delayMs: delay }, 'Scheduled automatic unlock')
   }
 
-  /** (Re)starts the quiet period after which failed attempts are forgotten */
-  private async scheduleResetFailedAttempts(userId: string): Promise<void> {
+  /**
+   * (Re)starts the quiet period after which failed attempts are forgotten. BullMQ ignores
+   * an add with an existing job id, so the pending reset is removed first; the job also
+   * carries the counter, and resets only if no failure came after it (see
+   * forgetFailedAttempts), whichever reset job runs.
+   */
+  private async scheduleResetFailedAttempts(userId: string, failedAttempts: number): Promise<void> {
+    const jobId = `reset-attempts-${userId}`
+    const pending = await this.accountSecurityQueue.getJob(jobId)
+    if (pending && (await pending.isDelayed())) {
+      await pending.remove().catch(() => undefined) // started meanwhile: it checks the counter
+    }
     const jobData: ResetFailedAttemptsJobData = {
       userId,
       lastFailedAttempt: new Date(),
+      failedAttempts,
       timestamp: new Date().toISOString()
     }
-    // Same job id per user: a newer failure replaces the pending reset
     await this.accountSecurityQueue.add(AccountSecurityJobType.RESET_FAILED_ATTEMPTS, jobData, {
       delay: this.config.resetAttemptsPeriod,
-      jobId: `reset-attempts-${userId}`,
+      jobId,
       removeOnComplete: true
     })
   }
 
-  /** Unlocks and resets the counter (no-op when not locked); emails the user */
-  async unlockAccount(userId: string, reason: 'AUTO_UNLOCK' | 'ADMIN_UNLOCK'): Promise<void> {
+  /**
+   * End of a quiet period: forgets the failed attempts if the counter is still what it
+   * was when the reset was scheduled. A reset job from before this field existed resets
+   * nothing (the next failure schedules a proper one).
+   */
+  async forgetFailedAttempts(userId: string, failedAttempts: number | undefined): Promise<boolean> {
+    if (failedAttempts === undefined) return false
+    return this.userRepository.resetFailedAttemptsIf(userId, failedAttempts)
+  }
+
+  /**
+   * Unlocks and resets the counter, and emails the user; false when nothing was unlocked.
+   * AUTO_UNLOCK (unlock jobs, the sweep, a login after the lock ended) only lifts a
+   * failed-login lock whose time is up: never an admin's lock, nor a newer lock than
+   * the one an unlock job was scheduled for.
+   */
+  async unlockAccount(userId: string, reason: 'AUTO_UNLOCK' | 'ADMIN_UNLOCK'): Promise<boolean> {
     const user = await this.userRepository.findById(userId, { bypassCache: true })
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`)
     }
     if (!user.isLocked) {
-      return
+      return false
     }
 
     const previousAttempts = user.failedLoginAttempts
-    await this.userRepository.update(userId, {
-      isLocked: false,
-      failedLoginAttempts: 0,
-      lockedAt: null,
-      lockedUntil: null,
-      lockReason: null
-    })
+    if (reason === 'AUTO_UNLOCK') {
+      if (!(await this.userRepository.unlockIfExpired(userId))) return false
+    } else {
+      await this.userRepository.update(userId, {
+        isLocked: false,
+        failedLoginAttempts: 0,
+        lockedAt: null,
+        lockedUntil: null,
+        lockReason: null
+      })
+    }
     this.logger.info({ userId, reason, action: 'account_unlocked' }, `Account unlocked: ${reason}`)
 
     if (this.config.notifyOnUnlock) {
@@ -216,6 +246,7 @@ export class AccountLockoutService {
         this.logger.error({ userId, error: errorMessage(error) }, 'Failed to queue unlock email')
       }
     }
+    return true
   }
 
   /** Whether the account is locked now; unlocks it on the way if its lock has ended */
@@ -226,8 +257,8 @@ export class AccountLockoutService {
     }
 
     if (user.isLocked && user.lockedUntil && user.lockedUntil < new Date()) {
-      await this.unlockAccount(userId, 'AUTO_UNLOCK')
-      return false
+      // Only a failed-login lock expires; an admin's stays
+      return !(await this.unlockAccount(userId, 'AUTO_UNLOCK'))
     }
     return user.isLocked
   }
@@ -257,12 +288,13 @@ export class AccountLockoutService {
   /** Unlocks every account whose lock has ended (backstop for missed unlock jobs) */
   async unlockExpiredAccounts(): Promise<number> {
     const expiredUsers = await this.userRepository.findExpiredLocks()
+    let unlocked = 0
     for (const user of expiredUsers) {
-      await this.unlockAccount(user.id, 'AUTO_UNLOCK')
+      if (await this.unlockAccount(user.id, 'AUTO_UNLOCK')) unlocked++
     }
-    if (expiredUsers.length > 0) {
-      this.logger.info({ unlockedCount: expiredUsers.length }, 'Unlocked expired accounts')
+    if (unlocked > 0) {
+      this.logger.info({ unlockedCount: unlocked }, 'Unlocked expired accounts')
     }
-    return expiredUsers.length
+    return unlocked
   }
 }

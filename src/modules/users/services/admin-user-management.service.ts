@@ -112,6 +112,12 @@ export class AdminUserManagementService {
       }
     })
 
+    // Locking an account that failed logins locked for a while makes it the admin's lock,
+    // which has no end (otherwise it would quietly lift when the failed-login lock ends)
+    if (dto.isLocked === true && user.isLocked && user.lockedUntil) {
+      changes.push('isLocked made indefinite by an admin')
+    }
+
     if (changes.length === 0) {
       return this.buildResponse(user, adminEmail, dto.reason)
     }
@@ -132,6 +138,9 @@ export class AdminUserManagementService {
       if (dto.isLocked) {
         updateData.lockedAt = new Date()
         updateData.lockReason = dto.lockReason || 'ADMIN_LOCK'
+        // Until an admin unlocks it: an end time left from a failed-login lock would let
+        // the automatic unlock lift this one
+        updateData.lockedUntil = null
       } else {
         updateData.lockedAt = null
         updateData.lockedUntil = null
