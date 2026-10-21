@@ -177,11 +177,12 @@ export class StoriesService {
   }
 
   /** Direct replies to a story (threads) */
-  async findChildren(parentId: number, viewer: User, includeDeleted?: boolean): Promise<Story[]> {
+  /** A page of a story's children (threads can grow without bound) */
+  async findChildren(parentId: number, viewer: User, query: StoryListQueryDto): Promise<Story[]> {
     const stories = await this.storyRepository.findChildren(
       parentId,
       this.accessPolicy.readScope(viewer),
-      { includeDeleted }
+      { ...this.paging(query), includeDeleted: query.includeDeleted }
     )
     return this.present(viewer, stories)
   }

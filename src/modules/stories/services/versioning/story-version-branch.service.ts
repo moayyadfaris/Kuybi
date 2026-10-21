@@ -183,22 +183,14 @@ export class StoryVersionBranchService {
    * Branches of a story, main first
    */
   async getBranchInfo(storyId: number): Promise<BranchInfo[]> {
-    const branches = await this.versionRepository.getBranches(storyId)
-
-    const branchInfo = await Promise.all(
-      branches.map(async branch => {
-        const versions = await this.versionRepository.getBranchVersions(storyId, branch)
-        const latest = versions[0] // Already sorted DESC
-
-        return {
-          name: branch,
-          versionCount: versions.length,
-          latestVersion: latest?.versionNumber || 0,
-          lastUpdated: latest?.createdAt || new Date(),
-          isMain: branch === 'main'
-        }
-      })
-    )
+    // One aggregate query, not every version of every branch
+    const branchInfo = (await this.versionRepository.getBranchSummaries(storyId)).map(summary => ({
+      name: summary.branchName,
+      versionCount: summary.count,
+      latestVersion: summary.latest,
+      lastUpdated: new Date(summary.lastUpdated),
+      isMain: summary.branchName === 'main'
+    }))
 
     return branchInfo.sort((a, b) => (a.isMain ? -1 : b.isMain ? 1 : 0))
   }
