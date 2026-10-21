@@ -21,6 +21,9 @@ import { QueueName } from '../jobs/types'
 
 import { BaseProcessor } from './base.processor'
 
+/** Job data fields that hold live links or message bodies */
+const SECRET_FIELD = /link|token|html|text/i
+
 /**
  * Email Queue Processor
  *
@@ -148,6 +151,19 @@ export class EmailProcessor extends BaseProcessor {
 
       throw error // Re-throw to trigger retry
     }
+  }
+
+  /**
+   * Dead letters are kept until handled by hand: drop the live links (reset, verification)
+   * and message bodies, keep what identifies the email
+   */
+  protected getDeadLetterData(job: Job<EmailJobData>): unknown {
+    return Object.fromEntries(
+      Object.entries(job.data).map(([key, value]) => [
+        key,
+        SECRET_FIELD.test(key) ? '[REDACTED]' : value
+      ])
+    )
   }
 
   /**
