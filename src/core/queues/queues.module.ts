@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 
 import { queueConfig } from './config/queue.config'
 import { QueueName } from './jobs/types'
+import { QueueMetrics } from './queue-metrics'
 
 /**
  * Queues Module
@@ -46,6 +47,7 @@ import { QueueName } from './jobs/types'
       { name: QueueName.DEAD_LETTER, ...queueConfig.queues[QueueName.DEAD_LETTER] }
     )
   ],
+  providers: [QueueMetrics],
   exports: [BullModule]
 })
 export class QueuesModule {}

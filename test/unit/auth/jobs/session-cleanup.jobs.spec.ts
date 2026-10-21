@@ -15,7 +15,7 @@ describe('auth cleanup jobs', () => {
 
     expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
       'password-reset-cleanup-daily',
-      { pattern: expect.any(String) },
+      { pattern: expect.any(String), tz: 'UTC' },
       { name: SessionCleanupJobType.CLEANUP_RESET_TOKENS, data: {} }
     )
   })
@@ -50,7 +50,7 @@ describe('auth cleanup jobs', () => {
 
     expect(accountQueue.upsertJobScheduler).toHaveBeenCalledWith(
       'expired-locks-sweep',
-      { pattern: '*/15 * * * *' },
+      { pattern: '*/15 * * * *', tz: 'UTC' },
       { name: AccountSecurityJobType.CHECK_EXPIRED_LOCKS, data: {} }
     )
   })

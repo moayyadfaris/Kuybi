@@ -22,6 +22,9 @@ const USER_RELATIONS: FindOptionsRelations<User> = {
  * user's roles (UserRolesService) invalidates the user's cached row. Authentication
  * reads users fresh (JwtStrategy), so cached permissions never decide access.
  */
+/** lockReason of a lock placed by failed logins (AccountLockoutService); it expires */
+const FAILED_ATTEMPTS_LOCK = 'FAILED_ATTEMPTS'
+
 @Injectable()
 export class UserRepository extends BaseRepository<User> {
   protected entityName = 'user'
@@ -251,9 +254,56 @@ export class UserRepository extends BaseRepository<User> {
     })
   }
 
-  /** Locked users whose lock period is over */
+  /** Users whose failed-login lock is over (an admin's lock has no end) */
   findExpiredLocks(): Promise<User[]> {
-    return this.repository.find({ where: { isLocked: true, lockedUntil: LessThan(new Date()) } })
+    return this.repository.find({
+      where: {
+        isLocked: true,
+        lockReason: FAILED_ATTEMPTS_LOCK,
+        lockedUntil: LessThan(new Date())
+      }
+    })
+  }
+
+  /**
+   * Lifts a failed-login lock whose time is up, in one conditional UPDATE: never an
+   * admin's lock, nor a newer lock than the one an unlock job was scheduled for.
+   */
+  async unlockIfExpired(id: string): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(User)
+      .set({
+        isLocked: false,
+        failedLoginAttempts: 0,
+        lockedAt: null,
+        lockedUntil: null,
+        lockReason: null
+      })
+      .where('id = :id', { id })
+      .andWhere('"isLocked" = true')
+      .andWhere('"lockReason" = :reason', { reason: FAILED_ATTEMPTS_LOCK })
+      .andWhere('"lockedUntil" <= now()')
+      .execute()
+    await this.invalidateCacheByEntityId(id)
+    return (result.affected ?? 0) > 0
+  }
+
+  /**
+   * Forgets failed logins, unless there were more since `expected` was read or the
+   * account is locked
+   */
+  async resetFailedAttemptsIf(id: string, expected: number): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(User)
+      .set({ failedLoginAttempts: 0 })
+      .where('id = :id', { id })
+      .andWhere('"failedLoginAttempts" = :expected', { expected })
+      .andWhere('"isLocked" = false')
+      .execute()
+    await this.invalidateCacheByEntityId(id)
+    return (result.affected ?? 0) > 0
   }
 
   async updatePassword(id: string, passwordHash: string): Promise<void> {

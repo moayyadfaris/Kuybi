@@ -68,10 +68,11 @@ export class AccountSecurityProcessor extends BaseProcessor {
     this.logger.info({ userId, reason, lockedAt }, 'Unlocking account')
 
     try {
-      await this.accountLockoutService.unlockAccount(userId, reason)
+      // Only lifts the lock this job was scheduled for, once its time is up
+      const unlocked = await this.accountLockoutService.unlockAccount(userId, reason)
 
       return {
-        success: true,
+        success: unlocked,
         userId,
         reason,
         unlockedAt: new Date()
@@ -88,29 +89,17 @@ export class AccountSecurityProcessor extends BaseProcessor {
   private async handleResetFailedAttempts(
     data: ResetFailedAttemptsJobData
   ): Promise<Record<string, unknown>> {
-    const { userId, lastFailedAttempt } = data
+    const { userId, lastFailedAttempt, failedAttempts } = data
 
     this.logger.debug({ userId, lastFailedAttempt }, 'Resetting failed attempts counter')
 
     try {
-      // Check if there were no new failed attempts since this job was scheduled
-      const lockInfo = await this.accountLockoutService.getAccountLockInfo(userId)
-
-      // Only reset if account is not locked
-      if (!lockInfo.isLocked) {
-        await this.accountLockoutService.resetFailedAttempts(userId)
-        return {
-          success: true,
-          userId,
-          resetAt: new Date()
-        }
-      }
-
-      return {
-        success: false,
-        userId,
-        reason: 'Account is locked, not resetting attempts'
-      }
+      // Only if no failure came after this reset was scheduled and the account is not
+      // locked (one conditional update)
+      const reset = await this.accountLockoutService.forgetFailedAttempts(userId, failedAttempts)
+      return reset
+        ? { success: true, userId, resetAt: new Date() }
+        : { success: false, userId, reason: 'Newer failures or locked: attempts kept' }
     } catch (error) {
       this.logger.error({ userId, error: errorMessage(error) }, 'Failed to reset failed attempts')
       throw error

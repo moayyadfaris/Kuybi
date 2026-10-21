@@ -1,11 +1,13 @@
 import { ConfigService } from '@nestjs/config'
 import { Queue } from 'bullmq'
 
+import { AttachmentsJobsScheduler } from '@modules/attachments/jobs/attachments-jobs.scheduler'
 import { AuditRetentionScheduler } from '@modules/audit/jobs/audit-retention.scheduler'
 import { AuthJobsScheduler } from '@modules/auth/jobs/auth-jobs.scheduler'
 import { VersionCleanupScheduler } from '@modules/stories/jobs/version-cleanup.scheduler'
 
 import {
+  AttachmentJobType,
   AuditRetentionJobType,
   SessionCleanupJobType,
   VersionCleanupJobType
@@ -26,12 +28,15 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
   const versionQueue = new Queue('version-cleanup', { connection, prefix })
   const accountQueue = new Queue('account-security', { connection, prefix })
   const auditQueue = new Queue('audit-retention', { connection, prefix })
+  const attachmentQueue = new Queue('attachment-processing', { connection, prefix })
 
   afterAll(async () => {
     await sessionQueue.obliterate({ force: true })
     await versionQueue.obliterate({ force: true })
     await accountQueue.obliterate({ force: true })
     await auditQueue.obliterate({ force: true })
+    await attachmentQueue.obliterate({ force: true })
+    await attachmentQueue.close()
     await auditQueue.close()
     await accountQueue.close()
     await sessionQueue.close()
@@ -76,6 +81,8 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
 
     const prune = await versionQueue.getJobScheduler('version-cleanup-daily')
     expect(prune?.pattern).toBe('0 2 * * *')
+    // "02:00" means UTC, whatever the server's time zone
+    expect(prune?.tz).toBe('UTC')
     expect(prune?.name).toBe(VersionCleanupJobType.PRUNE_AUTO)
     expect(prune?.template?.data).toEqual({ keepAutoVersions: 7 })
     expect(await versionQueue.getJobScheduler('version-archive-weekly')).toBeFalsy()
@@ -97,5 +104,19 @@ describe('Job schedulers (BullMQ job schedulers on real Redis)', () => {
     expect(purge?.name).toBe(AuditRetentionJobType.PURGE_EXPIRED)
     expect(purge?.template?.data).toEqual({ retentionDays: 180, criticalRetentionDays: 365 })
     expect(await auditQueue.getJobSchedulersCount()).toBe(1)
+  })
+
+  it('schedules the abandoned-upload cleanup in the worker, hourly in UTC', async () => {
+    const scheduler = new AttachmentsJobsScheduler(attachmentQueue)
+    await scheduler.onModuleInit()
+    await scheduler.onModuleInit()
+
+    const cleanup = await attachmentQueue.getJobScheduler('abandoned-uploads-hourly')
+    expect(cleanup).toMatchObject({
+      pattern: '15 * * * *',
+      tz: 'UTC',
+      name: AttachmentJobType.REMOVE_ABANDONED_UPLOADS
+    })
+    expect(await attachmentQueue.getJobSchedulersCount()).toBe(1)
   })
 })

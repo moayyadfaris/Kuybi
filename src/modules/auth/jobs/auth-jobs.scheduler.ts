@@ -22,20 +22,20 @@ export class AuthJobsScheduler implements OnModuleInit {
     // Hard-delete sessions that ended long ago
     await this.sessionQueue.upsertJobScheduler(
       'session-cleanup-hourly',
-      { pattern: '0 * * * *' },
+      { pattern: '0 * * * *', tz: 'UTC' },
       { name: SessionCleanupJobType.CLEANUP_EXPIRED, data: {} }
     )
     // Removes the scheduler of the dropped expiring-sessions check from existing deployments
     await this.sessionQueue.removeJobScheduler('session-expiring-check')
     await this.sessionQueue.upsertJobScheduler(
       'password-reset-cleanup-daily',
-      { pattern: '30 3 * * *' },
+      { pattern: '30 3 * * *', tz: 'UTC' },
       { name: SessionCleanupJobType.CLEANUP_RESET_TOKENS, data: {} }
     )
     // Backstop for a missed per-lock unlock job: unlock every account whose lock ended
     await this.accountSecurityQueue.upsertJobScheduler(
       'expired-locks-sweep',
-      { pattern: '*/15 * * * *' },
+      { pattern: '*/15 * * * *', tz: 'UTC' },
       { name: AccountSecurityJobType.CHECK_EXPIRED_LOCKS, data: {} }
     )
   }

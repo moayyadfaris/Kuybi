@@ -26,7 +26,7 @@ export class AuditRetentionScheduler implements OnModuleInit {
     }
     await this.queue.upsertJobScheduler(
       'audit-retention-daily',
-      { pattern: '0 3 * * *' },
+      { pattern: '0 3 * * *', tz: 'UTC' },
       { name: AuditRetentionJobType.PURGE_EXPIRED, data }
     )
   }

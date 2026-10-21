@@ -12,6 +12,7 @@ import { DataSource } from 'typeorm'
 import { AclModule } from '@modules/acl/acl.module'
 import { AttachmentsModule } from '@modules/attachments/attachments.module'
 import { Attachment } from '@modules/attachments/entities/attachment.entity'
+import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
 import { DirectUploadService } from '@modules/attachments/services/direct-upload.service'
 import { S3Service } from '@modules/attachments/services/s3.service'
 import { hasGpsData } from '@modules/attachments/utils/exif-gps.util'
@@ -292,6 +293,33 @@ describe('Direct uploads', () => {
     await app.get(DirectUploadService).removeAbandonedUploads()
 
     expect(await dataSource.getRepository(Attachment).findOneBy({ id })).toBeNull()
+  })
+
+  it('keeps an upload that is completed while the cleanup runs', async () => {
+    const response = await initiate(png).expect(201)
+    const id = response.body.data.attachmentId
+    const uploadKey = response.body.data.upload.fields.key as string
+    storage.objects.set(uploadKey, PNG)
+    await dataSource.query(
+      `UPDATE attachments SET "createdAt" = now() - interval '25 hours' WHERE id = $1`,
+      [id]
+    )
+    // The cleanup has found it as abandoned; the client completes it right then
+    const repository = app.get(AttachmentRepository)
+    const find = repository.findStaleByStatus.bind(repository)
+    jest.spyOn(repository, 'findStaleByStatus').mockImplementationOnce(async (...args) => {
+      const found = await find(...args)
+      await dataSource.query(
+        `UPDATE attachments SET "securityStatus" = 'completed' WHERE id = $1`,
+        [id]
+      )
+      return found
+    })
+
+    await app.get(DirectUploadService).removeAbandonedUploads()
+
+    expect((await stored(id)).securityStatus).toBe('completed')
+    expect(storage.objects.has(uploadKey)).toBe(true)
   })
 
   describe('multipart upload (POST /attachments)', () => {

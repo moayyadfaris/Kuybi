@@ -364,6 +364,10 @@ describe('Account Lockout Integration Tests', () => {
         job => job.name === AccountSecurityJobType.UNLOCK_ACCOUNT && job.data.userId === testUser.id
       )
 
+      // The job runs once the lock has ended (it unlocks nothing earlier)
+      await dataSource
+        .getRepository(User)
+        .update(testUser.id, { lockedUntil: new Date(Date.now() - 1000) })
       if (unlockJob) {
         await accountSecurityProcessor.process(unlockJob)
       }
@@ -457,6 +461,65 @@ describe('Account Lockout Integration Tests', () => {
         .getRepository(User)
         .findOneOrFail({ where: { id: testUser.id } })
       expect(user.isLocked).toBe(true)
+    })
+  })
+
+  describe('Locks are only lifted by what placed them', () => {
+    const stored = () =>
+      dataSource.getRepository(User).findOneOrFail({ where: { id: testUser.id } })
+    const adminUpdate = (dto: object) =>
+      app
+        .get(AdminUserManagementService)
+        .updateUser(testUser.id, dto, testUser.id, 'admin@test.com')
+
+    it("keeps an admin's lock when the failed-login lock under it runs out", async () => {
+      await lockAccountDirectly()
+      // The admin locks the account for good while the 5s failed-login lock runs
+      await adminUpdate({ isLocked: true })
+
+      await new Promise(resolve => setTimeout(resolve, 5500))
+      await accountLockoutService.unlockExpiredAccounts()
+
+      expect(await accountLockoutService.isAccountLocked(testUser.id)).toBe(true)
+      expect((await stored()).lockReason).toBe('ADMIN_LOCK')
+    }, 15000)
+
+    it("does not let an earlier lock's unlock job end a newer lock", async () => {
+      await lockAccountDirectly()
+      const [staleUnlock] = (await accountSecurityQueue.getDelayed()).filter(
+        job => job.name === AccountSecurityJobType.UNLOCK_ACCOUNT
+      )
+      await adminUpdate({ isLocked: false })
+      await lockAccountDirectly()
+
+      await accountSecurityProcessor.process(staleUnlock)
+
+      expect((await stored()).isLocked).toBe(true)
+    })
+
+    it('restarts the quiet period with every failure', async () => {
+      await recordFailedAttempts(1)
+      await new Promise(resolve => setTimeout(resolve, 1100))
+      const lastFailure = Date.now()
+      await recordFailedAttempts(1)
+
+      const resets = (await accountSecurityQueue.getDelayed()).filter(
+        job => job.name === AccountSecurityJobType.RESET_FAILED_ATTEMPTS
+      )
+      expect(resets).toHaveLength(1)
+      expect(resets[0].timestamp).toBeGreaterThanOrEqual(lastFailure)
+    })
+
+    it('does not forget failures that came after its reset was scheduled', async () => {
+      await recordFailedAttempts(1)
+      const [earlyReset] = (await accountSecurityQueue.getDelayed()).filter(
+        job => job.name === AccountSecurityJobType.RESET_FAILED_ATTEMPTS
+      )
+      await dataSource.getRepository(User).increment({ id: testUser.id }, 'failedLoginAttempts', 2)
+
+      await accountSecurityProcessor.process(earlyReset)
+
+      expect((await stored()).failedLoginAttempts).toBe(3)
     })
   })
 

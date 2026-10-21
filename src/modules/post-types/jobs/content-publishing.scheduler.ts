@@ -15,7 +15,7 @@ export class ContentPublishingScheduler implements OnModuleInit {
   async onModuleInit() {
     await this.queue.upsertJobScheduler(
       'content-publish-due',
-      { pattern: '* * * * *' },
+      { pattern: '* * * * *', tz: 'UTC' },
       { name: ContentJobType.PUBLISH_DUE, data: {} }
     )
   }

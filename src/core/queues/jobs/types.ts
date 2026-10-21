@@ -35,7 +35,9 @@ export enum EmailJobType {
  * Attachment Processing Job Types
  */
 export enum AttachmentJobType {
-  PROCESS_IMAGE = 'process-image'
+  PROCESS_IMAGE = 'process-image',
+  /** Hourly: deletes direct uploads initiated but never completed */
+  REMOVE_ABANDONED_UPLOADS = 'remove-abandoned-uploads'
 }
 
 /**
@@ -80,6 +82,8 @@ export interface UnlockAccountJobData extends BaseJobData {
 export interface ResetFailedAttemptsJobData extends BaseJobData {
   userId: string
   lastFailedAttempt: Date
+  /** The counter when the reset was scheduled: a different value means newer failures */
+  failedAttempts?: number
 }
 
 export interface CheckExpiredLocksJobData extends BaseJobData {
