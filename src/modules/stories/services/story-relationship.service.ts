@@ -230,50 +230,41 @@ export class StoryRelationshipService {
     return story
   }
 
-  /** Adds the items not linked yet, saving only when something was added */
+  /** Adds the items not linked yet, one join row each (concurrent requests all apply) */
   private async link(
     story: Story,
     relation: Relation,
     items: Linked[],
     user: User
   ): Promise<Story> {
-    const current = (story[relation] ?? []) as Linked[]
-    const linkedIds = new Set(current.map(item => item.id))
-    const added = items.filter(item => !linkedIds.has(item.id))
-
-    if (added.length > 0) {
-      Object.assign(story, { [relation]: [...current, ...added], updatedBy: user.id })
-      await this.storyRepository.save(story)
-    }
+    const { added } = await this.storyRepository.changeLinks(
+      story.id,
+      relation,
+      { add: items.map(item => item.id) },
+      user.id
+    )
     this.logger.info(
-      { action: `attach_${relation}`, storyId: story.id, userId: user.id, attached: added.length },
+      { action: `attach_${relation}`, storyId: story.id, userId: user.id, attached: added },
       'Story links added'
     )
     return this.reload(story.id)
   }
 
-  /** Removes the given ids, saving only when something was removed */
+  /** Removes the given ids' join rows (concurrent requests all apply) */
   private async unlink(
     story: Story,
     relation: Relation,
     ids: Array<string | number>,
     user: User
   ): Promise<Story> {
-    const current = (story[relation] ?? []) as Linked[]
-    const remove = new Set(ids)
-    const kept = current.filter(item => !remove.has(item.id))
-
-    if (kept.length !== current.length) {
-      Object.assign(story, { [relation]: kept, updatedBy: user.id })
-      await this.storyRepository.save(story)
-    }
+    const { removed } = await this.storyRepository.changeLinks(
+      story.id,
+      relation,
+      { remove: ids },
+      user.id
+    )
     this.logger.info(
-      {
-        action: `detach_${relation}`,
-        storyId: story.id,
-        userId: user.id,
-        detached: current.length - kept.length
-      },
+      { action: `detach_${relation}`, storyId: story.id, userId: user.id, detached: removed },
       'Story links removed'
     )
     return this.reload(story.id)
