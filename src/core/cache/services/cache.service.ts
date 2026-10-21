@@ -14,22 +14,26 @@ interface ScriptRunner {
 interface RedisKeyv {
   namespace?: string
   store: { getClient(): Promise<ScriptRunner> }
+  /** Keyv's own serializer, so entries written by the script read back like any other */
+  serialize?: (data: { value: unknown; expires: number }) => string | Promise<string>
 }
 
 /**
- * Records an entry under its tags, unless one of them was invalidated after the entry's
- * data was read (`since`, the fence taken before reading; '' skips the check). A read
- * that started before a write and finished after the write's invalidation would
- * otherwise cache the old data until it expires. Tag sets get a TTL that only grows: a
- * set must outlive every entry it tracks, or a long-lived entry could no longer be
- * invalidated. Returns 0 (and removes the entry) when the entry was refused.
+ * Stores an entry and records it under its tags, in one step, unless one of the tags was
+ * invalidated after the entry's data was read (`since`, the fence taken before reading;
+ * '' skips the check): a read that started before a write and finished after the
+ * write's invalidation would otherwise cache the old data. The entry is written only
+ * after the check, so a refused entry is never visible, not even for a moment. Tag sets
+ * get a TTL that only grows: a set must outlive every entry it tracks. Returns 0 when
+ * the entry was refused.
  * KEYS[1] entry; ARGV: entry key in the sets, set TTL, since, fence prefix, tag-set
- * prefix, tags... (single-node Redis: derived keys are not declared in KEYS)
+ * prefix, serialized entry, entry TTL (ms), tags... (single-node Redis: derived keys are
+ * not declared in KEYS)
  */
 const TAG_SCRIPT = `
 local since = ARGV[3]
 if since ~= '' then
-  for i = 6, #ARGV do
+  for i = 8, #ARGV do
     local invalidated = redis.call('GET', ARGV[4] .. ARGV[i])
     if invalidated and tonumber(invalidated) > tonumber(since) then
       redis.call('UNLINK', KEYS[1])
@@ -37,8 +41,9 @@ if since ~= '' then
     end
   end
 end
+redis.call('SET', KEYS[1], ARGV[6], 'PX', tonumber(ARGV[7]))
 local ttl = tonumber(ARGV[2])
-for i = 6, #ARGV do
+for i = 8, #ARGV do
   local set = ARGV[5] .. ARGV[i]
   redis.call('SADD', set, ARGV[1])
   if redis.call('TTL', set) < ttl then redis.call('EXPIRE', set, ttl) end
@@ -130,11 +135,10 @@ export class CacheService {
   }
 
   /**
-   * Stores a value and records its key under each tag, for invalidateTag. With `since`
-   * (from fence(), taken before the data was read) the entry is not kept if one of its
-   * tags was invalidated meanwhile. If the tags cannot be recorded the entry is removed
-   * again: an untracked entry could never be invalidated and would be served stale until
-   * it expires. Returns whether the entry was kept.
+   * Stores a value and records its key under each tag, for invalidateTag, atomically
+   * (TAG_SCRIPT): never an entry without its tags, which could not be invalidated. With
+   * `since` (from fence(), taken before the data was read) the entry is not stored if one
+   * of its tags was invalidated meanwhile. Returns whether the entry was stored.
    */
   async setWithTags<T>(
     key: string,
@@ -143,11 +147,15 @@ export class CacheService {
     ttl?: number,
     options: { since?: number } = {}
   ): Promise<boolean> {
-    await this.set(key, value, ttl)
+    const ttlMs = this.ttlMs(ttl)
     const tagTtl = String(this.ttlSeconds(ttl) + 300)
     const kept = await this.resilient(
       'setWithTags',
       async () => {
+        const serialize = this.keyv.serialize
+        if (!serialize) throw new Error('The cache store has no serializer')
+        // Keyv's envelope, so get() reads the entry like one written by set()
+        const entry = await serialize({ value, expires: Date.now() + ttlMs })
         const client = await this.client()
         const result = await client.eval(TAG_SCRIPT, {
           keys: [this.entryPrefix() + key],
@@ -157,6 +165,8 @@ export class CacheService {
             options.since === undefined ? '' : String(options.since),
             this.fencePrefix(),
             this.tagPrefix(),
+            entry,
+            String(ttlMs),
             ...tags
           ]
         })
@@ -164,7 +174,6 @@ export class CacheService {
       },
       { key, tags }
     )
-    if (kept === undefined) await this.del(key)
     return kept === true
   }
 

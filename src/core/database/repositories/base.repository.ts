@@ -21,6 +21,9 @@ export function cacheRowTag(entityName: string, id: string | number): string {
   return `${entityName}:${id}`
 }
 
+/** A cache fill slower than this is returned but not cached (see cached()) */
+const MAX_FILL_MS = 60_000
+
 export interface CacheEntryOptions<V> {
   /** A row picked by a query rather than by its key: also dropped when any row changes */
   selection?: boolean
@@ -84,10 +87,12 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     const hit = await this.cacheService.get<V>(key)
     if (hit !== undefined && hit !== null) return hit
     const since = await this.cacheService.fence()
+    const startedAt = Date.now()
     const value = await load()
     // A cached null would read back as a miss, so misses are not stored; without a
-    // fence (cache unavailable) a stale fill could not be detected, so nothing is stored
-    if (value !== null && since !== undefined) {
+    // fence (cache unavailable) a stale fill could not be detected, and a load slower
+    // than MAX_FILL_MS could outlive the invalidation records the fence relies on
+    if (value !== null && since !== undefined && Date.now() - startedAt < MAX_FILL_MS) {
       await this.cacheSet(key, value, ttl, { ...options, since })
     }
     return value
