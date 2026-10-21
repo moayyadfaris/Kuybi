@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { sanitizeRichText } from '@shared/utils/html-sanitize.util'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
@@ -28,6 +29,8 @@ export interface ContentInput {
   fieldData?: Record<string, unknown>
   status?: ContentStatus
   scheduledAt?: Date
+  /** For an update: the version last read (optimistic locking) */
+  version?: number
 }
 
 /**
@@ -169,10 +172,9 @@ export class ContentService {
       changes.fieldData = sanitizeRichTextFields(fields, merged)
     }
 
-    return this.saveUnique(
-      { ...content, ...changes, updatedBy: editor.id, version: content.version + 1 },
-      fields
-    )
+    return this.saveUnique({ ...content, ...changes, updatedBy: editor.id }, fields, {
+      expectedVersion: data.version ?? content.version
+    })
   }
 
   /** Soft delete; the slug becomes free for a new entry */
@@ -180,12 +182,9 @@ export class ContentService {
     await this.postContentRepository.markDeleted(content.id)
   }
 
+  /** Changes only the status columns: a concurrent edit to other fields is kept */
   async publish(content: PostContent): Promise<PostContent> {
-    return this.postContentRepository.save({
-      ...content,
-      status: ContentStatus.PUBLISHED,
-      publishedAt: new Date()
-    })
+    return this.statusChange(content, { status: ContentStatus.PUBLISHED, publishedAt: new Date() })
   }
 
   /** Publishes at `scheduledFor` (ContentPublishingProcessor); needs Publish like publishing */
@@ -194,11 +193,16 @@ export class ContentService {
     if (scheduledFor <= new Date()) {
       throw new BadRequestException('Scheduled date must be in the future')
     }
-    return this.postContentRepository.save({
-      ...content,
+    return this.statusChange(content, {
       status: ContentStatus.SCHEDULED,
       scheduledAt: scheduledFor
     })
+  }
+
+  private async statusChange(content: PostContent, changes: Partial<PostContent>) {
+    const updated = await this.postContentRepository.update(content.id, changes)
+    if (!updated) throw new NotFoundException('Content not found')
+    return updated
   }
 
   /** Publishes every scheduled entry whose time has come; returns how many */
@@ -220,10 +224,17 @@ export class ContentService {
    */
   private async saveUnique(
     entry: Partial<PostContent> & { postTypeId: string },
-    fields: FieldDefinition[]
+    fields: FieldDefinition[],
+    options: { expectedVersion?: number } = {}
   ): Promise<PostContent> {
     const unique = fields.filter(field => field.isUnique).map(field => field.name)
-    const { saved, conflicts } = await this.postContentRepository.saveUnlessDuplicate(entry, unique)
+    const { saved, conflicts, stale } = await this.postContentRepository.saveUnlessDuplicate(
+      entry,
+      unique,
+      options.expectedVersion
+    )
+    // Changed (or deleted) since it was read
+    if (stale) throw versionConflict('entry')
     if (!saved) {
       throw new ConflictException({
         message: `Another entry already has this value: ${conflicts.join(', ')}`,

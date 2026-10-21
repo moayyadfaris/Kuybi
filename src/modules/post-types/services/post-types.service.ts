@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
@@ -153,6 +154,8 @@ export class PostTypesService {
       capabilityType?: string
       isActive?: boolean
       settings?: Record<string, unknown>
+      /** The version last read (optimistic locking) */
+      version?: number
     },
     updatedBy?: string
   ): Promise<PostType> {
@@ -176,13 +179,16 @@ export class PostTypesService {
     // Validate configuration
     this.validatePostTypeConfig(data)
 
+    const { version, ...changes } = data
     try {
-      return await this.postTypeRepository.save({
-        ...postType,
-        ...data,
-        updatedBy,
-        version: postType.version + 1
-      })
+      const updated = await this.postTypeRepository.updateIfVersion(
+        id,
+        version ?? postType.version,
+        { ...changes, updatedBy }
+      )
+      // Changed (or deleted) since it was read
+      if (!updated) throw versionConflict('post type')
+      return updated
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException(`Post type with name '${data.name}' already exists`)

@@ -926,6 +926,14 @@ GET /api/health/live
 
 ---
 
+## 🔒 Optimistic Locking
+
+Stories, content entries, post types, fields, categories and tags carry a `version`. Send
+the version you last read with an update (`"version": 3`): the update applies only if the
+record still has it, otherwise `409 VERSION_CONFLICT` (someone else changed it: reload
+and reapply). Without `version`, two updates running at the same time still cannot
+overwrite each other: one of them gets the `409`.
+
 ## 📝 Response Format
 
 ### Success Response
@@ -972,6 +980,7 @@ The ones clients usually handle:
 | `VALIDATION_FAILED`                                                                            | 400      | `error.message` is the list of problems               |
 | `IDEMPOTENCY_KEY_REUSED`                                                                       | 422      | Same key, different request: use a new key            |
 | `IDEMPOTENCY_IN_PROGRESS`                                                                      | 409      | The first request is still running: retry later       |
+| `VERSION_CONFLICT`                                                                             | 409      | The record changed since it was read: reload it       |
 | `NOT_FOUND`, `FORBIDDEN`, `CONFLICT`, `TOO_MANY_REQUESTS`, …                                   | as named | Generic code of the status                            |
 | `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE`                                                        | 5xx      | Retry later; quote `requestId` when reporting         |
 

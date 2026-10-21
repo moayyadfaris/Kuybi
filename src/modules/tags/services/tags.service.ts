@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
 
 import { CreateTagDto, UpdateTagDto } from '../dto'
@@ -62,12 +63,15 @@ export class TagsService {
       await this.assertNameFree(dto.name)
     }
 
+    const { version, ...changes } = dto
     const updated = await this.nameSafe(dto.name ?? tag.name, () =>
-      this.tagRepository.update(id, { ...dto, updatedBy: editor.id, version: tag.version + 1 })
+      this.tagRepository.updateIfVersion(id, version ?? tag.version, {
+        ...changes,
+        updatedBy: editor.id
+      })
     )
-    if (!updated) {
-      throw new NotFoundException(`Tag with ID ${id} not found`)
-    }
+    // Changed (or deleted) since it was read
+    if (!updated) throw versionConflict('tag')
     return updated
   }
 

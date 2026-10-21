@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 
@@ -205,7 +206,8 @@ export class StoriesService {
       'You do not have permission to update this story'
     )
 
-    const { tags, categoryIds, tagIds, ...updateData } = updateStoryDto
+    const { tags, categoryIds, tagIds, version, ...updateData } = updateStoryDto
+    const expectedVersion = version ?? story.version
 
     // A status change through PATCH follows the same rules as PATCH /status: valid
     // transition, and Publish for editorial statuses
@@ -232,6 +234,14 @@ export class StoriesService {
 
     await this.storyRepository.transaction(
       async manager => {
+        // Optimistic locking: lock the row; it must still have the version the update was
+        // made against (a concurrent update or the client's stale copy: 409)
+        const [locked] = await manager.query(
+          'SELECT version FROM stories WHERE id = $1 FOR UPDATE',
+          [id]
+        )
+        if (locked && locked.version !== expectedVersion) throw versionConflict('story')
+
         const entity = await manager.findOne(Story, {
           where: { id },
           relations: { categories: true, tags: true }

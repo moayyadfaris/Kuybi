@@ -243,10 +243,13 @@ describe('Authorization audit', () => {
       const list = await http().get('/api/v1/content/audit-notes').expect(200)
       expect(list.body.data.data.map((c: { id: string }) => c.id)).toEqual([published.id])
 
-      const asked = await http()
-        .get('/api/v1/content/audit-notes?status=draft&includeDeleted=true')
+      // Filters apply within what the visitor may see: no draft is ever listed
+      const deleted = await http()
+        .get('/api/v1/content/audit-notes?includeDeleted=true')
         .expect(200)
-      expect(asked.body.data.data.map((c: { id: string }) => c.id)).toEqual([published.id])
+      expect(deleted.body.data.data.map((c: { id: string }) => c.id)).toEqual([published.id])
+      const drafts = await http().get('/api/v1/content/audit-notes?status=draft').expect(200)
+      expect(drafts.body.data.data).toEqual([])
 
       await http().get(`/api/v1/content/audit-notes/${draft.id}`).expect(404)
       await http().get('/api/v1/content/audit-notes/slug/secret-draft').expect(404)

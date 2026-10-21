@@ -153,7 +153,8 @@ export class ContentController {
         excerpt: dto.excerpt,
         fieldData: dto.field_data,
         status: dto.status,
-        scheduledAt: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined
+        scheduledAt: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
+        version: dto.version
       },
       editor
     )

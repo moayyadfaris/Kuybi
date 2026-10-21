@@ -12,6 +12,10 @@ export class ResponseFieldDefinitionDto {
   @Expose()
   id: string
 
+  @ApiProperty({ description: 'Send back with an update (optimistic locking)', example: 1 })
+  @Expose()
+  version: number
+
   @ApiProperty({ description: 'Post type ID', example: 'uuid' })
   @Expose()
   postTypeId: string

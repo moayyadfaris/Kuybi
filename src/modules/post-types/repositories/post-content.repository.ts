@@ -119,8 +119,10 @@ export class PostContentRepository extends BaseRepository<PostContent> {
    */
   async saveUnlessDuplicate(
     entry: DeepPartial<PostContent> & { postTypeId: string },
-    uniqueFields: string[]
-  ): Promise<{ saved?: PostContent; conflicts: string[] }> {
+    uniqueFields: string[],
+    /** For an update: the version it was made against (stale otherwise) */
+    expectedVersion?: number
+  ): Promise<{ saved?: PostContent; conflicts: string[]; stale?: boolean }> {
     const fieldData = (entry.fieldData ?? {}) as Record<string, unknown>
     const checked = uniqueFields.filter(name => !isEmpty(fieldData[name]))
     return this.transaction(
@@ -144,6 +146,15 @@ export class PostContentRepository extends BaseRepository<PostContent> {
           if (taken) conflicts.push(name)
         }
         if (conflicts.length > 0) return { conflicts }
+        if (entry.id) {
+          // Optimistic locking: the row, locked, must still have the expected version
+          const [row] = await manager.query(
+            'SELECT version FROM post_content WHERE id = $1 FOR UPDATE',
+            [entry.id]
+          )
+          if (!row || row.version !== expectedVersion) return { conflicts, stale: true }
+          entry.version = row.version + 1
+        }
         return { saved: await manager.save(PostContent, entry), conflicts }
       },
       { touched: entry.id ? [entry.id] : [] }

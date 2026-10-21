@@ -11,6 +11,10 @@ export class ResponsePostTypeDto {
   @Expose()
   id: string
 
+  @ApiProperty({ description: 'Send back with an update (optimistic locking)', example: 1 })
+  @Expose()
+  version: number
+
   @ApiProperty({ description: 'Post type name', example: 'Recipe' })
   @Expose()
   name: string

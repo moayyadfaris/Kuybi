@@ -220,6 +220,27 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   }
 
   /**
+   * Optimistic locking: applies `data` only if the row still has `expectedVersion`, and
+   * increments the version in the same statement. Null when the row changed meanwhile
+   * (or is gone): answer 409 (versionConflict). For entities with a `version` column.
+   */
+  async updateIfVersion(
+    id: string | number,
+    expectedVersion: number,
+    data: DeepPartial<T>
+  ): Promise<T | null> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update()
+      .set({ ...(data as QueryDeepPartialEntity<T>), version: () => '"version" + 1' })
+      .where('id = :id AND "version" = :expectedVersion', { id, expectedVersion })
+      .execute()
+    if (!result.affected) return null
+    await this.invalidateRowAndLists(id)
+    return this.findById(id, { bypassCache: true })
+  }
+
+  /**
    * Delete an entity by ID
    */
   async delete(id: string | number): Promise<boolean> {

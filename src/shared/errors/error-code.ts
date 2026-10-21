@@ -54,7 +54,10 @@ export const ErrorCode = {
   /** The key was used before with a different request */
   IDEMPOTENCY_KEY_REUSED: 'IDEMPOTENCY_KEY_REUSED',
   /** The first request with this key has not finished: retry later */
-  IDEMPOTENCY_IN_PROGRESS: 'IDEMPOTENCY_IN_PROGRESS'
+  IDEMPOTENCY_IN_PROGRESS: 'IDEMPOTENCY_IN_PROGRESS',
+
+  /** The record changed since the version the client sent (or during the request): reload it */
+  VERSION_CONFLICT: 'VERSION_CONFLICT'
 } as const
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]

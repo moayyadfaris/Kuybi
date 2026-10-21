@@ -7,6 +7,8 @@ export const presentTag = (tag: Tag) => ({
   color: tag.color ?? null,
   sortOrder: tag.sortOrder,
   isSystem: tag.isSystem,
+  // Send back with an update (optimistic locking)
+  version: tag.version,
   metadata: tag.metadata ?? null,
   createdAt: tag.createdAt,
   updatedAt: tag.updatedAt

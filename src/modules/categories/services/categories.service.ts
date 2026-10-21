@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { versionConflict } from '@shared/errors'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
@@ -79,16 +80,15 @@ export class CategoriesService {
     const slug = dto.slug ?? existing.slug
     if (slug !== existing.slug) await this.assertSlugFree(slug, id)
 
+    const { version, ...changes } = dto
     const updated = await this.slugSafe(slug, () =>
-      this.categoryRepository.update(id, {
-        ...dto,
-        updatedBy,
-        version: existing.version + 1
+      this.categoryRepository.updateIfVersion(id, version ?? existing.version, {
+        ...changes,
+        updatedBy
       })
     )
-    if (!updated) {
-      throw new NotFoundException(`Category with ID '${id}' not found`)
-    }
+    // Changed (or deleted) since it was read
+    if (!updated) throw versionConflict('category')
     return updated
   }
 
