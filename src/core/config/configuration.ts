@@ -161,7 +161,9 @@ export default () => {
       secretAccessKey:
         process.env.S3_SECRET ||
         process.env.S3_SECRET_ACCESS_KEY ||
-        process.env.AWS_SECRET_ACCESS_KEY
+        process.env.AWS_SECRET_ACCESS_KEY,
+      // Temporary credentials only; without static keys the AWS default chain is used
+      sessionToken: process.env.S3_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN
     },
     email: {
       from: process.env.EMAIL_FROM || 'noreply@kuybi.dev',

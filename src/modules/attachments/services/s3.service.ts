@@ -80,34 +80,37 @@ export class S3Service {
     this.bucket = this.configService.get<string>('s3.bucket') ?? ''
     this.baseUrl = this.configService.get<string>('s3.baseUrl', '')
 
-    // Read through config like every other setting (configuration.ts maps S3_ACCESS /
-    // S3_SECRET and their aliases); the old process.env read ignored injected config
+    // Static keys when both are configured (S3_ACCESS / S3_SECRET and their aliases, plus
+    // a session token for temporary credentials); otherwise the AWS default chain:
+    // environment, shared profile, or the IAM role of the instance, task or pod
     const accessKeyId = this.configService.get<string>('s3.accessKeyId')
     const secretAccessKey = this.configService.get<string>('s3.secretAccessKey')
+    const sessionToken = this.configService.get<string>('s3.sessionToken')
 
     if (!this.bucket) {
       throw new Error('S3 bucket configuration is missing')
     }
-
-    if (!accessKeyId || !secretAccessKey) {
-      this.logger.error(
-        { hasAccessKey: !!accessKeyId, hasSecretKey: !!secretAccessKey },
-        'S3 credentials are missing'
-      )
+    if (!!accessKeyId !== !!secretAccessKey) {
       throw new Error(
-        'S3 credentials are missing or invalid. Check S3_ACCESS and S3_SECRET in .env'
+        'Set both S3_ACCESS and S3_SECRET, or neither (to use the AWS credential chain)'
       )
     }
 
     this.s3Client = new S3Client({
       region: this.region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey
-      }
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey, sessionToken } }
+        : {})
     })
 
-    this.logger.info({ bucket: this.bucket, region: this.region }, 'S3 client initialized')
+    this.logger.info(
+      {
+        bucket: this.bucket,
+        region: this.region,
+        credentials: accessKeyId ? 'static keys' : 'AWS default chain'
+      },
+      'S3 client initialized'
+    )
   }
 
   /**
