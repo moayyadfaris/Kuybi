@@ -1,4 +1,4 @@
-import { clientIp } from '@shared/utils/request.util'
+import { clientIp, requestIdOf } from '@shared/utils/request.util'
 import type { Request } from 'express'
 
 import { DomainEvent } from '@core/events'
@@ -36,7 +36,7 @@ export class AccessDeniedEvent extends DomainEvent {
       endpoint: (req.originalUrl || req.url).split('?')[0],
       ipAddress: clientIp(req),
       userAgent: header('user-agent'),
-      requestId: header('x-request-id') ?? header('x-correlation-id')
+      requestId: requestIdOf(req)
     })
   }
 }

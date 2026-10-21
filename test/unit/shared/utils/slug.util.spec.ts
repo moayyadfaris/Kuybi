@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
 
 describe('slugify', () => {
@@ -50,5 +51,21 @@ describe('uniqueSlug', () => {
   it('keeps the result within maxLength', async () => {
     const result = await uniqueSlug('abcdef', existsIn(['abcdef']), 6)
     expect(result).toBe('abcd-2')
+  })
+
+  it('switches to a random suffix once the numbered slugs are taken', async () => {
+    const taken = ['news', ...Array.from({ length: 9 }, (_, i) => `news-${i + 2}`)]
+
+    const result = await uniqueSlug('news', existsIn(taken), 12)
+
+    expect(result).toMatch(/^news-[a-z0-9]{6}$/)
+    expect(result.length).toBeLessThanOrEqual(12)
+  })
+
+  it('gives up with 409 after a bounded number of lookups', async () => {
+    const exists = jest.fn().mockResolvedValue(true)
+
+    await expect(uniqueSlug('news', exists)).rejects.toBeInstanceOf(ConflictException)
+    expect(exists.mock.calls.length).toBeLessThanOrEqual(13)
   })
 })

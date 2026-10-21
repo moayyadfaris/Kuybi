@@ -1,4 +1,4 @@
-import { clientIp, parseTrustProxy, parseUserAgent } from '@shared/utils/request.util'
+import { clientIp, parseTrustProxy, parseUserAgent, requestIdOf } from '@shared/utils/request.util'
 import type { Request } from 'express'
 
 describe('request utils', () => {
@@ -41,5 +41,30 @@ describe('request utils', () => {
     ['curl/8.4.0', { browser: 'cURL', os: 'unknown', type: 'desktop' }]
   ])('parses %s', (ua, expected) => {
     expect(parseUserAgent(ua)).toEqual(expected)
+  })
+})
+
+describe('requestIdOf', () => {
+  const req = (header?: string) =>
+    ({ headers: header === undefined ? {} : { 'x-request-id': header } }) as unknown as Request
+
+  it("keeps a client's plausible id", () => {
+    expect(requestIdOf(req('trace-0123456789'))).toBe('trace-0123456789')
+  })
+
+  it.each(['short', 'r'.repeat(101), 'has spaces in it', 'line\nbreak-injected'])(
+    'replaces %j with a new UUID',
+    header => {
+      expect(requestIdOf(req(header))).toMatch(/^[0-9a-f-]{36}$/)
+    }
+  )
+
+  it('assigns once: every reader of the request gets the same id', () => {
+    const request = req()
+    const id = requestIdOf(request)
+
+    expect(requestIdOf(request)).toBe(id)
+    expect(request.id).toBe(id)
+    expect(request.requestId).toBe(id)
   })
 })

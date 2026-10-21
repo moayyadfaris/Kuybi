@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { clientIp } from '@shared/utils/request.util'
+import { clientIp, requestIdOf } from '@shared/utils/request.util'
 import { Request } from 'express'
 
 import { ContextUser } from '../types/context-user.interface'
@@ -84,10 +84,7 @@ export class AuditContextFactory {
       method: req.method,
       // The path only: a query string can carry tokens (reset and verification links)
       endpoint: (req.originalUrl || req.url).split('?')[0],
-      requestId:
-        (req.headers['x-request-id'] as string) ||
-        (req.headers['x-correlation-id'] as string) ||
-        null,
+      requestId: requestIdOf(req),
       metadata: this.sanitizeMetadata(metadata)
     }
   }

@@ -1,4 +1,4 @@
-import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+import { Logger, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { ScheduleModule } from '@nestjs/schedule'
@@ -25,7 +25,6 @@ import { createLoggerConfig } from '@core/config/logger.config'
 import { validate } from '@core/config/validation'
 import { EventsModule } from '@core/events'
 import { HealthModule } from '@core/health/health.module'
-import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingModule } from '@core/logging/logging.module'
 import { ObservabilityModule } from '@core/observability/observability.module'
 import { QueuesModule } from '@core/queues/queues.module'
@@ -108,10 +107,4 @@ import { RedisThrottlerStorage } from '@core/throttling/redis-throttler.storage'
     }
   ]
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    // Named wildcard: path-to-regexp v8 (Express 5) no longer accepts a bare '*'.
-    // '{*path}' also matches the prefix root, exactly like the old '*'.
-    consumer.apply(RequestIdMiddleware).forRoutes('{*path}')
-  }
-}
+export class AppModule {}

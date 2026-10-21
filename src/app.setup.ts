@@ -8,6 +8,7 @@ import compression from 'compression'
 import helmet from 'helmet'
 import { Logger, PinoLogger } from 'nestjs-pino'
 
+import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { LoggingContextService } from '@core/logging/logging-context.service'
 import { SentryInterceptor, SentryService } from '@core/sentry'
@@ -49,6 +50,11 @@ export function configureApp(app: INestApplication): void {
     .getHttpAdapter()
     .getInstance()
     .set('trust proxy', httpConfig?.trustProxy ?? false)
+
+  // First, before the request logger: every log line, audit entry and error response
+  // of the request carries the same id
+  const requestIds = new RequestIdMiddleware()
+  app.use(requestIds.use.bind(requestIds))
 
   app.use(helmet())
 

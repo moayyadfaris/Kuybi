@@ -32,5 +32,13 @@ describe('TransformInterceptor', () => {
 
   it('does not wrap Prometheus metrics', async () => {
     await expect(run('/metrics', 'metric_total 1')).resolves.toBe('metric_total 1')
+    await expect(run('/metrics?x=1', 'metric_total 1')).resolves.toBe('metric_total 1')
   })
+
+  it.each(['/api/v1/stories/metrics', '/api/v1/search?q=/metrics', '/metrics-export'])(
+    'wraps %s, which only mentions metrics',
+    async url => {
+      await expect(run(url, { id: 1 })).resolves.toEqual({ success: true, data: { id: 1 } })
+    }
+  )
 })
