@@ -14,8 +14,9 @@ const handler = function create() {}
 function contextFor(userId: string | undefined, key: string | undefined, body: object = { a: 1 }) {
   const request = {
     method: 'POST',
+    originalUrl: '/api/v1/stories?draft=1',
     path: '/api/v1/stories',
-    route: { path: '/api/v1/stories' },
+    query: { draft: '1' },
     body,
     user: userId ? { id: userId } : undefined,
     header: (name: string) => (name === 'idempotency-key' ? key : undefined)
@@ -83,7 +84,7 @@ describe('IdempotencyInterceptor', () => {
     expect(service.complete).toHaveBeenCalledWith('rec-2', 'lock-2', 201, { id: 7 })
   })
 
-  it('scopes keys per user and route', async () => {
+  it('scopes keys per user and path (without the query)', async () => {
     const service = serviceWith(async () => ({ kind: 'started', record: { id: 'r' } as never }))
     const interceptor = new IdempotencyInterceptor(service as never)
 
