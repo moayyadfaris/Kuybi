@@ -720,7 +720,7 @@ encryption key, scan results and the uploader's account are never returned.
 
 ```http
 POST /api/v1/attachments            # multipart: file, category, description, tags, isPublic, generateThumbnails, allowDuplicates, async
-POST /api/v1/attachments/bulk       # multipart: files (up to 20), same fields
+POST /api/v1/attachments/bulk       # multipart: files (up to 10), same fields
 POST /api/v1/attachments/uploads    # direct upload: returns a presigned POST
 POST /api/v1/attachments/uploads/:id/complete
 ```
@@ -729,6 +729,11 @@ POST /api/v1/attachments/uploads/:id/complete
 and optimized before they are stored: in the request, or in the worker with `async`
 (default: `ATTACHMENT_ASYNC_PROCESSING`). A finished upload has `securityStatus`
 `completed`.
+
+Multipart uploads are held in memory, so they must declare their size (`Content-Length`,
+`411` otherwise) and may not exceed 100 MB in total (`413`). While an API process already
+holds `ATTACHMENT_MAX_IN_FLIGHT_MB` (300) of uploads it answers `503` with `Retry-After`.
+Large files belong in direct uploads, which go straight to storage.
 
 ### Read
 

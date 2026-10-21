@@ -382,6 +382,13 @@ class EnvironmentVariables {
   @IsOptional()
   ATTACHMENT_ASYNC_PROCESSING?: string
 
+  // Megabytes of multipart uploads a process holds in memory at once
+  @Type(() => Number)
+  @IsInt()
+  @Min(110)
+  @IsOptional()
+  ATTACHMENT_MAX_IN_FLIGHT_MB?: number
+
   @Type(() => Number)
   @IsInt()
   @Min(1)

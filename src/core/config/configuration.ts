@@ -109,7 +109,10 @@ export default () => {
     },
     attachments: {
       // Multipart image uploads are processed in the worker unless a request says otherwise
-      asyncProcessing: parseBoolean(process.env.ATTACHMENT_ASYNC_PROCESSING, false)
+      asyncProcessing: parseBoolean(process.env.ATTACHMENT_ASYNC_PROCESSING, false),
+      // Bytes of multipart uploads one process holds in memory at once (UploadBudgetGuard)
+      maxInFlightUploadBytes:
+        parseNumber(process.env.ATTACHMENT_MAX_IN_FLIGHT_MB, 300) * 1024 * 1024
     },
     stories: {
       // Automatic versions kept per story and branch (the daily prune deletes older ones)
