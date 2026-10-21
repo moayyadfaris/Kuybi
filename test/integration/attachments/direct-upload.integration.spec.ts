@@ -191,6 +191,52 @@ describe('Direct uploads', () => {
     expect(job).toMatchObject({ queue: 'attachment-processing-queue', jobName: 'process-image' })
   })
 
+  it('keeps the verified bytes under a key the client was never given', async () => {
+    const response = await initiate({
+      originalName: 'doc.pdf',
+      mimeType: 'application/pdf',
+      size: PDF.length,
+      isPublic: false
+    }).expect(201)
+    const uploadKey = response.body.data.upload.fields.key as string
+    storage.objects.set(uploadKey, PDF)
+
+    await complete(response.body.data.attachmentId).expect(200)
+
+    const attachment = await stored(response.body.data.attachmentId)
+    expect(attachment.path).not.toBe(uploadKey)
+    expect(storage.objects.get(attachment.path)).toEqual(PDF)
+    // The writable upload key is gone: re-posting to it changes nothing that is served
+    expect(storage.objects.has(uploadKey)).toBe(false)
+  })
+
+  it('refuses bytes swapped right after they were verified', async () => {
+    const response = await initiate({
+      originalName: 'doc.pdf',
+      mimeType: 'application/pdf',
+      size: PDF.length
+    }).expect(201)
+    const uploadKey = response.body.data.upload.fields.key as string
+    const id = response.body.data.attachmentId
+    storage.objects.set(uploadKey, PDF)
+    // The client re-posts other bytes of the same size while the check runs
+    const s3 = app.get(S3Service)
+    const readHead = s3.readHead
+    jest.spyOn(s3, 'readHead').mockImplementationOnce(async (...args) => {
+      const head = await readHead.apply(s3, args)
+      storage.objects.set(uploadKey, Buffer.alloc(PDF.length, 0x41))
+      return head
+    })
+
+    await complete(id).expect(409)
+    expect((await stored(id)).securityStatus).toBe('pending_upload')
+    expect(storage.objects.get((await stored(id)).path)).toBeUndefined()
+
+    // Uploading the real file again and completing works
+    storage.objects.set(uploadKey, PDF)
+    await complete(id).expect(200)
+  })
+
   it('makes a public non-image file public right away', async () => {
     const id = await uploadAs(
       { originalName: 'flyer.pdf', mimeType: 'application/pdf', size: PDF.length, isPublic: true },

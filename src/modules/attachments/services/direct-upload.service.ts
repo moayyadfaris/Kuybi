@@ -21,7 +21,7 @@ import { AttachmentRepository } from '../repositories/attachment.repository'
 import { AttachmentService } from './attachment.service'
 import { AttachmentVisibilityService } from './attachment-visibility.service'
 import { FileValidationService, MulterFile } from './file-validation.service'
-import { S3Service } from './s3.service'
+import { isPreconditionFailed, S3Service } from './s3.service'
 
 /** How long the presigned upload stays valid */
 export const UPLOAD_URL_TTL_SECONDS = 15 * 60
@@ -37,17 +37,29 @@ interface DirectUploadMetadata {
   processingStatus?: string
   generateThumbnails?: boolean
   rejectionReasons?: string[]
+  /** Where the client uploads; the attachment's own key is never handed out */
+  uploadKey?: string
 }
+
+/** Prefix of upload keys (a bucket lifecycle rule may expire it as a backstop) */
+const UPLOAD_KEY_PREFIX = 'incoming'
 
 /**
  * Uploads that go from the client straight to S3, so file bytes never pass through
  * (or sit in the memory of) the API:
  *
  * 1. initiate: validate what the client declares, create a 'pending_upload' record,
- *    return a presigned POST pinned to its key, exact size and Content-Type
+ *    return a presigned POST pinned to an upload key, exact size and Content-Type
  * 2. the client uploads to S3
  * 3. complete: check the object's size, verify its content type from the first bytes,
- *    then mark it ready and queue image processing (atomically, via the outbox)
+ *    copy exactly that version to the attachment's key, then mark it ready and queue
+ *    image processing (atomically, via the outbox)
+ *
+ * The presigned POST stays usable until it expires, so the client could re-upload other
+ * bytes to the upload key at any time. Completion therefore binds everything to one
+ * version (its ETag): the content check reads that version (If-Match) and the copy takes
+ * it (CopySourceIfMatch); a swap in between fails (409, complete again). What is served
+ * and processed lives under a key the client was never given.
  */
 @Injectable()
 export class DirectUploadService {
@@ -71,9 +83,11 @@ export class DirectUploadService {
     }
 
     const key = this.s3Service.generateKey(user.id, dto.originalName, dto.category)
+    const uploadKey = `${UPLOAD_KEY_PREFIX}/${key}`
     const metadata: DirectUploadMetadata = {
       processingStatus: 'awaiting_upload',
-      generateThumbnails: dto.generateThumbnails !== false
+      generateThumbnails: dto.generateThumbnails !== false,
+      uploadKey
     }
     const attachment = await this.attachmentRepository.transaction(manager =>
       manager.save(
@@ -94,7 +108,7 @@ export class DirectUploadService {
     )
 
     const upload = await this.s3Service.createPresignedUpload({
-      key,
+      key: uploadKey,
       contentType: dto.mimeType,
       size: dto.size,
       expiresInSeconds: UPLOAD_URL_TTL_SECONDS
@@ -123,9 +137,13 @@ export class DirectUploadService {
       throw new ConflictException('This upload has already been completed')
     }
 
-    let stored: { contentLength?: number }
+    const metadata = (attachment.metadata ?? {}) as DirectUploadMetadata
+    // Uploads started before upload keys existed went straight to the attachment's key
+    const uploadKey = metadata.uploadKey ?? attachment.path
+
+    let stored: { contentLength?: number; etag?: string }
     try {
-      stored = await this.s3Service.getMetadata(attachment.path)
+      stored = await this.s3Service.getMetadata(uploadKey)
     } catch {
       // Not uploaded (yet): let the client upload and complete again
       await this.attachmentRepository.update(id, { securityStatus: PENDING })
@@ -139,7 +157,7 @@ export class DirectUploadService {
         ])
       }
 
-      const head = await this.s3Service.readHead(attachment.path, CONTENT_SNIFF_BYTES)
+      const head = await this.s3Service.readHead(uploadKey, CONTENT_SNIFF_BYTES, stored.etag)
       const verdict = await this.fileValidation.validateFile(
         {
           originalname: attachment.originalName,
@@ -153,9 +171,21 @@ export class DirectUploadService {
         return await this.reject(attachment, verdict.errors)
       }
 
+      // Exactly the version that was checked, to a key the client cannot write
+      if (uploadKey !== attachment.path) {
+        await this.s3Service.copyIfUnchanged(uploadKey, attachment.path, stored.etag ?? '')
+        await this.s3Service
+          .delete(uploadKey)
+          .catch(error =>
+            this.logger.warn(
+              { key: uploadKey, error: errorMessage(error) },
+              'Upload key not deleted'
+            )
+          )
+      }
+
       const mimeType = verdict.verifiedMimeType ?? attachment.mimeType
       const isImage = mimeType.startsWith('image/')
-      const metadata = (attachment.metadata ?? {}) as DirectUploadMetadata
 
       // Images stay private until processing has replaced them with an EXIF-stripped copy
       // (the processor applies the public ACL then); other files can be public now
@@ -167,7 +197,11 @@ export class DirectUploadService {
         await manager.update(Attachment, id, {
           mimeType,
           securityStatus: isImage ? 'processing' : 'completed',
-          metadata: { ...metadata, processingStatus: isImage ? 'queued' : 'completed' }
+          metadata: {
+            ...metadata,
+            uploadKey: undefined,
+            processingStatus: isImage ? 'queued' : 'completed'
+          }
         })
         if (isImage) {
           await this.outbox.enqueue(
@@ -194,6 +228,9 @@ export class DirectUploadService {
         // Unexpected failure while verifying: allow another completion attempt
         await this.attachmentRepository.transitionSecurityStatus(id, VERIFYING, PENDING)
       }
+      if (isPreconditionFailed(error)) {
+        throw new ConflictException('The file changed while it was being checked; complete again')
+      }
       throw error
     }
 
@@ -202,14 +239,13 @@ export class DirectUploadService {
   }
 
   private async reject(attachment: Attachment, reasons: string[]): Promise<never> {
-    await this.s3Service
-      .delete(attachment.path)
-      .catch(error =>
-        this.logger.warn(
-          { key: attachment.path, error: errorMessage(error) },
-          'Could not delete rejected upload'
+    for (const key of storedKeys(attachment)) {
+      await this.s3Service
+        .delete(key)
+        .catch(error =>
+          this.logger.warn({ key, error: errorMessage(error) }, 'Could not delete rejected upload')
         )
-      )
+    }
     await this.attachmentRepository.transaction(manager =>
       manager.update(Attachment, attachment.id, {
         securityStatus: 'rejected',
@@ -232,7 +268,9 @@ export class DirectUploadService {
       500
     )
     for (const attachment of abandoned) {
-      await this.s3Service.delete(attachment.path).catch(() => undefined) // may never have been uploaded
+      for (const key of storedKeys(attachment)) {
+        await this.s3Service.delete(key).catch(() => undefined) // may never have been uploaded
+      }
       await this.attachmentRepository.deleteIfStatus(attachment.id, PENDING)
     }
     if (abandoned.length > 0) {
@@ -240,4 +278,10 @@ export class DirectUploadService {
     }
     return abandoned.length
   }
+}
+
+/** The upload key (if any) and the attachment's own key */
+function storedKeys(attachment: Attachment): string[] {
+  const uploadKey = (attachment.metadata as DirectUploadMetadata | null)?.uploadKey
+  return [...new Set([uploadKey, attachment.path].filter((key): key is string => !!key))]
 }

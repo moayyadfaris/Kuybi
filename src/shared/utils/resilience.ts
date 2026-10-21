@@ -5,6 +5,12 @@ export interface CircuitBreakerOptions {
   failureThreshold: number
   resetTimeoutMs: number
   halfOpenSuccesses?: number
+  /**
+   * Whether an error counts toward opening the circuit (default: every error). Answers
+   * about the request itself (not found, precondition failed...) are not failures of the
+   * dependency, and counting them would let one caller open the circuit for everyone.
+   */
+  isFailure?: (error: unknown) => boolean
 }
 
 /**
@@ -46,7 +52,8 @@ export class CircuitBreaker {
       this.onSuccess()
       return result
     } catch (error) {
-      this.onFailure()
+      if (this.options.isFailure?.(error) ?? true) this.onFailure()
+      else this.onSuccess()
       throw error
     }
   }

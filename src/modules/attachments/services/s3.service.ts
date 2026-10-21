@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -70,7 +71,14 @@ export class S3Service {
       name: 's3',
       failureThreshold: this.configService.get<number>('resilience.s3.failureThreshold', 5),
       resetTimeoutMs: this.configService.get<number>('resilience.s3.resetTimeoutMs', 30000),
-      halfOpenSuccesses: 2
+      halfOpenSuccesses: 2,
+      // S3's 4xx answers (not found, precondition failed, access denied) are about the
+      // request; only server errors, timeouts and network failures count
+      isFailure: error => {
+        const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata
+          ?.httpStatusCode
+        return status === undefined || status >= 500
+      }
     })
     this.initializeS3Client()
   }
@@ -190,10 +198,16 @@ export class S3Service {
   }
 
   /** The first `bytes` bytes of an object (for content-type verification) */
-  async readHead(key: string, bytes: number): Promise<Buffer> {
+  /** The first bytes of an object; with `ifMatch`, only of that version (412 otherwise) */
+  async readHead(key: string, bytes: number, ifMatch?: string): Promise<Buffer> {
     const result = await this.executeWithResilience('readHead', signal =>
       this.s3Client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=0-${bytes - 1}` }),
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Range: `bytes=0-${bytes - 1}`,
+          IfMatch: ifMatch
+        }),
         { abortSignal: signal }
       )
     )
@@ -201,6 +215,26 @@ export class S3Service {
       throw new Error(`S3 returned an empty body for ${key}`)
     }
     return Buffer.from(await result.Body.transformToByteArray())
+  }
+
+  /**
+   * Copies an object inside the bucket, private, only if it is still the version with
+   * this ETag: what was verified is what gets copied (412 PreconditionFailed otherwise).
+   */
+  async copyIfUnchanged(from: string, to: string, ifMatch: string): Promise<void> {
+    await this.executeWithResilience('copy', signal =>
+      this.s3Client.send(
+        new CopyObjectCommand({
+          Bucket: this.bucket,
+          CopySource: `${this.bucket}/${from.split('/').map(encodeURIComponent).join('/')}`,
+          Key: to,
+          CopySourceIfMatch: ifMatch,
+          ACL: 'private',
+          MetadataDirective: 'COPY'
+        }),
+        { abortSignal: signal }
+      )
+    )
   }
 
   async download(key: string): Promise<Buffer> {
@@ -378,4 +412,10 @@ export class S3Service {
       )
     )
   }
+}
+
+/** S3's answer when an If-Match / CopySourceIfMatch ETag no longer matches the object */
+export function isPreconditionFailed(error: unknown): boolean {
+  const e = error as { name?: string; $metadata?: { httpStatusCode?: number } }
+  return e?.name === 'PreconditionFailed' || e?.$metadata?.httpStatusCode === 412
 }

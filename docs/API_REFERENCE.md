@@ -735,6 +735,12 @@ Multipart uploads are held in memory, so they must declare their size (`Content-
 holds `ATTACHMENT_MAX_IN_FLIGHT_MB` (300) of uploads it answers `503` with `Retry-After`.
 Large files belong in direct uploads, which go straight to storage.
 
+Direct uploads: the presigned POST targets an upload key under `incoming/`; completion
+checks that exact version of the file (by ETag) and copies it to the attachment's own key,
+which is never handed out. If the file changes while it is checked, completion answers
+`409`: upload again and complete again. Set a bucket lifecycle rule that expires
+`incoming/` after a day to clear uploads that were re-posted after completion.
+
 ### Read
 
 ```http
