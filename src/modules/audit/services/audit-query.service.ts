@@ -38,6 +38,9 @@ export interface EntityHistorySummary {
   changeFrequency: Record<string, number>
 }
 
+/** Recent actions listed with a user's activity summary at most */
+const RECENT_ACTIONS = 10
+
 /** Rows read to look for suspicious patterns in a user's recent activity */
 const SUSPICIOUS_SCAN_LIMIT = 1000
 
@@ -59,82 +62,48 @@ export class AuditQueryService {
     endDate?: Date,
     limit: number = 50
   ): Promise<UserActivitySummary> {
-    const logs = await this.auditLogRepository.findByUserId(userId, startDate, endDate, {
-      take: limit
-    })
-
-    const actionBreakdown: Record<string, number> = {}
-    let suspiciousActivityCount = 0
-    let failedActionsCount = 0
-
-    logs.forEach(log => {
-      // Count actions
-      actionBreakdown[log.action] = (actionBreakdown[log.action] || 0) + 1
-
-      // Count suspicious activities
-      if (log.action === AuditAction.SUSPICIOUS_ACTIVITY) {
-        suspiciousActivityCount++
-      }
-
-      // Count failed actions
-      if (log.status === AuditStatus.FAILURE) {
-        failedActionsCount++
-      }
-    })
-
-    const summary: UserActivitySummary = {
+    // Totals over every row of the period; the recent actions are a page of them
+    const [summary, recent] = await Promise.all([
+      this.auditLogRepository.summarizeUser(userId, startDate, endDate),
+      this.auditLogRepository.findByUserId(userId, startDate, endDate, {
+        take: Math.min(limit, RECENT_ACTIONS)
+      })
+    ])
+    return {
       userId,
-      username: logs[0]?.username || null,
-      email: logs[0]?.email || null,
-      totalActions: logs.length,
-      recentActions: logs.slice(0, 10), // Most recent 10
-      actionBreakdown,
-      lastActivity: logs[0]?.createdAt || null,
-      suspiciousActivityCount,
-      failedActionsCount
+      username: recent[0]?.username || null,
+      email: recent[0]?.email || null,
+      totalActions: Object.values(summary.byAction).reduce((sum, count) => sum + count, 0),
+      recentActions: recent,
+      actionBreakdown: summary.byAction,
+      lastActivity: summary.lastActivity,
+      suspiciousActivityCount: summary.byAction[AuditAction.SUSPICIOUS_ACTIVITY] ?? 0,
+      failedActionsCount: summary.failed
     }
-
-    return summary
   }
 
   /**
-   * Get complete entity history
+   * An entity's history: its totals over every row, and the latest `limit` entries
    */
   async getEntityHistory(
     entityType: string,
     entityId: string,
     limit: number = 100
   ): Promise<EntityHistorySummary> {
-    const history = await this.auditLogRepository.findEntityHistory(entityType, entityId, {
-      take: limit
-    })
-
-    const modifiedByUsers = new Set<string>()
-    const changeFrequency: Record<string, number> = {}
-
-    history.forEach(log => {
-      if (log.userId) {
-        modifiedByUsers.add(log.userId)
-      }
-
-      changeFrequency[log.action] = (changeFrequency[log.action] || 0) + 1
-    })
-
-    // history is newest first; the creation is the oldest CREATE
-    const creationLog = [...history].reverse().find(log => log.action === AuditAction.CREATE)
-
-    const summary: EntityHistorySummary = {
+    const [summary, history] = await Promise.all([
+      this.auditLogRepository.summarizeEntity(entityType, entityId),
+      this.auditLogRepository.findEntityHistory(entityType, entityId, { take: limit })
+    ])
+    return {
       entityType,
       entityId,
-      totalChanges: history.length,
+      totalChanges: Object.values(summary.byAction).reduce((sum, count) => sum + count, 0),
       history,
-      createdAt: creationLog?.createdAt || null,
-      lastModifiedAt: history[0]?.createdAt || null,
-      modifiedByUsers: Array.from(modifiedByUsers),
-      changeFrequency
+      createdAt: summary.createdAt,
+      lastModifiedAt: summary.lastModifiedAt,
+      modifiedByUsers: summary.userIds,
+      changeFrequency: summary.byAction
     }
-
-    return summary
   }
 
   /**

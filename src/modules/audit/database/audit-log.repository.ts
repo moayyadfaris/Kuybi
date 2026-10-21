@@ -35,6 +35,9 @@ export interface AuditLogStatistics {
  * list query takes a cap. Rows are never updated; the retention job deletes expired ones
  * (deleteExpired).
  */
+/** Distinct users an entity summary lists at most */
+const MAX_SUMMARY_USERS = 100
+
 @Injectable()
 export class AuditLogRepository extends BaseRepository<AuditLog> {
   protected entityName = 'audit_log'
@@ -109,6 +112,75 @@ export class AuditLogRepository extends BaseRepository<AuditLog> {
     }
 
     return qb.getMany()
+  }
+
+  /**
+   * Totals of a user's actions in the period, by action, with the failed and
+   * suspicious-activity counts (SQL aggregates: summaries count every row, not a page)
+   */
+  async summarizeUser(
+    userId: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<{ byAction: Record<string, number>; failed: number; lastActivity: Date | null }> {
+    const qb = this.repository
+      .createQueryBuilder('log')
+      .select('log.action', 'action')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect(`COUNT(*) FILTER (WHERE log.status = :failure)`, 'failed')
+      .addSelect('MAX(log.createdAt)', 'last')
+      .where('log.userId = :userId', { userId, failure: AuditStatus.FAILURE })
+      .groupBy('log.action')
+    if (startDate) qb.andWhere('log.createdAt >= :startDate', { startDate })
+    if (endDate) qb.andWhere('log.createdAt <= :endDate', { endDate })
+    const rows: Array<{ action: string; count: string; failed: string; last: Date }> =
+      await qb.getRawMany()
+    return {
+      byAction: Object.fromEntries(rows.map(row => [row.action, Number(row.count)])),
+      failed: rows.reduce((sum, row) => sum + Number(row.failed), 0),
+      lastActivity: rows.reduce<Date | null>(
+        (latest, row) => (!latest || new Date(row.last) > latest ? new Date(row.last) : latest),
+        null
+      )
+    }
+  }
+
+  /** Totals of an entity's history: by action, first creation, last change, distinct users */
+  async summarizeEntity(
+    entityType: string,
+    entityId: string
+  ): Promise<{
+    byAction: Record<string, number>
+    createdAt: Date | null
+    lastModifiedAt: Date | null
+    userIds: string[]
+  }> {
+    const where = 'log.entityType = :entityType AND log.entityId = :entityId'
+    const rows: Array<{ action: string; count: string; first: Date; last: Date }> =
+      await this.repository
+        .createQueryBuilder('log')
+        .select('log.action', 'action')
+        .addSelect('COUNT(*)', 'count')
+        .addSelect('MIN(log.createdAt)', 'first')
+        .addSelect('MAX(log.createdAt)', 'last')
+        .where(where, { entityType, entityId })
+        .groupBy('log.action')
+        .getRawMany()
+    const users: Array<{ userId: string }> = await this.repository
+      .createQueryBuilder('log')
+      .select('DISTINCT log.userId', 'userId')
+      .where(where, { entityType, entityId })
+      .andWhere('log.userId IS NOT NULL')
+      .limit(MAX_SUMMARY_USERS)
+      .getRawMany()
+    const created = rows.find(row => row.action === AuditAction.CREATE)
+    const last = rows.map(row => new Date(row.last)).sort((a, b) => b.getTime() - a.getTime())[0]
+    return {
+      byAction: Object.fromEntries(rows.map(row => [row.action, Number(row.count)])),
+      createdAt: created ? new Date(created.first) : null,
+      lastModifiedAt: last ?? null,
+      userIds: users.map(user => user.userId)
+    }
   }
 
   async findEntityHistory(
