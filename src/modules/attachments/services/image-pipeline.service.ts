@@ -52,7 +52,8 @@ export class ImagePipelineService {
    * callers must not fall back to storing the original, which still carries its metadata
    * (GPS location, camera details).
    */
-  async prepare(original: Buffer): Promise<PreparedImage> {
+  async prepare(original: Buffer, signal?: AbortSignal): Promise<PreparedImage> {
+    signal?.throwIfAborted()
     const stripped = await this.exif.stripSensitiveData(original, {
       stripSensitiveData: true,
       preserveColorProfile: true,
@@ -64,6 +65,7 @@ export class ImagePipelineService {
       this.logger.warn({ issues: validation.issues }, 'Image metadata validation issues detected')
     }
 
+    signal?.throwIfAborted()
     const optimized = await this.optimizer.optimizeImage(stripped.buffer, {
       maxWidth: 2048,
       maxHeight: 2048,
@@ -102,8 +104,10 @@ export class ImagePipelineService {
     baseKey: string,
     image: PreparedImage,
     isPublic: boolean,
-    options: { generateThumbnails?: boolean } = {}
+    options: { generateThumbnails?: boolean; signal?: AbortSignal } = {}
   ): Promise<StoredDerivatives> {
+    const { signal } = options
+    signal?.throwIfAborted()
     const metadata: AttachmentMetadata = { ...image.metadata }
 
     if (image.placeholder) {
@@ -112,7 +116,8 @@ export class ImagePipelineService {
         key: placeholderKey,
         buffer: image.placeholder,
         contentType: 'image/jpeg',
-        isPublic
+        isPublic,
+        signal
       })
       metadata.optimization = { ...(metadata.optimization || {}), placeholderKey }
     }
@@ -125,11 +130,14 @@ export class ImagePipelineService {
       const { thumbnails, previewKey } = await this.uploadThumbnails(
         baseKey,
         image.buffer,
-        isPublic
+        isPublic,
+        signal
       )
       metadata.thumbnails = thumbnails
       return { metadata, thumbnailPath: previewKey }
     } catch (error) {
+      // A cancelled job stops here; any other thumbnail failure is skipped
+      signal?.throwIfAborted()
       this.logger.error({ error: errorMessage(error), baseKey }, 'Thumbnail generation failed')
       return { metadata }
     }
@@ -138,9 +146,11 @@ export class ImagePipelineService {
   private async uploadThumbnails(
     baseKey: string,
     buffer: Buffer,
-    isPublic: boolean
+    isPublic: boolean,
+    signal?: AbortSignal
   ): Promise<{ thumbnails: Record<string, ThumbnailMetadata>; previewKey?: string }> {
     const generated = await this.thumbnails.generateThumbnails(buffer)
+    signal?.throwIfAborted()
     const thumbnails: Record<string, ThumbnailMetadata> = {}
 
     await Promise.all(
@@ -154,7 +164,8 @@ export class ImagePipelineService {
           key,
           buffer: data.buffer,
           contentType: mapFormatToContentType(data.format),
-          isPublic
+          isPublic,
+          signal
         })
         thumbnails[variant] = {
           key,

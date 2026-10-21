@@ -3,6 +3,8 @@ import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import sharp, { type Sharp } from 'sharp'
 
+import { IMAGE_OPERATION_TIMEOUT } from '../utils/attachment-image.util'
+
 export interface OptimizationOptions {
   maxWidth?: number
   maxHeight?: number
@@ -45,7 +47,7 @@ export class ImageOptimizationService {
   ): Promise<OptimizationResult> {
     try {
       const originalSize = buffer.length
-      let image = sharp(buffer)
+      let image = sharp(buffer).timeout(IMAGE_OPERATION_TIMEOUT)
 
       // Get metadata
       const metadata = await image.metadata()
@@ -113,6 +115,7 @@ export class ImageOptimizationService {
   async generatePlaceholder(buffer: Buffer): Promise<Buffer> {
     try {
       return await sharp(buffer)
+        .timeout(IMAGE_OPERATION_TIMEOUT)
         .rotate()
         .resize(this.placeholderWidth, null, {
           fit: 'inside',
