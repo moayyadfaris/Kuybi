@@ -33,6 +33,37 @@ const userWith = (primaryRole: Role, userRoles: Partial<UserRole>[] = []): User 
 describe('AbilityFactory', () => {
   const factory = new AbilityFactory()
 
+  describe('field-level permissions (not supported: they fail closed)', () => {
+    const withFields = (inverted: boolean, extra: RolePermission[] = []) =>
+      factory.createForUser(
+        userWith(
+          role(5, 'fielded', [
+            ...extra,
+            {
+              permission: {
+                action: Action.Update,
+                subject: Subject.Story,
+                conditions: {},
+                fields: ['title'],
+                inverted
+              } as Permission
+            } as RolePermission
+          ])
+        )
+      )
+
+    it('grants nothing through a "can" limited to fields', () => {
+      // CASL would answer yes to "update a story" and to any field not asked about
+      expect(withFields(false).can(Action.Update, Subject.Story)).toBe(false)
+      expect(withFields(false).can(Action.Update, Subject.Story, 'internalNotes')).toBe(false)
+    })
+
+    it('denies the whole subject through a "cannot" limited to fields', () => {
+      const ability = withFields(true, [permission(Action.Update, Subject.Story)])
+      expect(ability.can(Action.Update, Subject.Story)).toBe(false)
+    })
+  })
+
   it('grants permissions of the primary role without any user_roles rows', () => {
     const moderator = role(3, 'moderator', [permission(Action.Create, Subject.Content)])
     const ability = factory.createForUser(userWith(moderator))

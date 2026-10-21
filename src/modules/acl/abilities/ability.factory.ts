@@ -68,18 +68,23 @@ export class AbilityFactory {
         const permission = rolePermission.permission
 
         // Replace ${userId} placeholder in conditions with actual user ID.
-        // Empty fields/conditions mean "unrestricted"; CASL rejects an empty fields array.
+        // Empty conditions mean "unrestricted".
         const conditions =
           permission.conditions && Object.keys(permission.conditions).length > 0
             ? this.interpolateConditions(permission.conditions, user.id)
             : undefined
-        const fields = permission.fields?.length ? permission.fields : undefined
+
+        // Field-level permissions are not enforced (policies check actions on records,
+        // not on fields), and CASL answers "allowed" to a check without a field. So they
+        // fail closed: a field-limited grant grants nothing, a field-limited "cannot"
+        // denies the whole subject. The API refuses to create them.
+        const fieldLimited = !!permission.fields?.length
+        if (fieldLimited && !permission.inverted) continue
 
         // A permission row is a raw CASL rule; `inverted` makes it a "cannot"
         rules.push({
           action: permission.action,
           subject: permission.subject,
-          fields,
           conditions: conditions as MongoQuery | undefined,
           inverted: permission.inverted
         })

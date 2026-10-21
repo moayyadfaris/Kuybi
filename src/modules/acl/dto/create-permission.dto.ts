@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { ToBoolean } from '@shared/decorators/to-boolean.decorator'
-import { IsArray, IsBoolean, IsEnum, IsObject, IsOptional, IsString } from 'class-validator'
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString
+} from 'class-validator'
 
 import { Action } from '../types/actions.enum'
 import { Subject } from '../types/subjects.enum'
@@ -33,12 +41,16 @@ export class CreatePermissionDto {
   conditions?: Record<string, unknown>
 
   @ApiPropertyOptional({
-    description: 'Specific fields this permission applies to',
-    example: ['title', 'content'],
+    description:
+      'Field-level permissions are not supported yet: leave empty (a permission covers every field)',
+    example: [],
     type: [String]
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(0, {
+    message: 'Field-level permissions are not supported: a permission covers every field'
+  })
   @IsString({ each: true })
   fields?: string[]
 
