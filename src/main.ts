@@ -60,6 +60,8 @@ async function bootstrap() {
   // time in parallel and re-raise the signal, killing the process mid-shutdown.
 
   await app.listen(httpConfig.port, httpConfig.host)
+  // PM2 (wait_ready) routes traffic to this instance only after it listens
+  process.send?.('ready')
 
   let isShuttingDown = false
   let shutdownTimer: NodeJS.Timeout | null = null

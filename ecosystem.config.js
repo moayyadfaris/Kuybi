@@ -6,7 +6,9 @@
  * - Bull Board dashboard (monitoring)
  * - Background workers (future: session cleanup, logs, email, etc.)
  * 
- * Environment variables are loaded from .env file
+ * Environment variables are loaded from .env file. `--env production` / `--env staging`
+ * set NODE_ENV for every process (env_production / env_staging below), which turns on the
+ * deployed-environment config checks.
  * 
  * Usage:
  *   pm2 start ecosystem.config.js                    # Start all processes
@@ -50,6 +52,10 @@ module.exports = {
       env_staging: {
         NODE_ENV: 'staging',
       },
+
+      env_production: {
+        NODE_ENV: 'production',
+      },
       
       // Auto-restart configuration
       watch: false, // Set to true in development if needed
@@ -69,8 +75,8 @@ module.exports = {
       
       // Advanced PM2 features
       listen_timeout: 10000, // Wait 10s for app to listen
-      kill_timeout: 5000, // Wait 5s before force killing
-      wait_ready: true, // Wait for process.send('ready')
+      kill_timeout: 35000, // Longer than the app's 30s graceful shutdown
+      wait_ready: true, // main.ts sends 'ready' once the server listens
       
       // Post-deployment
       post_update: ['npm install', 'npm run build'],
@@ -94,7 +100,17 @@ module.exports = {
       env_development: {
         NODE_ENV: 'development',
       },
+
+      env_staging: {
+        NODE_ENV: 'staging',
+      },
+
+      env_production: {
+        NODE_ENV: 'production',
+      },
       
+      // Longer than the worker's graceful shutdown (WORKER_SHUTDOWN_TIMEOUT_MS, 30s)
+      kill_timeout: 35000,
       watch: false,
       max_memory_restart: '256M',
       autorestart: true,
@@ -114,15 +130,23 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       
-      // No environment overrides needed - reads from .env
+      // BULL_BOARD_PASSWORD has no fallback: the dashboard refuses to start without one
       env: {
         BULL_BOARD_PORT: process.env.BULL_BOARD_PORT || 4050,
         BULL_BOARD_USERNAME: process.env.BULL_BOARD_USERNAME || 'admin',
-        BULL_BOARD_PASSWORD: process.env.BULL_BOARD_PASSWORD || 'admin123',
+        BULL_BOARD_PASSWORD: process.env.BULL_BOARD_PASSWORD,
       },
       
       env_development: {
         NODE_ENV: 'development',
+      },
+
+      env_staging: {
+        NODE_ENV: 'staging',
+      },
+
+      env_production: {
+        NODE_ENV: 'production',
       },
       
       watch: false,
