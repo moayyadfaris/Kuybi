@@ -10,6 +10,7 @@ import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { AttachmentProcessor } from '@modules/attachments/jobs/attachment.processor'
 import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
 import { AttachmentVisibilityService } from '@modules/attachments/services/attachment-visibility.service'
+import { DirectUploadService } from '@modules/attachments/services/direct-upload.service'
 import { ExifProcessorService } from '@modules/attachments/services/exif-processor.service'
 import { ImageOptimizationService } from '@modules/attachments/services/image-optimization.service'
 import { ImagePipelineService } from '@modules/attachments/services/image-pipeline.service'
@@ -111,7 +112,8 @@ describe('AttachmentProcessor', () => {
       new AttachmentVisibilityService(
         s3 as unknown as S3Service,
         repository as unknown as AttachmentRepository
-      )
+      ),
+      { removeAbandonedUploads: jest.fn() } as unknown as DirectUploadService
     )
     const run = () =>
       processor.process({

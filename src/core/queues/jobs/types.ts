@@ -35,7 +35,9 @@ export enum EmailJobType {
  * Attachment Processing Job Types
  */
 export enum AttachmentJobType {
-  PROCESS_IMAGE = 'process-image'
+  PROCESS_IMAGE = 'process-image',
+  /** Hourly: deletes direct uploads initiated but never completed */
+  REMOVE_ABANDONED_UPLOADS = 'remove-abandoned-uploads'
 }
 
 /**

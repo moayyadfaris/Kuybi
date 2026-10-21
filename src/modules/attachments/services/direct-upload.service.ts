@@ -5,7 +5,6 @@ import {
   NotFoundException,
   UnprocessableEntityException
 } from '@nestjs/common'
-import { Cron, CronExpression } from '@nestjs/schedule'
 import { errorMessage } from '@shared/utils/error.util'
 import { PinoLogger } from 'nestjs-pino'
 
@@ -259,24 +258,29 @@ export class DirectUploadService {
     })
   }
 
-  /** Deletes uploads that were initiated but never completed */
-  @Cron(CronExpression.EVERY_HOUR)
+  /**
+   * Deletes uploads that were initiated but never completed (hourly, in the worker:
+   * AttachmentsJobsScheduler). The row is claimed first, by a delete that only succeeds
+   * while it is still pending: an upload completed meanwhile keeps its objects.
+   */
   async removeAbandonedUploads(): Promise<number> {
     const abandoned = await this.attachmentRepository.findStaleByStatus(
       PENDING,
       new Date(Date.now() - ABANDONED_UPLOAD_MS),
       500
     )
+    let removed = 0
     for (const attachment of abandoned) {
+      if (!(await this.attachmentRepository.deleteIfStatus(attachment.id, PENDING))) continue
+      removed++
       for (const key of storedKeys(attachment)) {
         await this.s3Service.delete(key).catch(() => undefined) // may never have been uploaded
       }
-      await this.attachmentRepository.deleteIfStatus(attachment.id, PENDING)
     }
-    if (abandoned.length > 0) {
-      this.logger.info({ count: abandoned.length }, 'Removed abandoned direct uploads')
+    if (removed > 0) {
+      this.logger.info({ count: removed }, 'Removed abandoned direct uploads')
     }
-    return abandoned.length
+    return removed
   }
 }
 

@@ -51,6 +51,7 @@ import { S3Service } from './services/s3.service'
   // Other modules link and present files; the worker's processor runs the image pipeline
   exports: [
     AttachmentRepository,
+    DirectUploadService,
     AttachmentVisibilityService,
     AttachmentPresenter,
     ImagePipelineService,

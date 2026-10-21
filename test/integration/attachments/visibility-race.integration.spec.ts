@@ -13,6 +13,7 @@ import { Attachment } from '@modules/attachments/entities/attachment.entity'
 import { AttachmentProcessor } from '@modules/attachments/jobs/attachment.processor'
 import { AttachmentRepository } from '@modules/attachments/repositories/attachment.repository'
 import { AttachmentVisibilityService } from '@modules/attachments/services/attachment-visibility.service'
+import { DirectUploadService } from '@modules/attachments/services/direct-upload.service'
 import { ImagePipelineService } from '@modules/attachments/services/image-pipeline.service'
 import { S3Service } from '@modules/attachments/services/s3.service'
 
@@ -52,7 +53,8 @@ describe('Attachment visibility is serialized', () => {
         debug: jest.fn()
       } as unknown as PinoLogger,
       { add: jest.fn() } as unknown as Queue,
-      visibility()
+      visibility(),
+      t.app.get(DirectUploadService)
     )
   const row = (id: string) => t.dataSource.getRepository(Attachment).findOneByOrFail({ id })
   const storagePublic = () => KEYS.map(key => acl.get(key))

@@ -10,6 +10,7 @@ import { BaseProcessor } from '@core/queues/processors/base.processor'
 import { Attachment } from '../entities/attachment.entity'
 import { AttachmentRepository } from '../repositories/attachment.repository'
 import { AttachmentVisibilityService, storageKeys } from '../services/attachment-visibility.service'
+import { DirectUploadService } from '../services/direct-upload.service'
 import { ImagePipelineService } from '../services/image-pipeline.service'
 import { S3Service } from '../services/s3.service'
 import { AttachmentMetadata } from '../utils/attachment-image.util'
@@ -47,7 +48,8 @@ export class AttachmentProcessor extends BaseProcessor {
     logger: PinoLogger,
     @InjectQueue(QueueName.DEAD_LETTER)
     deadLetterQueue: Queue,
-    private readonly visibility: AttachmentVisibilityService
+    private readonly visibility: AttachmentVisibilityService,
+    private readonly directUploads: DirectUploadService
   ) {
     super(logger, deadLetterQueue)
   }
@@ -59,6 +61,8 @@ export class AttachmentProcessor extends BaseProcessor {
     switch (job.name) {
       case AttachmentJobType.PROCESS_IMAGE:
         return this.handleProcessImage(job as Job<ProcessImageJobData>)
+      case AttachmentJobType.REMOVE_ABANDONED_UPLOADS:
+        return { removed: await this.directUploads.removeAbandonedUploads() }
       default:
         this.logger.warn(
           { jobId: job.id, jobName: job.name },

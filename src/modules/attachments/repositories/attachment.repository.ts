@@ -181,7 +181,6 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     return (result.affected ?? 0) > 0
   }
 
-  /** Soft delete (deletedAt is a plain column here, not a @DeleteDateColumn) */
   /**
    * Runs `work` holding the row lock (SELECT ... FOR UPDATE) of an attachment, deleted or
    * not, in a transaction: whoever changes visibility or deletion waits for whoever is
@@ -206,6 +205,7 @@ export class AttachmentRepository extends BaseRepository<Attachment> {
     )
   }
 
+  /** Soft delete (deletedAt is a plain column here, not a @DeleteDateColumn) */
   async softDelete(id: string): Promise<boolean> {
     const result = await this.repository.update({ id }, { deletedAt: new Date() })
     await this.invalidateCacheByEntityId(id)

@@ -5,6 +5,7 @@ import { QueuesModule } from '@core/queues/queues.module'
 import { AttachmentsModule } from '../attachments.module'
 
 import { AttachmentProcessor } from './attachment.processor'
+import { AttachmentsJobsScheduler } from './attachments-jobs.scheduler'
 
 /**
  * Background jobs for the attachments module. Imported only by the worker process:
@@ -12,6 +13,6 @@ import { AttachmentProcessor } from './attachment.processor'
  */
 @Module({
   imports: [QueuesModule, AttachmentsModule],
-  providers: [AttachmentProcessor]
+  providers: [AttachmentProcessor, AttachmentsJobsScheduler]
 })
 export class AttachmentsJobsModule {}
