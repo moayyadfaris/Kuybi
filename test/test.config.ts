@@ -27,7 +27,9 @@ export const testConfig = {
   redis: {
     host: process.env.TEST_REDIS_HOST || 'localhost',
     port: parseInt(process.env.TEST_REDIS_PORT || '6379', 10),
-    db: parseInt(process.env.TEST_REDIS_DB || '15', 10) // Use DB 15 for tests
+    db: parseInt(process.env.TEST_REDIS_DB || '15', 10), // Use DB 15 for tests
+    // Queues of the test apps: never the dev app's queue database (REDIS_QUEUE_DB, 1)
+    queueDb: parseInt(process.env.TEST_REDIS_QUEUE_DB || '14', 10)
   },
   // Lowest bcrypt cost: hashing speed is not under test here
   security: { bcryptRounds: 4 },

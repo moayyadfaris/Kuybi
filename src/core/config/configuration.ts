@@ -134,7 +134,15 @@ export default () => {
       // Lifetime of a session and its refresh token (JWT_REFRESH_EXPIRES_IN, e.g. 30d)
       sessionDays: parseDurationDays(process.env.JWT_REFRESH_EXPIRES_IN || '7d'),
       passwordChangeCooldownHours: parseNumber(process.env.PASSWORD_CHANGE_COOLDOWN_HOURS, 1),
-      enableBreachDetection: parseBoolean(process.env.ENABLE_BREACH_DETECTION, true)
+      enableBreachDetection: parseBoolean(process.env.ENABLE_BREACH_DETECTION, true),
+      // Sessions one user may hold; a new sign-in ends the oldest beyond it
+      maxConcurrentSessions: parseNumber(process.env.SESSION_MAX_PER_USER, 5)
+    },
+    // HTTP response compression (app.setup)
+    compression: {
+      enabled: parseBoolean(process.env.COMPRESSION_ENABLED, true),
+      threshold: parseNumber(process.env.COMPRESSION_THRESHOLD, 1024),
+      level: parseNumber(process.env.COMPRESSION_LEVEL, 6)
     },
     security: {
       bcryptRounds: parseNumber(process.env.BCRYPT_ROUNDS, DEFAULT_BCRYPT_ROUNDS),
@@ -178,6 +186,7 @@ export default () => {
     email: {
       from: process.env.EMAIL_FROM || 'noreply@kuybi.dev',
       supportEmail: process.env.EMAIL_SUPPORT || 'support@kuybi.dev',
+      securityEmail: process.env.EMAIL_SECURITY || 'security@kuybi.dev',
       smtp: {
         host: process.env.SMTP_HOST || 'smtp.ethereal.email',
         port: parseInt(process.env.SMTP_PORT || '587', 10),

@@ -68,6 +68,37 @@ class EnvironmentVariables {
   @IsOptional()
   JWT_ACCESS_EXPIRES_IN?: string
 
+  // Sessions one user may hold at once
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  SESSION_MAX_PER_USER?: number
+
+  @IsIn(['true', 'false'])
+  @IsOptional()
+  COMPRESSION_ENABLED?: string
+
+  // Smallest response (bytes) worth compressing
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  COMPRESSION_THRESHOLD?: number
+
+  // zlib level: 0 none, 1 fastest .. 9 smallest
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(9)
+  @IsOptional()
+  COMPRESSION_LEVEL?: number
+
+  @IsString()
+  @IsOptional()
+  EMAIL_SECURITY?: string
+
   // Session and refresh-token lifetime: a number and d, h or m (30d, 12h, 90m)
   @Matches(/^\d+[dhm]$/)
   @IsOptional()
@@ -561,6 +592,13 @@ export function assertProductionSecrets(
       problems.push(
         `DB_SSL must be set for the remote database host in ${env} (true, or false on a private network)`
       )
+    }
+
+    // Unset, mail goes to the development test inbox: resets and verifications would
+    // never reach anyone
+    const smtpHost = typeof config.SMTP_HOST === 'string' ? config.SMTP_HOST.trim() : ''
+    if (!smtpHost || smtpHost === 'smtp.ethereal.email') {
+      problems.push(`SMTP_HOST must be the real mail server in ${env}`)
     }
 
     // Credentials, reset and verification links travel over this connection
