@@ -21,13 +21,13 @@ Kuybi API implements automatic **gzip compression** for HTTP responses to reduce
    ↓
    GET /api/stories HTTP/1.1
    Accept-Encoding: gzip, deflate, br
-   
+
 2. Server Processing
    ↓
    - Check if client accepts gzip
    - Check response size > threshold (1KB)
    - Compress if conditions met
-   
+
 3. Server Response
    ↓
    HTTP/1.1 200 OK
@@ -56,12 +56,12 @@ COMPRESSION_LEVEL=6
 
 ### Recommended Settings
 
-| Environment | Enabled | Threshold | Level | Reasoning |
-|-------------|---------|-----------|-------|-----------|
-| **Development** | `true` | `1024` | `6` | Balanced, matches production |
-| **Production** | `true` | `1024` | `6` | Optimal balance of CPU vs bandwidth |
-| **High Traffic** | `true` | `512` | `4` | Lower CPU usage, still good compression |
-| **Low Bandwidth** | `true` | `1024` | `9` | Maximum compression for slow connections |
+| Environment       | Enabled | Threshold | Level | Reasoning                                |
+| ----------------- | ------- | --------- | ----- | ---------------------------------------- |
+| **Development**   | `true`  | `1024`    | `6`   | Balanced, matches production             |
+| **Production**    | `true`  | `1024`    | `6`   | Optimal balance of CPU vs bandwidth      |
+| **High Traffic**  | `true`  | `512`     | `4`   | Lower CPU usage, still good compression  |
+| **Low Bandwidth** | `true`  | `1024`    | `9`   | Maximum compression for slow connections |
 
 ## Client Requirements
 
@@ -81,6 +81,7 @@ These clients **automatically** send the required `Accept-Encoding` header:
 ### ⚠️ Manual Configuration Required
 
 **curl**:
+
 ```bash
 # Without header - NO compression
 curl http://localhost:4040/api/stories
@@ -92,39 +93,38 @@ curl -H "Accept-Encoding: gzip" http://localhost:4040/api/stories
 ```
 
 **Custom HTTP Clients**:
+
 ```javascript
 // Node.js with axios
-const axios = require('axios');
+const axios = require('axios')
 axios.get('http://localhost:4040/api/stories', {
   headers: { 'Accept-Encoding': 'gzip' }
-});
+})
 
 // Fetch API (browsers handle automatically)
-fetch('http://localhost:4040/api/stories'); // ✅ Auto-compressed
+fetch('http://localhost:4040/api/stories') // ✅ Auto-compressed
 ```
 
 ## Testing Compression
 
-### Quick Test Script
-
-Run the included test script:
+### Quick Test
 
 ```bash
-./test-compression.sh
-
-# Test specific endpoint
-./test-compression.sh http://localhost:4040/api/stories
+# Content-Encoding: gzip on a response larger than COMPRESSION_THRESHOLD
+curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' http://localhost:4040/api/web/v1/stories | grep -i content-encoding
 ```
 
 ### Manual Testing
 
 **1. Check Headers:**
+
 ```bash
 curl -v -H "Accept-Encoding: gzip" http://localhost:4040/api/swagger.json 2>&1 | grep "Content-Encoding"
 # Output: < Content-Encoding: gzip
 ```
 
 **2. Compare Sizes:**
+
 ```bash
 # Without compression
 curl -s http://localhost:4040/api/swagger.json -w "Size: %{size_download} bytes\n" -o /dev/null
@@ -134,6 +134,7 @@ curl -s -H "Accept-Encoding: gzip" http://localhost:4040/api/swagger.json -w "Si
 ```
 
 **3. Browser DevTools:**
+
 1. Open Developer Tools (F12)
 2. Go to **Network** tab
 3. Reload the page
@@ -145,21 +146,21 @@ curl -s -H "Accept-Encoding: gzip" http://localhost:4040/api/swagger.json -w "Si
 
 ### Bandwidth Savings
 
-| Response Type | Original Size | Compressed Size | Reduction |
-|--------------|---------------|-----------------|-----------|
-| **JSON (large)** | 90 KB | 12 KB | **87%** |
-| **JSON (medium)** | 10 KB | 2 KB | **80%** |
-| **JSON (small)** | 500 bytes | 500 bytes | 0% (skipped) |
-| **HTML** | 50 KB | 8 KB | **84%** |
+| Response Type     | Original Size | Compressed Size | Reduction    |
+| ----------------- | ------------- | --------------- | ------------ |
+| **JSON (large)**  | 90 KB         | 12 KB           | **87%**      |
+| **JSON (medium)** | 10 KB         | 2 KB            | **80%**      |
+| **JSON (small)**  | 500 bytes     | 500 bytes       | 0% (skipped) |
+| **HTML**          | 50 KB         | 8 KB            | **84%**      |
 
 ### Compression Levels Comparison
 
-| Level | Compression Ratio | CPU Usage | Speed | Use Case |
-|-------|------------------|-----------|-------|----------|
-| **1** | ~50% | Very Low | Fastest | High CPU load scenarios |
-| **4** | ~65% | Low | Fast | High traffic production |
-| **6** | **~75%** | **Medium** | **Balanced** | **Recommended default** |
-| **9** | ~80% | High | Slow | Low traffic, bandwidth critical |
+| Level | Compression Ratio | CPU Usage  | Speed        | Use Case                        |
+| ----- | ----------------- | ---------- | ------------ | ------------------------------- |
+| **1** | ~50%              | Very Low   | Fastest      | High CPU load scenarios         |
+| **4** | ~65%              | Low        | Fast         | High traffic production         |
+| **6** | **~75%**          | **Medium** | **Balanced** | **Recommended default**         |
+| **9** | ~80%              | High       | Slow         | Low traffic, bandwidth critical |
 
 ### Real-World Examples
 
@@ -171,7 +172,7 @@ Savings:    78,831 bytes (87%)
 Time saved: ~0.5s on 3G connection
 
 # Stories List (100 items)
-Original:  45,000 bytes  
+Original:  45,000 bytes
 Compressed: 8,500 bytes
 Savings:    36,500 bytes (81%)
 Time saved: ~0.3s on 3G connection
@@ -196,6 +197,7 @@ curl -H "Accept-Encoding: gzip" \
 ```
 
 **Use cases:**
+
 - Debugging response payloads
 - Testing uncompressed sizes
 - Specific client requirements
@@ -209,10 +211,10 @@ compression({
   filter: (req, res) => {
     // Skip compression if header is present
     if (req.headers['x-no-compression']) {
-      return false;
+      return false
     }
     // Use standard compression filter
-    return compression.filter(req, res);
+    return compression.filter(req, res)
   },
   threshold: compressionConfig.threshold,
   level: compressionConfig.level
@@ -224,12 +226,14 @@ compression({
 ### Issue: Responses Not Compressed
 
 **Check 1: Client sends Accept-Encoding header**
+
 ```bash
 # Verify your request includes the header
 curl -v http://localhost:4040/api/endpoint 2>&1 | grep "Accept-Encoding"
 ```
 
 **Check 2: Response size above threshold**
+
 ```bash
 # Check actual response size
 curl -s http://localhost:4040/api/endpoint | wc -c
@@ -237,6 +241,7 @@ curl -s http://localhost:4040/api/endpoint | wc -c
 ```
 
 **Check 3: Compression enabled in config**
+
 ```bash
 # Check .env file
 grep COMPRESSION_ENABLED .env
@@ -244,6 +249,7 @@ grep COMPRESSION_ENABLED .env
 ```
 
 **Check 4: Server restarted after config changes**
+
 ```bash
 # Restart dev server
 npm run start:dev
@@ -254,11 +260,13 @@ npm run start:dev
 If compression causes CPU issues:
 
 1. **Lower compression level**:
+
    ```bash
    COMPRESSION_LEVEL=4  # Instead of 6
    ```
 
 2. **Increase threshold**:
+
    ```bash
    COMPRESSION_THRESHOLD=2048  # Only compress > 2KB
    ```
@@ -283,6 +291,7 @@ curl -H "Accept-Encoding: gzip" -w "Downloaded: %{size_download} bytes\n" -o /de
 ### Recommended Setup
 
 **Option 1: Application-Level (Current Setup)**
+
 ```bash
 # .env (production)
 COMPRESSION_ENABLED=true
@@ -291,6 +300,7 @@ COMPRESSION_LEVEL=6
 ```
 
 **Option 2: Nginx Reverse Proxy** (More efficient)
+
 ```nginx
 # nginx.conf
 http {
@@ -299,11 +309,11 @@ http {
   gzip_min_length 1024;
   gzip_types application/json text/plain text/css application/javascript;
   gzip_proxied any;
-  
+
   upstream api {
     server localhost:4040;
   }
-  
+
   server {
     listen 80;
     location / {
@@ -314,6 +324,7 @@ http {
 ```
 
 **Option 3: CDN (Best for Global Distribution)**
+
 - CloudFront, CloudFlare, Fastly automatically handle compression
 - Disable app-level compression: `COMPRESSION_ENABLED=false`
 

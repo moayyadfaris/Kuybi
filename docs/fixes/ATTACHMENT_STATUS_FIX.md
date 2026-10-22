@@ -1,3 +1,7 @@
+> **Note (October 2026):** this was a one-off fix, applied. Its scripts
+> (`scripts/fix-attachment-security-status.sh` / `.sql`) were removed; the status values
+> have changed since (see `attachment.entity.ts`), so do not re-run the SQL below.
+
 # Attachment Security Status Fix
 
 ## Problem
@@ -11,7 +15,8 @@ The `AttachmentProcessor` was updating the metadata but not the database column 
 ## Solution Applied
 
 ✅ **Code Fix** (Already committed in `5b48549`):
-- Updated `attachment.processor.ts` to set `securityStatus: 'completed'` 
+
+- Updated `attachment.processor.ts` to set `securityStatus: 'completed'`
 - Added error handling to set `securityStatus: 'failed'` on errors
 - Worker rebuilt and restarted with new code
 
@@ -31,9 +36,9 @@ WHERE "securityStatus" = 'processing'
   AND "deletedAt" IS NULL;
 
 # Verify
-SELECT "securityStatus", COUNT(*) 
-FROM attachments 
-WHERE "deletedAt" IS NULL 
+SELECT "securityStatus", COUNT(*)
+FROM attachments
+WHERE "deletedAt" IS NULL
 GROUP BY "securityStatus";
 ```
 
@@ -65,18 +70,19 @@ curl 'http://localhost:4040/api/v1/attachments' \
 ## Future Uploads
 
 All new uploads will have the correct `securityStatus` because:
+
 - ✅ Worker is running with updated code
 - ✅ Processor now updates both `metadata.processingStatus` AND `securityStatus`
 - ✅ Error handling sets status to `'failed'` if processing fails
 
 ## Status Values
 
-| Status | Meaning |
-|--------|---------|
-| `pending` | Initial status for sync uploads |
-| `processing` | Currently being processed in queue |
-| `completed` | Processing finished successfully ✅ |
-| `failed` | Processing failed ❌ |
+| Status       | Meaning                             |
+| ------------ | ----------------------------------- |
+| `pending`    | Initial status for sync uploads     |
+| `processing` | Currently being processed in queue  |
+| `completed`  | Processing finished successfully ✅ |
+| `failed`     | Processing failed ❌                |
 
 ## Notes
 
