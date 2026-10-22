@@ -82,7 +82,7 @@ Optional, in separate terminals:
 
 ```bash
 npm run start:worker:dev     # background job worker (emails, image processing, ...)
-npm run start:dashboard:dev  # Bull Board queue dashboard on http://localhost:4050
+npm run start:dashboard      # Bull Board queue dashboard on http://localhost:4050
 ```
 
 Then open:
