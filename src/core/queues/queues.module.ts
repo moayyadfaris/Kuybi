@@ -2,7 +2,7 @@ import { BullModule } from '@nestjs/bullmq'
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 
-import { queueConfig } from './config/queue.config'
+import { queueConfig, queueConnectionOptions } from './config/queue.config'
 import { QueueName } from './jobs/types'
 import { QueueMetrics } from './queue-metrics'
 
@@ -18,13 +18,13 @@ import { QueueMetrics } from './queue-metrics'
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
+        // The app's Redis settings (configuration.ts), on the queue database
         connection: {
-          host: configService.get('redis.host', queueConfig.connection.host),
-          port: configService.get('redis.port', queueConfig.connection.port),
-          password: configService.get('redis.password', queueConfig.connection.password),
-          db: configService.get('redis.queueDb', queueConfig.connection.db),
-          maxRetriesPerRequest: null,
-          enableReadyCheck: false
+          host: configService.getOrThrow<string>('redis.host'),
+          port: configService.getOrThrow<number>('redis.port'),
+          password: configService.get<string>('redis.password'),
+          db: configService.getOrThrow<number>('redis.queueDb'),
+          ...queueConnectionOptions
         },
         defaultJobOptions: queueConfig.defaultJobOptions
       }),

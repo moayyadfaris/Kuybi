@@ -3,22 +3,22 @@ import type { RedisOptions } from 'ioredis'
 import { QueueName } from '../jobs/types'
 
 /**
- * Queue settings: the Redis connection fallbacks, default job options and per-queue job
+ * Connection options BullMQ needs on top of the app's Redis settings (host, port,
+ * password and REDIS_QUEUE_DB come from configuration.ts): blocking commands must not
+ * give up after a few retries.
+ */
+export const queueConnectionOptions = {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false
+} satisfies RedisOptions
+
+/**
+ * Queue settings: default job options and per-queue job
  * options (retries, backoff, retention). Rate limits are worker settings in BullMQ, set on
  * the processor that needs one (@Processor(..., { limiter })); BullMQ has no job timeout
  * option, so a processor that must not run long enforces its own time budget.
  */
 export const queueConfig = {
-  // Redis connection configuration (shared across all queues)
-  connection: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_QUEUE_DB || '1'), // Separate DB for queues
-    maxRetriesPerRequest: null as number | null, // required by BullMQ for blocking commands
-    enableReadyCheck: false
-  } satisfies RedisOptions,
-
   // Default job options applied to all queues
   defaultJobOptions: {
     attempts: 3, // Retry failed jobs up to 3 times
