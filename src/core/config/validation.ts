@@ -594,6 +594,13 @@ export function assertProductionSecrets(
       )
     }
 
+    // Unset, mail goes to the development test inbox: resets and verifications would
+    // never reach anyone
+    const smtpHost = typeof config.SMTP_HOST === 'string' ? config.SMTP_HOST.trim() : ''
+    if (!smtpHost || smtpHost === 'smtp.ethereal.email') {
+      problems.push(`SMTP_HOST must be the real mail server in ${env}`)
+    }
+
     // Credentials, reset and verification links travel over this connection
     for (const key of [
       'SMTP_REQUIRE_TLS',

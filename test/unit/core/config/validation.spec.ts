@@ -9,7 +9,8 @@ describe('assertProductionSecrets', () => {
     JWT_SECRET: strongSecret,
     DB_PASSWORD: 'a-real-database-password',
     CORS_ORIGIN: 'https://admin.kuybi.com,https://kuybi.com',
-    APP_PUBLIC_URL: 'https://www.kuybi.com'
+    APP_PUBLIC_URL: 'https://www.kuybi.com',
+    SMTP_HOST: 'email-smtp.us-east-1.amazonaws.com'
   }
 
   it.each(['development', 'test', undefined])('is a no-op for NODE_ENV=%s', env => {
@@ -28,6 +29,20 @@ describe('assertProductionSecrets', () => {
       assertProductionSecrets({ NODE_ENV: 'production', ...deployed, BCRYPT_ROUNDS: 12 })
     ).not.toThrow()
     expect(() => assertProductionSecrets({ NODE_ENV: 'test', BCRYPT_ROUNDS: 4 })).not.toThrow()
+  })
+
+  it('requires a real mail server outside development/test (the default is a test inbox)', () => {
+    const { SMTP_HOST: _host, ...withoutSmtp } = deployed
+    expect(() => assertProductionSecrets({ NODE_ENV: 'production', ...withoutSmtp })).toThrow(
+      /SMTP_HOST/
+    )
+    expect(() =>
+      assertProductionSecrets({
+        NODE_ENV: 'production',
+        ...deployed,
+        SMTP_HOST: 'smtp.ethereal.email'
+      })
+    ).toThrow(/SMTP_HOST/)
   })
 
   describe('database TLS', () => {
