@@ -7,6 +7,7 @@ Successfully implemented enterprise-grade logging system with file persistence, 
 ## 📋 Changes Made
 
 ### 1. **Enhanced Logger Configuration** (`src/config/logger.config.ts`)
+
 - ✅ Added multi-stream transport for simultaneous console + file logging
 - ✅ Development: Pretty console + JSON files
 - ✅ Production: JSON files only (no console output)
@@ -14,6 +15,7 @@ Successfully implemented enterprise-grade logging system with file persistence, 
 - ✅ Automatic directory creation (`mkdir: true`)
 
 ### 2. **Enhanced Error Filter** (`src/common/filters/http-exception.filter.ts`)
+
 - ✅ Integrated Pino logger for structured error logging
 - ✅ Returns stack traces in development mode only
 - ✅ Sanitized error messages in production
@@ -22,30 +24,36 @@ Successfully implemented enterprise-grade logging system with file persistence, 
 - ✅ Validation error details included when available
 
 ### 3. **Cleaned Up Stories Service** (`src/stories/stories.service.ts`)
+
 - ✅ Removed all `console.log` and `console.error` statements (20+ replacements)
 - ✅ Replaced with proper Pino logger calls
 - ✅ Structured logging with context objects
 - ✅ Appropriate log levels: `debug`, `info`, `warn`, `error`
 
 ### 4. **Configuration Updates** (`src/config/configuration.ts`)
+
 - ✅ Added `app.env` to track NODE_ENV
 
-### 5. **Log Management Scripts**
-- ✅ `scripts/rotate-logs.sh` - Archive logs with timestamp
-- ✅ `scripts/cleanup-logs.sh` - Remove logs older than 7 days
-- ✅ Both scripts executable and production-ready
+### 5. **Log rotation and cleanup**
+
+The app rotates and prunes its own logs (`src/core/logging/log-maintenance.service.ts`):
+files over `LOG_ROTATE_MAX_BYTES` are archived on a periodic check, every file nightly,
+and archives older than `LOG_RETENTION_DAYS` are deleted (`LOG_ROTATION_ENABLED` turns
+it off). The shell scripts that used to do this by hand (`scripts/rotate-logs.sh`,
+`scripts/cleanup-logs.sh`, `npm run logs:rotate` / `logs:cleanup`) were removed in
+October 2026: they duplicated it, and ignored LOG_RETENTION_DAYS (fixed at 7 days).
 
 ### 6. **NPM Scripts** (`package.json`)
+
 ```json
 {
-  "logs:rotate": "bash scripts/rotate-logs.sh",
-  "logs:cleanup": "bash scripts/cleanup-logs.sh",
   "logs:view": "tail -f logs/server.log",
   "logs:view:errors": "tail -f logs/error.log"
 }
 ```
 
 ### 7. **Documentation**
+
 - ✅ `logs/README.md` - Comprehensive logging guide
 - ✅ `logs/.gitignore` - Proper git exclusions
 
@@ -60,15 +68,12 @@ logs/
 └── archive/             # Rotated logs (auto-created)
     ├── server_2025-01-20_10-30-00.log
     └── error_2025-01-20_10-30-00.log
-
-scripts/
-├── cleanup-logs.sh      # Removes logs > 7 days
-└── rotate-logs.sh       # Archives current logs
 ```
 
 ## 🔧 Usage
 
 ### Development
+
 ```bash
 # Start server (logs to console + files)
 npm run start:dev
@@ -79,6 +84,7 @@ npm run logs:view:errors
 ```
 
 ### Production
+
 ```bash
 # Set environment
 export NODE_ENV=production
@@ -91,37 +97,24 @@ npm run logs:view
 ```
 
 ### Log Management
-```bash
-# Rotate logs manually
-npm run logs:rotate
 
-# Cleanup old logs (removes > 7 days)
-npm run logs:cleanup
-```
-
-### Automated Rotation (Production)
-Add to crontab:
-```bash
-# Rotate daily at midnight
-0 0 * * * cd /path/to/kuybi/nest-app && npm run logs:rotate
-
-# Cleanup at 1 AM
-0 1 * * * cd /path/to/kuybi/nest-app && npm run logs:cleanup
-```
+Rotation and archive cleanup run inside the app; no cron job is needed (see 5 above).
 
 ## 📊 Log Levels & When to Use
 
-| Level | When to Use | Example |
-|-------|-------------|---------|
+| Level   | When to Use              | Example                        |
+| ------- | ------------------------ | ------------------------------ |
 | `debug` | Detailed diagnostic info | "Fetched story with relations" |
-| `info` | General informational | "Story created successfully" |
-| `warn` | Warning conditions | "Some tag IDs not found" |
-| `error` | Error events | "Failed to create story" |
+| `info`  | General informational    | "Story created successfully"   |
+| `warn`  | Warning conditions       | "Some tag IDs not found"       |
+| `error` | Error events             | "Failed to create story"       |
 
 ## 🔐 Security Features
 
 ### Automatic Redaction
+
 Sensitive data is automatically redacted from logs:
+
 - Authorization headers
 - Passwords (all password fields)
 - Tokens (JWT, refresh, access)
@@ -130,6 +123,7 @@ Sensitive data is automatically redacted from logs:
 - Cookies
 
 ### Production Safety
+
 - Stack traces: Dev only ✅
 - Error details: Sanitized in prod ✅
 - Request bodies: Logged but redacted ✅
@@ -137,6 +131,7 @@ Sensitive data is automatically redacted from logs:
 ## 🎯 Error Response Format
 
 ### Development Mode
+
 ```json
 {
   "success": false,
@@ -153,6 +148,7 @@ Sensitive data is automatically redacted from logs:
 ```
 
 ### Production Mode
+
 ```json
 {
   "success": false,
@@ -176,15 +172,18 @@ Sensitive data is automatically redacted from logs:
 ## 🔍 Troubleshooting
 
 ### Logs not appearing in files?
+
 - Check `NODE_ENV` is set correctly
 - Verify `logs/` directory exists and is writable
 - Check file permissions
 
 ### Console output in production?
+
 - Ensure `NODE_ENV=production` is set
 - Restart the application
 
 ### Old logs not being cleaned up?
+
 - Run `npm run logs:cleanup` manually
 - Set up cron job for automatic cleanup
 
@@ -199,11 +198,12 @@ Sensitive data is automatically redacted from logs:
 ✅ **Correlation** - Request IDs for tracing  
 ✅ **Performance** - Fast async logging  
 ✅ **Maintenance** - Automatic log rotation & cleanup  
-✅ **Compliance** - 7-day retention policy  
+✅ **Compliance** - 7-day retention policy
 
 ## 🚀 Next Steps
 
 1. **Test the implementation**
+
    ```bash
    npm run start:dev
    # Make some API requests
@@ -211,6 +211,7 @@ Sensitive data is automatically redacted from logs:
    ```
 
 2. **Verify error logging**
+
    ```bash
    # Trigger an error
    # Check logs/error.log
@@ -226,6 +227,7 @@ Sensitive data is automatically redacted from logs:
 ## 📝 Migration Notes
 
 ### Before
+
 - 20+ `console.log` statements cluttering terminal
 - No file logging
 - No log rotation
@@ -233,6 +235,7 @@ Sensitive data is automatically redacted from logs:
 - Inconsistent logging approach
 
 ### After
+
 - Clean, structured Pino logging
 - All logs persisted to files
 - Automatic rotation and cleanup

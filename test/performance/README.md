@@ -91,40 +91,9 @@ Open browser DevTools → Network tab:
 
 ## 🧪 Performance Tests
 
-### 1. Automated Performance Tests
+### Load Testing with Artillery
 
-Run comprehensive test suite:
-
-```bash
-npm run test:performance
-```
-
-**What it tests**:
-
-- ✓ Response time under 200ms for version history
-- ✓ Handle 100 concurrent requests efficiently
-- ✓ Pagination performance
-- ✓ Cache effectiveness
-- ✓ Memory leak detection
-- ✓ Response size analysis
-
-**Example Output**:
-
-```
-✓ Version history response time: 145ms
-✓ 100 concurrent requests completed in 2500ms
-✓ Average response time: 25.00ms
-✓ Cache improvement: 45.2%
-✓ Response size: 24.50 KB
-```
-
-### 2. Load Testing with Artillery
-
-Install Artillery (one-time):
-
-```bash
-npm install -g artillery
-```
+`npm run perf:artillery` fetches Artillery (pinned) with npx; nothing to install.
 
 Edit the config file first:
 
@@ -524,7 +493,6 @@ If performance issues persist after trying these fixes:
    ```bash
    npm run perf:diagnose > diagnosis.txt
    npm run perf:db > db-analysis.txt
-   npm run test:performance > test-results.txt
    ```
 
 2. **Collect browser timeline**:
