@@ -168,6 +168,13 @@ class EnvironmentVariables {
   @IsOptional()
   LOG_ROTATE_CHECK_INTERVAL?: number
 
+  // Requests slower than this (ms) are logged as warnings; 0 turns it off
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  LOG_SLOW_REQUEST_MS?: number
+
   @Type(() => Number)
   @IsInt()
   @IsOptional()

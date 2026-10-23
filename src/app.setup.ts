@@ -1,17 +1,19 @@
 import { INestApplication, NestInterceptor, Type, ValidationPipe } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { validationExceptionFactory } from '@shared/errors'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
 import { TrustProxySetting } from '@shared/utils/request.util'
 import compression from 'compression'
 import helmet from 'helmet'
-import { Logger, PinoLogger } from 'nestjs-pino'
+import { Logger } from 'nestjs-pino'
 
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { LoggingContextService } from '@core/logging/logging-context.service'
-import { SentryInterceptor, SentryService } from '@core/sentry'
+import { httpMetricsMiddleware } from '@core/observability/http-metrics'
+import { SentryInterceptor, SentryService, serverErrorReporter } from '@core/sentry'
 
 interface HttpConfig {
   corsOrigin: string
@@ -55,6 +57,8 @@ export function configureApp(app: INestApplication): void {
   // of the request carries the same id
   const requestIds = new RequestIdMiddleware()
   app.use(requestIds.use.bind(requestIds))
+  // Request counts by route, status and error code, and durations (/metrics)
+  app.use(httpMetricsMiddleware())
 
   app.use(helmet())
 
@@ -97,7 +101,9 @@ export function configureApp(app: INestApplication): void {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true }
+      transformOptions: { enableImplicitConversion: true },
+      // One FieldError per failed constraint (problem `errors`), not a list of sentences
+      exceptionFactory: validationExceptionFactory
     })
   )
 
@@ -107,16 +113,9 @@ export function configureApp(app: INestApplication): void {
   // The only global filter, so every error has the same shape. It reports 5xx to Sentry.
   app.useGlobalFilters(
     new HttpExceptionFilter(
-      logger as unknown as PinoLogger,
+      logger,
       configService,
-      sentryEnabled
-        ? (exception, request, status) =>
-            sentry?.captureException(exception, {
-              statusCode: status,
-              method: request.method,
-              path: request.url
-            })
-        : undefined
+      sentry && sentryEnabled ? serverErrorReporter(sentry) : undefined
     )
   )
 

@@ -296,15 +296,14 @@ describe('Account Lockout Integration Tests', () => {
         })
         .expect(423)
 
-      expect(response.body.statusCode).toBe(423)
-      expect(response.body.error.error).toBe('Locked')
-      expect(response.body.error.message).toContain('locked')
-      expect(response.body.error.message).toContain('unlocked')
-      expect(response.body.error.details).toHaveProperty('lockedAt')
-      expect(response.body.error.details).toHaveProperty('lockedUntil')
-      expect(response.body.error.details).toHaveProperty('unlockIn')
-      expect(response.body.error.details.failedAttempts).toBe(5)
-      expect(response.body.error.details.maxAttempts).toBe(5)
+      expect(response.body).toMatchObject({ status: 423, code: 'AUTH_ACCOUNT_LOCKED' })
+      expect(response.body.detail).toContain('locked')
+      expect(response.body.detail).toContain('unlocked')
+      expect(response.body.details).toHaveProperty('lockedAt')
+      expect(response.body.details).toHaveProperty('lockedUntil')
+      expect(response.body.details).toHaveProperty('unlockIn')
+      expect(response.body.details.failedAttempts).toBe(5)
+      expect(response.body.details.maxAttempts).toBe(5)
     })
 
     it('should return lockout information with remaining time', async () => {

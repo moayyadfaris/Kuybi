@@ -1,9 +1,12 @@
 import { ConfigService } from '@nestjs/config'
 import { pathOf, redactQuery } from '@shared/utils/redact.util'
-import { requestIdOf } from '@shared/utils/request.util'
-import { Request } from 'express'
+import { clientIp, requestIdOf } from '@shared/utils/request.util'
+import { Request, Response } from 'express'
 import { Params } from 'nestjs-pino'
 import * as path from 'path'
+import pino from 'pino'
+
+import { elapsedMs, httpLogLevel, httpLogMessage, httpLogProps } from '@core/logging/http-log'
 
 /**
  * Pino Logger Configuration
@@ -58,8 +61,11 @@ const buildTransports = (options: {
             colorize: true,
             levelFirst: true,
             translateTime: 'SYS:HH:MM:ss.l',
-            ignore: 'pid,hostname',
-            messageFormat: '{req.method} {req.url} {msg}',
+            // One readable line per request; the full record stays in the log files
+            ignore:
+              'pid,hostname,req,res,trace_id,span_id,trace_flags,route,userId,sessionId,errorCode,errorMessage,request,slow,responseTime,context',
+            messageFormat:
+              '{msg}{if errorMessage} - {errorMessage}{end}{if responseTime} ({responseTime}ms){end}',
             singleLine: false,
             errorLikeObjectKeys: ['err', 'error']
           }
@@ -99,9 +105,10 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
   const loggingConfig = configService.get<{
     level: string
     console: { enabled: boolean; pretty: boolean }
-    http: { logSuccessRequests: boolean; successLogLevel: 'info' | 'debug' }
     directories: { active: string }
+    slowRequestMs: number
   }>('logging')
+  const slowMs = loggingConfig?.slowRequestMs ?? 1000
 
   const isTest = appEnv === 'test'
   const transports = isTest
@@ -127,37 +134,26 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
         censor: '[REDACTED]'
       },
       serializers: {
-        req(req: Request) {
+        // pino-http passes a wrapper; `raw` is the Express request (proxy-aware req.ip)
+        req(wrapped: Request & { raw?: Request }) {
+          const req = wrapped.raw ?? wrapped
           return {
             id: req.id,
             method: req.method,
-            // The query is logged separately, with secrets masked
+            // The path only; the query is logged separately, with secrets masked
             url: pathOf(req.originalUrl ?? req.url),
-            path: req.path,
             query: redactQuery(req.query),
-            params: req.params,
-            headers: {
-              host: req.headers.host,
-              'user-agent': req.headers['user-agent'],
-              'content-type': req.headers['content-type']
-            },
-            remoteAddress: req.ip,
-            remotePort: req.socket?.remotePort
+            userAgent: req.headers['user-agent'],
+            ip: clientIp(req)
           }
         },
-        res(res: { statusCode?: number; headers?: Record<string, unknown> }) {
-          return {
-            statusCode: res.statusCode,
-            headers: res.headers || {}
-          }
+        // The status only: response headers (security policy, cache headers) are the
+        // same on every response and made each line kilobytes long
+        res(res: { statusCode?: number }) {
+          return { statusCode: res.statusCode }
         },
-        err(err: Error) {
-          return {
-            type: err.name,
-            message: err.message,
-            stack: err.stack
-          }
-        }
+        // Type, message, stack, and the chain of causes (Error.cause)
+        err: pino.stdSerializers.errWithCause
       },
       autoLogging: {
         ignore: req => {
@@ -166,19 +162,13 @@ export const createLoggerConfig = (configService: ConfigService): Params => {
           return ignorePaths.some(pathEntry => req.url?.startsWith(pathEntry))
         }
       },
-      customLogLevel: (req, res, err) => {
-        if (res.statusCode >= 500 || err) {
-          return 'error'
-        } else if (res.statusCode >= 400) {
-          return 'warn'
-        }
-        // Use configured log level for successful requests (2xx and 3xx)
-        return loggingConfig?.http?.successLogLevel || 'info'
-      },
-      customSuccessMessage: (req, res) =>
-        `${req.method} ${req.url} completed with ${res.statusCode}`,
-      customErrorMessage: (req, res, err) =>
-        `${req.method} ${req.url} failed with ${res.statusCode}: ${err.message}`,
+      // One line per request (see core/logging/http-log.ts): HttpExceptionFilter records
+      // the error on the response, and this line carries it
+      customLogLevel: (req, res, err) =>
+        httpLogLevel(res.statusCode, !!err, elapsedMs(req as Request), slowMs),
+      customProps: (req, res) => httpLogProps(req as Request, res as Response, slowMs),
+      customSuccessMessage: (req, res) => httpLogMessage(req as Request, res as Response),
+      customErrorMessage: (req, res) => httpLogMessage(req as Request, res as Response),
       base:
         appEnv === 'development'
           ? { pid: process.pid }

@@ -124,7 +124,7 @@ export class StoryVersionBranchService {
     if (conflicts.length > 0 && !resolveConflicts) {
       throw new ConflictException({
         message: 'Merge conflicts detected. Please provide conflict resolutions.',
-        conflicts
+        details: { conflicts }
       })
     }
 

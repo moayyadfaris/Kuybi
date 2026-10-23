@@ -1,0 +1,42 @@
+# Prometheus alerting rules for the API's HTTP traffic (src/core/observability/http-metrics.ts).
+# Load with rule_files: [docs/observability/alerts/http.rules.yml]
+groups:
+  - name: kuybi-http
+    rules:
+      - alert: HighServerErrorRate
+        # More than 2% of requests fail with 5xx over 5 minutes
+        expr: >-
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m])) > 0.02
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $value | humanizePercentage }} of API requests fail with 5xx'
+          description: >-
+            Break it down by route and code:
+            sum by (route, code) (rate(http_requests_total{status=~"5.."}[5m])).
+            Sentry has the errors, tagged with route and requestId.
+
+      - alert: EndpointServerErrors
+        # One endpoint keeps failing even if overall traffic hides it
+        expr: sum by (route) (rate(http_requests_total{status=~"5.."}[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.route }} returns 5xx'
+
+      - alert: SlowApi
+        # 95th percentile over 1s for 10 minutes
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'API p95 latency is {{ $value | humanizeDuration }}'
+          description: >-
+            Per endpoint: histogram_quantile(0.95, sum by (le, route)
+            (rate(http_request_duration_seconds_bucket[5m]))). Slow requests are also
+            logged as warnings (LOG_SLOW_REQUEST_MS).

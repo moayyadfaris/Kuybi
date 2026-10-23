@@ -4,17 +4,17 @@ import {
   ConflictException,
   HttpException,
   InternalServerErrorException,
+  LoggerService,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { ErrorCode } from '@shared/errors'
+import { ErrorCode, fieldError, PROBLEM_CONTENT_TYPE } from '@shared/errors'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
-import { PinoLogger } from 'nestjs-pino'
 
 describe('HttpExceptionFilter', () => {
-  const logger = { error: jest.fn(), warn: jest.fn() }
+  const logger = { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
   const config = (values: Record<string, unknown>) =>
     ({
       get: (key: string, fallback?: unknown) => (key in values ? values[key] : fallback)
@@ -27,10 +27,17 @@ describe('HttpExceptionFilter', () => {
     url = '/api/v1/x'
   ) => {
     const json = jest.fn()
-    const status = jest.fn().mockReturnValue({ json })
+    const response = {
+      locals: {} as Record<string, unknown>,
+      err: undefined as unknown,
+      status: jest.fn(),
+      type: jest.fn()
+    }
+    response.status.mockReturnValue(response)
+    response.type.mockReturnValue({ json })
     const host = {
       switchToHttp: () => ({
-        getResponse: () => ({ status }),
+        getResponse: () => response,
         getRequest: () => ({
           id: 'req-1',
           method: 'GET',
@@ -41,75 +48,122 @@ describe('HttpExceptionFilter', () => {
         })
       })
     } as unknown as ArgumentsHost
-    new HttpExceptionFilter(logger as unknown as PinoLogger, config(values), reporter).catch(
+    new HttpExceptionFilter(logger as unknown as LoggerService, config(values), reporter).catch(
       exception,
       host
     )
-    return { status: status.mock.calls[0][0], body: json.mock.calls[0][0] }
+    return {
+      status: response.status.mock.calls[0][0],
+      contentType: response.type.mock.calls[0][0],
+      body: json.mock.calls[0][0],
+      logged: response.locals.error as Record<string, unknown>,
+      loggedError: response.err
+    }
   }
 
   beforeEach(() => jest.clearAllMocks())
 
-  describe('server errors', () => {
-    const boom = new Error('relation "users" does not exist at /srv/app/x.ts')
+  describe('the problem (RFC 9457)', () => {
+    it('answers application/problem+json with the standard members and ours', () => {
+      const { status, contentType, body } = run(new NotFoundException('Story 9 not found'))
 
-    it('drops a structured 5xx body unless details are exposed', () => {
-      const { body } = run(
-        new ServiceUnavailableException({ message: 'pg at 10.0.0.5 refused', host: '10.0.0.5' })
-      )
-
-      expect(body.error).toEqual({ code: 'SERVICE_UNAVAILABLE', message: 'Service Unavailable' })
+      expect(status).toBe(404)
+      expect(contentType).toBe(PROBLEM_CONTENT_TYPE)
+      expect(body).toEqual({
+        type: 'urn:kuybi:problem:not-found',
+        title: 'Not found',
+        status: 404,
+        detail: 'Story 9 not found',
+        instance: '/api/v1/x',
+        code: ErrorCode.NOT_FOUND,
+        requestId: 'req-1',
+        timestamp: expect.any(String)
+      })
     })
 
-    it('passes only the public health fields of a 5xx body, never its message', () => {
+    it('keeps the query string out of the instance', () => {
+      expect(
+        run(new NotFoundException(), {}, undefined, '/api/v1/x?token=SECRET').body.instance
+      ).toBe('/api/v1/x')
+    })
+
+    it('passes field errors and details, and nothing else a throw site added', () => {
+      const errors = [fieldError(['email'], 'IS_EMAIL', 'email must be an email')]
       const { body } = run(
-        new ServiceUnavailableException({
-          message: 'internal db password=SENSITIVE',
-          details: { database: { status: 'down' } },
-          privateContext: 'SENSITIVE',
-          stack: 'at /srv/app'
+        new BadRequestException({
+          code: ErrorCode.VALIDATION_FAILED,
+          message: 'email must be an email',
+          errors,
+          details: { hint: 'x' },
+          internalNote: 'not for clients',
+          statusCode: 400,
+          error: 'Bad Request'
         })
       )
 
-      expect(body.error).toEqual({
-        code: 'SERVICE_UNAVAILABLE',
-        message: 'Service Unavailable',
-        details: { database: { status: 'down' } }
-      })
-      expect(JSON.stringify(body)).not.toContain('SENSITIVE')
+      expect(body.errors).toEqual(errors)
+      expect(body.details).toEqual({ hint: 'x' })
+      expect(body).not.toHaveProperty('internalNote')
+      expect(body).not.toHaveProperty('error')
+      expect(body.status).toBe(400)
     })
 
-    it('keeps query secrets out of the logs and the response path', () => {
-      const { body } = run(
-        new BadRequestException('nope'),
-        {},
-        undefined,
-        '/api/v1/x?token=SECRET&page=2'
-      )
-
-      const logged = JSON.stringify(logger.warn.mock.calls)
-      expect(logged).not.toContain('SECRET')
-      expect(logged).toContain('page')
-      expect(body.path).toBe('/api/v1/x')
+    it('drops an `errors` list that is not field errors', () => {
+      const { body } = run(new BadRequestException({ message: 'x', errors: ['loose text'] }))
+      expect(body).not.toHaveProperty('errors')
     })
 
-    it('hides the message and stack unless details are explicitly exposed', () => {
+    it('never sends a stack for a client error', () => {
+      const { body } = run(new BadRequestException('nope'), { 'http.exposeErrorDetails': true })
+      expect(body).not.toHaveProperty('stack')
+    })
+  })
+
+  describe('server errors', () => {
+    const boom = new Error('relation "users" does not exist at /srv/app/x.ts', {
+      cause: new Error('connection refused 10.0.0.5')
+    })
+
+    it('hides the message, stack and causes unless details are exposed', () => {
       // No config at all = production behaviour
       const { status, body } = run(boom)
 
       expect(status).toBe(500)
-      expect(body.error).toEqual({ code: 'INTERNAL_ERROR', message: 'Internal Server Error' })
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ errorMessage: boom.message, stack: boom.stack }),
-        expect.any(String)
-      )
+      expect(body.code).toBe(ErrorCode.INTERNAL_ERROR)
+      expect(body.detail).toMatch(/requestId/)
+      expect(JSON.stringify(body)).not.toMatch(/relation|10\.0\.0\.5|srv/)
     })
 
-    it('shows the message and stack when details are exposed (development/test)', () => {
+    it('shows the message, stack and causes when details are exposed (development/test)', () => {
       const { body } = run(boom, { 'http.exposeErrorDetails': true })
 
-      expect(body.error.message).toBe(boom.message)
-      expect(body.error.stack).toBe(boom.stack)
+      expect(body.detail).toBe(boom.message)
+      expect(body.stack).toBe(boom.stack)
+      expect(body.causes).toEqual([{ type: 'Error', message: 'connection refused 10.0.0.5' }])
+    })
+
+    it('drops a structured 5xx body, except the health results', () => {
+      const { body } = run(
+        new ServiceUnavailableException({
+          status: 'error',
+          message: 'internal db password=SENSITIVE',
+          details: { database: { status: 'down' } },
+          privateContext: 'SENSITIVE'
+        })
+      )
+
+      expect(body.status).toBe(503)
+      expect(body.details).toEqual({ database: { status: 'down' } })
+      expect(JSON.stringify(body)).not.toContain('SENSITIVE')
+    })
+
+    it('records the real message and the error itself for the request log line', () => {
+      const { logged, loggedError } = run(boom)
+
+      expect(logged).toMatchObject({ code: 'INTERNAL_ERROR', message: boom.message })
+      expect(loggedError).toBe(boom)
+      // The filter writes no line of its own: one line per request
+      expect(logger.error).not.toHaveBeenCalled()
     })
 
     it('reports each server error once', () => {
@@ -127,50 +181,33 @@ describe('HttpExceptionFilter', () => {
 
       expect(run(boom, {}, reporter).status).toBe(500)
     })
-
-    it('passes health check details through', () => {
-      const { status, body } = run(
-        new ServiceUnavailableException({
-          status: 'error',
-          error: { database: { status: 'down' } },
-          details: { database: { status: 'down' } }
-        })
-      )
-
-      expect(status).toBe(503)
-      expect(body.error.details).toEqual({ database: { status: 'down' } })
-    })
   })
 
-  describe('client errors', () => {
-    it('returns the message and validation details in every environment', () => {
-      const { status, body } = run(new BadRequestException(['email must be an email']))
-
-      expect(status).toBe(400)
-      expect(body).toMatchObject({ success: false, statusCode: 400, requestId: 'req-1' })
-      expect(body.error.message).toEqual(['email must be an email'])
-      expect(body.error.stack).toBeUndefined()
-    })
-
-    it('passes structured client error bodies through (e.g. field errors)', () => {
-      const errors = [{ fieldName: 'price', message: 'price must be positive' }]
-      const { body } = run(new BadRequestException({ message: 'Field validation failed', errors }))
-
-      expect(body.error).toMatchObject({ message: 'Field validation failed', errors })
-    })
-
-    it('is logged as a warning and not reported', () => {
+  describe('client errors in the log', () => {
+    it('are recorded without their stack, and not reported', () => {
       const reporter = jest.fn()
-      run(new NotFoundException('Story 9 not found'), {}, reporter)
+      const { logged, loggedError } = run(new NotFoundException('Story 9 not found'), {}, reporter)
 
-      expect(logger.warn).toHaveBeenCalled()
-      expect(logger.error).not.toHaveBeenCalled()
+      expect(logged).toEqual({ code: 'NOT_FOUND', message: 'Story 9 not found' })
+      expect(loggedError).toBeUndefined()
       expect(reporter).not.toHaveBeenCalled()
+    })
+
+    it('keep query secrets out of a validation failure preview', () => {
+      const { logged } = run(
+        new BadRequestException(['page must be a number']),
+        {},
+        undefined,
+        '/api/v1/x?token=SECRET&page=2'
+      )
+
+      expect(JSON.stringify(logged)).not.toContain('SECRET')
+      expect(JSON.stringify(logged)).toContain('page')
     })
   })
 
   describe('error codes', () => {
-    const code = (exception: unknown) => run(exception).body.error.code
+    const code = (exception: unknown) => run(exception).body.code
 
     it('gives every error the generic code of its status', () => {
       expect(code(new NotFoundException('Story with ID 1 not found'))).toBe(ErrorCode.NOT_FOUND)
@@ -181,24 +218,25 @@ describe('HttpExceptionFilter', () => {
       expect(code(new Error('boom'))).toBe(ErrorCode.INTERNAL_ERROR)
     })
 
-    it('marks validation failures (a list of messages)', () => {
-      const validation = new BadRequestException({
-        message: ['email must be an email'],
-        error: 'Bad Request',
-        statusCode: 400
-      })
-      expect(code(validation)).toBe(ErrorCode.VALIDATION_FAILED)
+    it('marks a list of messages as a validation failure', () => {
+      expect(code(new BadRequestException(['email must be an email']))).toBe(
+        ErrorCode.VALIDATION_FAILED
+      )
       expect(code(new BadRequestException('Tags not found: 9'))).toBe(ErrorCode.BAD_REQUEST)
     })
 
-    it('keeps a known code set by the throw site', () => {
-      const expired = new UnauthorizedException({
+    it('keeps a known code set by the throw site, with its title', () => {
+      const { body } = run(
+        new UnauthorizedException({
+          code: ErrorCode.AUTH_TOKEN_EXPIRED,
+          message: 'Access token expired'
+        })
+      )
+      expect(body).toMatchObject({
+        type: 'urn:kuybi:problem:auth-token-expired',
+        title: 'Access token expired',
         code: ErrorCode.AUTH_TOKEN_EXPIRED,
-        message: 'Access token expired'
-      })
-      expect(run(expired).body.error).toMatchObject({
-        code: ErrorCode.AUTH_TOKEN_EXPIRED,
-        message: 'Access token expired'
+        detail: 'Access token expired'
       })
     })
 
@@ -208,11 +246,6 @@ describe('HttpExceptionFilter', () => {
       )
       expect(
         code(new InternalServerErrorException({ code: ErrorCode.AUTH_TOKEN_EXPIRED, message: 'x' }))
-      ).toBe(ErrorCode.INTERNAL_ERROR)
-      expect(
-        run(new InternalServerErrorException({ code: ErrorCode.CONFLICT }), {
-          'http.exposeErrorDetails': true
-        }).body.error.code
       ).toBe(ErrorCode.INTERNAL_ERROR)
     })
   })

@@ -51,7 +51,7 @@ describe('Optimistic locking', () => {
     expect(first.body.data.version).toBe(2)
 
     const stale = await patch(path, { ...otherChange, version: 1 }).expect(409)
-    expect(stale.body.error?.code ?? stale.body.code).toBe(ErrorCode.VERSION_CONFLICT)
+    expect(stale.body.code).toBe(ErrorCode.VERSION_CONFLICT)
   }
 
   beforeAll(async () => {

@@ -949,54 +949,66 @@ overwrite each other: one of them gets the `409`.
 
 ### Error Response
 
-```json
-{
-  "success": false,
-  "statusCode": 401,
-  "path": "/api/v1/stories",
-  "timestamp": "2026-10-20T00:00:00.000Z",
-  "requestId": "3f2c…",
-  "error": {
-    "code": "AUTH_TOKEN_EXPIRED",
-    "message": "Access token expired"
-  }
-}
-```
-
-**Branch on `error.code`, never on `error.message`**: messages are for people and may
-change; codes are stable (new ones are added, existing ones never change meaning). The full
-list, with what the client should do, is `ErrorCode` in `src/shared/errors/error-code.ts`.
-The ones clients usually handle:
-
-| Code                                                                                           | Status   | Client action                                         |
-| ---------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------- |
-| `AUTH_TOKEN_EXPIRED`                                                                           | 401      | Refresh the access token, retry                       |
-| `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_SESSION_ENDED`, `AUTH_REFRESH_TOKEN_INVALID` | 401      | Sign in again (a refresh will not help)               |
-| `AUTH_INVALID_CREDENTIALS`                                                                     | 401      | Show "wrong email or password"                        |
-| `AUTH_ACCOUNT_LOCKED`                                                                          | 423      | Show the lock; `error.details.unlockIn` is in seconds |
-| `AUTH_ACCOUNT_INACTIVE`                                                                        | 401      | Account disabled                                      |
-| `AUTH_PASSWORD_CHANGE_REQUIRED`                                                                | 403      | Send the user to change their password                |
-| `PASSWORD_CHANGE_COOLDOWN`                                                                     | 429      | Password changed recently; see `error.details`        |
-| `VALIDATION_FAILED`                                                                            | 400      | `error.message` is the list of problems               |
-| `IDEMPOTENCY_KEY_REUSED`                                                                       | 422      | Same key, different request: use a new key            |
-| `IDEMPOTENCY_IN_PROGRESS`                                                                      | 409      | The first request is still running: retry later       |
-| `VERSION_CONFLICT`                                                                             | 409      | The record changed since it was read: reload it       |
-| `NOT_FOUND`, `FORBIDDEN`, `CONFLICT`, `TOO_MANY_REQUESTS`, …                                   | as named | Generic code of the status                            |
-| `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE`                                                        | 5xx      | Retry later; quote `requestId` when reporting         |
-
-### Validation Error Response
+Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,
+`Content-Type: application/problem+json` (ADR 0012):
 
 ```json
 {
-  "success": false,
-  "statusCode": 400,
-  "error": {
-    "code": "VALIDATION_FAILED",
-    "message": ["name should not be empty", "email must be an email"],
-    "error": "Bad Request"
-  }
+  "type": "urn:kuybi:problem:validation-failed",
+  "title": "The request has invalid fields",
+  "status": 400,
+  "detail": "2 problems with the request; see errors",
+  "instance": "/api/v1/auth/login",
+  "code": "VALIDATION_FAILED",
+  "requestId": "c9dc2c46-7f5f-41f9-8896-eccc6902ed80",
+  "timestamp": "2026-10-23T06:45:30.295Z",
+  "errors": [
+    {
+      "pointer": "/email",
+      "field": "email",
+      "code": "IS_EMAIL",
+      "message": "email must be an email"
+    },
+    {
+      "pointer": "/password",
+      "field": "password",
+      "code": "MIN_LENGTH",
+      "message": "password must be longer than or equal to 6 characters",
+      "params": { "min": 6 }
+    }
+  ]
 }
 ```
+
+- **Branch on `code`, never on `detail`**: `detail` is English and may change; codes are
+  stable. Translate `code` (and each `errors[].code` with its `params`) for people.
+- `errors`: one entry per field problem. `pointer` is a JSON Pointer into the request
+  body (`/address/city`, `/items/0/name`), `field` the same path dotted.
+- `details`: data specific to the code (see the table).
+- `requestId`: quote it when reporting a problem; it finds the request in logs and traces.
+- Server errors (5xx) have a generic `detail`.
+
+The full list of codes is `ErrorCode` in `src/shared/errors/error-code.ts`. The ones
+clients usually handle:
+
+| Code                                                                                           | Status   | Client action                                       |
+| ---------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------- |
+| `AUTH_TOKEN_EXPIRED`                                                                           | 401      | Refresh the access token, retry                     |
+| `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_SESSION_ENDED`, `AUTH_REFRESH_TOKEN_INVALID` | 401      | Sign in again (a refresh will not help)             |
+| `AUTH_INVALID_CREDENTIALS`                                                                     | 401      | Show "wrong email or password"                      |
+| `AUTH_ACCOUNT_LOCKED`                                                                          | 423      | Show the lock; `details.unlockIn` is in seconds     |
+| `AUTH_ACCOUNT_INACTIVE`                                                                        | 401      | Account disabled                                    |
+| `AUTH_PASSWORD_CHANGE_REQUIRED`                                                                | 403      | Send the user to change their password              |
+| `PASSWORD_CHANGE_COOLDOWN`                                                                     | 429      | Password changed recently; `details.canChangeAfter` |
+| `PASSWORD_TOO_WEAK`                                                                            | 400      | Show `details.feedback`                             |
+| `PASSWORD_RECENTLY_USED`                                                                       | 400      | Ask for a password not used recently                |
+| `VALIDATION_FAILED`                                                                            | 400      | Show each `errors[]` entry next to its field        |
+| `DUPLICATE_VALUE`                                                                              | 409      | `errors[]` names the fields whose value is taken    |
+| `IDEMPOTENCY_KEY_REUSED`                                                                       | 422      | Same key, different request: use a new key          |
+| `IDEMPOTENCY_IN_PROGRESS`                                                                      | 409      | The first request is still running: retry later     |
+| `VERSION_CONFLICT`                                                                             | 409      | The record changed since it was read: reload it     |
+| `NOT_FOUND`, `FORBIDDEN`, `CONFLICT`, `TOO_MANY_REQUESTS`, …                                   | as named | Generic code of the status                          |
+| `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE`                                                        | 5xx      | Retry later; quote `requestId` when reporting       |
 
 ---
 

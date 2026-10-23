@@ -1,11 +1,13 @@
 import { HttpStatus } from '@nestjs/common'
 
 /**
- * Stable, machine-readable error codes: `error.code` in every error response.
+ * Stable, machine-readable error codes: `code` in every error response (RFC 9457 problem
+ * details, see problem.ts).
  *
- * Clients branch on the code, never on the message (messages are for people and may
- * change). Codes are part of the API: add new ones freely, never rename or reuse one.
- * Throw sites that need a specific code pass it in the exception body:
+ * Clients branch on the code, and translate it for people; never on the message, which
+ * is English and may change. Codes are part of the API: add new ones freely (with a
+ * title in PROBLEM_TITLES), never rename or reuse one. Throw sites that need a specific
+ * code pass it in the exception body:
  *
  *   throw new UnauthorizedException({ code: ErrorCode.AUTH_TOKEN_EXPIRED, message: '...' })
  *
@@ -14,7 +16,7 @@ import { HttpStatus } from '@nestjs/common'
 export const ErrorCode = {
   // Generic, derived from the HTTP status
   BAD_REQUEST: 'BAD_REQUEST',
-  /** Request body, query or params failed validation; `error.message` lists the problems */
+  /** Request body, query or params failed validation; `errors` lists each field's problems */
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   UNAUTHORIZED: 'UNAUTHORIZED',
   FORBIDDEN: 'FORBIDDEN',
@@ -41,13 +43,20 @@ export const ErrorCode = {
   AUTH_REFRESH_TOKEN_INVALID: 'AUTH_REFRESH_TOKEN_INVALID',
   /** Wrong email or password (deliberately not saying which) */
   AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
-  /** Too many failed sign-ins; `error.details.unlockIn` says when to retry */
+  /** Too many failed sign-ins; `details.unlockIn` says when to retry */
   AUTH_ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
   AUTH_ACCOUNT_INACTIVE: 'AUTH_ACCOUNT_INACTIVE',
   /** Only the password-change endpoints accept this token: change the password first */
   AUTH_PASSWORD_CHANGE_REQUIRED: 'AUTH_PASSWORD_CHANGE_REQUIRED',
-  /** The password was changed recently; `error.details` says when it can change again */
+  /** The password was changed recently; `details.canChangeAfter` says when it can change again */
   PASSWORD_CHANGE_COOLDOWN: 'PASSWORD_CHANGE_COOLDOWN',
+  /** The new password is too weak; `details.feedback` says why */
+  PASSWORD_TOO_WEAK: 'PASSWORD_TOO_WEAK',
+  /** The new password is the current or a recent one */
+  PASSWORD_RECENTLY_USED: 'PASSWORD_RECENTLY_USED',
+
+  /** A value that must be unique is taken; `errors` names the fields */
+  DUPLICATE_VALUE: 'DUPLICATE_VALUE',
 
   // Idempotency-Key
   IDEMPOTENCY_KEY_INVALID: 'IDEMPOTENCY_KEY_INVALID',

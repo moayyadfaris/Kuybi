@@ -706,7 +706,7 @@ describe('Auth Integration Tests', () => {
         newPassword: 'Third@Pass789',
         confirmPassword: 'Third@Pass789'
       }).expect(429)
-      expect(again.body.error.code).toBe('PASSWORD_CHANGE_COOLDOWN')
+      expect(again.body.code).toBe('PASSWORD_CHANGE_COOLDOWN')
 
       // The session survived all of it
       await request(app.getHttpServer())
