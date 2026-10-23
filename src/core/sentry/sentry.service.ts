@@ -123,14 +123,20 @@ export class SentryService {
   }
 
   /**
-   * Capture an exception and send it to Sentry
+   * Capture an exception and send it to Sentry. `tags` are indexed (search and group by
+   * them: requestId, route, queue...); `context` is attached as is.
    */
-  captureException(exception: Error | unknown, context?: Record<string, unknown>) {
+  captureException(
+    exception: Error | unknown,
+    context?: Record<string, unknown>,
+    tags?: Record<string, string>
+  ) {
     if (!this.isInitialized) return
 
     try {
       Sentry.captureException(exception, {
-        contexts: context ? { custom: context } : undefined
+        contexts: context ? { custom: context } : undefined,
+        tags
       })
     } catch (error) {
       this.logger.error({

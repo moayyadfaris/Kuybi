@@ -1,6 +1,9 @@
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
+import { Inject, Optional } from '@nestjs/common'
 import { Job, Queue } from 'bullmq'
 import { PinoLogger } from 'nestjs-pino'
+
+import { SentryService } from '../../sentry/sentry.service'
 
 /**
  * Base of every queue processor: logs the job lifecycle and moves a job that failed its
@@ -11,6 +14,11 @@ import { PinoLogger } from 'nestjs-pino'
  * overriding getLogData.
  */
 export abstract class BaseProcessor extends WorkerHost {
+  /** Reports a job that failed its last attempt; absent when Sentry is not set up */
+  @Optional()
+  @Inject(SentryService)
+  protected sentry?: SentryService
+
   protected constructor(
     protected readonly logger: PinoLogger,
     private readonly deadLetterQueue?: Queue
@@ -63,7 +71,15 @@ export abstract class BaseProcessor extends WorkerHost {
       },
       final ? `Job ${job.name} failed for good` : `Job ${job.name} failed, will retry`
     )
-    if (!final || !this.deadLetterQueue) return
+    if (!final) return
+
+    // A job that failed for good is someone's problem: an alert, not only a log line
+    this.sentry?.captureException(
+      error,
+      { jobId: job.id, attemptsMade, attemptsAllowed },
+      { queue: job.queueName, job: job.name }
+    )
+    if (!this.deadLetterQueue) return
 
     try {
       await this.deadLetterQueue.add(

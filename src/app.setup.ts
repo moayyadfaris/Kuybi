@@ -12,7 +12,8 @@ import { Logger } from 'nestjs-pino'
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
 import { LoggingContextService } from '@core/logging/logging-context.service'
-import { SentryInterceptor, SentryService } from '@core/sentry'
+import { httpMetricsMiddleware } from '@core/observability/http-metrics'
+import { SentryInterceptor, SentryService, serverErrorReporter } from '@core/sentry'
 
 interface HttpConfig {
   corsOrigin: string
@@ -56,6 +57,8 @@ export function configureApp(app: INestApplication): void {
   // of the request carries the same id
   const requestIds = new RequestIdMiddleware()
   app.use(requestIds.use.bind(requestIds))
+  // Request counts by route, status and error code, and durations (/metrics)
+  app.use(httpMetricsMiddleware())
 
   app.use(helmet())
 
@@ -112,14 +115,7 @@ export function configureApp(app: INestApplication): void {
     new HttpExceptionFilter(
       logger,
       configService,
-      sentryEnabled
-        ? (exception, request, status) =>
-            sentry?.captureException(exception, {
-              statusCode: status,
-              method: request.method,
-              path: request.url
-            })
-        : undefined
+      sentry && sentryEnabled ? serverErrorReporter(sentry) : undefined
     )
   )
 
