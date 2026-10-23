@@ -31,7 +31,7 @@ describe('Error codes', () => {
   let t: HttpTestApp
   let member: Actor
 
-  const codeOf = (res: { body: { error?: { code?: string } } }) => res.body.error?.code
+  const codeOf = (res: { body: { code?: string } }) => res.body.code
 
   beforeAll(async () => {
     t = await createHttpTestApp([AttachmentsModule, TagsModule, StoriesModule], {
@@ -128,7 +128,12 @@ describe('Error codes', () => {
       .send({ email: 'not-an-email', password: 'x' })
       .expect(400)
     expect(codeOf(invalid)).toBe('VALIDATION_FAILED')
-    expect(Array.isArray(invalid.body.error.message)).toBe(true)
+    expect(invalid.headers['content-type']).toContain('application/problem+json')
+    expect(invalid.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ pointer: '/email', field: 'email', code: 'IS_EMAIL' })
+      ])
+    )
 
     const missing = await t.http().get('/api/v1/stories/999999').set(member.auth).expect(404)
     expect(codeOf(missing)).toBe('NOT_FOUND')

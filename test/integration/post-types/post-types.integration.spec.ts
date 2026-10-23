@@ -228,8 +228,8 @@ describe('Post Types Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.error.message).toEqual(
-        expect.arrayContaining([expect.stringContaining('singularLabel')])
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'singularLabel' })])
       )
     })
 
@@ -291,7 +291,7 @@ describe('Post Types Integration Tests', () => {
         .send(validPostType)
         .expect(409)
 
-      expect(response.body.error.message).toContain('already exists')
+      expect(response.body.detail).toContain('already exists')
     })
   })
 
@@ -514,7 +514,7 @@ describe('Post Types Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(400)
 
-      expect(response.body.error.message).toContain('system')
+      expect(response.body.detail).toContain('system')
     })
   })
 })

@@ -10,6 +10,7 @@ import { errorMessage, errorStack } from '@shared/utils/error.util'
 import { Request, Response } from 'express'
 import { Logger } from 'nestjs-pino'
 
+import { addProblemResponses } from '@core/http/openapi-problems'
 import { shutdownTracing } from '@core/observability/otel-sdk'
 
 import { AppModule } from './app.module'
@@ -46,7 +47,8 @@ async function bootstrap() {
       .addBearerAuth()
       .build()
 
-    const document = SwaggerModule.createDocument(app, swaggerConfig)
+    // Every operation documents its errors as RFC 9457 problems
+    const document = addProblemResponses(SwaggerModule.createDocument(app, swaggerConfig))
     SwaggerModule.setup('api/docs', app, document, {
       jsonDocumentUrl: 'api/swagger.json'
     })

@@ -217,8 +217,10 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.error.message).toEqual(
-        expect.arrayContaining([expect.stringContaining('snake_case')])
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'name', message: expect.stringContaining('snake_case') })
+        ])
       )
     })
 
@@ -232,8 +234,8 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.error.message).toEqual(
-        expect.arrayContaining([expect.stringContaining('fieldType')])
+      expect(response.body.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'fieldType' })])
       )
     })
 
@@ -255,7 +257,7 @@ describe('Field Definitions Integration Tests', () => {
         })
         .expect(409)
 
-      expect(response.body.error.message).toContain('already exists')
+      expect(response.body.detail).toContain('already exists')
     })
 
     it('should create field with all 25 field types', async () => {

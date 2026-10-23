@@ -146,15 +146,17 @@ export class PasswordChangeService {
     const remainingMinutes = Math.ceil((cooldownHours - hoursSinceChange) * 60)
     throw new HttpException(
       {
-        message: 'Password was changed too recently',
         code: ErrorCode.PASSWORD_CHANGE_COOLDOWN,
-        cooldownHours,
-        remainingTime:
+        message: `Password was changed too recently; try again in ${
           remainingHours >= 1
             ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}`
-            : `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`,
-        lastChangedAt,
-        canChangeAfter: new Date(lastChangedAt.getTime() + cooldownHours * 60 * 60 * 1000)
+            : `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`
+        }`,
+        details: {
+          cooldownHours,
+          lastChangedAt,
+          canChangeAfter: new Date(lastChangedAt.getTime() + cooldownHours * 60 * 60 * 1000)
+        }
       },
       HttpStatus.TOO_MANY_REQUESTS
     )

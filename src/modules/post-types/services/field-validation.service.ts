@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { ErrorCode, fieldError } from '@shared/errors'
 import { errorMessage } from '@shared/utils/error.util'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 
@@ -143,11 +144,18 @@ export class FieldValidationService {
    */
   throwIfInvalid(result: FieldValidationResult): void {
     if (!result.isValid) {
-      const errorMessages = result.errors.map(e => e.message).join('; ')
       throw new BadRequestException({
-        message: 'Field validation failed',
-        errors: result.errors,
-        summary: errorMessages
+        code: ErrorCode.VALIDATION_FAILED,
+        message: result.errors.map(error => error.message).join('; '),
+        // Problem `errors`: one per field, pointing into the request's field_data
+        errors: result.errors.map(error =>
+          fieldError(
+            ['field_data', error.fieldName],
+            error.errorCode,
+            error.message,
+            error.constraint === undefined ? undefined : { constraint: error.constraint }
+          )
+        )
       })
     }
   }

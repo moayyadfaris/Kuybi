@@ -1,6 +1,6 @@
 # 0011. Every error response carries a stable error code
 
-- **Status:** Accepted
+- **Status:** Accepted; response shape superseded by [0012](0012-problem-details-and-request-logs.md)
 - **Date:** 2026-10-20
 
 ## Context

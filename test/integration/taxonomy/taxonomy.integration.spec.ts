@@ -78,7 +78,7 @@ describe('Taxonomy (categories and tags)', () => {
       expect(second.body.data.slug).toMatch(/^sports-\d+$/)
 
       const res = await createCategory('Other', { slug: 'sports' }).expect(409)
-      expect(res.body.error.message).toContain('sports')
+      expect(res.body.detail).toContain('sports')
     })
 
     it('lets regular users read but not write', async () => {

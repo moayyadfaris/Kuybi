@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
-import { versionConflict } from '@shared/errors'
+import { ErrorCode, fieldError, versionConflict } from '@shared/errors'
 import { isUniqueViolation } from '@shared/utils/database-error.util'
 import { sanitizeRichText } from '@shared/utils/html-sanitize.util'
 import { slugify, uniqueSlug } from '@shared/utils/slug.util'
@@ -246,8 +246,11 @@ export class ContentService {
     if (stale) throw versionConflict('entry')
     if (!saved) {
       throw new ConflictException({
+        code: ErrorCode.DUPLICATE_VALUE,
         message: `Another entry already has this value: ${conflicts.join(', ')}`,
-        fields: conflicts
+        errors: conflicts.map(name =>
+          fieldError(['field_data', name], 'DUPLICATE', `Another entry already has this ${name}`)
+        )
       })
     }
     return saved

@@ -263,7 +263,7 @@ describe('Direct uploads', () => {
 
     const response = await complete(id).expect(422)
 
-    expect(JSON.stringify(response.body.error)).toContain('application/pdf')
+    expect(JSON.stringify(response.body.details)).toContain('application/pdf')
     const attachment = await stored(id)
     expect(attachment.securityStatus).toBe('rejected')
     expect(storage.objects.has(attachment.path)).toBe(false)

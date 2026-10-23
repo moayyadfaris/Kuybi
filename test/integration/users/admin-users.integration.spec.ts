@@ -48,7 +48,7 @@ describe('Admin user administration', () => {
     await patch(locked.user.id, { isLocked: true, reason: 'compromised' })
     await patch(deactivated.user.id, { isActive: false })
 
-    expect((await me(locked).expect(401)).body.error.code).toBe('AUTH_SESSION_ENDED')
+    expect((await me(locked).expect(401)).body.code).toBe('AUTH_SESSION_ENDED')
     await me(deactivated).expect(401)
   })
 

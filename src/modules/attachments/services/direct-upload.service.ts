@@ -254,7 +254,7 @@ export class DirectUploadService {
     this.logger.warn({ attachmentId: attachment.id, reasons }, 'Direct upload rejected')
     throw new UnprocessableEntityException({
       message: 'The uploaded file was rejected',
-      errors: reasons
+      details: { reasons }
     })
   }
 

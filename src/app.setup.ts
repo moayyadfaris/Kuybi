@@ -1,5 +1,6 @@
 import { INestApplication, NestInterceptor, Type, ValidationPipe } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { validationExceptionFactory } from '@shared/errors'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
 import { RequestIdInterceptor } from '@shared/interceptors/request-id.interceptor'
 import { TransformInterceptor } from '@shared/interceptors/transform.interceptor'
@@ -97,7 +98,9 @@ export function configureApp(app: INestApplication): void {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true }
+      transformOptions: { enableImplicitConversion: true },
+      // One FieldError per failed constraint (problem `errors`), not a list of sentences
+      exceptionFactory: validationExceptionFactory
     })
   )
 

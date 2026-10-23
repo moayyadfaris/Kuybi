@@ -485,7 +485,7 @@ describe('Session Management Integration Tests', () => {
           .get('/api/v1/sessions/me')
           .set('Authorization', `Bearer ${token}`)
           .expect(401)
-        expect(response.body.error.message).toBe('Session has ended')
+        expect(response.body.detail).toBe('Session has ended')
       }
     })
 

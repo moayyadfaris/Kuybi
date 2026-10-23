@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { ErrorCode } from '@shared/errors'
 import { EntityManager } from 'typeorm'
 
 import { PasswordHasher } from '@core/security'
@@ -32,10 +33,9 @@ export class PasswordPolicyService {
     const strength = await this.passwordStrengthService.calculateStrength(newPassword)
     if (!strength.passed) {
       throw new BadRequestException({
+        code: ErrorCode.PASSWORD_TOO_WEAK,
         message: 'Password does not meet strength requirements',
-        errors: strength.feedback,
-        strength: strength.strength,
-        score: strength.score
+        details: { feedback: strength.feedback, strength: strength.strength, score: strength.score }
       })
     }
 
@@ -46,9 +46,10 @@ export class PasswordPolicyService {
     )
     for (const hash of hashes) {
       if (await this.passwordHasher.verify(newPassword, hash)) {
-        throw new BadRequestException(
-          'Password has been used recently. Please choose a different password.'
-        )
+        throw new BadRequestException({
+          code: ErrorCode.PASSWORD_RECENTLY_USED,
+          message: 'Password has been used recently. Please choose a different password.'
+        })
       }
     }
   }

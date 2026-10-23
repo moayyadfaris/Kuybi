@@ -283,10 +283,12 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.error.message).toContain('validation')
-      expect(response.body.error.errors).toBeDefined()
-      expect(response.body.error.errors.some((e: any) => e.fieldName === 'product_name')).toBe(true)
-      expect(response.body.error.errors.some((e: any) => e.fieldName === 'price')).toBe(true)
+      expect(response.body.code).toBe('VALIDATION_FAILED')
+      expect(response.body.errors).toBeDefined()
+      expect(response.body.errors.some((e: any) => e.field === 'field_data.product_name')).toBe(
+        true
+      )
+      expect(response.body.errors.some((e: any) => e.field === 'field_data.price')).toBe(true)
     })
 
     it('should validate text field min length', async () => {
@@ -302,9 +304,9 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      expect(response.body.error.errors).toBeDefined()
-      const nameError = response.body.error.errors.find((e: any) => e.fieldName === 'product_name')
-      expect(nameError.errorCode).toBe('MIN_LENGTH')
+      expect(response.body.errors).toBeDefined()
+      const nameError = response.body.errors.find((e: any) => e.field === 'field_data.product_name')
+      expect(nameError.code).toBe('MIN_LENGTH')
     })
 
     it('should validate text field max length', async () => {
@@ -320,8 +322,8 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const nameError = response.body.error.errors.find((e: any) => e.fieldName === 'product_name')
-      expect(nameError.errorCode).toBe('MAX_LENGTH')
+      const nameError = response.body.errors.find((e: any) => e.field === 'field_data.product_name')
+      expect(nameError.code).toBe('MAX_LENGTH')
     })
 
     it('should validate currency field min value', async () => {
@@ -337,8 +339,8 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const priceError = response.body.error.errors.find((e: any) => e.fieldName === 'price')
-      expect(priceError.errorCode).toBe('MIN_VALUE')
+      const priceError = response.body.errors.find((e: any) => e.field === 'field_data.price')
+      expect(priceError.code).toBe('MIN_VALUE')
     })
 
     it('should validate email format', async () => {
@@ -355,8 +357,8 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const emailError = response.body.error.errors.find((e: any) => e.fieldName === 'email')
-      expect(emailError.errorCode).toBe('INVALID_EMAIL')
+      const emailError = response.body.errors.find((e: any) => e.field === 'field_data.email')
+      expect(emailError.code).toBe('INVALID_EMAIL')
     })
 
     it('should reject unknown fields', async () => {
@@ -373,10 +375,10 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const unknownError = response.body.error.errors.find(
-        (e: any) => e.fieldName === 'unknown_field'
+      const unknownError = response.body.errors.find(
+        (e: any) => e.field === 'field_data.unknown_field'
       )
-      expect(unknownError.errorCode).toBe('UNKNOWN_FIELD')
+      expect(unknownError.code).toBe('UNKNOWN_FIELD')
     })
 
     it('should allow optional fields to be omitted', async () => {
@@ -554,8 +556,8 @@ describe('Content Integration Tests', () => {
         })
         .expect(400)
 
-      const priceError = response.body.error.errors.find((e: any) => e.fieldName === 'price')
-      expect(priceError.errorCode).toBe('MIN_VALUE')
+      const priceError = response.body.errors.find((e: any) => e.field === 'field_data.price')
+      expect(priceError.code).toBe('MIN_VALUE')
     })
 
     it('should fail without authentication', async () => {

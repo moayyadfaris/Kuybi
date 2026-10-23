@@ -423,10 +423,8 @@ function accountLockedException(lockInfo: AccountLockInfo): HttpException {
 
   return new HttpException(
     {
-      statusCode: HttpStatus.LOCKED,
       code: ErrorCode.AUTH_ACCOUNT_LOCKED,
       message: `Account has been locked due to too many failed attempts. ${lockInfo.lockedUntil ? `It will be unlocked at ${new Date(lockInfo.lockedUntil).toISOString()}.` : 'Contact an administrator to unlock it.'}`,
-      error: 'Locked',
       details: {
         lockedAt: lockInfo.lockedAt,
         lockedUntil: lockInfo.lockedUntil,
