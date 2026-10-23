@@ -6,7 +6,7 @@ import { TransformInterceptor } from '@shared/interceptors/transform.interceptor
 import { TrustProxySetting } from '@shared/utils/request.util'
 import compression from 'compression'
 import helmet from 'helmet'
-import { Logger, PinoLogger } from 'nestjs-pino'
+import { Logger } from 'nestjs-pino'
 
 import { RequestIdMiddleware } from '@core/http/middleware/request-id.middleware'
 import { LoggingContextInterceptor } from '@core/logging/logging-context.interceptor'
@@ -107,7 +107,7 @@ export function configureApp(app: INestApplication): void {
   // The only global filter, so every error has the same shape. It reports 5xx to Sentry.
   app.useGlobalFilters(
     new HttpExceptionFilter(
-      logger as unknown as PinoLogger,
+      logger,
       configService,
       sentryEnabled
         ? (exception, request, status) =>

@@ -73,6 +73,9 @@ export default () => {
         checkIntervalMinutes: parseNumber(process.env.LOG_ROTATE_CHECK_INTERVAL, 15)
       },
       retentionDays: parseNumber(process.env.LOG_RETENTION_DAYS, 7),
+      // A request taking longer is logged as a warning (0 turns it off)
+      slowRequestMs: parseNumber(process.env.LOG_SLOW_REQUEST_MS, 1000),
+      // Fields of a failed request's body shown in its log line (no personal data)
       payloadPreview: {
         allowedFields: parseList(process.env.LOG_SAFE_FIELDS, [
           'id',
@@ -80,8 +83,7 @@ export default () => {
           'status',
           'type',
           'priority',
-          'userId',
-          'email'
+          'userId'
         ]),
         maxFieldLength: parseNumber(process.env.LOG_PAYLOAD_FIELD_LIMIT, 160)
       },

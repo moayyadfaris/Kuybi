@@ -5,14 +5,15 @@ import {
   HttpException,
   HttpStatus,
   Inject,
-  Logger
+  Logger,
+  LoggerService
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { codeForStatus, ErrorCode, isErrorCode } from '@shared/errors'
+import { setResponseError } from '@shared/http/response-error'
 import { errorProperty } from '@shared/utils/error.util'
 import { pathOf } from '@shared/utils/redact.util'
 import { Request, Response } from 'express'
-import { PinoLogger } from 'nestjs-pino'
 
 interface ErrorResponseBody {
   success: false
@@ -61,7 +62,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
   ]
 
   constructor(
-    @Inject(Logger) private readonly logger: PinoLogger,
+    // nestjs-pino's Logger: Nest's signature (message, context), not pino's (object, message)
+    @Inject(Logger) private readonly logger: LoggerService,
     private readonly configService: ConfigService,
     private readonly reportServerError?: ServerErrorReporter
   ) {
@@ -104,32 +106,26 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Get request ID for correlation
     const requestId = request.id ? String(request.id) : 'unknown'
 
-    const safeBody = this.sanitizePayload(request.body)
-    const safeQuery = this.sanitizePayload(request.query, false)
-    const safeParams = this.sanitizePayload(request.params, false)
-
-    // The path only: the query string can carry tokens (it is logged redacted as `query`)
+    // The path only: the query string can carry tokens
     const path = pathOf(request.originalUrl ?? request.url)
-    const logPayload = {
-      requestId,
-      userId: request.user?.id,
-      method: request.method,
-      url: path,
-      statusCode: status,
-      errorMessage,
-      stack: errorStack,
-      body: safeBody,
-      query: safeQuery,
-      params: safeParams
-    }
-    const logMessage = `${request.method} ${path} failed with ${status}`
-    if (isServerError) {
-      this.logger.error(logPayload, logMessage)
-      this.report(exception, request, status)
-    } else {
-      // Client errors are expected traffic (bad input, expired tokens); keep them out of error alerts
-      this.logger.warn(logPayload, logMessage)
-    }
+
+    // Logged once, on the request's own log line when the response finishes (see
+    // core/logging/http-log.ts): the code, the real message, what the client sent for
+    // server errors and validation failures, and a server error itself (stack, causes)
+    const code = this.errorCode(status, exceptionResponse)
+    setResponseError(
+      response,
+      {
+        code,
+        message: Array.isArray(errorMessage) ? errorMessage.join('; ') : String(errorMessage),
+        request:
+          isServerError || code === ErrorCode.VALIDATION_FAILED
+            ? this.requestPreview(request)
+            : undefined
+      },
+      isServerError ? asError(exception) : undefined
+    )
+    if (isServerError) this.report(exception, request, status)
 
     // Build error response
     const errorResponse: ErrorResponseBody = {
@@ -191,8 +187,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
       this.reportServerError(exception, request, status)
     } catch (error) {
       // Reporting must never replace the original error response
-      this.logger.warn({ error: (error as Error).message }, 'Server error reporter failed')
+      this.logger.warn(`Server error reporter failed: ${(error as Error).message}`)
     }
+  }
+
+  /** The sanitized body, query and params, or undefined when all are empty */
+  private requestPreview(request: Request): Record<string, unknown> | undefined {
+    const preview = {
+      body: this.sanitizePayload(request.body),
+      query: this.sanitizePayload(request.query, false),
+      params: this.sanitizePayload(request.params, false)
+    }
+    const present = Object.entries(preview).filter(([, value]) => value !== undefined)
+    return present.length > 0 ? Object.fromEntries(present) : undefined
   }
 
   private sanitizePayload(payload: unknown, enforceAllowList = true) {
@@ -258,4 +265,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     return messages[status] || 'An error occurred'
   }
+}
+
+/** A thrown value as an Error, so the log can serialize it (anything can be thrown) */
+function asError(exception: unknown): Error {
+  return exception instanceof Error ? exception : new Error(String(exception))
 }

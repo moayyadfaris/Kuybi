@@ -4,6 +4,8 @@ declare global {
     interface Request {
       id?: string
       requestId?: string
+      /** Epoch ms the request arrived (RequestIdMiddleware); the request log's duration */
+      receivedAt?: number
       /** Session of the request's access token (`sid` claim); set by JwtStrategy */
       sessionId?: string
     }

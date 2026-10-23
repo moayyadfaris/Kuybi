@@ -4,6 +4,7 @@ import {
   ConflictException,
   HttpException,
   InternalServerErrorException,
+  LoggerService,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException
@@ -11,10 +12,9 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { ErrorCode } from '@shared/errors'
 import { HttpExceptionFilter } from '@shared/filters/http-exception.filter'
-import { PinoLogger } from 'nestjs-pino'
 
 describe('HttpExceptionFilter', () => {
-  const logger = { error: jest.fn(), warn: jest.fn() }
+  const logger = { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
   const config = (values: Record<string, unknown>) =>
     ({
       get: (key: string, fallback?: unknown) => (key in values ? values[key] : fallback)
@@ -28,9 +28,10 @@ describe('HttpExceptionFilter', () => {
   ) => {
     const json = jest.fn()
     const status = jest.fn().mockReturnValue({ json })
+    const response = { status, locals: {} as Record<string, unknown>, err: undefined as unknown }
     const host = {
       switchToHttp: () => ({
-        getResponse: () => ({ status }),
+        getResponse: () => response,
         getRequest: () => ({
           id: 'req-1',
           method: 'GET',
@@ -41,11 +42,16 @@ describe('HttpExceptionFilter', () => {
         })
       })
     } as unknown as ArgumentsHost
-    new HttpExceptionFilter(logger as unknown as PinoLogger, config(values), reporter).catch(
+    new HttpExceptionFilter(logger as unknown as LoggerService, config(values), reporter).catch(
       exception,
       host
     )
-    return { status: status.mock.calls[0][0], body: json.mock.calls[0][0] }
+    return {
+      status: status.mock.calls[0][0],
+      body: json.mock.calls[0][0],
+      logged: response.locals.error as Record<string, unknown>,
+      loggedError: response.err
+    }
   }
 
   beforeEach(() => jest.clearAllMocks())
@@ -80,16 +86,15 @@ describe('HttpExceptionFilter', () => {
     })
 
     it('keeps query secrets out of the logs and the response path', () => {
-      const { body } = run(
-        new BadRequestException('nope'),
+      const { body, logged } = run(
+        new BadRequestException(['page must be a number']),
         {},
         undefined,
         '/api/v1/x?token=SECRET&page=2'
       )
 
-      const logged = JSON.stringify(logger.warn.mock.calls)
-      expect(logged).not.toContain('SECRET')
-      expect(logged).toContain('page')
+      expect(JSON.stringify(logged)).not.toContain('SECRET')
+      expect(JSON.stringify(logged)).toContain('page')
       expect(body.path).toBe('/api/v1/x')
     })
 
@@ -99,10 +104,15 @@ describe('HttpExceptionFilter', () => {
 
       expect(status).toBe(500)
       expect(body.error).toEqual({ code: 'INTERNAL_ERROR', message: 'Internal Server Error' })
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ errorMessage: boom.message, stack: boom.stack }),
-        expect.any(String)
-      )
+    })
+
+    it('records the real message and the error itself for the request log line', () => {
+      const { logged, loggedError } = run(boom)
+
+      expect(logged).toMatchObject({ code: 'INTERNAL_ERROR', message: boom.message })
+      expect(loggedError).toBe(boom)
+      // The filter writes no line of its own: one line per request
+      expect(logger.error).not.toHaveBeenCalled()
     })
 
     it('shows the message and stack when details are exposed (development/test)', () => {
@@ -159,12 +169,12 @@ describe('HttpExceptionFilter', () => {
       expect(body.error).toMatchObject({ message: 'Field validation failed', errors })
     })
 
-    it('is logged as a warning and not reported', () => {
+    it('is recorded without its stack, and not reported', () => {
       const reporter = jest.fn()
-      run(new NotFoundException('Story 9 not found'), {}, reporter)
+      const { logged, loggedError } = run(new NotFoundException('Story 9 not found'), {}, reporter)
 
-      expect(logger.warn).toHaveBeenCalled()
-      expect(logger.error).not.toHaveBeenCalled()
+      expect(logged).toEqual({ code: 'NOT_FOUND', message: 'Story 9 not found' })
+      expect(loggedError).toBeUndefined()
       expect(reporter).not.toHaveBeenCalled()
     })
   })
